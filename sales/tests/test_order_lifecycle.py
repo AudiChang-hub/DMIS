@@ -147,6 +147,42 @@ class OrderLifecycleTests(TestCase):
         )
         self.assertFalse(record.damage_found)
 
+    def test_delivery_form_confirms_prep_without_separate_save(self):
+        # 交車前確認併入交付核對（2026-10-14）：沒先存「交車前確認」也能直接交車，送出時補記確認。
+        order, _vehicle = self.make_order(dealer=True)
+        OrderOperationsProfile.objects.filter(order=order).update(
+            fulfillment_confirmed_at=None, fulfillment_confirmed_by="",
+        )
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertIn("請先在「交車前確認」勾選「贈品與履約已確認」。", order.delivery_blockers())
+        self.assertNotIn("請先在「交車前確認」勾選「贈品與履約已確認」。", order.delivery_blockers(include_prep=False))
+        form = DeliveryCompletionForm(order, self.delivery_payload())
+        self.assertNotIn("vehicle_control_checked", form.fields)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save("交車人員")
+        profile = OrderOperationsProfile.objects.get(order=order)
+        self.assertIsNotNone(profile.fulfillment_confirmed_at)
+        self.assertEqual(profile.fulfillment_confirmed_by, "交車人員")
+
+    def test_electric_delivery_requires_vehicle_control_check(self):
+        order, vehicle = self.make_order(dealer=True)
+        # 共用夾具以引擎號碼建油車；配車後改成電動車（電動車只用車身號碼），只測交車核對。
+        VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
+        VehicleInventory.objects.filter(pk=vehicle.pk).update(engine_number=None, frame_number=f"FRM-{vehicle.pk}")
+        OrderOperationsProfile.objects.filter(order=order).update(
+            vehicle_control_confirmed_at=None, vehicle_control_confirmed_by="",
+        )
+        order = SalesOrder.objects.get(pk=order.pk)
+        form = DeliveryCompletionForm(order, self.delivery_payload())
+        self.assertFalse(form.is_valid())
+        self.assertIn("vehicle_control_checked", form.errors)
+        names = list(form.fields)
+        self.assertEqual(names.index("vehicle_control_checked"), names.index("accessories_checked") + 1)
+        form = DeliveryCompletionForm(order, {**self.delivery_payload(), "vehicle_control_checked": "on"})
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save("交車人員")
+        self.assertIsNotNone(OrderOperationsProfile.objects.get(order=order).vehicle_control_confirmed_at)
+
     def test_recipient_phone_is_optional(self):
         # 開單電話已選填（1.75.2），交車時收車人電話也不再卡住（2026-10-14）。
         order, _vehicle = self.make_order(dealer=True)

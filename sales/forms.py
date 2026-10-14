@@ -3964,6 +3964,7 @@ class AllocationForm(forms.Form):
         help_text="本單不是排在最前面，或未選同級中最早出廠的車輛時必填；仍有優先配車車輛卻選其他車時建議填寫。",
     )
     CHECK_QUEUE = True
+    PRESELECT = True
 
     def __init__(self, order, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4000,6 +4001,12 @@ class AllocationForm(forms.Form):
         queue = allocation_queue(order) if self.CHECK_QUEUE else []
         self.queue_size = len(queue)
         self.queue_position = queue.index(order.pk) + 1 if order.pk in queue else None
+        # 預選排第一的建議車輛（優先配車、最早出廠），多數情況直接按確認即可（使用者 2026-10-14）。
+        self.suggested_vehicle = None
+        if self.PRESELECT and not self.is_bound:
+            self.suggested_vehicle = self.fields["vehicle"].queryset.first()
+            if self.suggested_vehicle:
+                self.initial["vehicle"] = self.suggested_vehicle.pk
 
     def clean(self):
         cleaned = super().clean()
@@ -4027,8 +4034,9 @@ class AllocationForm(forms.Form):
 
 
 class ReallocationForm(AllocationForm):
-    # 改配已有原因欄位，不另要求排隊說明。
+    # 改配已有原因欄位，不另要求排隊說明；改配是刻意換車，不預選。
     CHECK_QUEUE = False
+    PRESELECT = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4210,7 +4218,7 @@ class DeliveryCompletionForm(forms.Form):
     condition_checked = forms.BooleanField(label="已核對車況")
     documents_checked = forms.BooleanField(label="已核對交付文件")
     keys_checked = forms.BooleanField(label="已核對鑰匙")
-    accessories_checked = forms.BooleanField(label="已核對配件與贈品")
+    accessories_checked = forms.BooleanField(label="已核對配件、贈品與履約")
     handover_photo = forms.ImageField(label="交付照片", required=False)
 
     def __init__(self, order, *args, **kwargs):
@@ -4243,6 +4251,18 @@ class DeliveryCompletionForm(forms.Form):
             "class"
         ] = "delivery-condition-options"
         self.fields["recipient_phone"].widget.attrs["inputmode"] = "tel"
+        # 交車前確認併入交付核對（2026-10-14）：電動車多一項車控與電池合約，排在其他核對項目後面。
+        if order.is_electric_vehicle:
+            profile = getattr(order, "operations", None)
+            control = forms.BooleanField(
+                label="已確認車控與電池合約",
+                initial=bool(profile and profile.vehicle_control_confirmed_at),
+                widget=forms.CheckboxInput(attrs={"class": "form-check"}),
+            )
+            fields = list(self.fields.items())
+            index = next(i for i, (name, _field) in enumerate(fields) if name == "accessories_checked") + 1
+            fields.insert(index, ("vehicle_control_checked", control))
+            self.fields = dict(fields)
 
     def clean(self):
         data = super().clean()
@@ -4277,11 +4297,31 @@ class DeliveryCompletionForm(forms.Form):
     def clean_handover_photo(self):
         return validate_image_upload(self.cleaned_data.get("handover_photo"))
 
+    def _confirm_delivery_prep(self, order, actor_name):
+        """交付核對已勾配件、贈品與履約（電動車另勾車控與電池合約），補記交車前確認；已確認的保留原紀錄。"""
+        from sales.models import OrderOperationsProfile
+
+        profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
+        now = timezone.now()
+        changed = []
+        checks = [("fulfillment", self.cleaned_data.get("accessories_checked"))]
+        if order.is_electric_vehicle:
+            checks.append(("vehicle_control", self.cleaned_data.get("vehicle_control_checked")))
+        for prefix, checked in checks:
+            if checked and not getattr(profile, f"{prefix}_confirmed_at"):
+                setattr(profile, f"{prefix}_confirmed_at", now)
+                setattr(profile, f"{prefix}_confirmed_by", actor_name)
+                changed += [f"{prefix}_confirmed_at", f"{prefix}_confirmed_by"]
+        if changed:
+            profile.save(update_fields=[*changed, "updated_at"])
+        order._state.fields_cache.pop("operations", None)
+
     @transaction.atomic
     def save(self, actor_name):
         from sales.services.payment_summary import payment_summary
 
         order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
+        self._confirm_delivery_prep(order, actor_name)
         # 合作車行可先交車；未收清部分記為掛帳並受車行額度控管。
         on_account = (
             payment_summary(order)["customer_due"]

@@ -5003,6 +5003,8 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
             description=f"下單時填寫總價優惠並直接生效：{intake_discount_detail(order, form)}；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。",
             actor_name=request.user.get_username(),
         )
+    if form.cleaned_data.get("deposit_received"):
+        _confirm_intake_deposit(request, order)
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
@@ -5015,6 +5017,28 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     if reception:
         return redirect("order_submitted", pk=order.pk), form, formset, fee_formset
     return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1"), form, formset, fee_formset
+
+
+def _confirm_intake_deposit(request, order):
+    """開單勾「已收到這筆訂金」：沿用訂金登記表單的檢查，直接登記實收並確認入帳。"""
+    sync_order_operations(order.pk)
+    payment = PaymentRecord.objects.select_for_update().get(order=order, system_key="deposit")
+    if payment.confirmed:
+        return
+    form = DeliveryPaymentForm({
+        "deposit-received_amount": str(order.deposit_amount),
+        "deposit-received_on": order.deposit_date.isoformat(),
+        "deposit-payment_method": order.get_deposit_method_display(),
+        "deposit-confirmed": "on",
+    }, instance=payment, prefix="deposit")
+    if not form.is_valid():
+        messages.warning(request, "訂金未能直接入帳，請到訂單的訂金步驟確認：" + _form_error_text(form))
+        return
+    payment = form.save(_editing_name(request.user))
+    OrderEvent.objects.create(
+        order=order, event_type="deposit_payment_updated", actor_name=_editing_name(request.user),
+        description=f"建立訂單時登記訂金實收 ${payment.received_amount:,.0f}／已確認",
+    )
 
 
 def _initial_intake_forms(request, draft, reception):
@@ -5523,7 +5547,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         and balance_payment is not None and not balance_payment.confirmed
         and detail_summary["delivery_due"] > 0 and can_edit_finance(request.user)
     )
-    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary, ignore_balance=collect_balance)
+    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary, ignore_balance=collect_balance, include_prep=False)
     deposit_payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
     deposit_payment_form = None
     if deposit_payment is not None and not deposit_payment.confirmed and can_edit_finance(request.user):
@@ -5578,6 +5602,10 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
             ),
             "registration_missing": registration_missing,
+            # 必備文件都已上傳時，儲存領牌資料會直接完成領牌，按鈕改名並先確認。
+            "registration_docs_ready": not [
+                item for item in registration_missing if item not in {"完成配車", "實際領牌日期", "車牌號碼"}
+            ],
             "subsidy_document_rows": subsidy_document_rows,
             "other_subsidy_documents": order.subsidy_documents.filter(
                 document_type=SubsidyDocument.DocumentType.OTHER
@@ -6783,6 +6811,9 @@ def registration_save(request, pk):
                 "領牌資料已保存，但目前找不到適用的車輛結算成本規則；"
                 "請先至車型資料的成本規則補建，否則無法完成領牌。",
             )
+        finished = _auto_finish_registration(request, order)
+        if finished:
+            messages.success(request, finished)
     else:
         messages.error(
             request,
@@ -6868,10 +6899,14 @@ def registration_document_upload(request, pk):
         description=f"已上傳領牌文件：{document.display_name}",
         actor_name=_editing_name(request.user),
     )
+    finished = _auto_finish_registration(request, order)
+    if finished:
+        # 非同步上傳完成後頁面會重新整理，用訊息框告知已自動完成領牌。
+        messages.success(request, finished)
     return _document_upload_response(
         request,
         order_pk=pk,
-        tab="registration",
+        tab="delivery" if finished else "registration",
         ok=True,
         message=f"{document.display_name}已上傳。",
     )
@@ -6912,6 +6947,34 @@ def registration_document_delete(request, pk, document_pk):
     return redirect("order_detail", pk=pk)
 
 
+def _finish_registration(request, order):
+    """完成領牌並鎖定成本、獎勵與傭金；回傳 (成功, 訊息)。手動按鈕與資料齊全時自動完成共用。"""
+    if not resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
+        return False, "找不到符合機種及領牌日期的車輛結算成本規則，請先至車型資料補建後再完成領牌。"
+    try:
+        order.complete_registration(_editing_name(request.user))
+    except ValidationError as exc:
+        return False, " ".join(exc.messages)
+    apply_order_settlement_cost(order, _editing_name(request.user), lock=True)
+    apply_order_incentive_rule(order, _editing_name(request.user), lock=True)
+    apply_order_dealer_commission(order, lock=True)
+    OrderEvent.objects.create(
+        order=order,
+        event_type="registration_completed",
+        description=f"領牌完成：{order.registration_date}／{order.final_plate_number}",
+        actor_name=_editing_name(request.user),
+    )
+    return True, "領牌階段已完成，訂單進入待交付。"
+
+
+def _auto_finish_registration(request, order):
+    """領牌資料與必備文件都齊了就直接完成領牌（使用者 2026-10-14），省去再按「確認領牌完成」。"""
+    if order.is_registration_complete or order.missing_registration_requirements():
+        return ""
+    ok, _message = _finish_registration(request, order)
+    return f"資料與文件已齊全，已自動完成領牌（{order.final_plate_number}／{order.registration_date:%Y/%m/%d}）。" if ok else ""
+
+
 @login_required
 @transaction.atomic
 def registration_complete(request, pk):
@@ -6921,43 +6984,8 @@ def registration_complete(request, pk):
     if order.is_registration_complete:
         messages.info(request, "此訂單已完成領牌。")
         return redirect("order_detail", pk=pk)
-    rule = resolve_settlement_cost(
-        order.vehicle_model_id,
-        order.registration_date,
-    )
-    if not rule:
-        messages.error(
-            request,
-            "找不到符合機種及領牌日期的車輛結算成本規則，"
-            "請先至車型資料補建後再完成領牌。",
-        )
-        return redirect("order_detail", pk=pk)
-    try:
-        order.complete_registration(_editing_name(request.user))
-    except ValidationError as exc:
-        messages.error(request, " ".join(exc.messages))
-    else:
-        apply_order_settlement_cost(
-            order,
-            _editing_name(request.user),
-            lock=True,
-        )
-        apply_order_incentive_rule(
-            order,
-            _editing_name(request.user),
-            lock=True,
-        )
-        apply_order_dealer_commission(order, lock=True)
-        OrderEvent.objects.create(
-            order=order,
-            event_type="registration_completed",
-            description=(
-                f"領牌完成：{order.registration_date}／"
-                f"{order.final_plate_number}"
-            ),
-            actor_name=_editing_name(request.user),
-        )
-        messages.success(request, "領牌階段已完成，訂單進入待交付。")
+    ok, message = _finish_registration(request, order)
+    (messages.success if ok else messages.error)(request, message)
     return redirect("order_detail", pk=pk)
 
 

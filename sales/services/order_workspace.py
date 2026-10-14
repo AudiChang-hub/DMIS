@@ -184,7 +184,7 @@ def saved(request, order, *, form=None, formsets=()):
         from sales.forms import PaymentRecordForm
         for payment in order.payment_records.filter(entry_type='receipt'):
             payment_values[str(payment.pk)] = field_values(PaymentRecordForm(instance=payment))
-    delivery_blockers = [] if order.is_delivered else order.delivery_blockers()
+    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(include_prep=False)
     locked_payments = [str(pk) for pk in order.payment_records.filter(entry_type='receipt', confirmed=True).values_list('pk', flat=True)] if profile else []
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,

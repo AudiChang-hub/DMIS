@@ -38,7 +38,13 @@ from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
-from .services.order_attachments import collect_order_file_groups, write_order_files_zip
+from .services.order_attachments import (
+    classify_route,
+    collect_order_file_groups,
+    document_slots,
+    group_slots,
+    write_order_files_zip,
+)
 from .services.document_signing import (
     DOCUMENTS as SIGNING_DOCUMENTS,
     PRINT_PARTS,
@@ -599,6 +605,9 @@ def _document_upload_response(
     section="",
 ):
     """同時支援一般表單與可顯示上傳進度的非同步表單。"""
+    if request.POST.get("return_tab") == "attachments":
+        # 從附件分頁的「該上傳的文件」送出時，處理完回到附件分頁。
+        tab, section = "attachments", "required-documents"
     target_url = order_step_url(order_pk, tab, section)
     accepts_json = (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -5510,6 +5519,17 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             or document_type in subsidy_documents
         )
     ]
+    slot_groups = group_slots(document_slots(
+        order, request, registration_document_rows, subsidy_document_rows,
+    ))
+    other_attachments = list(order.other_attachments.all())
+    for attachment in other_attachments:
+        # 「歸類到…」只列目前開放、且這個檔案格式能放的文件格。
+        attachment.classify_groups = [
+            (group["title"], options)
+            for group in slot_groups
+            if (options := [slot for slot in group["slots"] if slot.open and slot.accepts(attachment.name)])
+        ]
     operations_profile = getattr(order, "operations", None)
     # 與「確認領牌完成」同一判斷：人工輸入的成本不會連結規則，不能因此誤報找不到規則。
     vehicle_cost_is_manual = bool(operations_profile) and (
@@ -5596,7 +5616,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "registration_form": RegistrationStageForm(instance=order),
             "registration_document_rows": registration_document_rows,
             "order_file_groups": collect_order_file_groups(order, request),
-            "other_attachments": order.other_attachments.all(),
+            "document_slot_groups": slot_groups,
+            "other_attachments": other_attachments,
             "order_attachment_limit": OrderAttachment.MAX_PER_ORDER,
             "other_insurance_documents": order.registration_documents.filter(
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
@@ -7565,6 +7586,82 @@ def order_attachments_zip(request, pk):
     return _protect_private_response(
         FileResponse(stream, as_attachment=True, filename=f"{order.number}_附件.zip", content_type="application/zip")
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def order_attachment_classify(request, pk, attachment_pk):
+    """把其他附件歸類到某一步驟的文件格：交給該步驟原本的上傳處理，成功後才移除這筆其他附件。"""
+    import copy
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from django.http import QueryDict
+    from django.utils.datastructures import MultiValueDict
+
+    from .access.services import policy_for
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    attachment = get_object_or_404(OrderAttachment, pk=attachment_pk, order=order)
+    back = order_step_url(pk, "attachments", "other-attachments")
+    target = (request.POST.get("target") or "").strip()
+    resolved = classify_route(target)
+    if not resolved:
+        messages.error(request, "請選擇要歸類到哪一項文件。")
+        return redirect(back)
+    route, field_name, document_type, slot_label = resolved
+    if not policy_for(request).route(route, kwargs={"pk": pk}):
+        raise PermissionDenied
+    try:
+        with attachment.file.storage.open(attachment.file.name, "rb") as source:
+            content = source.read()
+    except (FileNotFoundError, OSError):
+        messages.error(request, f"找不到「{attachment.name}」的檔案，無法歸類。")
+        return redirect(back)
+    # 宣告類型交給內容檢查判斷：作業系統對副檔名的對應不一（例如 Windows 把 .csv 當 Excel）。
+    content_type = "application/octet-stream"
+
+    # 以同一位使用者重送到原步驟的上傳處理，取得 JSON 結果；不另寫一套驗證。
+    inner = copy.copy(request)
+    inner.__dict__.pop("headers", None)
+    inner.META = {
+        **request.META,
+        "HTTP_ACCEPT": "application/json",
+        "HTTP_X_REQUESTED_WITH": "XMLHttpRequest",
+    }
+    inner.method = "POST"
+    post = QueryDict(mutable=True)
+    if document_type:
+        post["document_type"] = document_type
+    post["name"] = ""
+    inner._post = post
+    inner._files = MultiValueDict(
+        {field_name: [SimpleUploadedFile(attachment.name, content, content_type=content_type)]}
+    )
+    handler = {
+        "contract_upload": contract_upload,
+        "privacy_consent_upload": privacy_consent_upload,
+        "registration_document_upload": registration_document_upload,
+        "subsidy_document_upload": subsidy_document_upload,
+    }[route]
+    response = handler(inner, pk)
+    try:
+        payload = json.loads(response.content)
+    except (AttributeError, ValueError):
+        payload = {}
+    if not payload.get("ok"):
+        messages.error(request, f"「{attachment.name}」無法歸類：" + (payload.get("message") or "請到原步驟確認後再試。"))
+        return redirect(back)
+    name = attachment.name
+    attachment.delete()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="order_attachment_classified",
+        description=f"已將其他附件「{name}」歸類為 {slot_label}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"「{name}」已歸類為 {slot_label}。")
+    return redirect(order_step_url(pk, "attachments", "required-documents"))
 
 
 @login_required

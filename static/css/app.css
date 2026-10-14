@@ -6640,6 +6640,23 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .order-files__zip{flex:none;display:inline-flex;align-items:center;gap:var(--space-2)}
 .order-files__zip svg{width:1.1em;height:1.1em}
 .order-files__zip.is-preparing{pointer-events:none;opacity:.75}
+.slot-group h3{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.slot-group__missing,.slot-group__ok{padding:var(--space-1) var(--space-2);border-radius:var(--radius-pill);font-size:var(--text-xs);font-weight:700}
+.slot-group__missing{background:var(--red-soft);color:var(--red)}
+.slot-group__ok{background:var(--green-border);color:var(--green-ink)}
+.slot-group__note{margin:0 0 var(--space-2)}
+.slot-list{display:grid;border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;background:var(--surface)}
+.slot-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4)}
+.slot-row+.slot-row{border-top:1px solid var(--line-soft)}
+.slot-row__name{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);min-width:0}
+.slot-row__status{color:var(--muted);font-size:var(--text-sm);white-space:nowrap}
+.slot-row.is-done .slot-row__status{color:var(--green-ink);font-weight:700}
+.slot-row.is-missing .slot-row__status{color:var(--red);font-weight:700}
+.slot-row__actions{display:flex;align-items:center;justify-content:flex-end;gap:var(--space-2)}
+.slot-row .document-upload-progress{grid-column:1/-1}
+.order-file__classify{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-2)}
+.order-file__classify select{min-width:0}
+@media(max-width:760px){.slot-row{grid-template-columns:minmax(0,1fr) auto;padding:var(--space-3)}.slot-row__actions{grid-column:1/-1;justify-content:stretch}.slot-row__actions>*{flex:1}.slot-row__actions .file-button{width:100%;justify-content:center}}
 @media(max-width:760px){.order-files__toolbar{flex-direction:column;align-items:stretch}.order-files__zip{justify-content:center}}
 @media(max-width:760px){.order-files__upload{grid-template-columns:1fr}.order-files__upload .button{width:100%}}
 @media(prefers-reduced-motion:reduce){.order-files__drop,.order-file{transition:none}}

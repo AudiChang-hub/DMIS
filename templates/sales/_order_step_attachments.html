@@ -11,6 +11,50 @@
   </a>
 </div>
 {% endif_access %}{% endif %}
+{% if document_slot_groups %}
+<section class="section-block order-files" id="required-documents">
+  <div class="section-title order-files__title">
+    <div>
+      <p class="eyebrow">該上傳的文件</p>
+      <h2>各步驟的文件都可以在這裡上傳</h2>
+      <small>上傳後會放到對應步驟，規則與原步驟相同；已經丟在「其他附件」的檔案，可用「歸類到…」移過去。</small>
+    </div>
+  </div>
+  {% for group in document_slot_groups %}
+  <div class="order-files__group slot-group">
+    <h3>{{ group.title }}
+      {% if group.missing %}<span class="slot-group__missing">還缺 {{ group.missing }} 項必填</span>{% else %}<span class="slot-group__ok">必填已齊</span>{% endif %}
+    </h3>
+    {% if group.closed_note %}<p class="muted slot-group__note">{{ group.closed_note }}</p>{% endif %}
+    <div class="slot-list">
+      {% for slot in group.slots %}
+      <div class="slot-row{% if slot.done %} is-done{% elif slot.required %} is-missing{% endif %}" data-upload-row>
+        <div class="slot-row__name">
+          <strong>{{ slot.label }}</strong>
+          {% if slot.required %}<span class="required-badge">必填</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
+        </div>
+        <span class="slot-row__status">{% if slot.done %}<span aria-hidden="true">✓ </span>{% endif %}{{ slot.status }}</span>
+        <div class="slot-row__actions">
+          {% if slot.view_url %}<a class="button ghost compact" href="{{ slot.view_url }}" target="_blank" rel="noopener">查看</a>{% endif %}
+          {% if slot.open %}{% if_access slot.route order.pk %}
+          <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url slot.route order.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="return_tab" value="attachments">
+            {% if slot.document_type %}<input type="hidden" name="document_type" value="{{ slot.document_type }}">{% endif %}
+            <label class="button secondary compact file-button">
+              {% if slot.done %}替換{% else %}拍照／上傳{% endif %}
+              <input type="file" name="{{ slot.field_name }}" accept="{{ slot.accept }}" capture="environment" required>
+            </label>
+          </form>
+          {% endif_access %}{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
 <section class="section-block order-files" id="other-attachments">
   <div class="section-title order-files__title">
     <div>
@@ -56,6 +100,21 @@
       {% endif %}
       {% endif_access %}
       <small class="order-file__meta">{% if attachment.note %}{{ attachment.note }}<br>{% endif %}{{ attachment.uploaded_by|default:"內部人員" }} · {{ attachment.created_at|date:"Y/m/d H:i" }}</small>
+      {% if attachment.classify_groups %}{% if_access 'order_attachment_classify' order.pk attachment.pk %}
+      <form class="order-file__classify" method="post" action="{% url 'order_attachment_classify' order.pk attachment.pk %}" data-classify-form data-file-name="{{ attachment.name }}">
+        {% csrf_token %}
+        <label class="visually-hidden" for="classify-{{ attachment.pk }}">把「{{ attachment.name }}」歸類到</label>
+        <select id="classify-{{ attachment.pk }}" class="form-control" name="target" required>
+          <option value="">歸類到…</option>
+          {% for title, options in attachment.classify_groups %}
+          <optgroup label="{{ title }}">
+            {% for slot in options %}<option value="{{ slot.key }}"{% if slot.done %} data-replace="1"{% endif %}>{{ slot.label }}{% if slot.done %}（已有，將替換）{% endif %}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+        <button class="button secondary compact" type="submit">歸類</button>
+      </form>
+      {% endif_access %}{% endif %}
       {% if_access 'order_attachment_delete' order.pk attachment.pk %}
       <form method="post" action="{% url 'order_attachment_delete' order.pk attachment.pk %}" data-confirm="確定刪除「{{ attachment.name }}」嗎？刪除後無法復原。">
         {% csrf_token %}<button class="button danger-outline compact block" type="submit">刪除</button>

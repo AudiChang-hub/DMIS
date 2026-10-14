@@ -97,13 +97,29 @@ class CatalogSelectionTests(TestCase):
     def test_foreign_color_or_payment_tamper_requires_reconfirm(self):
         self.client.force_login(self.user)
         response = self.submit(catalog_selection=self.token(True), payment_type="cash")
-        self.assertIn("catalog_selection", response.context["form"].errors)
+        self.assertIn("payment_type", response.context["form"].errors)
         another = VehicleColor.objects.create(vehicle_model=self.model, name="另一色")
         response = self.submit(catalog_selection=self.token(), color=another.pk)
         self.assertIn("catalog_selection", response.context["form"].errors)
 
-    def test_authorized_pricing_can_change_payment_not_selected_color(self):
-        response = self.submit(catalog_selection=self.token(True), payment_type="cash",
+    def test_selected_payment_family_locks_cash_installment_swap(self):
+        # 使用者 2026-10-14：選車選現金，填單不可改成分期（反之亦然）；現金可改刷卡。有調價權限也一樣。
+        page = self.client.get(reverse("order_start"), {"selection": self.token()})
+        self.assertContains(page, 'data-catalog-payment="cash card"')
+        for token, payment in ((self.token(), "installment"), (self.token(True), "cash"), (self.token(True), "card")):
+            with self.subTest(payment=payment):
+                response = self.submit(catalog_selection=token, payment_type=payment, installment_company=self.company.name,
+                                       installment_periods=24, vehicle_price="76000", vehicle_price_adjustment_reason="改付款方式")
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("更換車款／付款方案", response.context["form"].errors["payment_type"][0])
+        self.assertFalse(SalesOrder.objects.exists())
+        self.client.force_login(self.user)
+        response = self.submit(catalog_selection=self.token(), payment_type="card")
+        self.assertEqual(response.status_code, 302, response.context and response.context["form"].errors)
+        self.assertEqual(SalesOrder.objects.get().payment_type, "card")
+
+    def test_authorized_pricing_can_change_payment_after_clearing_selection(self):
+        response = self.submit(catalog_selection="", payment_type="cash",
                                vehicle_price="76000", vehicle_price_adjustment_reason="改為現金議價")
         self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
         self.assertEqual(SalesOrder.objects.get().vehicle_price, 76000)

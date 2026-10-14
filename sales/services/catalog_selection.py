@@ -9,6 +9,13 @@ from sales.services.installment_plan import resolve_installment_plan_version
 
 SALT = "catalog-public-selection-v1"
 CHANGE_MESSAGE = "車色、售價或分期方案已變更／失效，請按「更換車款／付款方案」重新確認；已填資料會保留。"
+PAYMENT_CHANGE_MESSAGE = "選車時已選定付款方案；現金與分期互換請回第 1 步按「更換車款／付款方案」重新選擇。"
+# 選車只分現金／分期；刷卡沿用現金價，視為現金的收款方式。
+PAYMENT_FAMILIES = {"cash": ("cash", "card"), "installment": ("installment",)}
+
+
+def allowed_payment_types(data):
+    return PAYMENT_FAMILIES.get((data or {}).get("payment_type"), ())
 
 
 def selection_data(model, color, payment_type, option=None):

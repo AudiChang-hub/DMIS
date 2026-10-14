@@ -190,3 +190,157 @@ class OrderAttachmentTests(TestCase):
         self.assertRedirects(response, order_step_url(self.order.pk, "attachments"), fetch_redirect_response=False)
         page = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
         self.assertNotIn(reverse("order_attachments_zip", args=[self.order.pk]), page)
+
+
+class RequiredDocumentSlotTests(TestCase):
+    """附件分頁的「該上傳的文件」清單與「歸類到…」（使用者 2026-10-14 選 A＋B）。"""
+
+    make_order = lifecycle.OrderLifecycleTests.make_order
+    setUp = OrderAttachmentTests.setUp
+    upload = OrderAttachmentTests.upload
+
+    def tab(self):
+        page = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "attachments"}).content.decode()
+        return page.split('id="panel-attachments"', 1)[1].split('id="panel-history"', 1)[0]
+
+    def add_attachment(self, name, data):
+        self.upload(SimpleUploadedFile(name, data))
+        return self.order.other_attachments.get(name=name)
+
+    def classify(self, attachment, target):
+        return self.client.post(
+            reverse("order_attachment_classify", args=[self.order.pk, attachment.pk]), {"target": target},
+        )
+
+    def test_checklist_lists_every_step_slot_with_upload_back_to_tab(self):
+        panel = self.tab()
+
+        required = panel.split('id="required-documents"', 1)[1].split('id="other-attachments"', 1)[0]
+        for text in ("簽署文件", "訂購合約", "個資同意書", "領牌文件", "新行照照片", "新車領牌登記書", "選號單"):
+            self.assertIn(text, required)
+        self.assertIn(reverse("registration_document_upload", args=[self.order.pk]), required)
+        self.assertIn(reverse("contract_upload", args=[self.order.pk]), required)
+        self.assertIn('name="return_tab" value="attachments"', required)
+        self.assertIn("還缺", required)
+        # 未勾選補助時不列補助文件。
+        self.assertNotIn("補助文件", required)
+
+    def test_upload_from_checklist_returns_to_attachments_tab(self):
+        response = self.client.post(
+            reverse("registration_document_upload", args=[self.order.pk]),
+            {
+                "document_type": RegistrationDocument.DocumentType.NEW_LICENSE,
+                "return_tab": "attachments",
+                "file": SimpleUploadedFile("license.png", png_bytes(), content_type="image/png"),
+            },
+        )
+
+        self.assertRedirects(
+            response, order_step_url(self.order.pk, "attachments", "required-documents"),
+            fetch_redirect_response=False,
+        )
+        self.assertTrue(self.order.registration_documents.filter(document_type="new_license").exists())
+
+    def test_classify_moves_attachment_into_registration_slot(self):
+        attachment = self.add_attachment("行照.png", png_bytes())
+
+        response = self.classify(attachment, "registration:new_license")
+
+        self.assertRedirects(
+            response, order_step_url(self.order.pk, "attachments", "required-documents"),
+            fetch_redirect_response=False,
+        )
+        document = self.order.registration_documents.get(document_type="new_license")
+        self.assertEqual(document.file.read(), png_bytes())
+        document.file.close()
+        self.assertFalse(self.order.other_attachments.exists())
+        event = OrderEvent.objects.get(order=self.order, event_type="order_attachment_classified")
+        self.assertIn("行照.png", event.description)
+        self.assertIn("新行照照片", event.description)
+        self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="registration_document_uploaded").exists())
+
+    def test_classify_replaces_existing_slot_file(self):
+        RegistrationDocument.objects.create(
+            order=self.order, document_type="new_license",
+            file=SimpleUploadedFile("old.png", png_bytes(), content_type="image/png"),
+        )
+        attachment = self.add_attachment("新的.pdf", self.pdf_bytes())
+
+        self.classify(attachment, "registration:new_license")
+
+        document = self.order.registration_documents.get(document_type="new_license")
+        self.assertTrue(document.file.name.endswith(".pdf"))
+        self.assertEqual(self.order.registration_documents.filter(document_type="new_license").count(), 1)
+
+    def test_classify_to_contract_records_paper_signature(self):
+        attachment = self.add_attachment("合約.pdf", self.pdf_bytes())
+
+        self.classify(attachment, "contract")
+
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.has_signed_contract)
+        self.assertFalse(self.order.signed_contract_is_electronic)
+        self.assertFalse(self.order.other_attachments.exists())
+
+    def test_classify_failure_keeps_attachment_and_explains(self):
+        attachment = self.add_attachment("報價單.xlsx", b"PK\x03\x04 sheet")
+
+        response = self.classify(attachment, "registration:new_license")
+
+        self.assertRedirects(
+            response, order_step_url(self.order.pk, "attachments", "other-attachments"),
+            fetch_redirect_response=False,
+        )
+        self.assertTrue(self.order.other_attachments.filter(pk=attachment.pk).exists())
+        self.assertFalse(self.order.registration_documents.exists())
+        messages = [str(m) for m in response.wsgi_request._messages]
+        self.assertTrue(any("無法歸類" in m for m in messages), messages)
+
+    def test_classify_rejects_unknown_target(self):
+        attachment = self.add_attachment("a.png", png_bytes())
+
+        self.classify(attachment, "registration:not_a_type")
+
+        self.assertTrue(self.order.other_attachments.filter(pk=attachment.pk).exists())
+
+    def test_dropdown_only_offers_slots_that_accept_the_file(self):
+        self.add_attachment("照片.png", png_bytes())
+        self.add_attachment("報價單.xlsx", b"PK\x03\x04 sheet")
+
+        panel = self.tab()
+
+        image_card = panel.split("照片.png", 1)[1].split("報價單.xlsx", 1)[0]
+        self.assertIn('value="registration:new_license"', image_card)
+        self.assertIn('value="contract"', image_card)
+        sheet_card = panel.split("報價單.xlsx", 1)[1].split('id="all-order-files"', 1)[0]
+        # 領牌與簽署文件只收圖片／PDF；未開補助時 Excel 沒有可歸類的格，不顯示選單。
+        self.assertNotIn("data-classify-form", sheet_card)
+
+    def test_subsidy_slots_accept_non_image_files_when_subsidy_enabled(self):
+        from sales.models import SalesOrder
+        SalesOrder.objects.filter(pk=self.order.pk).update(is_trade_in_subsidy=True)
+        attachment = self.add_attachment("舊車行照.csv", "車牌,ABC-123\n".encode())
+
+        panel = self.tab()
+        self.assertIn("補助文件", panel.split('id="required-documents"', 1)[1].split('id="other-attachments"', 1)[0])
+        card = panel.split("舊車行照.csv", 1)[1].split('id="all-order-files"', 1)[0]
+        self.assertIn('value="subsidy:old_vehicle_registration"', card)
+        self.assertNotIn('value="registration:new_license"', card)
+
+        self.classify(attachment, "subsidy:old_vehicle_registration")
+
+        self.assertTrue(self.order.subsidy_documents.filter(document_type="old_vehicle_registration").exists())
+        self.assertFalse(self.order.other_attachments.exists())
+
+    def test_dealer_cannot_reach_classify_route(self):
+        self.assertNotIn("order_attachment_classify", DEALER_ROUTES)
+
+    @staticmethod
+    def pdf_bytes():
+        from pypdf import PdfWriter
+
+        stream = BytesIO()
+        writer = PdfWriter()
+        writer.add_blank_page(width=200, height=200)
+        writer.write(stream)
+        return stream.getvalue()

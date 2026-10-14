@@ -4055,6 +4055,14 @@ class ReallocationForm(AllocationForm):
     )
 
 
+def recent_registration_county():
+    """最近一張填過領牌縣市的訂單所用縣市；都沒有時回傳空字串。"""
+    return (
+        SalesOrder.objects.exclude(registration_county="")
+        .order_by("-updated_at", "-pk").values_list("registration_county", flat=True).first() or ""
+    )
+
+
 class RegistrationStageForm(forms.ModelForm):
     class Meta:
         model = SalesOrder
@@ -4083,6 +4091,12 @@ class RegistrationStageForm(forms.ModelForm):
         )
         self.fields["registration_date"].widget.attrs["class"] = "form-control"
         self.fields["registration_county"].widget.attrs["class"] = "form-control"
+        if not self.is_bound:
+            # 預設今天與最近一次使用的縣市，多數情況不必再選（使用者 2026-10-14）。
+            if not self.instance.registration_date:
+                self.initial["registration_date"] = timezone.localdate()
+            if not self.instance.registration_county:
+                self.initial["registration_county"] = recent_registration_county()
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()

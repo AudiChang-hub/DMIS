@@ -5936,6 +5936,22 @@ def order_discount_request(request, pk):
     if not form.is_valid():
         messages.error(request, "折扣申請未送出：" + " ".join(error for errors in form.errors.values() for error in errors))
         return redirect("order_operations", pk=pk)
+    from sales.access.services import policy_for
+    from sales.services.order_intake import can_edit_finance
+    if can_edit_finance(request.user) and policy_for(request).route("order_discount_decide", "POST"):
+        # 有核定權限的人送出即生效，與金額收支頁、下單優惠一致；不再留下沒有畫面可核准、會擋交車的待確認申請。
+        from sales.services.order_discount import approve_discount_now
+        before = order.approved_discount_amount
+        approve_discount_now(order, amount=form.cleaned_data["amount"], reason=form.cleaned_data["reason"],
+                             actor_name=_editing_name(request.user), note="申請人具核定權限，送出即生效")
+        order.save()
+        sync_order_operations(order.pk, update_receivables=True)
+        OrderChange.objects.create(order=order, actor_name=_editing_name(request.user), reason=order.discount_reason,
+            changes={"approved_discount_amount": {"before": str(before), "after": str(order.approved_discount_amount)}})
+        OrderEvent.objects.create(order=order, actor_name=_editing_name(request.user), event_type="discount_decided",
+            description=f"直接核定折扣 {order.approved_discount_amount:,.0f} 元；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。")
+        messages.success(request, "折扣已套用並重算應收。")
+        return redirect("order_operations", pk=pk)
     order.discount_requested_amount = form.cleaned_data["amount"]
     order.discount_basis_total = order.pre_discount_total
     discount_detail = (f"總價 {order.pre_discount_total:,.0f} 元 × {form.cleaned_data['rate']} 折；" if form.cleaned_data.get("mode") == "rate" else f"總價 {order.pre_discount_total:,.0f} 元減少 {form.cleaned_data['amount']:,.0f} 元；")
@@ -6781,6 +6797,25 @@ def reallocate_vehicle(request, pk):
     return redirect(detail_url)
 
 
+def _save_registration_form(request, form):
+    """儲存已驗證的領牌資料並依領牌日帶入成本、獎勵與傭金；回傳 [(訊息等級, 文字)]。"""
+    order = form.save()
+    cost_profile = apply_order_settlement_cost(order, _editing_name(request.user))
+    apply_order_incentive_rule(order, _editing_name(request.user))
+    apply_order_dealer_commission(order)
+    OrderEvent.objects.create(
+        order=order,
+        event_type="registration_data_updated",
+        description=f"已更新領牌資料：{order.registration_date}／{order.registration_county}／{order.final_plate_number}",
+        actor_name=_editing_name(request.user),
+    )
+    if cost_profile.vehicle_cost_rule_id:
+        return [("success", f"領牌資料已保存，已依領牌日期帶入代銷結算成本 ${cost_profile.vehicle_cost:,.0f}。")]
+    if resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
+        return [("success", f"領牌資料已保存；車輛成本為人工輸入的 ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。")]
+    return [("warning", "領牌資料已保存，但目前找不到適用的車輛結算成本規則；請先至車型資料的成本規則補建，否則無法完成領牌。")]
+
+
 @login_required
 @transaction.atomic
 def registration_save(request, pk):
@@ -6795,44 +6830,9 @@ def registration_save(request, pk):
         return redirect("order_detail", pk=pk)
     form = RegistrationStageForm(request.POST, instance=order)
     if form.is_valid():
-        order = form.save()
-        cost_profile = apply_order_settlement_cost(
-            order,
-            _editing_name(request.user),
-        )
-        apply_order_incentive_rule(
-            order,
-            _editing_name(request.user),
-        )
-        apply_order_dealer_commission(order)
-        OrderEvent.objects.create(
-            order=order,
-            event_type="registration_data_updated",
-            description=(
-                f"已更新領牌資料：{order.registration_date}／"
-                f"{order.registration_county}／{order.final_plate_number}"
-            ),
-            actor_name=_editing_name(request.user),
-        )
-        if cost_profile.vehicle_cost_rule_id:
-            messages.success(
-                request,
-                "領牌資料已保存，已依領牌日期帶入"
-                f"代銷結算成本 ${cost_profile.vehicle_cost:,.0f}。",
-            )
-        elif resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
-            messages.success(
-                request,
-                "領牌資料已保存；車輛成本為人工輸入的"
-                f" ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。",
-            )
-        else:
-            messages.warning(
-                request,
-                "領牌資料已保存，但目前找不到適用的車輛結算成本規則；"
-                "請先至車型資料的成本規則補建，否則無法完成領牌。",
-            )
-        finished = _auto_finish_registration(request, order)
+        for level, text in _save_registration_form(request, form):
+            getattr(messages, level)(request, text)
+        finished = _auto_finish_registration(request, form.instance)
         if finished:
             messages.success(request, finished)
     else:

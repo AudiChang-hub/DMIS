@@ -54,6 +54,7 @@ from sales.models import (
     VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
+from sales.forms import RegistrationStageForm
 from sales.services.secret_fields import decrypt_secret
 from sales.services.vehicle_model_family import correct_vehicle_model_year
 
@@ -3840,6 +3841,21 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(response, missing)
 
+    def test_registration_form_defaults_to_today_and_recent_county(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(registration_county="")
+        other = self.make_order()
+        SalesOrder.objects.filter(pk=other.pk).update(registration_county="桃園市")
+        order.refresh_from_db()
+        form = RegistrationStageForm(instance=order)
+        self.assertEqual(form.initial["registration_date"], timezone.localdate())
+        self.assertEqual(form.initial["registration_county"], "桃園市")
+        # 已填的值不被預設覆蓋。
+        SalesOrder.objects.filter(pk=order.pk).update(registration_county="新北市", registration_date=date(2026, 7, 29))
+        order.refresh_from_db()
+        form = RegistrationStageForm(instance=order)
+        self.assertEqual((form["registration_date"].value(), form["registration_county"].value()), (date(2026, 7, 29), "新北市"))
+
     def test_registration_save_completes_when_documents_already_uploaded(self):
         # 先傳文件、後填資料：儲存時資料齊全就直接完成領牌，按鈕改名並先確認（2026-10-14）。
         order = self.make_order()
@@ -5116,9 +5132,8 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(total, Decimal("12000"))
 
-    def test_internal_discount_requires_approval_before_changing_receivable(self):
-        original_balance = self.order.actual_balance
-
+    def test_internal_discount_with_decide_access_applies_immediately(self):
+        # 有核定權限者送出即生效（2026-10-14），不再留下沒有畫面可核准、會擋交車的待確認申請。
         request_response = self.client.post(
             reverse("order_discount_request", args=[self.order.pk]),
             {"amount": "500", "reason": "最終成交抹零"},
@@ -5126,21 +5141,12 @@ class OrderOperationsTests(TestCase):
         self.order.refresh_from_db()
 
         self.assertRedirects(request_response, reverse("order_operations", args=[self.order.pk]))
-        self.assertEqual(self.order.discount_status, SalesOrder.DiscountStatus.PENDING)
-        self.assertEqual(self.order.approved_discount_amount, Decimal("0"))
-        self.assertEqual(self.order.actual_balance, original_balance)
-
-        decision_response = self.client.post(
-            reverse("order_discount_decide", args=[self.order.pk]),
-            {"decision": "approve", "note": "主管確認"},
-        )
-        self.order.refresh_from_db()
-
-        self.assertRedirects(decision_response, reverse("order_operations", args=[self.order.pk]))
         self.assertEqual(self.order.discount_status, SalesOrder.DiscountStatus.APPROVED)
         self.assertEqual(self.order.approved_discount_amount, Decimal("500"))
         self.assertEqual(self.order.calculated_balance, Decimal("74500"))
         self.assertEqual(self.order.actual_balance, Decimal("74500"))
+        self.assertNotIn("折扣申請尚待確認，確認或退回後才能交車。", self.order.delivery_blockers())
+        self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="discount_decided").exists())
         contract = self.client.get(reverse("contract_print", args=[self.order.pk]))
         from pypdf import PdfReader
         pdf_bytes = b"".join(contract.streaming_content)

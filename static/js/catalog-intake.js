@@ -3,9 +3,9 @@
   const payment = document.getElementById('id_payment_type');
   const token = document.getElementById('id_catalog_selection');
   // 選車已定現金或分期：付款方式只留同一類（現金可改刷卡），互換要先按「更換車款／付款方案」。
-  const allowed = (payment?.dataset.catalogPayment || '').split(' ').filter(Boolean);
+  const allowed = (payment?.dataset?.catalogPayment || '').split(' ').filter(Boolean);
   const lockPayment = locked => {
-    for (const option of payment.options) {
+    for (const option of payment.options || []) {
       option.disabled = locked && !!option.value && !allowed.includes(option.value);
     }
   };

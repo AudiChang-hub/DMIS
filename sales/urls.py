@@ -12,6 +12,7 @@ from . import subsidy_program_views
 from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
+from . import form_print_views
 from . import site_copy_views
 from . import system_settings_views
 from .historical_replacement import historical_buyer_replacement
@@ -28,6 +29,8 @@ urlpatterns = [
     path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
     path("data/channels/<int:source_pk>/print-company/", print_company_views.company_settings, name="dealer_print_company"),
     path("orders/<int:pk>/print-company/", print_company_views.order_company, name="order_print_company"),
+    path("orders/forms-print/", form_print_views.form_print_page, name="form_print"),
+    path("orders/forms-print/pdf/", form_print_views.form_print_pdf, name="form_print_pdf"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),

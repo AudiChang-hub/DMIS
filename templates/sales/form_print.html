@@ -1,0 +1,150 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}套表列印｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'order_list' as orders_url %}{% include "sales/_page_back.html" with fallback_url=orders_url label="返回全部訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表，一次產生 PDF。換頁或重新搜尋都會保留已勾選的項目；同一種紙張的套表會排在一起，中途只要換一次紙。</p></div>
+  <div class="hero-actions"><a class="button ghost" href="#form-print-fields">欄位對照</a></div>
+</section>
+
+<div class="form-print" data-form-print>
+  <section class="section-block form-print__finder" aria-labelledby="form-print-orders">
+    <div class="section-title"><div><h2 id="form-print-orders">選訂單</h2><small>勾選每張訂單要印的套表；點左側方塊一次勾選建議的套表。</small></div><span>{{ page_obj.paginator.count }} 筆</span></div>
+
+    <form class="form-print__search" method="get" role="search">
+      <label class="form-print__query">搜尋
+        <input type="search" name="q" value="{{ query }}" placeholder="訂單編號、姓名、電話、車牌、引擎號碼…" enterkeyhint="search">
+      </label>
+      <label>範圍
+        <select name="tab" onchange="this.form.submit()">
+          {% for key, label in tab_choices %}<option value="{{ key }}"{% if key == tab %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <button class="button ghost" type="submit">搜尋</button>
+      {% if query %}<a class="button ghost" href="{% url 'form_print' %}">清除搜尋</a>{% endif %}
+    </form>
+
+    <div class="inventory-table-wrap" tabindex="0" aria-label="訂單與套表，可水平捲動">
+      <table class="inventory-table form-print__table">
+        <thead>
+          <tr>
+            <th class="form-print__pick-col"><span class="visually-hidden">整列勾選</span></th>
+            <th>訂單</th>
+            <th>車輛</th>
+            {% for form in forms %}
+            <th class="form-print__form-col">
+              <div class="form-print__form-head">
+                <span class="paper paper--{{ form.key }}" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span><strong>{{ form.label }}</strong><small>{{ form.paper }}</small></span>
+              </div>
+              <button class="button ghost small form-print__column" type="button" data-column="{{ form.key }}">本頁全選</button>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr data-order="{{ row.order.pk }}" data-number="{{ row.order.number }}" data-name="{{ row.values.owner_name }}"
+              data-vehicle="{{ row.values.model_number }}{% if row.values.color %}・{{ row.values.color }}{% endif %}"
+              data-note="{{ row.receipt_note }}" data-address="{{ row.values.delivery_address }}">
+            <td class="form-print__pick-col" data-label="勾選">
+              <label class="form-print__row-pick"><input type="checkbox" data-row-pick aria-label="勾選 {{ row.order.number }} 建議的套表"><span aria-hidden="true"></span></label>
+            </td>
+            <td data-label="訂單">
+              <div class="form-print__order">
+                <strong>{{ row.values.owner_name|default:"（未填車主）" }}</strong>
+                <small><a href="{% url 'order_detail' row.order.pk %}" target="_blank" rel="noopener">{{ row.order.number }}</a>・{{ row.order.order_date|date:"Y/m/d" }}{% if row.values.dealer %}・{{ row.values.dealer }}{% endif %}</small>
+              </div>
+            </td>
+            <td data-label="車輛">
+              <div class="form-print__vehicle">
+                <span><span class="form-print__energy{% if row.electric %} is-electric{% endif %}">{% if row.electric %}電{% else %}油{% endif %}</span>{{ row.values.model_number }}{% if row.values.color %}・{{ row.values.color }}{% endif %}</span>
+                <small>{{ row.values.plate|default:"尚未領牌" }}{% if row.values.identifier %}・{{ row.values.identifier }}{% endif %}</small>
+              </div>
+            </td>
+            {% for item in row.forms %}
+            <td data-label="{{ item.spec.label }}">
+              <div class="form-print__cell">
+                <label class="form-print__toggle">
+                  <input type="checkbox" data-form="{{ item.spec.key }}" data-label="{{ item.label }}"{% if item.suggested %} data-suggested{% endif %}>
+                  <span>{{ item.label }}</span>
+                </label>
+                {% if item.warnings %}<small class="form-print__warn">缺：{{ item.warnings|join:"、" }}</small>{% endif %}
+              </div>
+            </td>
+            {% endfor %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="6"><div class="empty-state"><strong>{% if query %}找不到符合「{{ query }}」的訂單{% else %}這個範圍沒有訂單{% endif %}</strong><p>換個關鍵字，或把範圍改成「全部」。</p></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav class="site-pagination form-print__pages" aria-label="訂單分頁">
+      {% if page_obj.has_previous %}<a class="button ghost small" href="?q={{ query|urlencode }}&amp;tab={{ tab }}&amp;page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}
+      <strong class="site-pagination__status">第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</strong>
+      {% if page_obj.has_next %}<a class="button ghost small" href="?q={{ query|urlencode }}&amp;tab={{ tab }}&amp;page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}
+    </nav>
+    {% endif %}
+  </section>
+
+  <aside class="form-print__tray" id="form-print-tray" aria-labelledby="form-print-tray-title">
+    <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form>
+      {% csrf_token %}
+      <div class="form-print__tray-head">
+        <h2 id="form-print-tray-title">列印清單</h2>
+        <p class="form-print__total" aria-live="polite"><b data-total>0</b> 份</p>
+      </div>
+      <ul class="form-print__papers" data-papers>
+        {% for form in forms %}<li data-paper="{{ form.key }}"><span class="paper paper--{{ form.key }}" aria-hidden="true"><i></i><i></i><i></i></span><span>{{ form.label }}</span><b data-paper-count>0</b></li>{% endfor %}
+      </ul>
+      <div class="form-print__empty" data-empty>
+        <strong>還沒有勾選</strong>
+        <p>在左邊表格勾選要印的套表。簽收單的備註與交車住址可以在這裡逐張修改。</p>
+      </div>
+      <ol class="form-print__list" data-list></ol>
+      <fieldset class="form-print__order-by">
+        <legend>排列方式</legend>
+        <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>信封一批、A4 一批，換紙最方便</small></span></label>
+        <label><input type="radio" name="group" value="order"><span><strong>依訂單</strong><small>同一張訂單的文件放在一起</small></span></label>
+      </fieldset>
+      <div class="form-actions form-print__actions">
+        <button class="button ghost" type="button" data-clear disabled>清空</button>
+        <button class="button primary" type="submit" data-submit disabled>產生 PDF</button>
+      </div>
+      <p class="form-print__hint">PDF 會在新分頁開啟，用瀏覽器列印即可。信封請在列印設定選擇信封紙張或自訂 21×17 公分，並關閉「縮放至紙張大小」。</p>
+    </form>
+  </aside>
+</div>
+
+<a class="form-print__dock" href="#form-print-tray" data-dock hidden>已勾選 <b data-dock-count>0</b> 份・前往列印</a>
+
+<details class="section-block form-print__fields" id="form-print-fields">
+  <summary><h2>欄位對照</h2><small>原 Word 合併欄位對應到系統的哪一個資料</small></summary>
+  <div class="inventory-table-wrap" tabindex="0" aria-label="欄位對照，可水平捲動">
+    <table class="inventory-table">
+      <thead><tr><th>Word 合併欄位</th><th>系統資料</th></tr></thead>
+      <tbody>{% for field, source in field_sources.items %}<tr><td data-label="Word 合併欄位">«{{ field }}»</td><td data-label="系統資料">{{ source }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</details>
+
+<template data-item-template>
+  <li class="form-print__item">
+    <div class="form-print__item-head">
+      <div><strong data-item-name></strong><small data-item-meta></small></div>
+      <button class="button ghost small" type="button" data-remove>移除</button>
+    </div>
+    <div class="form-print__chips" data-item-chips></div>
+    <div class="form-print__receipt" data-item-receipt hidden>
+      <label>簽收單備註<textarea class="form-control" rows="2" maxlength="300" data-item-note placeholder="例：■期望送達時間：週一、二全天可"></textarea></label>
+      <label>交車住址<input type="text" maxlength="120" data-item-address placeholder="沒有就留白，現場手寫"></label>
+    </div>
+  </li>
+</template>
+<script src="{% static 'js/form-print.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

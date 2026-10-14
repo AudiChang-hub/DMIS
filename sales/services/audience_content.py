@@ -4,6 +4,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.75.2", "改善"): [("order_start",)] * 2,
     ("1.75.1", "修正"): [("order_list", "internal")],
     ("1.75.0", "新增"): [("order_list", "internal")] * 2,
     ("1.74.6", "修正"): [("order_list", "internal")],

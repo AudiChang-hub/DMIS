@@ -166,8 +166,6 @@ class IntakeOrderForm(SalesOrderForm):
             data["old_owner_name"] = data.get("owner_name", "")
             data["old_owner_id_number"] = data.get("owner_id_number", "")
         model = data.get("vehicle_model")
-        if model and model.energy_type != "gas" and not data.get("owner_email"):
-            self.add_error("owner_email", "電動車需填寫車主 Email。")
         if not self.pricing_editable and model and data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
             version = resolve_installment_plan_version(model.pk, timezone.localdate())
             option = version.options.select_related("company").filter(periods=data.get("installment_periods"), company__name=data.get("installment_company"), company__active=True).first() if version else None

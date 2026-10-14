@@ -148,12 +148,11 @@ class CompletedOrderCorrectionTests(TestCase):
         self.assertEqual(payment.outstanding_amount, 10000)
         self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
 
-    def test_changed_identity_still_requires_documents(self):
+    def test_changed_identity_does_not_require_documents(self):
+        # 證件照片與人工核對為選填（2026-10-14），改車主不再被證件卡住。
         order = self.order()
-        response = self.post(order, owner_name="另一位車主")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("id_front", response.context["form"].errors)
-        self.assertIn("id_verified", response.context["form"].errors)
+        self.assert_saved(self.post(order, owner_name="另一位車主"), order)
+        self.assertEqual(order.owner_name, "另一位車主")
 
     def test_cancelled_and_stale_order_cannot_be_changed(self):
         cancelled = self.order(status=SalesOrder.Status.CANCELLED)

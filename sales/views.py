@@ -4908,13 +4908,6 @@ def _order_wizard_action(request):
     return action if action in {"next", "back", "submit"} else None
 
 
-def _draft_existing_documents(draft):
-    return {
-        "id_front": bool(draft and draft.id_front),
-        "id_back": bool(draft and draft.id_back),
-    }
-
-
 def _bound_intake_forms(request, post_data, files, draft, reception):
     from sales.access.services import policy_for
     from sales.intake_forms import IntakeOrderForm
@@ -4923,7 +4916,6 @@ def _bound_intake_forms(request, post_data, files, draft, reception):
         files,
         user=request.user,
         reception=reception,
-        existing_documents=_draft_existing_documents(draft),
     )
     if not form.finance_editable:
         post_data = post_data.copy()

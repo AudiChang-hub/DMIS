@@ -1,4 +1,16 @@
 {% load screen_access %}
+{% if other_attachments or order_file_groups %}{% if_access 'order_attachments_zip' order.pk %}
+<div class="order-files__toolbar">
+  <div>
+    <strong>一次下載這張訂單的所有檔案</strong>
+    <span>打包成一個 ZIP，依「其他附件」「領牌文件」等類別分資料夾。</span>
+  </div>
+  <a class="button secondary order-files__zip" href="{% url 'order_attachments_zip' order.pk %}" data-zip-download>
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 2.5v7.25M4.75 6.75 8 10l3.25-3.25M3 13.25h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span data-zip-label>全部下載（ZIP）</span>
+  </a>
+</div>
+{% endif_access %}{% endif %}
 <section class="section-block order-files" id="other-attachments">
   <div class="section-title order-files__title">
     <div>

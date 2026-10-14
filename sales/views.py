@@ -3,6 +3,7 @@ import calendar
 import json
 import logging
 import shutil
+import tempfile
 import uuid
 from functools import wraps
 from datetime import date, timedelta
@@ -37,7 +38,7 @@ from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
-from .services.order_attachments import collect_order_file_groups
+from .services.order_attachments import collect_order_file_groups, write_order_files_zip
 from .services.document_signing import (
     DOCUMENTS as SIGNING_DOCUMENTS,
     PRINT_PARTS,
@@ -7522,6 +7523,24 @@ def order_attachment_file(request, attachment_pk):
             FileResponse(stream, as_attachment=True, filename=attachment.name)
         )
     return _private_file_response(request, attachment.file, attachment.name)
+
+
+@login_required
+@require_http_methods(["GET"])
+def order_attachments_zip(request, pk):
+    """附件分頁的「全部下載」：把這張訂單所有可開啟的檔案打包成一個 ZIP。"""
+    from sales.services.order_intake import scoped_orders
+    order = get_object_or_404(scoped_orders(request.user), pk=pk)
+    # 先寫到磁碟暫存檔再傳送，避免大量附件占用記憶體；關閉回應時自動刪除。
+    stream = tempfile.TemporaryFile()
+    if not write_order_files_zip(order, request, stream):
+        stream.close()
+        messages.info(request, "這張訂單目前沒有可下載的檔案。")
+        return redirect(order_step_url(pk, "attachments"))
+    stream.seek(0)
+    return _protect_private_response(
+        FileResponse(stream, as_attachment=True, filename=f"{order.number}_附件.zip", content_type="application/zip")
+    )
 
 
 @login_required

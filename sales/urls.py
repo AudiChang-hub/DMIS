@@ -492,6 +492,11 @@ urlpatterns = [
         name="order_attachment_file",
     ),
     path(
+        "orders/<int:pk>/attachments/download/",
+        views.order_attachments_zip,
+        name="order_attachments_zip",
+    ),
+    path(
         "orders/<int:pk>/subsidy/toggle/",
         views.subsidy_toggle,
         name="subsidy_toggle",

@@ -210,6 +210,23 @@
     }, 250);
   }
 
+  // 全部下載：伺服器打包需要幾秒，期間顯示提示並避免重複點擊。
+  document.querySelectorAll("[data-zip-download]").forEach((link) => {
+    const label = link.querySelector("[data-zip-label]");
+    const initial = label ? label.textContent : "";
+    link.addEventListener("click", () => {
+      if (link.classList.contains("is-preparing")) return;
+      link.classList.add("is-preparing");
+      link.setAttribute("aria-busy", "true");
+      if (label) label.textContent = "正在打包，下載即將開始…";
+      window.setTimeout(() => {
+        link.classList.remove("is-preparing");
+        link.removeAttribute("aria-busy");
+        if (label) label.textContent = initial;
+      }, 8000);
+    });
+  });
+
   document.querySelectorAll("form[data-document-upload]").forEach((form) => {
     const input = form.querySelector('input[type="file"]');
     if (!input) return;

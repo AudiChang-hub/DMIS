@@ -5603,10 +5603,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "balance_ready_for_delivery": balance_ready_for_delivery,
             "delivery_blockers": delivery_blockers,
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
-            "installment_form": (
-                InstallmentDecisionForm(instance=order, auto_id="installment_%s")
-                if order.payment_type == SalesOrder.PaymentType.INSTALLMENT else None
-            ),
             "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,
             "exception_close_blockers": exception_close_blockers(order) if exception_close_ready else [],
             "cancellation_form": CancellationRequestForm(),

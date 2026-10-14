@@ -3873,8 +3873,6 @@ class SalesOrder(TimeStampedModel):
             blockers.append("一般訂單必須先完成領牌才能交付。")
         if self.discount_status == self.DiscountStatus.PENDING:
             blockers.append("折扣申請尚待確認，確認或退回後才能交車。")
-        if self.payment_type == self.PaymentType.INSTALLMENT and self.installment_status != self.InstallmentStatus.APPROVED:
-            blockers.append(f"分期目前為「{self.get_installment_status_display()}」，須核准後才能交車。")
         profile = getattr(self, "operations", None)
         if self.is_electric_vehicle and not (profile and profile.vehicle_control_confirmed_at):
             blockers.append("電動車須先在「交車前確認」勾選「車控與電池合約已確認」。")

@@ -10,7 +10,6 @@
   <div class="hero-actions">{% if_access 'order_recycle_bin' %}<a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a>{% endif_access %}{% if_access 'order_deletion_queue' %}<a class="button ghost" href="{% url 'order_deletion_queue' %}">刪除審核</a>{% endif_access %}{% if_access 'draft_cleanup_list' %}<a class="button ghost" href="{% url 'draft_cleanup_list' %}">草稿清理</a>{% endif_access %}</div>
 </section>
 <form class="filter-bar order-filter-bar" method="get">
-  {% if order_tab != 'all' %}<input type="hidden" name="tab" value="{{ order_tab }}">{% endif %}
   <input type="hidden" name="per_page" value="{{ per_page }}">
   <input type="hidden" name="sort" value="{{ sort_value }}">
   <label class="order-filter-search">全欄位搜尋

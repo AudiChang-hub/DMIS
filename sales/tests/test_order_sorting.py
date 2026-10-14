@@ -170,3 +170,6 @@ class OrderSortingTests(TestCase):
         back = {tab['key']: tab for tab in linked.context['order_tabs']}['open']['url']
         self.assertNotIn('status=', back)
         self.assertIn('q=Sort', back)
+        # 1.75.1：搜尋表單不帶目前頁籤，從預設「進行中」搜已結案訂單也找得到。
+        search_form = response.content.decode().split('order-filter-bar', 1)[1].split('</form>', 1)[0]
+        self.assertNotIn('name="tab"', search_form)

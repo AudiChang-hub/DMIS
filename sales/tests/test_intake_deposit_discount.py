@@ -193,8 +193,9 @@ class IntakeDepositDiscountTests(IntakeFixtures):
                                     {"mode": "amount", "amount": "500", "reason": "追加優惠"})
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
+        # root 具核定權限：送出即生效並取代原優惠（2026-10-14）。
         self.assertEqual((order.discount_status, order.discount_requested_amount, order.approved_discount_amount),
-                         (SalesOrder.DiscountStatus.PENDING, 500, 1000))
+                         (SalesOrder.DiscountStatus.APPROVED, 500, 500))
         self.assertEqual(order.discount_basis_total, 80500)
 
     # ---- 草稿 ----

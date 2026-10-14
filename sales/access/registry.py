@@ -88,6 +88,9 @@ register("work", "order_operations registration_document_file subsidy_document_f
 register("work", "registration_fee_variance_confirm order_commission_attribution_update order_discount_request order_discount_decide order_secret_reveal allocate_vehicle reallocate_vehicle registration_save registration_document_upload registration_document_delete registration_complete delivery_complete delivery_payment_update deposit_payment_update cancellation_request cancellation_withdraw refund_complete payment_reverse payment_overpayment_refund installment_decision_update order_exception_close subsidy_toggle subsidy_document_upload subsidy_data_update subsidy_ocr_decision subsidy_document_delete", "operate")
 register("work", "order_attachment_upload order_attachment_delete", "operate")
 register("work", "positioned_template_order_print", "export")
+# 套表列印（信封、減徵貨物稅聲明書、簽收單）：選單需訂單作業查看，產生 PDF 屬匯出。
+register("work", "form_print")
+register("work", "form_print_pdf", "export")
 register("operations", "operations_report")
 register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update")

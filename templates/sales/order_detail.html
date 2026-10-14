@@ -501,19 +501,6 @@
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
   <div class="note-box" id="delivery-payment">{% if collect_balance %}<p>尾款在下方與交車一起登記，送出後同時確認收款並完成交車。</p>{% elif order.is_delivered %}<p>交車後的補收或退差請到「收入與支出」處理。</p>{% else %}<p>尾款已收清或由合作車行掛帳；其他收款請到「收入與支出」。</p>{% endif %}{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往收入與支出</button>{% endif %}</div>
-  {% if installment_form %}
-  <div class="delivery-gate" id="installment-decision">
-    <div class="delivery-gate__heading"><strong>分期核貸</strong><span class="status-pill">{{ order.get_installment_status_display }}</span></div>
-    {% if order.installment_status == "approved" %}<p class="muted">已於 {{ order.installment_decided_on|date:"Y/m/d" }} 核准，可以交車。</p>{% else %}<p class="muted">分期單須核准後才能交車。</p>{% endif %}
-    {% if order.is_editable %}{% if_access 'installment_decision_update' order.pk %}
-    <form method="post" action="{% url 'installment_decision_update' order.pk %}" class="form-grid">
-      {% csrf_token %}
-      {% for field in installment_form %}{% include "sales/_field.html" %}{% endfor %}
-      <div class="span-2"><button class="button ghost" type="submit">更新分期核貸</button></div>
-    </form>
-    {% endif_access %}{% endif %}
-  </div>
-  {% endif %}
   {% if dealer_settlement %}
   <div class="delivery-gate delivery-gate--settlement" id="dealer-settlement">{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement compact=True %}</div>
   {% endif %}

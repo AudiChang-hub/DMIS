@@ -40,27 +40,16 @@ class BusinessGateTests(TestCase):
         order.refresh_from_db()
         return order
 
-    # H3：分期核貸閘門
-    def test_installment_requires_approval_before_delivery(self):
+    # H3：分期核貸已移除（使用者 2026-10-14）：分期單不必登記核准即可交車，訂單頁也不再顯示分期核貸卡片。
+    def test_installment_does_not_require_approval_before_delivery(self):
         order, _vehicle = self.make_order(deposit=Decimal("0"))
         SalesOrder.objects.filter(pk=order.pk).update(payment_type="installment", installment_amount=Decimal("70000"))
         order = self.registered(order)
-        self.assertTrue(any("須核准" in item for item in order.delivery_blockers()))
-        with self.assertRaisesMessage(ValidationError, "須核准"):
-            order.complete_delivery(timezone.now(), "測試")
+        self.assertFalse(any("分期" in item for item in order.delivery_blockers()))
         self.client.force_login(self.user)
-        response = self.client.post(reverse("installment_decision_update", args=[order.pk]),
-                                    {"installment_status": "approved", "installment_applied_on": "2026-08-01"})
-        order.refresh_from_db()
-        self.assertEqual(order.installment_status, "")
-        self.client.post(reverse("installment_decision_update", args=[order.pk]), {
-            "installment_status": "approved", "installment_applied_on": "2026-08-01",
-            "installment_decided_on": "2026-08-02", "note": "裕融核准",
-        })
-        order.refresh_from_db()
-        self.assertEqual(order.installment_status, SalesOrder.InstallmentStatus.APPROVED)
-        self.assertFalse(any("須核准" in item for item in order.delivery_blockers()))
-        self.assertTrue(OrderEvent.objects.filter(order=order, event_type="installment_decision").exists())
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertNotContains(response, "installment-decision")
+        self.assertNotContains(response, "分期核貸")
 
     def test_invoice_photo_is_optional_for_registration(self):
         from sales.models import RegistrationDocument

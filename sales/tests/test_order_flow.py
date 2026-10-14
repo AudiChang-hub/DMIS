@@ -4694,7 +4694,7 @@ class OrderFlowTests(TestCase):
         )
         self.assertContains(order_response, "showSavedPhoto")
         self.assertContains(order_response, "正在辨識證件資料")
-        self.assertContains(order_response, "請上傳身分證正反面")
+        self.assertContains(order_response, "可上傳身分證正反面（選填）")
         self.assertContains(
             order_response,
             "法人不使用證件自動辨識，請自行填寫公司名稱、統一編號、公司地址與聯絡資料。",
@@ -4703,7 +4703,7 @@ class OrderFlowTests(TestCase):
             order_response,
             'showConditional("corporate", ownerType.value === "corporate")',
         )
-        self.assertContains(order_response, "資料欄位會在辨識完成後自動顯示")
+        self.assertContains(order_response, "沒有證件也可以直接填寫")
         self.assertContains(order_response, "data-ocr-confirmation-fields")
         self.assertContains(order_response, "is-floating-processing")
         self.assertNotContains(order_response, "data-ocr-photo-progress")
@@ -4729,7 +4729,7 @@ class OrderFlowTests(TestCase):
             content.index('id="other-fee-forms"'),
         )
         self.assertContains(order_response, 'class="accessory-row dynamic-row')
-        self.assertContains(order_response, "或從手機相簿選擇圖片")
+        self.assertContains(order_response, "或從手機相簿選擇")
         self.assertContains(order_response, "＋ 新增費用")
         self.assertContains(order_response, "data-remove-row")
         self.assertContains(order_response, "刪除此筆配件")
@@ -4743,7 +4743,11 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "每期金額")
         self.assertContains(order_response, "送達地點／託運目的地")
         self.assertTrue(order_response.context["form"]["plate_choice"].field.required)
-        self.assertTrue(order_response.context["form"]["delivery_method"].field.required)
+        # 開單必填只留後續流程用得到的欄位（2026-10-14）：交車方式、電話、地址與證件照片改選填。
+        form = order_response.context["form"]
+        for name in ("delivery_method", "owner_phone", "owner_address", "id_front", "id_back", "id_verified"):
+            self.assertFalse(form[name].field.required, name)
+        self.assertTrue(form["owner_id_number"].field.required)
         self.assertNotIn(
             "old_vehicle_valuation", order_response.context["form"].fields
         )

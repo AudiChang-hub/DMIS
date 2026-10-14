@@ -114,7 +114,6 @@
   const progressLinks = [...document.querySelectorAll("#form-progress a")];
   const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
-  let ocrReady = false;
   let ocrRequestVersion = 0;
   let currentOcrJobId = null;
   let ocrPollTimer = null;
@@ -160,21 +159,6 @@
     ].some(input => input?.value.trim());
   }
 
-  // 訂單精靈：記錄證件自動辨識結果，未通過時須另外勾選人工核對，伺服器會再檢查一次。
-  function refreshIdManualBox() {
-    const box = byId("id-manual-check");
-    if (!box) return;
-    const check = byId("id-check").value;
-    const error = byId("id-check-error").value;
-    // 辨識有結果前不顯示；有結果但未通過時才需要另外人工確認。
-    box.hidden = !["local", "foreign"].includes(ownerType.value) || check === "passed" || !ocrReady;
-    byId("id-manual-reason").textContent = check === "failed" && error
-      ? `自動辨識未通過：${error}`
-      : "證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。";
-    // 不在這裡清除勾選：頁面載入時辨識狀態尚未就緒也會暫時隱藏，清掉會讓後面步驟被擋。
-    // 換照片重新辨識時，由 updateVerifyLock 清除。
-  }
-
   function recordIdCheck(state, message = "") {
     const check = byId("id-check");
     if (!check) return;
@@ -188,13 +172,11 @@
       check.value = "";
       byId("id-check-error").value = "";
     }
-    refreshIdManualBox();
   }
 
-  // 證件辨識有結果（通過、失敗或已載入資料）之前，人工核對不能勾選，精靈的車主步驟也不能前往下一步。
+  // 證件為選填（使用者 2026-10-14）：辨識有結果（通過、失敗或已載入資料）之前不能勾「已人工核對」，但不擋下一步。
   function updateVerifyLock(state) {
     const ready = !["local", "foreign"].includes(ownerType.value) || ["review", "manual", "existing"].includes(state);
-    ocrReady = ready;
     const verify = byId("id_id_verified");
     if (verify) {
       verify.disabled = !ready;
@@ -204,34 +186,16 @@
     const hint = byId("id-verify-hint");
     if (hint) {
       hint.hidden = ready;
-      hint.textContent = state === "processing" ? "證件辨識中，完成後才能勾選。" : "請先上傳證件正反面，辨識完成後才能勾選。";
+      hint.textContent = state === "processing" ? "證件辨識中，完成後才能勾選。" : "證件為選填；上傳正反面並辨識完成後才能勾選。";
     }
-    const manual = byId("id-manual-confirmed");
-    if (manual) {
-      manual.disabled = !ready;
-      if (!ready) manual.checked = false;
-    }
-    refreshOwnerNextLock();
-    refreshIdManualBox();
   }
-
-  // 自然人須勾選「已人工核對證件」才能前往下一步；法人不需證件辨識。
-  function refreshOwnerNextLock() {
-    const next = orderForm.querySelector("[data-wizard-next]");
-    if (!next || wizardStep !== "owner") return;
-    const needsId = ["local", "foreign"].includes(ownerType.value);
-    const verified = byId("id_id_verified")?.checked;
-    next.disabled = needsId && (!ocrReady || !verified);
-    next.title = !needsId ? "" : !ocrReady ? "證件辨識完成後才能前往下一步" : verified ? "" : "請先勾選「已人工核對證件」";
-  }
-  byId("id_id_verified")?.addEventListener("change", refreshOwnerNextLock);
-  ownerType?.addEventListener("change", refreshOwnerNextLock);
 
   function setOcrState(state, options = {}) {
     recordIdCheck(state, options.message || "");
     updateVerifyLock(state);
     const supportsOcr = ["local", "foreign"].includes(ownerType.value);
-    const revealFields = !supportsOcr || ["review", "manual", "existing"].includes(state);
+    // 證件為選填：沒上傳也要能直接填寫；只有辨識中暫時收起，避免手填內容被辨識結果覆蓋。
+    const revealFields = !supportsOcr || state !== "processing";
     ocrConfirmationFields.forEach(element => { element.hidden = !revealFields; });
     if (!supportsOcr) {
       ocrStatus.hidden = true;
@@ -241,14 +205,14 @@
     const states = {
       upload: {
         className: "ocr-status waiting",
-        title: ownerType.value === "foreign" ? "請上傳居留證正反面" : "請上傳身分證正反面",
-        message: "資料欄位會在辨識完成後自動顯示，避免重複輸入。",
+        title: ownerType.value === "foreign" ? "可上傳居留證正反面（選填）" : "可上傳身分證正反面（選填）",
+        message: "上傳後會自動帶入下方資料；沒有證件也可以直接填寫。",
         button: "",
       },
       incomplete: {
         className: "ocr-status waiting",
         title: "還差一張證件照片",
-        message: "正反面備齊後會自動開始辨識。",
+        message: "正反面備齊後會自動開始辨識；也可以直接填寫下方欄位。",
         button: "",
       },
       processing: {

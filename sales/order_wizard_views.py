@@ -27,10 +27,7 @@ def _validate_draft(request, draft, reception):
     fee_formset.is_valid()
     from sales.services.order_discount import validate_intake_discount
     validate_intake_discount(form, formset, fee_formset)
-    identity_error = wizard.identity_check_error(draft.data)
-    grouped = wizard.collect_step_errors(
-        form, {"accessories": formset, "other_fees": fee_formset}, {"owner": [identity_error]} if identity_error else None
-    )
+    grouped = wizard.collect_step_errors(form, {"accessories": formset, "other_fees": fee_formset})
     return form, formset, fee_formset, grouped
 
 
@@ -52,7 +49,6 @@ def _render_step(request, draft, reception, step, forms, *, errors=(), submissio
         "summary": summary,
         "id_check": data.get(wizard.ID_CHECK_KEY, ""),
         "id_check_error": data.get(wizard.ID_CHECK_ERROR_KEY, ""),
-        "id_manual_confirmed": data.get(wizard.ID_MANUAL_KEY) in {"on", "1", "true", True},
     }
     return render(request, "sales/order_form.html", context)
 
@@ -139,18 +135,34 @@ def wizard_post(request, draft, reception, action, submission_key):
     return response
 
 
+def identity_status(data, has_photos, verified):
+    """自然人證件的實際狀態（證件為選填）；全部完成或法人回傳空字串。"""
+    if data.get("owner_type") not in {"local", "foreign"}:
+        return ""
+    if not has_photos:
+        return "尚未上傳證件正反面"
+    if data.get(wizard.ID_CHECK_KEY) == "passed":
+        ocr = "自動辨識通過"
+    elif data.get(wizard.ID_CHECK_KEY) == "failed":
+        reason = (data.get(wizard.ID_CHECK_ERROR_KEY) or "").strip()
+        ocr = f"自動辨識未通過（{reason}）" if reason else "自動辨識未通過"
+    else:
+        ocr = "未完成自動辨識"
+    return f"{ocr}，{'已人工核對' if verified else '未人工核對'}"
+
+
 def _record_identity_override(request, submission_key, data):
-    if data.get("owner_type") not in {"local", "foreign"} or data.get(wizard.ID_CHECK_KEY) == "passed":
-        return
     from sales.models import SalesOrder
     order = SalesOrder.objects.filter(submission_key=submission_key).first()
     if not order:
         return
-    reason = (data.get(wizard.ID_CHECK_ERROR_KEY) or "未完成自動辨識").strip()
+    status = identity_status(data, bool(order.id_front and order.id_back), order.id_verified)
+    if not status or status == "自動辨識通過，已人工核對":
+        return
     OrderEvent.objects.create(
         order=order,
         event_type="identity_manual_check",
-        description=f"證件自動辨識未通過（{reason}），由建立人員人工核對證件正反面後送出。",
+        description=f"建立訂單時證件狀態：{status}。",
         actor_name=request.user.get_username(),
     )
 
@@ -218,9 +230,10 @@ def build_summary(form, formset, fee_formset, draft):
         fees.append(f"{data['name']}　{(data.get('amount') or Decimal('0')):,.0f} 元")
     owner_rows = _rows(form, ("owner_type", "owner_name", "owner_name_en", "owner_id_number", "owner_birth_date",
                               "owner_phone", "owner_email", "owner_address", "owner_nationality", "residence_expiry"))
-    if (draft.data or {}).get("owner_type") in {"local", "foreign"}:
-        passed = draft.data.get(wizard.ID_CHECK_KEY) == "passed"
-        owner_rows.append(("證件檢查", "自動辨識通過，已人工核對" if passed else "自動辨識未通過，已人工核對證件正反面"))
+    status = identity_status(draft.data or {}, bool(draft.id_front and draft.id_back),
+                             bool(getattr(form, "cleaned_data", {}).get("id_verified")))
+    if status:
+        owner_rows.append(("證件檢查", status))
     payment_rows = _rows(form, ("payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
     if form.finance_editable:

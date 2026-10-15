@@ -1398,7 +1398,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            '<details class="vehicle-brand-group" data-brand-group="測試廠牌">',
+            '<details class="vehicle-brand-group" id="vm-brand-1" data-brand-group="測試廠牌">',
             html=False,
         )
         self.assertContains(response, '<summary class="vehicle-brand-group__header">', html=False)
@@ -1411,7 +1411,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(filtered_response.status_code, 200)
         self.assertContains(
             filtered_response,
-            '<details class="vehicle-brand-group" data-brand-group="測試廠牌" open>',
+            '<details class="vehicle-brand-group" id="vm-brand-1" data-brand-group="測試廠牌" open>',
             html=False,
         )
 

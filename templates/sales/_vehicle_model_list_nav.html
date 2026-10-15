@@ -1,0 +1,28 @@
+{% comment %}機種與售價列表的左側目錄：品牌 → 機種，點了展開該品牌並跳到那一列。內容跟著目前的狀態分頁與篩選。{% endcomment %}
+<div class="model-index" data-model-index>
+  <label class="model-index__search">
+    <span class="visually-hidden">在目錄中找機種</span>
+    <input type="search" placeholder="找品牌、機種、型號或年式" autocomplete="off" data-model-index-search>
+  </label>
+  <nav class="model-index__list" aria-label="跳到品牌與機種">
+    {% for group in vehicle_model_groups %}
+    <section class="model-index__brand" data-model-index-brand>
+      <a class="model-index__brand-link" href="#vm-brand-{{ forloop.counter }}" data-model-index-link>
+        <span>{{ group.name }}</span><small>{{ group.total_count }} 個機種</small>
+      </a>
+      <ul>
+        {% for family in group.families %}
+        {% if family.is_first_inactive %}<li class="model-index__divider" data-model-index-divider>已停用</li>{% endif %}
+        <li data-model-index-family data-search="{{ group.name }} {{ group.child_brands|join:' ' }} {{ family.child_brand_label }} {{ family.name }} {{ family.factory_codes|join:' ' }}{% for model in family.models %} {{ model.name }} {{ model.model_number }} {{ model.model_year|default_if_none:'' }}{% endfor %}">
+          <a class="model-index__family{% if not family.is_active %} is-inactive{% endif %}" href="#vm-family-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" data-model-index-link>
+            <span class="model-index__family-name">{{ family.name }}</span>
+            {% if family.child_brand_label %}<small>{{ family.child_brand_label }}</small>{% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endfor %}
+    <p class="model-index__empty" data-model-index-empty hidden>目錄中找不到符合的機種</p>
+  </nav>
+</div>

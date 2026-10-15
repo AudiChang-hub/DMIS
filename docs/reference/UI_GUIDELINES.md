@@ -179,6 +179,7 @@
 有階段或需要大量捲動的頁面，使用共用側邊把手 `sales/_side_nav.html`（`side-nav.js`）：各段加 `data-side-nav-section="名稱"` 即自動產生目錄與捲動標示；
 流程頁以 `nav_include` 放入既有步驟元件。行為比照機種清單：左側滑出、寬螢幕可釘選（依 `nav_key` 記住，首次預設釘選）、手機收在左下角、快捷鍵 `[`。
 訂單頁步驟（`_order_step_nav.html`）與機種清單為同類元件。
+需要自訂目錄時也用 `nav_include`：「機種與售價」放入 `_vehicle_model_list_nav.html`（品牌 → 機種，`vehicle-model-list-nav.js` 負責展開品牌、跳到該列、搜尋與目前位置）。
 
 ## 例外
 

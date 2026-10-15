@@ -1,26 +1,19 @@
+{% comment %}
+頁面返回列：麵包屑本身就是返回鍵，上一層以「← 名稱」強調，目的地固定、不使用瀏覽器上一頁。
+上一層是首頁時不顯示（主選單已有首頁）。data-return-to 連結由 ui-navigation.js 帶回列表上次的篩選與捲動位置。
+{% endcomment %}{% url 'dashboard' as home_url %}{% if cancel_edit %}
 <nav class="page-context-nav" aria-label="頁面導覽">
-  {% if cancel_edit %}
-    <a class="back-link" href="{{ fallback_url }}" data-cancel-edit>
-      <span aria-hidden="true">←</span>
-      <span>{{ label }}</span>
-    </a>
-    <ol class="page-breadcrumbs" aria-label="目前位置"><li><a href="{{ fallback_url }}">訂單內容</a></li><li aria-current="page">編輯訂單</li></ol>
-  {% else %}
-    <a
-      class="back-link"
-      href="{{ fallback_url }}"{% if not direct_back %}
-      data-smart-back
-      data-fallback-url="{{ fallback_url }}"{% endif %}
-    >
-      <span aria-hidden="true">←</span>
-      <span>{% if direct_back %}回到{{ label }}{% else %}回到上一畫面{% endif %}</span>
-    </a>
-    <ol class="page-breadcrumbs" aria-label="目前位置">
-      {% if root_url and root_label %}
-        <li><a href="{{ root_url }}">{{ root_label }}</a></li>
-      {% endif %}
-      <li><a href="{{ fallback_url }}">{{ parent_label|default:label|cut:"返回" }}</a></li>
-      <li class="page-breadcrumb-current" aria-current="page" data-current-page-label{% if not current_label %} hidden{% endif %}>{{ current_label }}</li>
-    </ol>
-  {% endif %}
+  <ol class="page-breadcrumbs" aria-label="目前位置">
+    <li class="page-breadcrumb-parent"><a class="back-link" href="{{ fallback_url }}" data-cancel-edit><span class="back-link__arrow" aria-hidden="true">←</span><span>{{ label }}</span></a></li>
+    <li class="page-breadcrumb-current" aria-current="page">編輯訂單</li>
+  </ol>
 </nav>
+{% elif fallback_url != home_url or root_url %}{% with parent_name=parent_label|default:label|cut:"返回" %}
+<nav class="page-context-nav" aria-label="頁面導覽">
+  <ol class="page-breadcrumbs" aria-label="目前位置">
+    {% if root_url and root_label %}<li class="page-breadcrumb-root"><a href="{{ root_url }}" data-return-to>{{ root_label }}</a></li>{% endif %}
+    <li class="page-breadcrumb-parent"><a class="back-link" href="{{ fallback_url }}" data-return-to aria-label="回到{{ parent_name }}"><span class="back-link__arrow" aria-hidden="true">←</span><span>{{ parent_name }}</span></a></li>
+    <li class="page-breadcrumb-current" aria-current="page" data-current-page-label{% if not current_label %} hidden{% endif %}>{{ current_label }}</li>
+  </ol>
+</nav>
+{% endwith %}{% endif %}

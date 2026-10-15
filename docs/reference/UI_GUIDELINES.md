@@ -52,6 +52,9 @@
 1. **導覽列**：`{% site_navigation %}` 依權限自動算出上一層；需要指定上一層時改用
    `{% include "sales/_page_back.html" with fallback_url=… label=… %}`。
    兩者擇一，不得再手寫 `← 返回…` 連結或按鈕。報表頁覆寫 `{% block report_nav %}`。
+   返回列就是麵包屑：上一層以「← 名稱」膠囊強調，目的地固定，不用瀏覽器上一頁；
+   `ui-navigation.js` 會帶回該列表在本分頁最後的篩選與捲動位置（不帶 `edit` 等一次性參數）。
+   上一層是首頁時整列不顯示，手機只留「← 上一層」。只有錯誤頁用 `data-history-back` 退回上一頁。
 2. **頁首**：每頁只有一個 `h1`，放在標準頁首：
 
    ```html

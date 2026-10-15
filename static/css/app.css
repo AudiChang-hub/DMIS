@@ -2411,7 +2411,8 @@ input[type="file"].form-control { padding: var(--space-3); }
 .delete-detail-control input { width: auto; }
 .subsidy-document-list { margin-top: 0; }
 .subsidy-edit-form {
-  overflow: hidden; margin-bottom: var(--stack-gap); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  /* clip 不建立捲動容器，內部儲存列才能 sticky。 */
+  overflow: clip; margin-bottom: var(--stack-gap); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
 .subsidy-toggle {
   display: flex; padding: var(--space-4) var(--space-4); align-items: center; gap: var(--space-3);
@@ -2436,9 +2437,10 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .subsidy-edit-grid > div { display: grid; min-width: 0; align-content: start; gap: var(--space-2); }
 .subsidy-change-reason { grid-column: 1 / -1; }
+/* 只在補助表單範圍內黏住畫面底部；捲到下方其他表單時跟著表單結尾離開，不會蓋住別的儲存列。 */
 .subsidy-save-dock {
-  position: fixed; z-index: 1050; right: 24px; bottom: 24px;
-  display: flex; width: min(620px, calc(100vw - 48px)); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-4);
+  position: sticky; z-index: 30; bottom: 24px; margin: 0 var(--card-pad) var(--card-pad) auto;
+  display: flex; width: min(620px, calc(100% - 2 * var(--card-pad))); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-4);
   align-items: center; justify-content: space-between; gap: var(--stack-gap-sm);
   color: var(--on-accent); background: color-mix(in srgb, var(--navy) 98%, transparent); border: 1px solid color-mix(in srgb, var(--surface) 18%, transparent);
   border-radius: var(--radius-lg); box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-ink) 28%, transparent); backdrop-filter: blur(12px);
@@ -2449,7 +2451,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .subsidy-save-dock__copy small { color: color-mix(in srgb, var(--surface) 76%, transparent); font-size: var(--text-xs); line-height: 1.4; }
 .subsidy-save-dock .button { flex: 0 0 auto; min-width: 142px; }
 .subsidy-save-dock.is-saved {
-  width: auto; color: var(--action-text); background: var(--surface-glass);
+  width: fit-content; color: var(--action-text); background: var(--surface-glass);
   border-color: var(--line); box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-ink) 13%, transparent);
 }
 .subsidy-save-dock.is-saved .subsidy-save-dock__copy small { color: var(--muted); }
@@ -2477,16 +2479,18 @@ input[type="file"].form-control { padding: var(--space-3); }
   border: 1px dashed var(--line); border-radius: var(--radius-md);
 }
 .stage-empty p { margin: var(--space-1) 0 0; }
+/* 規費明細只是分組，不影響表單格線；只有調價權限時整組隱藏。 */
+.registration-fee-details { display: contents; }
+.registration-fee-details[hidden] { display: none; }
 .registration-data-form {
   display: grid; padding: var(--inset-pad);
-  grid-template-columns: minmax(150px, .8fr) minmax(160px, .9fr) minmax(180px, 1fr) auto;
-  grid-template-areas: "date county plate submit" ". help . .";
+  grid-template-columns: minmax(160px, .8fr) minmax(200px, 1fr) auto;
+  grid-template-areas: "date plate submit" "help help .";
   align-items: end; column-gap: var(--stack-gap-sm); row-gap: var(--space-2);
   background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
 .registration-data-form > div { display: grid; gap: var(--space-2); }
 .registration-data-form__date { grid-area: date; }
-.registration-data-form__county { grid-area: county; }
 .registration-data-form__plate { grid-area: plate; }
 .registration-data-form__submit { min-height: 48px; grid-area: submit; }
 .registration-data-form__help { grid-area: help; margin: 0; }
@@ -4540,7 +4544,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 
   .registration-data-form, .other-insurance__form, .other-subsidy-documents__form, .reallocation-panel form { grid-template-columns: 1fr; }
   .registration-data-form {
-    grid-template-areas: "date" "county" "help" "plate" "submit";
+    grid-template-areas: "date" "plate" "help" "submit";
     row-gap: var(--space-3);
   }
   .registration-data-form__submit { width: 100%; }
@@ -4565,11 +4569,11 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .subsidy-change-reason { grid-column: auto; }
   .ocr-conflict-card, .ocr-conflict-card__actions { align-items: stretch; flex-direction: column; }
   .subsidy-save-dock {
-    right: 14px; bottom: calc(82px + env(safe-area-inset-bottom)); left: 14px;
-    width: auto; padding: var(--bar-pad); align-items: stretch; flex-direction: column; gap: var(--space-3);
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    width: calc(100% - 2 * var(--card-pad)); padding: var(--bar-pad); align-items: stretch; flex-direction: column; gap: var(--space-3);
   }
   .subsidy-save-dock.is-saved {
-    right: 14px; left: auto; padding: var(--space-2) var(--space-3); align-items: center; flex-direction: row;
+    width: fit-content; padding: var(--space-2) var(--space-3); align-items: center; flex-direction: row;
   }
   .subsidy-save-dock.is-saved .subsidy-save-dock__copy small { display: none; }
   .subsidy-save-dock.is-saved .button { width: auto; min-width: 112px; }

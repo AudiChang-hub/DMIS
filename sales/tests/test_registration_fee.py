@@ -181,6 +181,23 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(after.pricing_method, "fixed_bundle")
         self.assertEqual(after.fixed_and_variable_total, 1888)
 
+    def test_fixed_rule_rate_class_fits_order_field_for_large_rule_ids(self):
+        # 查修 08AF2319AB18：規則編號兩位數時舊代碼「FIXED-BUNDLE-10」超過 10 字，儲存領牌資料 500。
+        max_length = SalesOrder._meta.get_field("registration_rate_class").max_length
+        for calculation_type, extra in (
+            (BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE, {"fixed_total": 1888}),
+            (BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS, {"fixed_registration_fee": 900, "fixed_compulsory_insurance_fee": 500}),
+        ):
+            with self.subTest(calculation_type=calculation_type):
+                BrandRegistrationFeeRule.objects.all().delete()
+                rule = BrandRegistrationFeeRule.objects.create(
+                    pk=12345, brand="測試廠牌", calculation_type=calculation_type, min_cc=51, max_cc=125,
+                    insurance_period_years=1, effective_from=date(2026, 8, 1), **extra,
+                )
+                result = calculate_vehicle_registration_fee(self.model, date(2026, 8, 1), 1)
+                self.assertLessEqual(len(result.rate_class), max_length)
+                self.assertTrue(result.rate_class.endswith(str(rule.pk)))
+
     def test_manual_brand_rule_requires_actual_receipt_entry(self):
         BrandRegistrationFeeRule.objects.create(
             brand="測試廠牌",

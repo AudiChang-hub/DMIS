@@ -4541,6 +4541,8 @@ class OrderOperationsProfile(TimeStampedModel):
     battery_activated_on = models.DateField("電池合約啟用日期", blank=True, null=True)
     battery_account = models.CharField("電池合約帳號", max_length=160, blank=True)
     battery_password_encrypted = models.TextField("電池合約密碼（加密）", blank=True)
+    # 例如月租 499 方案；與「電池合約方案」分開記錄（使用者 2026-10-15）。
+    battery_rate_plan = models.CharField("電池方案", max_length=160, blank=True)
     helmet = models.CharField("安全帽", max_length=250, blank=True)
     company_gift_or_remittance = models.CharField("公司禮券、匯款", max_length=250, blank=True)
     other_fulfillment = models.TextField("其他", blank=True)
@@ -4932,20 +4934,17 @@ class RegistrationDocument(TimeStampedModel):
     @classmethod
     def retired_document_types(cls):
         """保留歷史檔案與顯示名稱，但不再接受新上傳或列入流程。"""
-        return frozenset(
-            {
-                cls.DocumentType.MOTOR_VEHICLE_RECEIPT,
-                cls.DocumentType.COMPULSORY_INSURANCE,
-            }
-        )
+        return frozenset({cls.DocumentType.MOTOR_VEHICLE_RECEIPT})
 
     @classmethod
     def active_fixed_document_types(cls):
+        # 強制險單每台訂單都有，2026-10-15 起恢復為必填（使用者要求）。
         return (
             cls.DocumentType.NEW_LICENSE,
             cls.DocumentType.REGISTRATION_APPLICATION,
             cls.DocumentType.INVOICE,
             cls.DocumentType.PLATE_SELECTION,
+            cls.DocumentType.COMPULSORY_INSURANCE,
         )
 
     order = models.ForeignKey(

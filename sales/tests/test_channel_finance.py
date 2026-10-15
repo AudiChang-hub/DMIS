@@ -290,7 +290,9 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(profile.installment_fee_income, Decimal("2500"))
         # 分期手續費支出預設跟開辦費一樣（2026-10-15），收支相抵。
         self.assertEqual(profile.installment_fee_expense, Decimal("2500"))
-        self.assertEqual(profile.net_profit, Decimal("65750"))
+        # 一年強制險傭金 145 自動帶入（2026-10-15）。
+        self.assertEqual(profile.insurance_commission, Decimal("145"))
+        self.assertEqual(profile.net_profit, Decimal("65895"))
 
     def test_deleted_blank_installment_row_does_not_block_plan_save(self):
         self.client.force_login(self.user)

@@ -43,6 +43,17 @@ class IntakeDepositDiscountTests(IntakeFixtures):
 
     # ---- 訂金 ----
 
+    def test_pricing_only_user_can_enter_plate_insurance_fee(self):
+        # 有調價、無財務權限：牌險費必填且可輸入，卡片不能整個藏起來（使用者 2026-10-15）。
+        from sales.access.models import ScreenAccessGrant
+        self.grant_intake_only()
+        ScreenAccessGrant.objects.create(user=self.user, screen_key="order_pricing", view=True, operate=True)
+        page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()
+        self.assertIn('<details class="card" open ><summary>牌險費</summary>', page)
+        self.assertIn('name="plate_insurance_fee"', page)
+        self.assertNotIn('name="plate_insurance_fee" disabled', page)
+        self.assertIn('<div class="registration-fee-details" hidden>', page)
+
     def test_reception_mode_shows_and_saves_deposit_like_internal_flow(self):
         self.grant_intake_only()
         page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()

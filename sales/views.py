@@ -5484,12 +5484,11 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     registration_document_rows = [
         {
             "type": document_type,
-            "label": label,
+            "label": RegistrationDocument.DocumentType(document_type).label,
             "required": document_type in required_types,
             "document": registration_documents.get(document_type),
         }
-        for document_type, label in RegistrationDocument.DocumentType.choices
-        if document_type in RegistrationDocument.active_fixed_document_types()
+        for document_type in RegistrationDocument.active_fixed_document_types()
     ]
     subsidy_documents = {
         document.document_type: document
@@ -6823,7 +6822,7 @@ def _save_registration_form(request, form):
     OrderEvent.objects.create(
         order=order,
         event_type="registration_data_updated",
-        description=f"已更新領牌資料：{order.registration_date}／{order.registration_county}／{order.final_plate_number}",
+        description=f"已更新領牌資料：{order.registration_date}／{order.final_plate_number}",
         actor_name=_editing_name(request.user),
     )
     if cost_profile.vehicle_cost_rule_id:
@@ -6879,16 +6878,13 @@ def registration_document_upload(request, pk):
             message="請先完成配車，再上傳領牌文件。",
             status=400,
         )
-    if order.is_registration_complete or order.status in {
-        SalesOrder.Status.COMPLETED,
-        SalesOrder.Status.CANCELLED,
-    }:
+    if order.status == SalesOrder.Status.CANCELLED:
         return _document_upload_response(
             request,
             order_pk=pk,
             tab="registration",
             ok=False,
-            message="此訂單的領牌階段已完成，無法修改文件。",
+            message="此訂單已取消，無法修改文件。",
             status=409,
         )
     form = RegistrationDocumentUploadForm(request.POST, request.FILES)
@@ -6904,6 +6900,20 @@ def registration_document_upload(request, pk):
                 for error in errors
             ),
             status=400,
+        )
+    # 領牌完成後仍可補上傳還沒有的文件（例如晚到的發票、選號單）；已上傳的不能替換（使用者 2026-10-15）。
+    if (
+        (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
+        and form.cleaned_data["document_type"] != RegistrationDocument.DocumentType.OTHER_INSURANCE
+        and order.registration_documents.filter(document_type=form.cleaned_data["document_type"]).exists()
+    ):
+        return _document_upload_response(
+            request,
+            order_pk=pk,
+            tab="registration",
+            ok=False,
+            message="此訂單的領牌階段已完成，已上傳的文件無法替換。",
+            status=409,
         )
 
     document = form.save(commit=False)

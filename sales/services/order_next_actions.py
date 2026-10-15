@@ -165,10 +165,7 @@ def _subsidy_action(order, subsidy_missing):
         description = "固定文件已齊，可逐筆記錄補助類別、金額與申請進度。"
     elif any(item.status == SubsidyItem.Status.NOT_SUBMITTED for item in items):
         title = "送出補助申請"
-        description = "補助資料已備妥，仍有項目尚未送出申請。"
-    elif any(item.status == SubsidyItem.Status.SUBMITTED for item in items):
-        title = "更新補助申請進度"
-        description = "已有補助送件，完成後請更新為「已申請完成」。"
+        description = "補助資料已備妥，仍有項目尚未申請。"
     else:
         return None
     return NextAction(
@@ -203,6 +200,22 @@ def _document_archive_action(order):
         tone="optional",
         target_tab="documents",
         target_anchor="signed-documents",
+    )
+
+
+def _close_action(order):
+    """已交車、還沒結案：提醒人員確認補助等後續事項都跑完後按「確認結案」（使用者 2026-10-15）。"""
+    if not order.is_delivered or order.closed_at:
+        return None
+    return NextAction(
+        key="close",
+        title="確認結案",
+        description="補助與文件等後續事項都處理完後，按「確認結案」移到已結案。",
+        action_label="前往結案",
+        url=_tab_url(order, "closing"),
+        badge="人工確認",
+        tone="parallel",
+        target_tab="closing",
     )
 
 
@@ -410,6 +423,11 @@ def build_order_next_actions(
         for action in (gap, reconciliation, subsidy):
             if action and action.key != primary.key:
                 secondary.append(action)
+    close = _close_action(order)
+    if close and primary is None:
+        primary = close
+    elif close:
+        secondary.append(close)
 
     if primary is None:
         return None

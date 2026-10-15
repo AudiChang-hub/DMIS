@@ -935,6 +935,28 @@
   </form>
   {% endif_access %}{% endif %}
 </details>
+{% elif order.is_delivered %}
+<section class="section-block close-panel{% if order.closed_at %} is-closed{% endif %}">
+  {% if order.closed_at %}
+  <div class="section-title"><div><p class="eyebrow">結案</p><h2>已結案</h2></div><span>{{ order.closed_at|date:"Y/m/d H:i" }} · {{ order.closed_by }}</span></div>
+  <p>這張訂單已由人員確認結案，列在全部訂單的「已結案」。如果補助或文件還有後續要處理，可撤回結案回到「已交車」。</p>
+  {% if_access 'order_close' order.pk %}
+  <form method="post" action="{% url 'order_close' order.pk %}">
+    {% csrf_token %}<input type="hidden" name="action" value="reopen">
+    <button class="button ghost" type="submit" data-confirm="撤回結案後，訂單回到「已交車」。確定撤回嗎？">撤回結案</button>
+  </form>
+  {% endif_access %}
+  {% else %}
+  <div class="section-title"><div><p class="eyebrow">結案</p><h2>確認結案</h2></div><span>已交車</span></div>
+  <p>補助是否跑完只有人能判斷：補助、文件等後續事項都處理完後，按「確認結案」把這張訂單移到「已結案」。系統不會自動結案。</p>
+  {% if_access 'order_close' order.pk %}
+  <form method="post" action="{% url 'order_close' order.pk %}">
+    {% csrf_token %}
+    <button class="button primary" type="submit" data-confirm="確認這張訂單的補助與文件都已處理完，要結案嗎？">確認結案</button>
+  </form>
+  {% endif_access %}
+  {% endif %}
+</section>
 {% endif %}
 </div></section>{% endwith %}
 {% endif %}

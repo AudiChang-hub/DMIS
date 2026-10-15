@@ -199,7 +199,8 @@ class OrderDeletionTests(TestCase):
         with self.assertRaises(ValidationError):
             self.review(self.staff, "request")
         self.review(self.staff, "cancel")
-        self.assertEqual(self.order.display_status, "已完成")
+        # 1.80.0：已完成但還沒人工確認結案。
+        self.assertEqual(self.order.display_status, "已交車／待結案")
         self.review(self.staff, "request")
         self.review(self.root, "reject", "資料仍需保留")
         self.assertIsNone(self.order.deletion_requested_at)

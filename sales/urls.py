@@ -459,6 +459,7 @@ urlpatterns = [
         views.installment_decision_update,
         name="installment_decision_update",
     ),
+    path("orders/<int:pk>/close/", views.order_close, name="order_close"),
     path(
         "orders/<int:pk>/exception-close/",
         views.order_exception_close,

@@ -1,6 +1,6 @@
 """各政府單位的補助申請進度彙整：只讀補助申請項目，不另外保存狀態。
 
-「有送出申請」指項目狀態為已送出申請或已申請完成。
+「有送出申請」指項目狀態為已申請（2026-10-15 起只分未申請／已申請）。
 """
 from sales.models import SubsidyItem
 
@@ -9,19 +9,17 @@ AGENCY_CATEGORIES = (
     SubsidyItem.Category.ENVIRONMENT,
     SubsidyItem.Category.LOCAL,
 )
-SENT = {SubsidyItem.Status.SUBMITTED, SubsidyItem.Status.COMPLETED}
+SENT = {SubsidyItem.Status.SUBMITTED}
 
 
-def _progress(count, sent, completed):
+def _progress(count, sent):
     if not count:
         return ""
-    if completed == count:
-        return "已申請完成"
     if sent == count:
-        return "已送出申請"
+        return "已申請"
     if sent:
-        return f"已送出 {sent}／{count} 筆"
-    return "尚未送出申請"
+        return f"已申請 {sent}／{count} 筆"
+    return "尚未申請"
 
 
 def agency_summary(items):
@@ -38,9 +36,8 @@ def agency_summary(items):
             continue
         count = len(group)
         sent = sum(1 for item in group if item.status in SENT)
-        completed = sum(1 for item in group if item.status == SubsidyItem.Status.COMPLETED)
         total = sum((item.expected_amount for item in group), 0)
-        progress = _progress(count, sent, completed)
+        progress = _progress(count, sent)
         rows.append({
             "category": category,
             "label": labels[category],

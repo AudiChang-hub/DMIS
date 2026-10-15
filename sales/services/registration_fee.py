@@ -44,6 +44,8 @@ class RegistrationFeeResult:
         )
 
 
+MICRO_ELECTRIC_RATE_CLASS = "EV-MICRO"
+
 RATE_CLASSES = (
     {"code": "M2", "min_cc": 51, "max_cc": 125, "road_annual": 450},
     {"code": "M3", "min_cc": 126, "max_cc": 250, "road_annual": 600},
@@ -204,6 +206,65 @@ def resolve_brand_registration_rule(vehicle_model, registration_date, period_yea
     return rules.order_by("-effective_from", "-min_cc", "-id").first()
 
 
+ELECTRIC_ENERGY_TYPES = {
+    VehicleModel.EnergyType.ELECTRIC,
+    VehicleModel.EnergyType.LIGHT_ELECTRIC,
+    VehicleModel.EnergyType.MICRO_ELECTRIC,
+}
+FIXED_CALCULATION_TYPES = (
+    BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+    BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+)
+
+
+def registration_period_for(vehicle_model, on_date, period_years):
+    """電動類訂單選的強制險年期沒有對應固定規則、而該品牌當日只有一種年期時，改用規則年期（使用者 2026-10-15）。"""
+    if vehicle_model.energy_type not in ELECTRIC_ENERGY_TYPES or not on_date:
+        return period_years
+    if resolve_brand_registration_rule(vehicle_model, on_date, period_years):
+        return period_years
+    periods = set(
+        brand_registration_rule_candidates(vehicle_model)
+        .filter(
+            active=True,
+            calculation_type__in=FIXED_CALCULATION_TYPES,
+            effective_from__lte=on_date,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=on_date))
+        .values_list("insurance_period_years", flat=True)
+    )
+    return periods.pop() if len(periods) == 1 else period_years
+
+
+def registration_fee_date(vehicle_model, registration_date, reference_date, period_years):
+    """試算用日期；None 表示先不試算。油車公式依領牌日計算，要等排領牌日；電動類固定牌險不隨日期變動，有規則就先依訂單日帶入（使用者 2026-10-15）。"""
+    if registration_date:
+        return registration_date
+    if vehicle_model.energy_type not in ELECTRIC_ENERGY_TYPES or not reference_date:
+        return None
+    rule = resolve_brand_registration_rule(vehicle_model, reference_date, period_years)
+    if rule and rule.calculation_type in FIXED_CALCULATION_TYPES:
+        return reference_date
+    return None
+
+
+def has_registration_rate_basis(vehicle_model, registration_date, period_years):
+    """油車看排氣量、電動車看領牌級別；微型電動二輪車要有符合領牌日的品牌規則才自動試算，沒有規則照舊依單據人工填寫（使用者 2026-10-14）。"""
+    energy_type = vehicle_model.energy_type
+    if energy_type == VehicleModel.EnergyType.GAS:
+        return bool(vehicle_model.displacement_cc)
+    if energy_type in {
+        VehicleModel.EnergyType.ELECTRIC,
+        VehicleModel.EnergyType.LIGHT_ELECTRIC,
+    }:
+        return bool(vehicle_model.electric_registration_class)
+    if energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC and registration_date:
+        return resolve_brand_registration_rule(
+            vehicle_model, registration_date, period_years
+        ) is not None
+    return False
+
+
 def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_years):
     rule = resolve_brand_registration_rule(
         vehicle_model, registration_date, period_years
@@ -223,6 +284,9 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
             VehicleModel.EnergyType.LIGHT_ELECTRIC,
         }:
             rate_class = f"EV-{vehicle_model.electric_registration_class.upper()}"
+        elif vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+            # 訂單費率級距欄位只有 10 字元。
+            rate_class = MICRO_ELECTRIC_RATE_CLASS
         return RegistrationFeeResult(
             rate_class=rate_class,
             standard_remaining_days=standard_remaining_days(registration_date),
@@ -241,7 +305,11 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
         == BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE
     ):
         return RegistrationFeeResult(
-            rate_class=f"FIXED-BUNDLE-{rule.pk}",
+            rate_class=(
+                MICRO_ELECTRIC_RATE_CLASS
+                if vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC
+                else f"FIXED-BUNDLE-{rule.pk}"
+            ),
             standard_remaining_days=standard_remaining_days(registration_date),
             calendar_remaining_days=calendar_remaining_days(registration_date),
             plate_fee=0,

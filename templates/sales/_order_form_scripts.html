@@ -449,13 +449,25 @@
     const energyType = vehicleEnergyType.value;
     const isGas = energyType === "gas";
     const isElectric = ["electric", "light_electric"].includes(energyType);
-    const isSupported = isGas || isElectric;
+    const isMicroElectric = energyType === "micro_electric";
+    const isSupported = isGas || isElectric || isMicroElectric;
     gasCalculator.hidden = !isSupported;
     nonGasMessage.hidden = isSupported;
+    // 三年強制險只給電動類固定規則；油車公式只有一、兩年。
+    const threeYearOption = insurancePeriod.querySelector('option[value="3"]');
+    if (threeYearOption) {
+      threeYearOption.disabled = isGas;
+      threeYearOption.hidden = isGas;
+      if (isGas && insurancePeriod.value === "3") insurancePeriod.value = "1";
+    }
 
+    if (isMicroElectric) {
+      rateSummary.textContent = "品牌有固定牌險規則時，儲存後依強制險年期帶入（年期以規則為準）；沒有規則請依單據填寫實際牌險";
+      return;
+    }
     if (isElectric) {
       rateSummary.textContent = modelData?.electric_registration_class
-        ? "電動車牌險將依品牌、領牌級別及領牌日期套用；儲存後顯示正式試算"
+        ? "電動車牌險依品牌、領牌級別與強制險年期的固定規則，儲存後直接帶入；領牌時再依領牌日確認"
         : "此電動車尚未設定輕型／重型領牌級別，請先至車型資料補齊";
       return;
     }

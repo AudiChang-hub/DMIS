@@ -397,6 +397,268 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(saved.registration_calculated_total, 1208)
         self.assertEqual(saved.plate_insurance_fee, 1208)
 
+    def micro_electric_order(self, brand="BOBE", **extra):
+        model = VehicleModel.objects.create(
+            brand=brand,
+            name="微電測試",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+        )
+        color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        return SalesOrder.objects.create(
+            owner_name="微電車領牌測試",
+            owner_phone="0911222333",
+            owner_address="新北市",
+            owner_id_number="A123456789",
+            vehicle_model=model,
+            color=color,
+            vehicle_price=30000,
+            balance_adjustment_reason="人工牌險依單據輸入" if extra else "",
+            **extra,
+        )
+
+    def register(self, order):
+        form = RegistrationStageForm(
+            {
+                "registration_date": "2026-10-14",
+                "registration_county": "新北市",
+                "final_plate_number": "abc-1234",
+            },
+            instance=order,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        return form.save()
+
+    def test_micro_electric_registration_stage_uses_brand_rule(self):
+        order = self.micro_electric_order()
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+            fixed_registration_fee=300,
+            fixed_compulsory_insurance_fee=500,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.registration_rate_class, "EV-MICRO")
+        self.assertLessEqual(
+            len(saved.registration_rate_class),
+            SalesOrder._meta.get_field("registration_rate_class").max_length,
+        )
+        self.assertEqual(saved.registration_plate_fee, 300)
+        self.assertEqual(saved.compulsory_insurance_fee, 500)
+        self.assertEqual(saved.registration_calculated_total, 800)
+        self.assertEqual(saved.plate_insurance_fee, 800)
+
+    def test_micro_electric_fixed_bundle_rate_class_fits_order_field(self):
+        order = self.micro_electric_order()
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=900,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.registration_rate_class, "EV-MICRO")
+        self.assertEqual(saved.plate_insurance_fee, 900)
+
+    def test_micro_electric_without_rule_keeps_manual_plate_fee(self):
+        order = self.micro_electric_order(plate_insurance_fee=1500)
+        # 其他品牌或尚未生效的規則都不算符合。
+        BrandRegistrationFeeRule.objects.create(
+            brand="eMOVING",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=900,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=1200,
+            insurance_period_years=1,
+            effective_from=date(2027, 1, 1),
+        )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.registration_rate_class, "")
+        self.assertEqual(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_insurance_fee, 1500)
+        self.assertEqual(saved.compulsory_insurance_period, 1)
+
+    def test_micro_electric_adopts_the_only_rule_period(self):
+        order = self.micro_electric_order()
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=2300,
+            insurance_period_years=3,
+            effective_from=date(2026, 10, 1),
+        )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.compulsory_insurance_period, 3)
+        self.assertEqual(saved.get_compulsory_insurance_period_display(), "三年")
+        self.assertEqual(saved.plate_insurance_fee, 2300)
+        self.assertEqual(saved.registration_bundle_fee, 2300)
+
+    def test_rule_period_is_not_guessed_when_brand_has_several_periods(self):
+        order = self.micro_electric_order(plate_insurance_fee=1500)
+        for years, total in ((2, 1800), (3, 2300)):
+            BrandRegistrationFeeRule.objects.create(
+                brand="BOBE",
+                energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+                calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+                fixed_total=total,
+                insurance_period_years=years,
+                effective_from=date(2026, 1, 1),
+            )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.compulsory_insurance_period, 1)
+        self.assertEqual(saved.plate_insurance_fee, 1500)
+
+    def test_micro_electric_rule_keeps_existing_manual_plate_fee(self):
+        order = self.micro_electric_order(plate_insurance_fee=1500)
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=900,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+
+        saved = self.register(order)
+
+        self.assertEqual(saved.registration_calculated_total, 900)
+        self.assertEqual(saved.plate_insurance_fee, 1500)
+
+    def edit_order(self, order, **changes):
+        from sales.forms import SalesOrderForm
+        from sales.tests.test_order_workspace import form_data
+
+        data = form_data(SalesOrderForm(instance=order))
+        data.update(changes)
+        form = SalesOrderForm(data=data, instance=order)
+        return form
+
+    def test_order_edit_fills_micro_electric_plate_fee_before_registration(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=2300,
+            insurance_period_years=3,
+            effective_from=date(2026, 1, 1),
+        )
+        for registration_date in ("", "2026-10-14"):
+            with self.subTest(registration_date=registration_date):
+                order = self.micro_electric_order(order_date=date(2026, 10, 14))
+                form = self.edit_order(
+                    order,
+                    registration_date=registration_date,
+                    plate_selection_fee="1200",
+                    plate_insurance_fee="0",
+                )
+
+                self.assertTrue(form.is_valid(), form.errors)
+                saved = form.save(commit=False)
+                self.assertEqual(saved.compulsory_insurance_period, 3)
+                self.assertEqual(saved.registration_calculated_total, 3500)
+                self.assertEqual(saved.plate_insurance_fee, 3500)
+                self.assertEqual(saved.registration_rate_class, "EV-MICRO")
+
+    def test_order_edit_keeps_manual_micro_electric_plate_fee(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="BOBE",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=2300,
+            insurance_period_years=3,
+            effective_from=date(2026, 1, 1),
+        )
+        order = self.micro_electric_order(order_date=date(2026, 10, 14))
+        form = self.edit_order(order, plate_insurance_fee="2600")
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        self.assertEqual(saved.registration_calculated_total, 2300)
+        self.assertEqual(saved.plate_insurance_fee, 2600)
+
+    def test_order_edit_without_micro_rule_uses_pending_other_fees(self):
+        order = self.micro_electric_order(order_date=date(2026, 10, 14))
+        form = self.edit_order(
+            order, plate_selection_fee="1200", plate_insurance_fee="0"
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        self.assertEqual(saved.registration_rate_class, "")
+        self.assertEqual(saved.plate_insurance_fee, 1200)
+
+    def test_electric_fixed_rule_fills_before_registration_date(self):
+        electric_model = VehicleModel.objects.create(
+            brand="Gogoro",
+            name="建單帶入測試",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+        color = VehicleColor.objects.create(vehicle_model=electric_model, name="白")
+        BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+        order = SalesOrder.objects.create(
+            owner_name="電動車建單測試",
+            owner_phone="0911222333",
+            owner_address="新北市",
+            owner_id_number="A123456789",
+            vehicle_model=electric_model,
+            color=color,
+            vehicle_price=50000,
+            order_date=date(2026, 10, 14),
+        )
+        form = self.edit_order(order, plate_insurance_fee="0")
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        self.assertEqual(saved.registration_rate_class, "EV-LIGHT")
+        self.assertEqual(saved.plate_insurance_fee, 1208)
+
+    def test_gas_order_cannot_choose_three_year_insurance(self):
+        order = SalesOrder.objects.create(
+            owner_name="油車三年測試",
+            owner_phone="0911222333",
+            owner_address="新北市",
+            owner_id_number="A123456789",
+            vehicle_model=self.model,
+            color=self.color,
+            vehicle_price=50000,
+        )
+        form = self.edit_order(order, compulsory_insurance_period="3")
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("compulsory_insurance_period", form.errors)
+
     def test_registration_fee_rule_maintenance_page(self):
         self.client.force_login(self.user)
 

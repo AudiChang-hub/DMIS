@@ -3063,6 +3063,8 @@ class SalesOrder(TimeStampedModel):
     class CompulsoryInsurancePeriod(models.IntegerChoices):
         ONE_YEAR = 1, "一年"
         TWO_YEARS = 2, "兩年"
+        # 電動類固定牌險規則用（例如微型電動二輪車 3 年整包）；油車公式只支援一、兩年。
+        THREE_YEARS = 3, "三年"
 
     class PlateChoice(models.TextChoices):
         NONE = "none", "不選號"
@@ -4020,6 +4022,17 @@ class SalesOrder(TimeStampedModel):
 
     registration_manual = models.BooleanField("自行調整牌險明細", default=False)
     registration_adjustment_reason = models.CharField("牌險調整原因", max_length=500, blank=True)
+
+    @property
+    def registration_bundle_fee(self):
+        """固定整包規則沒有分項，試算合計扣掉分項、選號與動保設定後的差額即整包金額。"""
+        itemized = (
+            self.registration_plate_fee + self.registration_license_fee
+            + self.registration_inspection_fee + self.road_maintenance_fee
+            + self.license_tax_fee + self.compulsory_insurance_fee
+            + self.plate_selection_fee + self.lien_registration_fee
+        )
+        return max(self.registration_calculated_total - itemized, 0)
 
     def calculate_balance(self):
         return (

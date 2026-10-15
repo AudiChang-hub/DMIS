@@ -7187,7 +7187,7 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .model-index__brand-link.is-current::before, .model-index__family.is-current::before { content: ""; position: absolute; top: 6px; bottom: 6px; left: 0; width: 3px; background: var(--action-bg); border-radius: var(--radius-pill); }
 .model-index__divider { margin: var(--space-2) 0 2px; padding: 0 var(--space-3); color: var(--muted); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .12em; }
 .model-index__empty { margin: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
-.vehicle-brand-group[id], .vehicle-model-family-group[id] { scroll-margin-top: calc(var(--app-header-height, 72px) + 24px); }
+.vehicle-brand-group, .vehicle-model-family-group[id] { scroll-margin-top: calc(var(--app-header-height, 72px) + 24px); }
 .vehicle-model-family-group:focus { outline: none; }
 .vehicle-model-family-group.is-located > td { animation: model-index-locate 2.2s var(--ease-out); }
 @keyframes model-index-locate {

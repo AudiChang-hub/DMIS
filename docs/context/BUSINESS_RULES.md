@@ -20,7 +20,7 @@
 - 開單公司：訂單沒有保留開單公司時一律用馭盛（本店公司），第一次列印或簽署時保存（`print_company.ensure_order_company`，2026-10-13）；admin 仍可逐單更正為其他公司。
 - 網路平台訂單（2026-10-15 方案 A）：車款由平台收，建單不選付款方式、不帶售價（付款方式記現金、車價 0，`SalesOrderForm.clean`）；客人應付＝牌險＋選號＋其他費用＋舊車稅＋配件－訂金；車輛成本照常帶入，平台撥款在收支「實際撥款」人工記錄。
 - 只有本店來源訂單需要客人簽訂購單與個資同意書；合作車行、網路平台訂單不顯示簽署步驟與提醒（`SalesOrder.needs_customer_signatures`，2026-10-13）。
-- 簽署文件（訂購單、個資同意書）每單自選：店內行動裝置電子簽署，或印出紙本簽完上傳；兩者都記錄簽署當下的內容指紋。訂購單的車主資料、車型車色、價款、配件、費用、優惠、付款方式、補助與開單公司變更後原簽署失效，須重簽；收款進度與領牌結果不影響。個資同意書只隨車主姓名、證件號碼與開單公司失效。無指紋的舊附件視為有效。規格 `specs/062-electronic-signature`，入口 `sales/services/document_signing.py`、`test_document_signing.py`。
+- 簽署文件（訂購單、個資同意書）每單自選：店內行動裝置電子簽署，或印出紙本簽完上傳；兩者都記錄簽署當下的內容指紋。簽署後改內容不判定失效、不要求重簽（使用者 2026-10-15：實務上不會讓客人重簽），指紋僅供日後核對。規格 `specs/062-electronic-signature`，入口 `sales/services/document_signing.py`、`test_document_signing.py`。
 - 優先配車月數由 admin 在「管理者工具 › 配車規則」設定（預設 3、範圍 1～24，`services/system_settings.py`，修改留紀錄）。
 - 配車順序：優先配車排最前，同級再依出廠年月舊到新（未填排最後）、進車日。出廠年月超過 3 個月（月份精度，2026/10 時為 2026/06 以前）自動優先、標「自動」且不能關閉；未滿者人員可在庫存列表手動開啟（`allocation_priority_override=True`，標「人工」，到期後仍為人工），手動關閉即清除、回到依車齡判斷（到期自動開啟）。舊的人工關閉值（False）不再生效。切換寫入庫存異動。同級未選最早出廠或本單非排第一須填原因；有優先配車卻選一般車只提醒、不強制，仍記入配車事件。配車畫面預選排第一的建議車輛（改配不預選）。入口 `AllocationForm`、`annotate_allocation_priority`、`test_allocation_priority.py`。
 - 車輛來源：庫存分「公司進車」（預設，既有資料皆是）與「車行調車」（`acquisition_type`），調車必填來源車行名稱（`transfer_source_name`，自由輸入，提示既有名稱與啟用車行）。兩者同列現有庫存、配車與優先配車；只作區分與顯示，不影響成本、佣金或報表。與 `current_dealer`（車放在哪個車行）無關。入口 `VehicleInventory.clean`、`test_inventory_acquisition.py`。

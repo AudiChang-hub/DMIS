@@ -102,7 +102,8 @@ class DocumentSigningTests(TestCase):
         self.assertContains(done, 'value="contract_store">')
         self.assertContains(done, 'value="contract_customer" checked>')
 
-    def test_contract_change_requires_resigning_but_payment_progress_does_not(self):
+    def test_contract_change_keeps_signed_documents_valid(self):
+        # 2026-10-15：訂購單實務上不會讓客人重簽，改內容不再判定失效。
         order = self.make_order()
         self.client.force_login(self.user)
         self.sign(order)
@@ -114,27 +115,28 @@ class DocumentSigningTests(TestCase):
         self.assertTrue(order.has_privacy_consent)
 
         order = self.reprice(order, "81800")
-        self.assertTrue(order.signed_contract_stale)
-        self.assertFalse(order.has_signed_contract)
+        self.assertFalse(order.signed_contract_stale)
+        self.assertTrue(order.has_signed_contract)
         self.assertTrue(order.has_privacy_consent)
         detail = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"})
-        self.assertContains(detail, "內容已變更，需重簽")
+        self.assertNotContains(detail, "需重簽")
         # 個資同意書仍有效電子簽署，訂單頁照樣可以印含簽名的副本。
         self.assertContains(detail, "選擇副本聯別")
 
-    def test_accessory_and_owner_changes_invalidate_documents(self):
+    def test_accessory_and_owner_changes_do_not_invalidate_documents(self):
         order = self.make_order()
         self.client.force_login(self.user)
         self.sign(order)
         AccessoryLine.objects.create(order=order, name="後箱", amount=Decimal("1200"))
         order = SalesOrder.objects.get(pk=order.pk)
-        self.assertTrue(order.signed_contract_stale)
+        self.assertFalse(order.signed_contract_stale)
         self.assertTrue(order.has_privacy_consent)
         order.owner_name = "王大明"
         order.actual_balance = order.calculate_balance()
         order.save()
         order = SalesOrder.objects.get(pk=order.pk)
-        self.assertTrue(order.privacy_consent_stale)
+        self.assertFalse(order.privacy_consent_stale)
+        self.assertTrue(order.has_privacy_consent)
 
     def test_signing_is_rejected_when_content_changed_after_review(self):
         order = self.make_order()
@@ -154,7 +156,7 @@ class DocumentSigningTests(TestCase):
         response = self.sign(order, signature=signature_data_url(blank=True))
         self.assertContains(response, "簽名太短或空白", status_code=400)
 
-    def test_paper_upload_also_requires_resigning_after_contract_change(self):
+    def test_paper_upload_stays_valid_after_contract_change(self):
         order = self.make_order()
         self.client.force_login(self.user)
         self.client.post(
@@ -165,7 +167,7 @@ class DocumentSigningTests(TestCase):
         self.assertEqual(order.signed_contract_method, SignatureMethod.PAPER)
         self.assertTrue(order.has_signed_contract)
         order = self.reprice(order, "70000")
-        self.assertFalse(order.has_signed_contract)
+        self.assertTrue(order.has_signed_contract)
 
     def test_legacy_attachment_without_fingerprint_stays_valid(self):
         order = self.make_order(signed=True)

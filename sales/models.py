@@ -3578,22 +3578,15 @@ class SalesOrder(TimeStampedModel):
         self.__dict__.pop("_document_fingerprint_cache", None)
         return super().refresh_from_db(*args, **kwargs)
 
+    # 訂購單實務上不會讓客人重簽（使用者 2026-10-15）：改內容不再判定已簽文件失效；
+    # 簽署當下的內容指紋照常記錄，供日後核對。
     @property
     def signed_contract_stale(self):
-        # 沒有指紋的舊附件無法比對，沿用原本「已上傳即有效」。
-        return bool(
-            self.signed_contract
-            and self.signed_contract_fingerprint
-            and self.signed_contract_fingerprint != self.document_fingerprint("contract")
-        )
+        return False
 
     @property
     def privacy_consent_stale(self):
-        return bool(
-            self.privacy_consent
-            and self.privacy_consent_fingerprint
-            and self.privacy_consent_fingerprint != self.document_fingerprint("privacy")
-        )
+        return False
 
     @property
     def needs_customer_signatures(self):
@@ -4568,8 +4561,8 @@ class OrderOperationsProfile(TimeStampedModel):
     battery_activated_on = models.DateField("電池合約啟用日期", blank=True, null=True)
     battery_account = models.CharField("電池合約帳號", max_length=160, blank=True)
     battery_password_encrypted = models.TextField("電池合約密碼（加密）", blank=True)
-    # 例如月租 499 方案；與「電池合約方案」分開記錄（使用者 2026-10-15）。
-    battery_rate_plan = models.CharField("電池方案", max_length=160, blank=True)
+    # 交車前確認的備註（例如月租 499 方案）；原名「電池方案」，使用者 2026-10-15 改名。
+    battery_rate_plan = models.CharField("備註", max_length=160, blank=True)
     helmet = models.CharField("安全帽", max_length=250, blank=True)
     company_gift_or_remittance = models.CharField("公司禮券、匯款", max_length=250, blank=True)
     other_fulfillment = models.TextField("其他", blank=True)

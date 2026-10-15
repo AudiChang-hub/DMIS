@@ -1371,11 +1371,6 @@
     "default": "請清除篩選，或改查其他負責人與區域。",
     "template": "templates/sales/price_list_distribution_assignments.html"
   },
-  "profit_unlock.e09829d88ad7": {
-    "page": "解鎖淨利",
-    "default": "解鎖後只要持續操作就不必再輸入；閒置 10 分鐘自動鎖定，從解鎖起最長 8 小時。不會改變財務編輯權限。",
-    "template": "templates/sales/profit_unlock.html"
-  },
   "reconciliation_list.699f0b9879fe": {
     "page": "統一撥款對帳",
     "default": "只核對分期公司、網路平台與合作車行的預計金額、實際金額及差額；不需逐張進入訂單。",

@@ -1,5 +1,4 @@
 """套表列印：一次勾選多張訂單、每張各自要印的套表，輸出成一份 PDF。"""
-import json
 from io import BytesIO
 
 from django.contrib import messages
@@ -12,8 +11,6 @@ from django.views.decorators.http import require_POST
 
 from sales.models import OrderEvent, SalesOrder
 from sales.services import form_print, order_tabs
-from sales.services.profit_access import reauth_is_valid
-from sales.services.reveal_password import reveal_password_denied
 from sales.services.order_intake import is_dealer, scoped_orders
 from sales.services.order_search import build_order_search_query
 
@@ -37,7 +34,6 @@ def _row(order):
         "order": order,
         "values": values,
         "electric": order.is_electric_vehicle,
-        "has_secret": form_print.has_control_password(order),
         "forms": [
             {
                 "spec": spec,
@@ -75,7 +71,6 @@ def form_print_page(request):
         "tab": tab,
         "tab_choices": TAB_CHOICES,
         "field_sources": form_print.FORM_FIELD_SOURCES,
-        "secrets_unlocked": reauth_is_valid(request),
     })
 
 
@@ -117,17 +112,9 @@ def form_print_pdf(request):
     if not jobs:
         messages.error(request, "勾選的訂單已不存在或沒有權限列印。")
         return redirect("form_print")
-    # 電車信封要印出已存的車控密碼：沿用查看密碼的本人驗證與處理紀錄（BUSINESS_RULES「本人近期驗證」）。
+    # 電車信封印出已存的車控密碼，每張訂單留處理紀錄。
     secret_orders = {job.order.pk: job.order for job in jobs if job.form == "envelope" and form_print.has_control_password(job.order)}
     if secret_orders:
-        denied = reveal_password_denied(request, "套表列印的車控密碼")
-        if denied:
-            try:
-                error = json.loads(denied.content).get("error")
-            except ValueError:
-                error = None
-            messages.error(request, f"電車信封含車控密碼，需驗證本人登入密碼：{error or '驗證失敗'}請回到套表列印重新送出。")
-            return redirect("form_print")
         actor = request.user.get_full_name() or request.user.get_username()
         for order in secret_orders.values():
             OrderEvent.objects.create(order=order, event_type="secret_viewed", description="套表列印電車信封（含車控密碼）", actor_name=actor)

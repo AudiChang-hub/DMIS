@@ -2598,7 +2598,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "廠牌")
         self.assertContains(response, "eMOVING")
 
-    def test_dashboard_search_masks_sensitive_match_values(self):
+    def test_dashboard_search_shows_full_id_number_match(self):
         order = self.make_order()
         self.client.force_login(self.user)
 
@@ -2607,8 +2607,9 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertContains(response, "證件號碼／統一編號")
-        self.assertContains(response, order.masked_id_number)
-        self.assertNotContains(response, f"<mark>{order.owner_id_number}</mark>")
+        # 2026-10-15 起只有店內人員使用，搜尋結果的證件號碼不再遮罩。
+        self.assertContains(response, order.owner_id_number)
+        self.assertNotContains(response, "＊")
 
     def test_dashboard_search_paginates_without_hiding_total_matches(self):
         SalesOrder.objects.bulk_create(
@@ -5850,7 +5851,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(cash["recommended_price"], "64980")
         self.assertEqual(cash["recommended_label"], "現金價")
         self.assertEqual(installment["recommended_price"], "74980")
-        self.assertEqual(installment["recommended_label"], "建議售價")
+        self.assertEqual(installment["recommended_label"], "分期總價")
 
     def test_manual_vehicle_price_requires_specific_adjustment_reason(self):
         VehiclePriceVersion.objects.create(
@@ -6140,13 +6141,10 @@ class OrderOperationsTests(TestCase):
         self.assertNotIn("safe-password", profile.vehicle_control_password_encrypted)
         self.assertEqual(decrypt_secret(encrypted), "safe-password")
         url = reverse("order_secret_reveal", args=[self.order.pk])
-        for payload, status in (({"field": "vehicle_control_password"}, 401),
-                                ({"field": "vehicle_control_password", "password": "wrong-pass"}, 400)):
-            denied = self.client.post(url, payload)
-            self.assertEqual(denied.status_code, status)
-            self.assertNotIn("safe-password", denied.content.decode())
+        self.assertEqual(self.client.post(url, {"field": "unknown"}).status_code, 400)
         self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed").exists())
-        response = self.client.post(url, {"field": "vehicle_control_password", "password": "test-pass-123"})
+        # 儲存仍加密；顯示不再要求本人密碼（2026-10-15），每次查看留紀錄。
+        response = self.client.post(url, {"field": "vehicle_control_password"})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["value"], "safe-password")
         self.assertTrue(

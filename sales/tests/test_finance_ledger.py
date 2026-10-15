@@ -15,7 +15,6 @@ from sales.services.dealer_commission import apply_order_dealer_commission
 from sales.services.dealer_settlement import dealer_settlement
 from sales.services.finance_ledger import finance_totals, ledger_fields
 from sales.services.operations_sync import sync_order_operations
-from sales.tests.profit_helpers import unlock_profit
 
 
 class FinanceLedgerTestBase(TestCase):
@@ -391,13 +390,10 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
         self.assertIn('name="operations-dealer_name"', finance)
         self.assertIn('name="operations-payment_confirmed"', finance)
 
-    def test_net_profit_stays_gated(self):
+    def test_net_profit_shows_without_unlock_for_profit_grant(self):
+        # 2026-10-15 起不再需要本人密碼解鎖；admin 有淨利授權直接看到。
         order = self.make_order()
         _page, finance = self.finance_panel(order)
-        self.assertNotIn("data-profit-value", finance)
-        self.assertNotIn("data-ledger-net-card", finance)
         self.assertIn("收入合計", finance)
-        unlock_profit(self, self.admin)
-        _page, finance = self.finance_panel(order)
         self.assertIn("data-profit-value", finance)
         self.assertIn("data-ledger-net-card", finance)

@@ -58,7 +58,7 @@ RELATED_FIELDS = (
     ("vehicle_model__model_code", "型式"),
     ("vehicle_model__energy_type", "動力類型"),
     ("vehicle_model__displacement_cc", "排氣量"),
-    ("price_version__suggested_price", "建議售價"),
+    ("price_version__suggested_price", "分期總價"),
     ("price_version__cash_price", "現金價"),
     ("color__name", "車色"),
     ("allocated_vehicle__engine_number", "引擎號碼"),
@@ -134,13 +134,6 @@ def _contains(value, query):
     return raw_query in raw_value or _normalise(query) in _normalise(value)
 
 
-def _mask(value):
-    text = str(value or "")
-    if len(text) <= 4:
-        return "＊" * len(text)
-    return f"{text[:2]}{'＊' * (len(text) - 4)}{text[-2:]}"
-
-
 def _factory_model_code_text(vehicle_model):
     codes = list(
         vehicle_model.factory_model_codes.filter(active=True)
@@ -189,8 +182,8 @@ def build_order_search_query(query, *, profit_unlocked=True):
 
 
 def _append_match(matches, label, value, sensitive=False):
-    shown = _mask(value) if sensitive else str(value)
-    item = {"label": str(label), "value": shown}
+    # 證件號碼完整顯示（2026-10-15 起只有店內人員使用，取消遮罩）；sensitive 參數保留給既有呼叫端。
+    item = {"label": str(label), "value": str(value)}
     if item not in matches:
         matches.append(item)
 
@@ -204,7 +197,7 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
         return [
             {
                 "label": item["label"],
-                "value": _mask(item["value"]) if item.get("sensitive") else item["value"],
+                "value": item["value"],
             }
             for item in cached
             if any(_contains(item.get("value", ""), term) for term in search_terms)

@@ -7,7 +7,7 @@
   <div>
     <p class="eyebrow">費率與規則</p>
     <h1>補助方案</h1>
-    <p class="muted">汰舊換新、新購補助、貨物稅補助等可申請的補助。訂車時可多選，選了就帶入該訂單的補助項目；預設金額可留空，帶入後仍可逐筆修改。</p>
+    <p class="muted">汰舊換新、新購補助、新購貨物稅補助等可申請的補助。訂車時可多選，選了就帶入該訂單的補助項目；預設金額可留空，帶入後仍可逐筆修改。</p>
   </div>
   {% if not show_editor %}<div class="hero-actions"><a class="button primary" href="?new=1#program-form">＋ 新增補助方案</a></div>{% endif %}
 </section>
@@ -50,7 +50,7 @@
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="subsidy-program" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#program-form">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="7"><div class="empty-state small"><strong>尚未建立補助方案</strong><p>按「＋ 新增補助方案」建立，例如貨物稅補助、各縣市環保局 新購。</p></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="7"><div class="empty-state small"><strong>尚未建立補助方案</strong><p>按「＋ 新增補助方案」建立，例如新購貨物稅補助、各縣市環保局 新購。</p></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

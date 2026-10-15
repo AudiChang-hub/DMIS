@@ -133,7 +133,6 @@ from .forms import (
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
 )
-from .services.reveal_password import reveal_password_denied
 from .services.vehicle_brands import brand_tree_sort_key
 from .services.subsidy_names import subsidy_name_suggestions
 from .models import (
@@ -6079,9 +6078,6 @@ def order_secret_reveal(request, pk):
     }
     if field not in encrypted_fields:
         return JsonResponse({"ok": False, "error": "不支援的欄位。"}, status=400)
-    denied = reveal_password_denied(request, "車控與電池合約密碼")
-    if denied:
-        return denied
     value = decrypt_secret(encrypted_fields[field])
     OrderEvent.objects.create(
         order=order,
@@ -6100,9 +6096,6 @@ def order_payout_reveal(request, pk):
         return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
     order = get_object_or_404(scoped_orders(request.user), pk=pk)
     profile = get_object_or_404(OrderOperationsProfile, order=order)
-    denied = reveal_password_denied(request, "補助撥款匯款帳戶")
-    if denied:
-        return denied
     OrderEvent.objects.create(
         order=order,
         event_type="payout_account_viewed",

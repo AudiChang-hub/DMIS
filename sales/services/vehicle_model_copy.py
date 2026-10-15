@@ -42,7 +42,7 @@ VERSIONED_SCREENS = {row[0]: row[2] for row in VERSIONED}
 VERSIONED_RELATED = {row[0]: row[3] for row in VERSIONED}
 VERSIONED_ROUTES = {row[0]: row[4] for row in VERSIONED}
 VERSIONED_HINTS = {
-    "price": "現金價、建議售價與是否含牌險",
+    "price": "現金價、分期總價與是否含牌險",
     "installment": "各期數、分期公司、每期金額與撥款設定",
     "reward": "實物、紅包、禮券與點數項目",
     "cost": "代銷結算成本",
@@ -160,7 +160,7 @@ def summarize(dataset, version):
         return ""
     if dataset == "price":
         registration = "含牌險" if version.suggested_price_includes_registration else "不含牌險"
-        return f"現金價 {money(version.cash_price)}／建議售價 {money(version.suggested_price)}（{registration}）"
+        return f"現金價 {money(version.cash_price)}／分期總價 {money(version.suggested_price)}（{registration}）"
     if dataset == "installment":
         periods = [f"{option.periods} 期" for option in version.options.all()]
         return "、".join(periods) or "尚未設定期數"

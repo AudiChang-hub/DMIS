@@ -43,7 +43,7 @@
 
       {% if link.vehicle_model %}
       <p>對應系統車型：<a href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">{{ link.vehicle_model }}</a>{% if not link.vehicle_model.active %}（已停用）{% endif %}</p>
-      {% if row.price %}<p>{% if row.price.official %}官網建議售價 NT${{ row.price.official|number_with_commas }}{% if row.price.official_note %}（{{ row.price.official_note }}）{% endif %}{% else %}官網未標示售價{% endif %}；系統目前建議售價 {% if row.price.system %}NT${{ row.price.system|number_with_commas }}{% if row.price.system_includes_registration %}（含牌險）{% else %}（不含牌險）{% endif %}{% else %}未設定{% endif %}{% if row.price.differs %} <span class="account-badge">價格不同，請到機種與售價確認</span>{% endif %}</p>{% endif %}
+      {% if row.price %}<p>{% if row.price.official %}官網建議售價 NT${{ row.price.official|number_with_commas }}{% if row.price.official_note %}（{{ row.price.official_note }}）{% endif %}{% else %}官網未標示售價{% endif %}；系統目前分期總價 {% if row.price.system %}NT${{ row.price.system|number_with_commas }}{% if row.price.system_includes_registration %}（含牌險）{% else %}（不含牌險）{% endif %}{% else %}未設定{% endif %}{% if row.price.differs %} <span class="account-badge">價格不同，請到機種與售價確認</span>{% endif %}</p>{% endif %}
       {% endif %}
 
       {% if tab == "pending" %}

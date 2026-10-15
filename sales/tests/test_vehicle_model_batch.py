@@ -128,7 +128,7 @@ class BatchAdjustTests(TestCase):
         self.client.post(BATCH_URL, {"action": "commit", "token": preview.context["token"]})
         created = VehiclePriceVersion.objects.get(vehicle_model=self.a, effective_from=self.day)
         self.assertEqual((created.cash_price, created.suggested_price, created.suggested_price_includes_registration),
-                         (69500, 72000, False), "未改的建議售價與含牌險設定沿用目前版本")
+                         (69500, 72000, False), "未改的分期總價與含牌險設定沿用目前版本")
         self.assertFalse(VehiclePriceVersion.objects.filter(vehicle_model__in=[self.b, self.c], effective_from=self.day).exists())
         old = self.prices[self.a.pk]
         old.refresh_from_db()

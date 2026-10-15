@@ -1,6 +1,5 @@
 {% load static %}
 
-<script src="{% static 'js/masked-reveal.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/discount-preview.js' %}" defer></script>
 <script src="{% static 'js/order-finance.js' %}?v={{ app_version }}" defer></script>
 <script>
@@ -24,12 +23,30 @@
     rows.lastElementChild.querySelector('[name$="-item_name"]').focus();
     total.dispatchEvent(new Event('change', {bubbles: true}));
   });
+  // 已存的車控／電池密碼直接顯示在按鈕旁（不需再輸入本人密碼），每次查看寫入處理紀錄。
   document.querySelectorAll(".secret-reveal").forEach(button => button.addEventListener("click", async () => {
-    const value = await window.dmisRevealMasked({
-      url: "{% url 'order_secret_reveal' order.pk %}", csrf: "{{ csrf_token }}", params: {field: button.dataset.secret},
-      hint: "輸入你自己的登入密碼，才會顯示已存的密碼；查看會留下紀錄。",
-    });
-    if (value !== null) alert(value || "尚未設定");
+    let output = button.nextElementSibling?.matches("[data-secret-output]") ? button.nextElementSibling : null;
+    if (!output) {
+      output = document.createElement("output");
+      output.className = "secret-reveal__value";
+      output.setAttribute("data-secret-output", "");
+      output.setAttribute("aria-live", "polite");
+      button.after(output);
+    }
+    button.disabled = true;
+    try {
+      const response = await fetch("{% url 'order_secret_reveal' order.pk %}", {
+        method: "POST", credentials: "same-origin",
+        headers: {"X-CSRFToken": "{{ csrf_token }}", "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json"},
+        body: new URLSearchParams({field: button.dataset.secret}),
+      });
+      const data = await response.json().catch(() => ({}));
+      output.textContent = data.ok ? (data.value || "尚未設定") : (data.error || "無法顯示密碼。");
+    } catch (failure) {
+      output.textContent = "連線失敗，請稍後再試。";
+    } finally {
+      button.disabled = false;
+    }
   }));
 })();
 </script>

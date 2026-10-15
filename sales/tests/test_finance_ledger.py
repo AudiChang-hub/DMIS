@@ -275,6 +275,18 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         self.assertEqual(profile.agency_fee_income, -450 - 1358 + 200)
         self.assertTrue(unpaid.plate_fee_shortfall)
 
+    def test_imported_orders_are_never_flagged_as_plate_shortfall(self):
+        from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
+
+        order = self.electric_order("micro_electric", plate_insurance_fee=0)
+        self.assertTrue(order.plate_fee_shortfall)
+        batch = LegacyImportBatch.objects.create(import_type="operations", original_filename="synthetic.xlsx", file_size=0)
+        row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷貨", source_row=1, fingerprint="plate-shortfall")
+        LegacySalesSnapshot.objects.create(order=order, import_row=row)
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertIsNone(order.plate_fee_surplus)
+        self.assertFalse(order.plate_fee_shortfall)
+
     def test_migration_moves_selection_out_of_existing_plate_fee(self):
         from importlib import import_module
 

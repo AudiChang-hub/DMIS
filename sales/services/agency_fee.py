@@ -104,8 +104,11 @@ def default_plate_selection_expense(order):
 
 
 def plate_fee_surplus(order, profile=None):
-    """牌險溢收；油車規費尚未試算時回傳 None。收支頁人工改過的規費／強制險支出優先。"""
-    if not registration_cost_known(order):
+    """牌險溢收；油車規費尚未試算時回傳 None。收支頁人工改過的規費／強制險支出優先。
+
+    Excel 匯入單的牌險含在收款價裡、財務以 Excel 為準，不判斷溢收或少收。
+    """
+    if not registration_cost_known(order) or (order.pk and hasattr(order, "legacy_snapshot")):
         return None
     profile = profile or _profile(order)
     if profile is not None:

@@ -1,4 +1,4 @@
-/* 同一份 DOM 切換；明確儲存、樂觀鎖、跨頁籤輸入保留。 */
+/* 同一份 DOM 切換；自動儲存（2026-10-15）、樂觀鎖、跨頁籤輸入保留。 */
 (() => {
   const canonical = (field, value) => {
     if (field.type === 'checkbox') return value === true || value === 'true' || value === 'on';
@@ -232,7 +232,7 @@
       row.querySelector('[data-delete-payment]')?.remove();
     });
   }
-  function merge(payload, savedForm) {
+  function merge(payload, savedForm, typed = new Set()) {
     if (payload.customer_balance_due != null) {
       root.querySelectorAll('[data-customer-balance]').forEach(node => { node.textContent = '$' + Number(payload.customer_balance_due).toLocaleString('zh-TW'); });
     }
@@ -271,7 +271,8 @@
         const field = form.elements.namedItem(name);
         if (!field || !field.tagName || ['change_reason', 'confirm_completed_correction', 'financial_revision'].some(k => name.endsWith(k))) continue;
         const next = canonical(field, remote);
-        const mode = form === savedForm ? 'update' : decision(base.get(name), value(field), next);
+        // 送出後才打的字不被伺服器回傳值蓋掉，留待下一次自動儲存。
+        const mode = form === savedForm ? (typed.has(name) ? 'keep' : 'update') : decision(base.get(name), value(field), next);
         if (mode === 'conflict') { conflict = true; field.setAttribute('data-workspace-conflict', 'true'); }
         else {
           if (mode === 'update') updateField(field, remote);
@@ -310,25 +311,110 @@
       const initial = form.elements.namedItem(prefix + '-INITIAL_FORMS'); if (initial) initial.value = index;
     });
   }
+  // 自動儲存（使用者 2026-10-15）：停止輸入約 1 秒、改選項或離開欄位就送出，不需要按儲存。
+  // 欄位未填完只在該區塊顯示缺什麼，不搶焦點；有後果的勾選（例如確認入帳）先確認。
+  const AUTOSAVE_DELAY = 1000;
+  const timers = new Map();
+  const queued = new Set();
+  const autosaving = form => !form.hasAttribute('data-autosave-off');
+  const clock = () => new Date().toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit', hour12: false});
+  const visible = field => field.type !== 'hidden' && !field.disabled && field.getClientRects().length > 0;
+  function labelOf(field) {
+    const label = field.id && root.querySelector(`label[for="${CSS.escape(field.id)}"]`);
+    return (label?.textContent || field.getAttribute('aria-label') || field.name).replace(/必填|選填/g, '').trim();
+  }
+  function statusOf(form) {
+    let node = form.querySelector('[data-autosave-status]');
+    if (!node) {
+      node = document.createElement('p');
+      node.className = 'autosave-status';
+      node.dataset.autosaveStatus = '';
+      node.setAttribute('role', 'status');
+      node.setAttribute('aria-live', 'polite');
+      (form.querySelector(':scope > fieldset') || form).append(node);
+    }
+    return node;
+  }
+  function setStatus(form, text, state) {
+    const node = statusOf(form);
+    node.textContent = text;
+    node.dataset.state = state;
+  }
+  function schedule(form, delay = AUTOSAVE_DELAY) {
+    if (!autosaving(form)) return;
+    clearTimeout(timers.get(form));
+    timers.set(form, setTimeout(() => autosave(form), delay));
+  }
+  // 回傳 true 表示已送出或排入佇列（之後會觸發 workspace-save-finished）。
+  function autosave(form) {
+    clearTimeout(timers.get(form));
+    timers.delete(form);
+    if (!dirty(form) || conflicts.has(form)) return false;
+    if (busy) { queued.add(form); return true; }
+    const invalid = fields(form).find(field => visible(field) && field.willValidate && !field.checkValidity());
+    if (invalid) {
+      setStatus(form, `尚未儲存：請填寫「${labelOf(invalid)}」`, 'pending');
+      invalid.setAttribute('aria-invalid', 'true');
+      return false;
+    }
+    form.requestSubmit();
+    return true;
+  }
+  function saveNow(form) {
+    return new Promise(resolve => {
+      form.addEventListener('workspace-save-finished', () => resolve(), {once: true});
+      if (!autosave(form)) resolve();
+    });
+  }
+  const flush = () => Promise.all(forms.filter(form => autosaving(form) && dirty(form)).map(saveNow));
   forms.forEach(form => {
     bases.set(form, capture(form));
-    form.addEventListener('input', indicators); form.addEventListener('change', indicators);
+    if (!autosaving(form)) {
+      form.addEventListener('input', indicators); form.addEventListener('change', indicators);
+    } else {
+      form.noValidate = true;
+      form.dataset.autosave = '';
+      form.addEventListener('input', event => {
+        indicators();
+        event.target.removeAttribute('aria-invalid');
+        if (event.target.type !== 'file') schedule(form);
+      });
+      form.addEventListener('change', event => {
+        const field = event.target;
+        if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm && !confirm(field.dataset.autosaveConfirm)) {
+          field.checked = false; indicators(); return;
+        }
+        indicators();
+        if (field.type === 'file') return;
+        schedule(form, field.matches('select, [type="checkbox"], [type="radio"], [type="date"]') ? 250 : AUTOSAVE_DELAY);
+      });
+      form.addEventListener('focusout', () => { if (timers.has(form)) schedule(form, 0); });
+    }
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (busy || conflicts.has(form)) {
-        notify(busy ? '正在儲存，請稍候。' : '此區有與剛才更新重疊的欄位，未覆寫您的輸入。請記下修改後重新載入核對最新資料。', true);
+      const button = event.submitter;
+      const auto = autosaving(form) && !button;
+      if (busy) {
+        if (auto) { queued.add(form); return; }
+        notify('正在儲存，請稍候。', true);
         form.dispatchEvent(new CustomEvent('workspace-save-finished')); return;
       }
-      const button = event.submitter;
+      if (conflicts.has(form)) {
+        notify('此區有與剛才更新重疊的欄位，未覆寫您的輸入。請記下修改後重新載入核對最新資料。', true);
+        form.dispatchEvent(new CustomEvent('workspace-save-finished')); return;
+      }
       const finishing = button?.hasAttribute('data-workspace-finish');
       if (finishing && !dirty(form)) {
-        if (forms.some(dirty) && !confirm('其他區塊尚未儲存，確定放棄這些修改並完成編輯嗎？')) return;
+        await flush();
+        if (forms.some(dirty) && !confirm('有區塊還沒儲存成功（例如必填欄位未填），確定放棄這些修改並完成編輯嗎？')) return;
         allowLeave = true; location.href = button.dataset.finishUrl; return;
       }
       busy = true;
       const text = button?.textContent;
       if (button) { button.disabled = true; button.textContent = '正在儲存…'; }
-      notify('正在儲存，請勿關閉頁面。');
+      if (auto) setStatus(form, '儲存中…', 'saving');
+      else notify('正在儲存，請勿關閉頁面。');
+      const sent = capture(form);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 45000);
       try {
@@ -337,13 +423,17 @@
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
           const entries = Object.entries(payload.errors || {});
-          notify([payload.error || '未能儲存。', ...entries.flatMap(([, errors]) => errors)].join('\n'), true);
+          const detail = [payload.error || '未能儲存。', ...entries.flatMap(([, errors]) => errors)];
+          entries.forEach(([name]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) field.setAttribute('aria-invalid', 'true'); });
+          if (auto) { setStatus(form, '尚未儲存：' + detail.join(' '), 'error'); return; }
+          notify(detail.join('\n'), true);
           const first = entries.map(([name]) => form.elements.namedItem(name)).find(f => f?.focus);
           if (first) reveal(first);
           return;
         }
+        const typed = new Set(fields(form).filter(f => value(f) !== sent.get(f.name)).map(f => f.name));
         acceptRows(form, payload);
-        merge(payload, form);
+        merge(payload, form, typed);
         form.querySelectorAll('input[type=file]').forEach(field => { field.value = ''; });
         if (payload.summary_html) {
           const summary = document.getElementById('workspace-finance-summary');
@@ -353,24 +443,61 @@
           const agencies = document.getElementById('subsidy-agency-summary');
           if (agencies) agencies.outerHTML = payload.subsidy_summary_html;
         }
-        bases.set(form, capture(form));
+        if (payload.registration_html) {
+          const completion = root.querySelector('[data-registration-completion]');
+          if (completion) completion.outerHTML = payload.registration_html;
+        }
+        const base = capture(form);
+        typed.forEach(name => base.set(name, sent.get(name)));
+        // 「本次更新說明」只跟著這一次儲存，存好就清空，下一次自動儲存不重複帶入。
+        fields(form).filter(f => f.name.endsWith('change_reason') && !typed.has(f.name)).forEach(f => { f.value = ''; base.set(f.name, value(f)); });
+        bases.set(form, base);
         form.dispatchEvent(new CustomEvent('workspace-saved'));
         indicators();
-        notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ' 其他步驟的未儲存輸入仍保留。'), conflicts.size > 0);
-        if (finishing && !conflicts.size && !forms.some(dirty)) { allowLeave = true; location.href = button.dataset.finishUrl; return; }
+        if (auto) setStatus(form, conflicts.size ? '已自動儲存，但其他區塊有重疊修改，請核對。' : `已自動儲存 ${clock()}`, conflicts.size ? 'error' : 'saved');
+        else notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ''), conflicts.size > 0);
+        if (finishing && !conflicts.size) {
+          await flush();
+          if (!forms.some(dirty)) { allowLeave = true; location.href = button.dataset.finishUrl; return; }
+        }
+        if (typed.size) schedule(form);
       } catch (error) {
-        notify(error.name === 'AbortError' ? '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。' : error.message, true);
+        const reason = error.name === 'AbortError' ? '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。' : error.message;
+        if (auto) setStatus(form, '尚未儲存：' + reason, 'error'); else notify(reason, true);
       } finally {
         clearTimeout(timeout); busy = false;
         if (button) { button.disabled = false; button.textContent = text; }
         form.dispatchEvent(new CustomEvent('workspace-save-finished'));
+        const next = [...queued]; queued.clear();
+        next.forEach(item => schedule(item, 0));
       }
     });
   });
-  root.addEventListener('submit', event => {
-    if (event.target.matches('[data-workspace-save]') || event.defaultPrevented || event.target.target === '_blank') return;
-    if (forms.some(dirty) && !confirm('其他區塊尚未儲存。此操作會離開目前頁面，確定放棄未儲存修改嗎？')) { event.preventDefault(); return; }
+  // 離開頁面前（送出其他表單、點連結）先把還沒送出的自動儲存存完。
+  root.addEventListener('submit', async event => {
+    const target = event.target;
+    if (target.matches('[data-workspace-save]') || event.defaultPrevented || target.target === '_blank') return;
+    if (target.dataset.flushed !== '1' && forms.some(dirty)) {
+      event.preventDefault();
+      await flush();
+      if (forms.some(dirty) && !confirm('有區塊還沒儲存成功（例如必填欄位未填）。此操作會離開目前頁面，確定放棄這些輸入嗎？')) return;
+      target.dataset.flushed = '1';
+      allowLeave = true;
+      target.requestSubmit(event.submitter && event.submitter.form === target ? event.submitter : undefined);
+      return;
+    }
     allowLeave = true;
+  });
+  document.addEventListener('click', async event => {
+    const link = event.target.closest?.('a[href]');
+    if (!link || event.defaultPrevented || link.target === '_blank' || link.hasAttribute('download') || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    const url = new URL(link.href, location.href);
+    if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
+    if (!forms.some(dirty) && !busy) return;
+    event.preventDefault();
+    await flush();
+    if (forms.some(dirty) && !confirm('有區塊還沒儲存成功（例如必填欄位未填）。確定離開並放棄這些輸入嗎？')) return;
+    allowLeave = true; location.href = link.href;
   });
   window.addEventListener('beforeunload', event => {
     if (!allowLeave && (busy || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }

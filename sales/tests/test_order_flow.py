@@ -3124,9 +3124,8 @@ class OrderFlowTests(TestCase):
 
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, 'data-subsidy-form')
-        self.assertContains(detail, 'data-subsidy-save-dock')
-        self.assertContains(detail, "補助資料已儲存")
-        self.assertContains(detail, 'data-subsidy-save-button disabled')
+        self.assertNotContains(detail, 'data-subsidy-save-dock')
+        self.assertContains(detail, "修改後會自動儲存")
         self.assertNotContains(detail, "修改補助基本資料")
 
         response = self.client.post(
@@ -3294,15 +3293,12 @@ class OrderFlowTests(TestCase):
         self.assertIn("setUploadControls(payload.enabled)", script)
         self.assertNotIn("window.location.reload", script)
 
-    def test_subsidy_edit_script_only_shows_save_dock_after_changes(self):
+    def test_subsidy_form_is_autosaved_without_save_dock(self):
+        # 1.81.0：補助改由訂單頁統一自動儲存，浮動儲存列移除。
         script = Path("static/js/subsidy-items.js").read_text(encoding="utf-8")
-        self.assertIn('querySelector("[data-subsidy-save-dock]")', script)
-        self.assertIn("currentFormState() !== initialFormState", script)
-        self.assertIn('saveDock.classList.toggle("is-saved", !formIsDirty)', script)
-        self.assertIn('saveButton.disabled = !formIsDirty', script)
-        self.assertIn('saveButton.textContent = formIsDirty', script)
-        self.assertIn('window.addEventListener("beforeunload"', script)
-        self.assertIn('saveButton.textContent = "正在儲存…"', script)
+        self.assertNotIn("data-subsidy-save-dock", script)
+        workspace = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
+        self.assertIn("form.requestSubmit();", workspace)
 
     def test_cancelled_order_keeps_subsidy_locked(self):
         order = self.make_order()
@@ -3884,7 +3880,8 @@ class OrderFlowTests(TestCase):
         self.assertEqual(form["registration_date"].value(), date(2026, 7, 29))
 
     def test_registration_save_completes_when_documents_already_uploaded(self):
-        # 先傳文件、後填資料：儲存時資料齊全就直接完成領牌，按鈕改名並先確認（2026-10-14）。
+        # 先傳文件、後填資料：一般送出時資料齊全就直接完成領牌（2026-10-14）；
+        # 訂單頁改自動儲存後不再自動完成，改由「確認領牌完成」明確按下（1.81.0，見 test_autosave）。
         order = self.make_order()
         order.allocate(self.vehicle)
         self.client.force_login(self.user)
@@ -3899,7 +3896,7 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertFalse(order.is_registration_complete)
         page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
-        self.assertIn("儲存並完成領牌", page)
+        self.assertIn("確認領牌完成", page)
         response = self.client.post(reverse("registration_save", args=[order.pk]), {
             "registration_date": "2026-07-29", "final_plate_number": "abc-1234",
         }, follow=True)

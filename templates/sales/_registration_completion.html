@@ -1,0 +1,20 @@
+{% load site_copy %}<div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}" data-registration-completion>
+  <div>
+    {% if order.is_registration_complete %}
+      <strong>領牌已完成</strong>
+      <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}</p>
+    {% elif registration_missing %}
+      <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
+      <p>{{ registration_missing|join:"、" }}</p>
+    {% else %}
+      <strong>領牌資料與必備文件已齊全</strong>
+      <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
+    {% endif %}
+  </div>
+  {% if not order.is_registration_complete %}
+  <form method="post" action="{% url 'registration_complete' order.pk %}">
+    {% csrf_token %}
+    <button class="button primary" type="submit" {% if registration_missing %}disabled{% endif %} data-confirm="完成領牌後，領牌日期與車牌號碼會鎖定。請確認車牌與日期正確。">確認領牌完成</button>
+  </form>
+  {% endif %}
+</div>

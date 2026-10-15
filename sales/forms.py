@@ -72,6 +72,9 @@ from .services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
+    has_registration_rate_basis,
+    registration_fee_date,
+    registration_period_for,
 )
 from .services.installment_plan import resolve_installment_plan_option
 from .services.price_version import (
@@ -670,21 +673,28 @@ class SalesOrderForm(forms.ModelForm):
                 data[name] = getattr(self.instance, name)
             if data.get("plate_insurance_fee") is None:
                 data["plate_insurance_fee"] = self.instance.plate_insurance_fee
-        elif model and model.energy_type in {
-            VehicleModel.EnergyType.GAS,
-            VehicleModel.EnergyType.ELECTRIC,
-            VehicleModel.EnergyType.LIGHT_ELECTRIC,
-        }:
-            has_rate_basis = bool(
-                model.displacement_cc
-                if model.energy_type == VehicleModel.EnergyType.GAS
-                else model.electric_registration_class
+        elif model and model.energy_type in VehicleModel.EnergyType.values:
+            reference_date = (
+                data.get("order_date") or self.instance.order_date or timezone.localdate()
             )
-            if registration_date and has_rate_basis:
+            insurance_period = registration_period_for(
+                model, registration_date or reference_date, insurance_period
+            )
+            data["compulsory_insurance_period"] = insurance_period
+            self.cleaned_data["compulsory_insurance_period"] = insurance_period
+            rate_date = registration_fee_date(
+                model, registration_date, reference_date, insurance_period
+            )
+            if (
+                model.energy_type == VehicleModel.EnergyType.GAS
+                and insurance_period == SalesOrder.CompulsoryInsurancePeriod.THREE_YEARS
+            ):
+                self.add_error("compulsory_insurance_period", "油車強制險只能選一年或兩年。")
+            elif rate_date and has_registration_rate_basis(model, rate_date, insurance_period):
                 try:
                     result = calculate_vehicle_registration_fee(
                         model,
-                        registration_date,
+                        rate_date,
                         insurance_period,
                     )
                 except ManualRegistrationFeeRequired:
@@ -4105,16 +4115,12 @@ class RegistrationStageForm(forms.ModelForm):
         cleaned = super().clean()
         registration_date = cleaned.get("registration_date")
         model = self.instance.vehicle_model
-        has_rate_basis = bool(
-            model.displacement_cc
-            if model.energy_type == VehicleModel.EnergyType.GAS
-            else model.electric_registration_class
-            if model.energy_type
-            in {
-                VehicleModel.EnergyType.ELECTRIC,
-                VehicleModel.EnergyType.LIGHT_ELECTRIC,
-            }
-            else False
+        if registration_date:
+            self.instance.compulsory_insurance_period = registration_period_for(
+                model, registration_date, self.instance.compulsory_insurance_period
+            )
+        has_rate_basis = has_registration_rate_basis(
+            model, registration_date, self.instance.compulsory_insurance_period
         )
         if registration_date and has_rate_basis:
             try:

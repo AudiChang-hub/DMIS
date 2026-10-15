@@ -21,7 +21,6 @@
     {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
     {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
     {% if not editing_order and order.needs_customer_signatures %}{% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="?tab=documents#signed-documents" data-target-tab="documents" data-target-anchor="signed-documents">簽署與列印文件</a>{% endif_access %}{% endif %}
-    {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
   </div>
 </section>
 
@@ -56,6 +55,10 @@
 {% with step=steps.order %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-order" data-step-key="order" role="tabpanel" aria-labelledby="tab-order" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
+{% if inline_order_form %}
+{% include "sales/_order_form_content.html" with editing_order=order %}
+{% include "sales/_order_identity_tools.html" %}
+{% else %}
 <div class="detail-grid">
   <section class="card">
     <div class="section-title"><h2>車主資料</h2><span>已人工核對</span></div>
@@ -122,6 +125,7 @@
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
+{% endif %}
 </div></section>{% endwith %}
 {% endif %}
 {% with step=steps.deposit %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-deposit" data-step-key="deposit" role="tabpanel" aria-labelledby="tab-deposit" tabindex="-1">
@@ -996,7 +1000,7 @@
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
-{% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% endif %}
+{% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>

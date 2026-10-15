@@ -69,7 +69,7 @@
   <div class="form-savebar master-model-actions">
     <span class="form-savebar__hint">{% if is_editing %}修改規格與顏色後記得儲存；售價、分期等在上方分頁設定。{% else %}儲存後即可在上方分頁設定售價、分期、傭金與成本。{% endif %}</span>
     <a class="button ghost" href="{% if is_editing %}{% url 'vehicle_model_edit' vehicle_model.pk %}{% else %}{% url 'vehicle_model_list' %}{% endif %}">{% if is_editing %}放棄變更{% else %}取消{% endif %}</a>
-    <button class="button primary" type="submit">儲存年式／規格</button>
+    <button class="button primary" type="submit">套用年式／規格</button>
   </div>
 </form>
 

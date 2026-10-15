@@ -146,7 +146,9 @@ class OrderDetailTabTests(TestCase):
     def test_edit_page_links_back_to_tabs(self):
         order, _vehicle = self.make_order()
         self.client.force_login(self.user)
-        page = self.client.get(reverse("order_edit", args=[order.pk])).content.decode()
-        self.assertNotIn('role="tablist"', page)
-        self.assertNotIn("has-order-tabs", page)
-        self.assertIn(f'href="{reverse("order_detail", args=[order.pk])}?tab=allocation#step-allocation"', page)
+        # 1.82.0：舊的編輯頁網址導回訂單頁「訂車與配件」，表單就在步驟分頁裡。
+        response = self.client.get(reverse("order_edit", args=[order.pk]))
+        self.assertRedirects(response, f'{reverse("order_detail", args=[order.pk])}?tab=order#step-order', fetch_redirect_response=False)
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"}).content.decode()
+        self.assertIn('role="tablist"', page)
+        self.assertIn('id="order-form"', page)

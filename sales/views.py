@@ -5599,6 +5599,12 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     commission_block_reason = order.commission_attribution_block_reason
     if commission_form is None and not commission_block_reason:
         commission_form = OrderCommissionAttributionForm(order=order, prefix="attribution")
+    from sales.access.services import policy_for
+    inline_order_context = {}
+    if (not workspace_context_only and order.can_edit_content and can_edit_finance(request.user)
+            and policy_for(request).route("order_edit", "POST", kwargs={"pk": order.pk})):
+        # 沒有修改權限的人仍看唯讀摘要，不顯示會一直存不進去的表單。
+        inline_order_context = _inline_order_form_context(request, order)
     response = TemplateResponse(
         request,
         "sales/order_detail.html",
@@ -5609,6 +5615,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "order": order,
             "historical_delivery_pending": historical_delivery.can_complete(order),
             **step_context,
+            **inline_order_context,
             "deposit_payment": deposit_payment,
             "deposit_payment_form": deposit_payment_form,
             "collect_balance": collect_balance,
@@ -5618,7 +5625,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "privacy_consent_form": PrivacyConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
             "reallocation_form": ReallocationForm(order),
-            "registration_form": RegistrationStageForm(instance=order),
+            # 訂單表單也在同頁（含隱藏的領牌日），領牌表單改用 reg_ 前綴避免欄位 id 重複。
+            "registration_form": RegistrationStageForm(instance=order, auto_id="reg_%s"),
             "registration_document_rows": registration_document_rows,
             "order_file_groups": collect_order_file_groups(order, request),
             "document_slot_groups": slot_groups,
@@ -5659,7 +5667,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
             "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,
             "exception_close_blockers": exception_close_blockers(order) if exception_close_ready else [],
-            "cancellation_form": CancellationRequestForm(),
+            "cancellation_form": CancellationRequestForm(auto_id="cancel_%s"),
             "refund_form": RefundCompletionForm(order) if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING else None,
             "positioned_templates": PositionedPrintTemplate.objects.filter(active=True).order_by(
                 "document_type", "-version"
@@ -6191,6 +6199,24 @@ def _schedule_model_file_cleanup(model, field_name, previous_name):
     transaction.on_commit(delete_if_unreferenced)
 
 
+def _inline_order_form_context(request, order, form=None, formset=None, fee_formset=None):
+    """訂單頁「訂車與配件」步驟內的訂單表單；儲存走 order_edit 的自動儲存。"""
+    from sales.access.services import policy_for
+    form = form or OrderEditForm(instance=order)
+    for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+        form.fields.pop(field, None)
+    return {
+        "form": form,
+        "formset": formset or AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}),
+        "fee_formset": fee_formset or OtherFeeFormSet(instance=order, prefix="other_fees"),
+        "inline_order_form": True,
+        "document_source": order,
+        "document_model": "order",
+        "vehicle_rate_data": _vehicle_rate_data(),
+        "accessory_product_data": _accessory_product_data(),
+    }
+
+
 @login_required
 @transaction.atomic
 def order_edit(request, pk):
@@ -6208,13 +6234,15 @@ def order_edit(request, pk):
             return order_workspace.save_error(locked_message, status=409)
         messages.error(request, locked_message)
         return redirect("order_detail", pk=pk)
+    if request.method != "POST":
+        # 不再有獨立的編輯頁：訂單內容直接在訂單頁「訂車與配件」修改並自動儲存。
+        return redirect(order_step_url(pk, "order"))
     completed_correction = order.is_delivered
     gap_before = settlement_gap(order) if completed_correction else None
     # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
     order._preserve_delivery_metadata = completed_correction
-    if not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
-        if order_workspace.is_workspace_save(request):
-            return order_workspace.save_error("其他人員正在編輯此訂單；本次未覆寫，您的輸入仍保留。", status=409)
+    # 訂單頁自動儲存不獨佔編輯：同時開啟的人都能改，靠版本號避免互相覆蓋。
+    if not order_workspace.is_workspace_save(request) and not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
         messages.error(
             request,
             f"此訂單目前由 {order.editing_by or '其他人員'} 編輯，暫時只能查看。",
@@ -6323,7 +6351,7 @@ def order_edit(request, pk):
             OrderEvent.objects.create(
                 order=order,
                 event_type="updated",
-                description=f"{'完成後修正' if completed_correction else '修改訂單'}：{reason}（{len(changes)} 個項目）",
+                description=f"{'完成後修正' if completed_correction else '修改訂單'}{'：' + reason if reason else ''}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
             if completed_correction:

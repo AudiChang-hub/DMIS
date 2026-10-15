@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
-from sales.models import OrderOperationsProfile, VehicleIncentiveRule
+from sales.models import OrderOperationsProfile, VehicleIncentiveRule, VehicleModel
 
 
 INCENTIVE_FIELDS = (
@@ -11,6 +11,17 @@ INCENTIVE_FIELDS = (
     "promotion_subsidy",
     "installment_interest_subsidy",
 )
+
+# 強制險傭金（使用者 2026-10-15）：油車與電動車依強制險年期固定金額；微型電動二輪車另計，不自動帶入。
+COMPULSORY_INSURANCE_COMMISSION = {1: Decimal("145"), 2: Decimal("215")}
+
+
+def compulsory_insurance_commission(order):
+    """回傳應帶入的強制險傭金；None 表示此訂單不套用固定規則。"""
+    vehicle_model = order.vehicle_model if order.vehicle_model_id else None
+    if vehicle_model is None or vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+        return None
+    return COMPULSORY_INSURANCE_COMMISSION.get(order.compulsory_insurance_period)
 
 
 def _calculated_disbursement(order):
@@ -60,6 +71,9 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
             if field_name == "promotion_subsidy" and order.source_type != order.SourceType.PLATFORM:
                 value = 0
             setattr(profile, field_name, value)
+    insurance_commission = compulsory_insurance_commission(order)
+    if insurance_commission is not None and "insurance_commission" not in protected_fields:
+        profile.insurance_commission = insurance_commission
     calculated_disbursement = _calculated_disbursement(order)
     if (
         calculated_disbursement is not None
@@ -79,6 +93,7 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
     )
     update_fields = [
         *INCENTIVE_FIELDS,
+        "insurance_commission",
         "actual_disbursement",
         "incentive_rule",
         "incentive_registration_date",

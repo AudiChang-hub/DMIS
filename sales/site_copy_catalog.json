@@ -1078,7 +1078,7 @@
   },
   "order_detail.b03ace01bdda": {
     "page": "訂單內容",
-    "default": "車輛結算成本會依機種與實際領牌日期判斷；領牌縣市僅供領牌及營運資料使用。",
+    "default": "車輛結算成本會依機種與實際領牌日期判斷。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.f76d73826e85": {

@@ -3719,7 +3719,8 @@ class OrderFlowTests(TestCase):
         # 1.21.0 起發票照片為選填。
         self.assertNotIn("發票", missing)
         self.assertNotIn("監理站單據", missing)
-        self.assertNotIn("強制險單", missing)
+        # 2026-10-15 起強制險單恢復為必填（每台訂單都有）。
+        self.assertIn("強制險單", missing)
 
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])
@@ -3737,7 +3738,7 @@ class OrderFlowTests(TestCase):
 
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertNotContains(detail, "監理站單據")
-        self.assertNotContains(detail, "強制險單")
+        self.assertContains(detail, "強制險單")
         self.assertContains(detail, "data-document-upload")
         self.assertContains(detail, "data-auto-upload")
         self.assertContains(detail, "document-upload-progress.js")
@@ -3768,12 +3769,40 @@ class OrderFlowTests(TestCase):
         self.assertIn("已取消", response.json()["message"])
         self.assertFalse(order.registration_documents.exists())
 
+    def test_completed_registration_accepts_missing_documents_but_not_replacements(self):
+        # 領牌完成後仍可補傳還沒有的文件（發票、選號單等）；已上傳的不能替換（使用者 2026-10-15）。
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        for document_type in (
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        ):
+            RegistrationDocument.objects.create(order=order, document_type=document_type,
+                                                file=SimpleUploadedFile(f"{document_type}.pdf", b"doc", content_type="application/pdf"))
+        SalesOrder.objects.filter(pk=order.pk).update(registration_date=date(2026, 7, 29), final_plate_number="ABC-1234")
+        order.refresh_from_db()
+        order.complete_registration("tester")
+        self.client.force_login(self.user)
+        detail = self.client.get(order_step_url(order.pk, "registration")).content.decode()
+        self.assertIn('name="document_type" value="invoice"', detail)
+        self.assertNotIn('name="document_type" value="new_license"', detail)
+        response = self.client.post(reverse("registration_document_upload", args=[order.pk]), {
+            "document_type": RegistrationDocument.DocumentType.INVOICE, "name": "", "file": uploaded_test_pdf("late.pdf"),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(order.registration_documents.filter(document_type="invoice").exists())
+        response = self.client.post(reverse("registration_document_upload", args=[order.pk]), {
+            "document_type": RegistrationDocument.DocumentType.NEW_LICENSE, "name": "", "file": uploaded_test_pdf("again.pdf"),
+        }, HTTP_ACCEPT="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 409)
+
     def test_legacy_retired_document_does_not_lock_reallocation(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         RegistrationDocument.objects.create(
             order=order,
-            document_type=RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+            document_type=RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
             file=SimpleUploadedFile(
                 "legacy.pdf", b"legacy", content_type="application/pdf"
             ),
@@ -3831,7 +3860,7 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("registration_save", args=[order.pk]),
-            {"registration_date": "2026-07-29", "registration_county": "新北市", "final_plate_number": "abc-1234"},
+            {"registration_date": "2026-07-29", "final_plate_number": "abc-1234"},
             follow=True,
         )
         self.assertNotContains(response, missing)
@@ -3843,20 +3872,16 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(response, missing)
 
-    def test_registration_form_defaults_to_today_and_recent_county(self):
+    def test_registration_form_defaults_to_today_without_county(self):
+        # 領牌縣市已不需要（使用者 2026-10-15），表單只剩領牌日期與車牌。
         order = self.make_order()
-        SalesOrder.objects.filter(pk=order.pk).update(registration_county="")
-        other = self.make_order()
-        SalesOrder.objects.filter(pk=other.pk).update(registration_county="桃園市")
-        order.refresh_from_db()
         form = RegistrationStageForm(instance=order)
         self.assertEqual(form.initial["registration_date"], timezone.localdate())
-        self.assertEqual(form.initial["registration_county"], "桃園市")
-        # 已填的值不被預設覆蓋。
-        SalesOrder.objects.filter(pk=order.pk).update(registration_county="新北市", registration_date=date(2026, 7, 29))
+        self.assertNotIn("registration_county", form.fields)
+        SalesOrder.objects.filter(pk=order.pk).update(registration_date=date(2026, 7, 29))
         order.refresh_from_db()
         form = RegistrationStageForm(instance=order)
-        self.assertEqual((form["registration_date"].value(), form["registration_county"].value()), (date(2026, 7, 29), "新北市"))
+        self.assertEqual(form["registration_date"].value(), date(2026, 7, 29))
 
     def test_registration_save_completes_when_documents_already_uploaded(self):
         # 先傳文件、後填資料：儲存時資料齊全就直接完成領牌，按鈕改名並先確認（2026-10-14）。
@@ -3866,6 +3891,7 @@ class OrderFlowTests(TestCase):
         for index, document_type in enumerate((
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         )):
             self.client.post(reverse("registration_document_upload", args=[order.pk]), {
                 "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"early-{index}.pdf"),
@@ -3875,7 +3901,7 @@ class OrderFlowTests(TestCase):
         page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
         self.assertIn("儲存並完成領牌", page)
         response = self.client.post(reverse("registration_save", args=[order.pk]), {
-            "registration_date": "2026-07-29", "registration_county": "新北市", "final_plate_number": "abc-1234",
+            "registration_date": "2026-07-29", "final_plate_number": "abc-1234",
         }, follow=True)
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
@@ -3899,7 +3925,6 @@ class OrderFlowTests(TestCase):
             reverse("registration_save", args=[order.pk]),
             {
                 "registration_date": "2026-07-29",
-                "registration_county": "新北市",
                 "final_plate_number": "abc-1234",
             },
         )
@@ -3909,6 +3934,7 @@ class OrderFlowTests(TestCase):
         required_types = [
             RegistrationDocument.DocumentType.INVOICE,
             RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
         ]
         for index, document_type in enumerate(required_types):
@@ -3958,6 +3984,7 @@ class OrderFlowTests(TestCase):
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
             RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         ]:
             RegistrationDocument.objects.create(
                 order=order,
@@ -3994,6 +4021,7 @@ class OrderFlowTests(TestCase):
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
             RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         ]:
             RegistrationDocument.objects.create(
                 order=order,
@@ -5563,6 +5591,27 @@ class OrderOperationsTests(TestCase):
         profile.manual_financial_fields = ["promotion_subsidy"]
         profile.save()
         self.assertEqual(apply_order_incentive_rule(self.order).promotion_subsidy, Decimal("1500"))
+
+    def test_compulsory_insurance_commission_follows_insurance_period(self):
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        # 油車與電動車：一年 145、兩年 215；人工更正後重算不覆寫（使用者 2026-10-15）。
+        for period, expected in ((1, Decimal("145")), (2, Decimal("215"))):
+            SalesOrder.objects.filter(pk=self.order.pk).update(compulsory_insurance_period=period)
+            self.order.refresh_from_db()
+            self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, expected)
+        profile = self.order.operations
+        profile.insurance_commission = Decimal("300")
+        profile.manual_financial_fields = ["insurance_commission"]
+        profile.save()
+        self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("300"))
+        # 微型電動二輪車不套用固定傭金，保留原值。
+        profile.manual_financial_fields = []
+        profile.insurance_commission = Decimal("0")
+        profile.save()
+        VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC)
+        self.order.refresh_from_db()
+        self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("0"))
 
     def test_installment_disbursement_uses_order_installment_plan_snapshot(self):
         VehicleIncentiveRule.objects.create(

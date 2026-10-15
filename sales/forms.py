@@ -2992,7 +2992,7 @@ class OrderOperationsForm(forms.ModelForm):
     }
     FULFILLMENT_SECTION_FIELDS = {
         "vehicle_control_account", "vehicle_control_password", "battery_plan", "battery_activated_on",
-        "battery_account", "battery_password", "helmet", "company_gift_or_remittance", "platform_gift",
+        "battery_account", "battery_password", "battery_rate_plan", "helmet", "company_gift_or_remittance", "platform_gift",
         "other_fulfillment", "customer_service_phone", "vehicle_control_confirmed", "fulfillment_confirmed",
     }
     SECTION_COMMON_FIELDS = {"financial_revision", "change_reason"}
@@ -3016,6 +3016,7 @@ class OrderOperationsForm(forms.ModelForm):
         for name in list(self.fields):
             if name not in keep:
                 self.fields.pop(name)
+        self._default_vehicle_control_password()
         synced_fields = {
             "dealer_name",
             "installment_fee_income",
@@ -3066,6 +3067,21 @@ class OrderOperationsForm(forms.ModelForm):
                 if not self.is_bound and self.initial.get(name) in (None, 0, Decimal("0")):
                     self.initial[name] = ""
         apply_mobile_keyboard_attrs(self)
+
+    def _default_vehicle_control_password(self):
+        """還沒存過車控密碼時預設新車主手機號碼，以明碼顯示讓人員核對或修改（使用者 2026-10-15）。"""
+        field = self.fields.get("vehicle_control_password")
+        order = getattr(self.instance, "order", None)
+        if field is None or order is None or self.instance.vehicle_control_password_encrypted:
+            return
+        digits = re.sub(r"\D", "", order.owner_phone or "")
+        if digits.startswith("886"):
+            digits = "0" + digits[3:]
+        if not re.fullmatch(r"09\d{8}", digits):
+            return
+        field.widget = forms.TextInput()
+        field.initial = digits
+        field.help_text = "預設為新車主手機號碼，可直接修改；儲存後加密保存。"
 
     def clean(self):
         cleaned = super().clean()
@@ -4079,18 +4095,11 @@ class ReallocationForm(AllocationForm):
     )
 
 
-def recent_registration_county():
-    """最近一張填過領牌縣市的訂單所用縣市；都沒有時回傳空字串。"""
-    return (
-        SalesOrder.objects.exclude(registration_county="")
-        .order_by("-updated_at", "-pk").values_list("registration_county", flat=True).first() or ""
-    )
-
-
 class RegistrationStageForm(forms.ModelForm):
     class Meta:
         model = SalesOrder
-        fields = ["registration_date", "registration_county", "final_plate_number"]
+        # 領牌縣市已不需要（使用者 2026-10-15）；資料庫欄位保留給歷史訂單與報表。
+        fields = ["registration_date", "final_plate_number"]
         widgets = {"registration_date": DateInput()}
 
     def __init__(self, *args, **kwargs):
@@ -4102,7 +4111,6 @@ class RegistrationStageForm(forms.ModelForm):
         self._previous_calculated_balance = self.instance.calculated_balance
         self._previous_actual_balance = self.instance.actual_balance
         self.fields["registration_date"].required = True
-        self.fields["registration_county"].required = True
         self.fields["final_plate_number"].required = True
         self.fields["final_plate_number"].widget.attrs.update(
             {
@@ -4114,13 +4122,9 @@ class RegistrationStageForm(forms.ModelForm):
             }
         )
         self.fields["registration_date"].widget.attrs["class"] = "form-control"
-        self.fields["registration_county"].widget.attrs["class"] = "form-control"
-        if not self.is_bound:
-            # 預設今天與最近一次使用的縣市，多數情況不必再選（使用者 2026-10-14）。
-            if not self.instance.registration_date:
-                self.initial["registration_date"] = timezone.localdate()
-            if not self.instance.registration_county:
-                self.initial["registration_county"] = recent_registration_county()
+        if not self.is_bound and not self.instance.registration_date:
+            # 預設今天，多數情況不必再選（使用者 2026-10-14）。
+            self.initial["registration_date"] = timezone.localdate()
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()

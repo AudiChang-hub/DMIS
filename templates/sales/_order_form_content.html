@@ -276,7 +276,9 @@
         {% include "sales/_field.html" with field=form.vehicle_price_adjustment_reason %}
       </div>
     </div>
-    <details class="card" open {% if intake_mode and not intake_finance_editable %}hidden{% endif %}><summary>店內財務・領牌規費與強制險</summary><div class="subsection registration-fee-subsection">
+    {% comment %}只有調價權限（無財務權限）的人仍要填牌險費：只顯示牌險費，規費明細停用並隱藏（使用者 2026-10-15）。{% endcomment %}
+    {% if intake_mode and not intake_finance_editable and intake_pricing_editable %}{% firstof "1" as plate_fee_only %}{% endif %}
+    <details class="card" open {% if intake_mode and not intake_finance_editable and not intake_pricing_editable %}hidden{% endif %}><summary>{% if plate_fee_only %}牌險費{% else %}店內財務・領牌規費與強制險{% endif %}</summary><div class="subsection registration-fee-subsection">
       <div class="section-title">
         <div>
           <h3>領牌規費與強制險</h3>
@@ -284,8 +286,9 @@
         </div>
       </div>
       <div id="gas-registration-calculator">
-        <div class="form-grid">{% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}</div>
+        <div class="form-grid" {% if plate_fee_only %}hidden{% endif %}>{% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}</div>
         <div class="form-grid">
+          <div class="registration-fee-details" {% if plate_fee_only %}hidden{% endif %}>
           {% if editing_order %}
             {% include "sales/_field.html" with field=form.registration_date %}
           {% else %}
@@ -300,6 +303,7 @@
           {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
           {{ form.lien_registration_fee }}
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
+          </div>
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>
         <p class="form-hint">{% site_text 'order_form.95121456d49f' %}</p>

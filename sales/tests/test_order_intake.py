@@ -244,8 +244,10 @@ class OrderIntakeTests(TestCase):
         UserAccessState.objects.create(user=self.user, configured=True)
         ScreenAccessGrant.objects.create(user=self.user, screen_key="orders", view=True, operate=True)
         self.assertEqual(self.client.post(reverse("order_edit", args=[order.pk]), {}).status_code, 403)
-        page = self.client.get(reverse("order_edit", args=[order.pk]))
-        self.assertTrue(page.context["screen_read_only"])
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
+        # 1.82.0：沒有修改權限時訂單頁只顯示唯讀摘要，不放訂單表單。
+        self.assertFalse(page.context.get("inline_order_form"))
+        self.assertNotContains(page, 'id="order-form"')
         self.client.force_login(self.dealer_user)
         self.assertEqual(self.client.get(reverse("order_create"), {"draft": "not-a-uuid"}).status_code, 404)
         self.profile.source.active = False

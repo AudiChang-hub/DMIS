@@ -25,7 +25,7 @@
     <div class="form-grid installment-company-form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
     <div class="form-actions">
       <a class="button ghost" href="{% url 'subsidy_program_list' %}">取消</a>
-      <button class="button primary" type="submit">{% if editing %}儲存修改{% else %}新增方案{% endif %}</button>
+      <button class="button primary" type="submit">{% if editing %}套用修改{% else %}新增方案{% endif %}</button>
     </div>
   </form>
 </section>

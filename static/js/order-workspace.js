@@ -367,6 +367,11 @@
     });
   }
   const flush = () => Promise.all(forms.filter(form => autosaving(form) && dirty(form)).map(saveNow));
+  // 表單腳本（試算、帶價）在載入後才補值；使用者還沒動過的區塊重新記錄基準，
+  // 只是打開訂單再離開，不會把系統試算值當成修改存進去。
+  const touched = new Set();
+  const rebase = () => forms.forEach(form => { if (!touched.has(form) && !timers.has(form)) bases.set(form, capture(form)); });
+  window.addEventListener('load', () => { setTimeout(rebase, 0); setTimeout(() => { rebase(); indicators(); }, 2000); }, {once: true});
   forms.forEach(form => {
     bases.set(form, capture(form));
     if (!autosaving(form)) {
@@ -375,12 +380,14 @@
       form.noValidate = true;
       form.dataset.autosave = '';
       form.addEventListener('input', event => {
+        if (event.isTrusted) touched.add(form);
         indicators();
         event.target.removeAttribute('aria-invalid');
         if (event.target.type !== 'file') schedule(form);
       });
       form.addEventListener('change', event => {
         const field = event.target;
+        if (event.isTrusted) touched.add(form);
         if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm && !confirm(field.dataset.autosaveConfirm)) {
           field.checked = false; indicators(); return;
         }

@@ -76,3 +76,24 @@ class OrderAutosaveTests(TestCase):
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
         self.assertIn("AUTOSAVE_DELAY", script)
         self.assertIn("typed.has(name) ? 'keep'", script)
+
+
+class DataMaintenanceDraftTests(TestCase):
+    """1.83.0：資料維護區輸入自動保留成草稿，按「套用」才生效。"""
+
+    def test_data_maintenance_pages_keep_drafts_and_apply_button(self):
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_superuser("draft-root", password="test-only")
+        self.client.force_login(user)
+        page = self.client.get(reverse("sales_source_category_list")).content.decode()
+        self.assertIn("js/form-draft.js", page)
+        self.assertIn("新增類別", page)
+        script = Path("static/js/form-draft.js").read_text(encoding="utf-8")
+        for skipped in ("'password'", "'file'", "'hidden'"):
+            self.assertIn(skipped, script)
+        self.assertIn("storage.removeItem(key)", script)
+        for name in ("vehicle_model_price_versions", "settlement_cost_rule_form", "incentive_rule_form"):
+            template = Path(f"templates/sales/{name}.html").read_text(encoding="utf-8")
+            self.assertIn("套用", template)
+        # 訂單頁不載入草稿腳本（訂單頁是直接自動儲存）。
+        self.assertNotIn("js/form-draft.js", Path("templates/sales/order_detail.html").read_text(encoding="utf-8"))

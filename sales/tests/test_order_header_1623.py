@@ -40,9 +40,10 @@ class OrderHeaderTests(TestCase):
         self.assertContains(response, "A123456789")
         self.assertNotContains(response, "A1＊")
 
-    def test_edit_page_has_finish_button(self):
+    def test_order_page_edits_inline_without_finish_button(self):
+        # 1.82.0：不另開編輯頁，訂單內容在訂單頁自動儲存，不需要「完成編輯」。
         order = self.order()
-        response = self.client.get(reverse("order_edit", args=[order.pk]))
-        self.assertContains(response, "完成編輯")
-        self.assertContains(response, "data-workspace-finish")
-        self.assertContains(response, f'data-finish-url="{reverse("order_detail", args=[order.pk])}"')
+        response = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
+        self.assertContains(response, "data-inline-order")
+        self.assertNotContains(response, "完成編輯")
+        self.assertNotContains(response, f'href="{reverse("order_edit", args=[order.pk])}"')

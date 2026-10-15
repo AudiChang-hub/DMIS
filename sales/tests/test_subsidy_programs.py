@@ -71,14 +71,14 @@ class SubsidyProgramTests(TestCase):
         self.assertEqual(form.cleaned_data["item_name"], "補助")
 
     def test_edit_page_shows_program_picker(self):
-        page = self.client.get(reverse("order_edit", args=[self.pending.pk]))
+        page = self.client.get(reverse("order_detail", args=[self.pending.pk]), {"tab": "order"})
         self.assertContains(page, "申請補助（可多選）")
         self.assertContains(page, 'name="subsidy_programs_present"')
         self.assertContains(page, "貨物稅補助")
 
     def test_other_subsidy_names_create_items_once(self):
         # 1.70.0：政府清單外的補助勾「其他」自填名稱，可用「、」填多個；重複儲存不重複建立。
-        page = self.client.get(reverse("order_edit", args=[self.pending.pk]))
+        page = self.client.get(reverse("order_detail", args=[self.pending.pk]), {"tab": "order"})
         self.assertContains(page, "data-subsidy-other-toggle")
         self.assertContains(page, 'name="subsidy_other"')
         self.assert_saved(self.edit([self.new_purchase], subsidy_other="縣市加碼補助、 節能補助"), self.pending)
@@ -91,14 +91,14 @@ class SubsidyProgramTests(TestCase):
     def test_programs_follow_vehicle_kind_and_exclusive_groups(self):
         # 1.73.3：油車＝貨物稅補助、汰舊換新；電動車＝環保局新購／汰舊、環境部、產發署新購／汰舊；同單位新購與汰舊擇一。
         self.assertFalse(SubsidyProgram.objects.get(name="新購補助").active)
-        gas_page = self.client.get(reverse("order_edit", args=[self.pending.pk])).content.decode()
+        gas_page = self.client.get(reverse("order_detail", args=[self.pending.pk]), {"tab": "order"}).content.decode()
         for name in ("貨物稅補助", "汰舊換新"):
             self.assertIn(name, gas_page)
         self.assertNotIn("各縣市環保局 新購", gas_page)
         self.assertIn("data-subsidy-group", gas_page)
         from sales.models import VehicleModel
         VehicleModel.objects.filter(pk=self.pending.vehicle_model_id).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
-        electric_page = self.client.get(reverse("order_edit", args=[self.pending.pk])).content.decode()
+        electric_page = self.client.get(reverse("order_detail", args=[self.pending.pk]), {"tab": "order"}).content.decode()
         for name in ("各縣市環保局 新購", "各縣市環保局 汰舊", "環境部", "產業發展署 新購", "產業發展署 汰舊"):
             self.assertIn(name, electric_page)
         self.assertNotIn(">貨物稅補助<", electric_page)

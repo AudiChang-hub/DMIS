@@ -294,7 +294,7 @@ class OrderCommissionRecipientTests(TestCase):
     def test_edit_records_names_and_reason(self):
         order = self.make_order(registration_completed_at=None)
         self.client.force_login(self.user)
-        self.client.get(reverse("order_edit", args=[order.pk]))
+        self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
         order.refresh_from_db()
         response = self.client.post(reverse("order_edit", args=[order.pk]), self.post_data(
             assign_commission_to_other="True", commission_recipient=self.a.pk,
@@ -397,10 +397,10 @@ class OrderCommissionRecipientTests(TestCase):
                 self.assertTrue(change.actor_name)
                 self.assertEqual(OrderEvent.objects.filter(order=order, event_type="commission_attribution_updated").count(), 1)
                 if status != SalesOrder.Status.DELIVERY_PENDING:
-                    self.assertContains(self.client.get(reverse("order_edit", args=[order.pk])), "完成後修正")
+                    self.assertContains(self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"}), "完成後修正")
                     page = self.client.get(reverse("order_detail", args=[order.pk]))
                     self.assertContains(page, "調整台數與傭金歸屬")
-                    self.assertContains(page, f'href="{reverse("order_edit", args=[order.pk])}"')
+                    self.assertContains(page, 'data-inline-order')
 
     def test_undated_order_can_change_and_restore_recipient_without_financial_changes(self):
         self.client.force_login(self.user)

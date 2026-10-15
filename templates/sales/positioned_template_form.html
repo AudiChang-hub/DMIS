@@ -19,7 +19,7 @@
 <template data-empty-form><div class="positioned-field-row" data-form-row>{% with field_form=field_formset.empty_form %}{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label>{% endwith %}</div></template>
 <button class="button ghost" type="button" data-add-form>＋ 新增定位欄位</button>
 </section>
-<div class="sticky-form-actions"><a class="button ghost" href="{% url 'positioned_template_list' %}">取消修改</a><button class="button primary" type="submit">儲存範本</button></div>
+<div class="sticky-form-actions"><a class="button ghost" href="{% url 'positioned_template_list' %}">取消修改</a><button class="button primary" type="submit">套用範本</button></div>
 </form>
 <script src="{% static 'js/positioned-template-fields.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

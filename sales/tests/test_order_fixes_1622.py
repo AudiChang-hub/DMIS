@@ -74,5 +74,6 @@ class OrderFixes1622Tests(TestCase):
         response = self.post(order, change_reason="", note="不寫說明也能存")
         self.assert_saved(response, order)
         self.assertEqual(order.note, "不寫說明也能存")
-        page = self.client.get(reverse("order_edit", args=[order.pk]))
-        self.assertContains(page, "變更說明（選填）")
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
+        # 1.82.0：自動儲存不再顯示變更說明欄，修改照常記入處理紀錄。
+        self.assertNotContains(page, "變更說明（選填）")

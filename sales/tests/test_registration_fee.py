@@ -156,8 +156,9 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(response, "$1,498")
         self.assertContains(response, "尾款計算")
         self.assertContains(response, "配件與其他費用均已計入")
-        self.assertContains(response, "配件合計 $850")
-        self.assertContains(response, "加購 · 售價 $850 ＋ 工資 $0 · 已計入尾款")
+        # 1.82.0：配件改在訂單頁的訂單表單直接編輯，原本的唯讀配件卡由表單取代。
+        self.assertContains(response, 'id="order-form"')
+        self.assertContains(response, 'value="850"')
 
     def test_brand_fixed_fee_rule_uses_registration_date_and_displacement(self):
         BrandRegistrationFeeRule.objects.create(

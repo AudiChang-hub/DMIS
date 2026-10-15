@@ -76,8 +76,8 @@ class CompletedOrderCorrectionTests(TestCase):
             with self.subTest(status=status):
                 order = self.order(status=status)
                 delivered_at = order.delivered_at
-                self.assertContains(self.client.get(reverse("order_edit", args=[order.pk])), "完成後修正")
-                self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), "編輯訂單（完成後修正）")
+                self.assertContains(self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"}), "完成後修正")
+                self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), "confirm_completed_correction")
                 for number in (1, 2):
                     self.assert_saved(self.post(order, note=f"修正 {number}"), order)
                     self.assertEqual(order.note, f"修正 {number}")

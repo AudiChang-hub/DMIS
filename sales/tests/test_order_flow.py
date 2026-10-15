@@ -168,20 +168,19 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("order_edit", args=[order.pk]))
+        response = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "編輯訂單")
-        self.assertContains(response, "變更說明（選填）")
-        self.assertContains(response, "取消修改")
-        self.assertContains(response, "data-cancel-edit")
+        # 1.82.0：訂單頁直接編輯並自動儲存，沒有「編輯訂單」按鈕與取消／儲存鈕；領牌日由領牌步驟維護。
+        self.assertContains(response, 'id="order-form"')
+        self.assertContains(response, "data-inline-order")
+        self.assertNotContains(response, "取消修改")
+        self.assertNotContains(response, ">編輯訂單</a>")
         self.assertContains(response, "beforeunload")
-        self.assertContains(response, "尚有未儲存的修改")
-        self.assertContains(response, 'name="registration_date"')
-        self.assertContains(response, 'type="date"')
+        self.assertContains(response, '<input type="hidden" name="registration_date"')
 
         order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
         order.save(update_fields=["status", "updated_at"])
-        delivered = self.client.get(reverse("order_edit", args=[order.pk]))
+        delivered = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
         self.assertEqual(delivered.status_code, 200)
         self.assertContains(delivered, "完成後修正")
 
@@ -241,7 +240,6 @@ class OrderFlowTests(TestCase):
             reverse("inventory_create"),
             reverse("order_create"),
             reverse("order_detail", args=[order.pk]),
-            reverse("order_edit", args=[order.pk]),
         ):
             with self.subTest(route=route):
                 response = self.client.get(route)
@@ -2282,7 +2280,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "編輯庫存")
         self.assertContains(response, "已進入配車或交付流程")
-        self.assertContains(response, "儲存修改")
+        self.assertContains(response, "套用修改")
         self.assertContains(response, 'name="engine_number"')
         self.assertContains(response, "disabled")
 
@@ -3500,24 +3498,21 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response["Pragma"], "no-cache")
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
-    def test_order_edit_is_exclusive_to_first_session(self):
+    def test_order_page_editing_is_shared_and_protected_by_revision(self):
+        # 1.82.0：訂單內容直接在訂單頁編輯，不再獨佔；同時開啟時靠版本號避免互相覆蓋。
         order = self.make_order()
         self.client.force_login(self.user)
-        first = self.client.get(reverse("order_edit", args=[order.pk]))
-        self.assertEqual(first.status_code, 200)
-
+        self.assertRedirects(self.client.get(reverse("order_edit", args=[order.pk])), order_step_url(order.pk, "order"))
         second_user = get_user_model().objects.create_user(
             username="second-editor", password="test-pass-123"
         )
         second_client = self.client_class()
         second_client.force_login(second_user)
-        blocked = second_client.get(reverse("order_edit", args=[order.pk]))
-
-        self.assertRedirects(
-            blocked, reverse("order_detail", args=[order.pk])
-        )
+        for client in (self.client, second_client):
+            page = client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"})
+            self.assertContains(page, 'data-inline-order')
         order.refresh_from_db()
-        self.assertEqual(order.editing_by, self.user.username)
+        self.assertEqual(order.editing_by, "")
 
     def test_multiple_other_subsidy_documents_accept_safe_file_types(self):
         order = self.make_order()

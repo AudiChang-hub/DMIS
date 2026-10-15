@@ -23,7 +23,7 @@
       {{ form.non_field_errors }}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="note-box warning">調整會更新各訂單的車行傭金支出與單筆淨利；已人工覆寫的總額仍保留，請另外核對。原因及調整前後金額會永久保存。</div>
-      <div class="form-actions"><a class="button ghost" href="{{ return_url }}">取消</a><button class="button primary">儲存調整</button></div>
+      <div class="form-actions"><a class="button ghost" href="{{ return_url }}">取消</a><button class="button primary">套用調整</button></div>
     </form>
   </section>
   <section class="inventory-list-panel">

@@ -12,7 +12,7 @@
   <form method="post" class="stacked-form allocation-rule__form">{% csrf_token %}
     {% include "sales/_form_fields.html" with single_column=True %}
     <p class="muted" data-allocation-rule-preview aria-live="polite"></p>
-    <div class="form-actions"><button class="button primary" type="submit">儲存規則</button></div>
+    <div class="form-actions"><button class="button primary" type="submit">套用規則</button></div>
   </form>
   {{ previews|json_script:"allocation-rule-previews" }}
   <details class="allocation-rule__history"><summary>修改紀錄（最近 20 筆）</summary>

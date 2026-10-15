@@ -10,7 +10,7 @@
 
 <section id="cash-commission" class="card commission-editor-card dealer-program-section">
   <div class="commission-editor-card__intro"><span class="vehicle-business-card__icon">佣</span><div><p class="eyebrow">現金</p><h2>車行基礎傭金</h2><p>{% site_text 'vehicle_model_commission.6234fe3bef5e' %}</p></div></div>
-  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save_commission">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}{% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}<div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions"><button class="button primary" type="submit">儲存基礎傭金</button></div></form>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save_commission">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}{% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}<div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions"><button class="button primary" type="submit">套用基礎傭金</button></div></form>
 </section>
 
 <section id="dealer-rewards" class="card dealer-reward-panel">
@@ -71,7 +71,7 @@
       </section>
     </template>
     <div class="dealer-reward-accounting-note"><strong>目前不自動入帳</strong><span>先保存公司承諾給車行的內容；待確認實物、紅包、禮券及點數的認列時點後，再接上發放與淨利。</span></div>
-    <div class="form-actions dealer-reward-actions"><button class="button primary" type="submit">儲存附加獎勵</button></div>
+    <div class="form-actions dealer-reward-actions"><button class="button primary" type="submit">套用附加獎勵</button></div>
   </form>
   {{ reward_catalog_metadata|json_script:"dealer-reward-catalog-data" }}
 </section>

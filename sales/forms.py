@@ -67,7 +67,6 @@ from .models import (
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
-from .services.agency_fee import PLATE_SELECTION_DEFAULT_CHARGE
 from .services.registration_fee import (
     ManualRegistrationFeeRequired,
     UnsupportedRegistrationFee,
@@ -660,13 +659,6 @@ class SalesOrderForm(forms.ModelForm):
         )
         data["compulsory_insurance_period"] = insurance_period
         self.cleaned_data["compulsory_insurance_period"] = insurance_period
-        if (
-            data.get("plate_selection_fee") is None
-            and data.get("plate_choice") not in (None, "", SalesOrder.PlateChoice.NONE)
-        ):
-            # 有選號需求時預設向客人收 1,200（監理站 1,000，自行領牌的差額記代辦費收入）。
-            data["plate_selection_fee"] = PLATE_SELECTION_DEFAULT_CHARGE
-            self.cleaned_data["plate_selection_fee"] = PLATE_SELECTION_DEFAULT_CHARGE
         for field_name in ("plate_selection_fee", "lien_registration_fee"):
             if data.get(field_name) is None:
                 data[field_name] = 0

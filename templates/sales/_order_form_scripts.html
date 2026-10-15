@@ -553,8 +553,6 @@
     showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
     showConditional("plate-selection", plateChoice.value !== "none");
-    // 有選號需求時預設向客人收 1,200（監理站 1,000，差額記代辦費收入）。
-    if (plateChoice.value !== "none" && plateSelectionFee && plateSelectionFee.value === "") plateSelectionFee.value = 1200;
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
     showConditional("delivery-destination", needsDestination);

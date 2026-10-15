@@ -122,14 +122,16 @@ class OrderSortingTests(TestCase):
         self.assertEqual(page.count('payment-chip--cash'), 4)
 
     def test_order_list_splits_open_delivered_and_closed_tabs(self):
-        # 1.72.1：進行中／已交車／已結案；沒申請補助交車領牌完即結案，補助未完成停在已交車。
+        # 1.72.1：進行中／已交車／已結案；1.80.0 起已交車要由人員「確認結案」才移到已結案。
+        from django.utils import timezone
         from sales.models import SubsidyItem
         a, b, c, d = self.orders
         SalesOrder.objects.filter(pk__in=[a.pk, b.pk]).update(status=SalesOrder.Status.COMPLETED)
+        SalesOrder.objects.filter(pk=a.pk).update(closed_at=timezone.now(), closed_by="tester")
         SalesOrder.objects.filter(pk=c.pk).update(status=SalesOrder.Status.DELIVERED_DOCS_PENDING)
         SubsidyItem.objects.create(order=b, category=SubsidyItem.Category.OTHER, item_name="汰舊換新")
         SubsidyItem.objects.create(order=a, category=SubsidyItem.Category.OTHER, item_name="新購補助",
-                                   status=SubsidyItem.Status.COMPLETED)
+                                   status=SubsidyItem.Status.SUBMITTED)
         self.client.force_login(self.user)
         response = self.client.get(reverse('order_list'))
         self.assertEqual(response.context['order_tab'], 'open')
@@ -152,16 +154,18 @@ class OrderSortingTests(TestCase):
         self.assertIn("document.addEventListener('click'", Path('static/js/order-sorting.js').read_text(encoding='utf-8'))
         delivered = self.client.get(tabs['delivered']['url'])
         self.assertEqual({o.pk for o in delivered.context['orders']}, {b.pk, c.pk})
-        self.assertContains(delivered, '補助待完成 1 項')
-        # 1.72.2：補助未完成的已完成訂單，狀態標籤顯示「已交車／補助處理中」；訂單狀態本身不變。
-        self.assertContains(delivered, 'status-pill status-subsidy_pending">已交車／補助處理中</span>', count=2)
-        self.assertEqual(SalesOrder.objects.get(pk=b.pk).display_status, '已交車／補助處理中')
+        self.assertContains(delivered, '補助未申請 1 項')
+        # 已完成但還沒確認結案：狀態標籤顯示「已交車／待結案」；訂單狀態本身不變。
+        self.assertContains(delivered, 'status-pill status-close_pending">已交車／待結案</span>')
+        self.assertEqual(SalesOrder.objects.get(pk=b.pk).display_status, '已交車／待結案')
         self.assertEqual(SalesOrder.objects.get(pk=b.pk).status, SalesOrder.Status.COMPLETED)
-        self.assertEqual(SalesOrder.objects.get(pk=a.pk).display_status, '已完成')
+        self.assertEqual(SalesOrder.objects.get(pk=a.pk).display_status, '已結案')
         closed = self.client.get(tabs['closed']['url'])
         self.assertEqual({o.pk for o in closed.context['orders']}, {a.pk})
-        # 補助全部完成後就結案。
-        SubsidyItem.objects.filter(order=b).update(status=SubsidyItem.Status.COMPLETED)
+        # 補助狀態不會自動結案；人員確認結案後才移過去。
+        SubsidyItem.objects.filter(order=b).update(status=SubsidyItem.Status.SUBMITTED)
+        self.assertEqual({o.pk for o in self.client.get(tabs['closed']['url']).context['orders']}, {a.pk})
+        SalesOrder.objects.filter(pk=b.pk).update(closed_at=timezone.now(), closed_by="tester")
         closed = self.client.get(tabs['closed']['url'])
         self.assertEqual({o.pk for o in closed.context['orders']}, {a.pk, b.pk})
         # 搜尋或狀態篩選時列出全部符合；切頁籤時移除狀態篩選、保留搜尋。

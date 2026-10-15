@@ -18,6 +18,7 @@
 - 領牌後棄單走「例外結案」：沒收／退款同取消結算；車輛以已領牌車（保留車牌、必填再售價）釋回，只能配給「領牌車」交易；不列有效售出、台數與佣金。分期已撥款不能退車。
 - 訂單檔案同步到 NAS（`services/order_archive.py`，2026-10-13 方案 A）：系統為正本，NAS 依「車型／年／月／車行_車主_車型_訂單編號」存副本，本店車行寫「馭盛」、年月依成立日期；只刪系統放入的檔案，人工放入的保留；已刪除訂單移到「_已刪除訂單」，未結案訂單沒有檔案也建資料夾；`sync_order_archive --verify` 只核對不寫入。
 - 開單公司：訂單沒有保留開單公司時一律用馭盛（本店公司），第一次列印或簽署時保存（`print_company.ensure_order_company`，2026-10-13）；admin 仍可逐單更正為其他公司。
+- 網路平台訂單（2026-10-15 方案 A）：車款由平台收，建單不選付款方式、不帶售價（付款方式記現金、車價 0，`SalesOrderForm.clean`）；客人應付＝牌險＋選號＋其他費用＋舊車稅＋配件－訂金；車輛成本照常帶入，平台撥款在收支「實際撥款」人工記錄。
 - 只有本店來源訂單需要客人簽訂購單與個資同意書；合作車行、網路平台訂單不顯示簽署步驟與提醒（`SalesOrder.needs_customer_signatures`，2026-10-13）。
 - 簽署文件（訂購單、個資同意書）每單自選：店內行動裝置電子簽署，或印出紙本簽完上傳；兩者都記錄簽署當下的內容指紋。訂購單的車主資料、車型車色、價款、配件、費用、優惠、付款方式、補助與開單公司變更後原簽署失效，須重簽；收款進度與領牌結果不影響。個資同意書只隨車主姓名、證件號碼與開單公司失效。無指紋的舊附件視為有效。規格 `specs/062-electronic-signature`，入口 `sales/services/document_signing.py`、`test_document_signing.py`。
 - 優先配車月數由 admin 在「管理者工具 › 配車規則」設定（預設 3、範圍 1～24，`services/system_settings.py`，修改留紀錄）。
@@ -25,7 +26,7 @@
 - 車輛來源：庫存分「公司進車」（預設，既有資料皆是）與「車行調車」（`acquisition_type`），調車必填來源車行名稱（`transfer_source_name`，自由輸入，提示既有名稱與啟用車行）。兩者同列現有庫存、配車與優先配車；只作區分與顯示，不影響成本、佣金或報表。與 `current_dealer`（車放在哪個車行）無關。入口 `VehicleInventory.clean`、`test_inventory_acquisition.py`。
 - 草稿（含接待草稿）一般只有建立人看得到；admin 可在「全部訂單 → 草稿清理」看所有人的草稿（不顯示客戶資料），填原因並確認後刪除，連同暫存證件照，寫入帳號稽核紀錄（動作「刪除草稿」）；90 秒內有他人編輯心跳時不能刪。入口 `sales/services/draft_cleanup.py`、`test_draft_cleanup.py`。
 - 配車：一般從「待配車」配車；Excel 匯入後因無車牌改回「待交車」、從未配車且未完成領牌的訂單也可直接配車，配車後回到「已配車 → 領牌 → 交車」一般流程（2026-10-12）。
-- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但領牌文件未完成或有補助項目未「已申請完成」；已結案＝已完成且無待處理補助。只分類列表，不改訂單狀態與報表口徑。
+- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12；2026-10-15 改人工結案）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但還沒有人按「確認結案」；已結案＝人員已確認結案（`SalesOrder.closed_at`）。結案不設任何關卡（文件、補助都不檢查），可撤回；都記處理紀錄。Excel 匯入的歷史已完成訂單由 migration 0187 一次標為已結案（補助未完成的 SO20261013-2C394B 依使用者指定留在已交車）。只分類列表，不改訂單狀態與報表口徑。
 - 入口：`sales/tests/test_order_intake.py`、`test_reception_entry.py`、`test_completed_order_corrections.py`、`test_order_deletion.py`。
 
 ## Excel 匯入與識別
@@ -33,7 +34,7 @@
 
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
-- 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：「有送出申請」＝項目狀態為已送出申請或已申請完成；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
+- 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：補助項目狀態只分未申請／已申請（2026-10-15，原「已送出申請」「已申請完成」併為已申請），「有送出申請」＝已申請；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
 - 匯入的未完成現金訂單（`services/imported_balance.py`，接在 `payment_summary`）：總應付＝Excel 收款價（不含強制險）＋強制險收入；「車行收款」打 V＝已收清（尾款 0、不補收款紀錄）；沒打 V 以總應付為客戶應收，交車前收清、車行單計入掛帳。已完成歷史訂單與分期單不套用。
 - 營運 Excel 上傳時可選要匯入的頁籤（`build_import_preview(batch, sheets=...)`，預設進貨、銷貨都匯入）；沒選的頁籤完全不讀取，選擇存在 `preview_summary.selected_sheets`（舊批次沒有此鍵視為兩者）。只匯銷貨時 `inventory_skipped`：不做庫存比對，銷貨訂單不連實體車輛，之後另匯進貨也不會回頭補連結。
 - 庫存狀態：放到合作車行仍是庫存（只改 `current_dealer`）；調給其他車行＝`TRANSFERRED_OUT`（已調出，不算庫存也不算售出，保留進車紀錄）。

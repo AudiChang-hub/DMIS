@@ -198,7 +198,8 @@ class IntakeOrderForm(SalesOrderForm):
             try:
                 selected = validate_selection(data["catalog_selection"])
                 color = data.get("color")
-                if data.get("payment_type") not in allowed_payment_types(selected):
+                # 網路平台訂單不選付款方式（一律記現金、車價 0），不比對選車時的付款方案。
+                if data.get("source_type") != "platform" and data.get("payment_type") not in allowed_payment_types(selected):
                     # 有調價權限也一樣：換付款方案要先清掉選車確認，不能留著現金價改成分期。
                     self.add_error("payment_type", PAYMENT_CHANGE_MESSAGE)
                 elif (not model or not color or model.pk != selected["model"] or color.pk != selected["color"]

@@ -7465,6 +7465,25 @@ def installment_decision_update(request, pk):
 
 
 @login_required
+def order_close(request, pk):
+    """已交車→已結案由人員確認；不檢查文件或補助（使用者 2026-10-15）。"""
+    order = get_object_or_404(SalesOrder, pk=pk)
+    detail_url = order_step_url(pk, "closing")
+    if request.method != "POST":
+        return redirect(detail_url)
+    try:
+        if request.POST.get("action") == "reopen":
+            order.reopen_closed(_editing_name(request.user))
+            messages.success(request, "已撤回結案，訂單回到「已交車」。")
+        else:
+            order.mark_closed(_editing_name(request.user))
+            messages.success(request, "已確認結案，訂單移到「已結案」。")
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    return redirect(detail_url)
+
+
+@login_required
 @transaction.atomic
 def order_exception_close(request, pk):
     from .services.order_exception import close_after_registration

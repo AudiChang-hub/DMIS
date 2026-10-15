@@ -375,7 +375,8 @@ class OrderNextActionTests(TestCase):
                 registration_completed_at=timezone.now(),
             )
 
-        self.assertIsNone(self.build(store_cash))
+        # 1.80.0：已交車沒有其他待辦時，提醒人員確認結案。
+        self.assertEqual(self.build(store_cash).primary.key, "close")
         self.assertEqual(self.build(dealer_cash).primary.key, "reconciliation")
         self.assertEqual(self.build(store_installment).primary.key, "reconciliation")
 
@@ -383,6 +384,8 @@ class OrderNextActionTests(TestCase):
             order=dealer_cash,
             system_key="balance",
         ).update(confirmed=True)
+        self.assertEqual(self.build(dealer_cash).primary.key, "close")
+        SalesOrder.objects.filter(pk=dealer_cash.pk).update(closed_at=timezone.now())
         self.assertIsNone(self.build(dealer_cash))
 
     def test_order_detail_renders_accessible_compact_workbar(self):

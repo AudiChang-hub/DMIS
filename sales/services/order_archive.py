@@ -102,15 +102,12 @@ def order_files(order):
 
 def keeps_empty_folder(order):
     """沒有檔案時是否仍建資料夾：未結案（進行中、已交車待補文件或補助）的訂單一律建，方便人員先放紙本掃描；
-    已結案、已取消或已刪除的不建（使用者 2026-10-13 選定）。"""
-    from sales.models import SubsidyItem
+    已結案（人員確認結案）、已取消或已刪除的不建（使用者 2026-10-13 選定）。"""
     from sales.services.order_tabs import CANCELLED
 
     if order.deleted_at or order.status in CANCELLED:
         return False
-    if order.status == order.Status.COMPLETED:
-        return order.subsidy_items.exclude(status=SubsidyItem.Status.COMPLETED).exists()
-    return True
+    return not order.closed_at
 
 
 def _same(target, field_file):

@@ -27,7 +27,7 @@
     {% endif %}
   </div>
   {% if not show_order_details %}<span class="order-source">{{ order.source_display }}</span>{% endif %}
-  <span class="order-row-status"><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% if order.pending_subsidy_count %}<small class="order-subsidy-pending">補助待完成 {{ order.pending_subsidy_count }} 項</small>{% endif %}{% if not order.is_cancelled_sale and order.plate_fee_shortfall %}<small class="order-plate-shortfall" title="牌險費少於規費＋強制險，差額記為負的代辦費收入">牌險少收</small>{% endif %}</span>
+  <span class="order-row-status"><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% if order.pending_subsidy_count %}<small class="order-subsidy-pending">補助未申請 {{ order.pending_subsidy_count }} 項</small>{% endif %}{% if not order.is_cancelled_sale and order.plate_fee_shortfall %}<small class="order-plate-shortfall" title="牌險費少於規費＋強制險，差額記為負的代辦費收入">牌險少收</small>{% endif %}</span>
   {% if show_order_details %}<a class="chevron" href="{% url 'order_detail' order.pk %}" aria-label="查看 {{ order.number }} 訂單">›</a>{% else %}<span class="chevron">›</span>{% endif %}
 {% if show_order_details %}</div>{% else %}</a>{% endif %}
 

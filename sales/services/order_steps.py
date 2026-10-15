@@ -5,6 +5,7 @@
 from decimal import Decimal
 
 from django.urls import reverse
+from django.utils import timezone
 
 ZERO = Decimal("0")
 
@@ -19,7 +20,7 @@ ACTION_STEP = {
     "registration": "registration", "settlement-cost": "registration",
     "delivery": "delivery", "documents": "documents",
     "reconciliation": "finance", "settlement-gap": "finance",
-    "subsidy": "subsidy", "refund": "closing",
+    "subsidy": "subsidy", "refund": "closing", "close": "closing",
 }
 # 舊網址 ?tab= 與各功能導回的參數。
 TAB_STEP = {
@@ -115,8 +116,11 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
                     "資料已齊" if order.is_subsidy_ready else "補助資料待補",
         ),
         "closing": dict(
-            number=None, title="取消與結案", state="optional",
-            summary=order.get_status_display() if order.is_cancelled_sale else "客戶不再購車時由此處理",
+            number=None, title="取消與結案",
+            state="done" if order.is_closed else ("todo" if order.is_delivered else "optional"),
+            summary=(order.get_status_display() if order.is_cancelled_sale else
+                     f"{timezone.localtime(order.closed_at):%Y/%m/%d} 已結案" if order.is_closed else
+                     "補助與文件跑完後確認結案" if order.is_delivered else "客戶不再購車時由此處理"),
         ),
         "attachments": dict(
             number=None, title="附件", state="reference", summary="這張訂單的所有檔案，集中預覽與下載",

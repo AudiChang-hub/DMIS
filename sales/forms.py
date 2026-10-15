@@ -569,6 +569,13 @@ class SalesOrderForm(forms.ModelForm):
             "installment_opening_fee",
             "installment_monthly",
         )
+        # 網路平台訂單車款由平台收（使用者 2026-10-15 選 A）：不選付款方式、不帶售價，
+        # 客人只付牌險、選號、其他費用與配件；車輛成本照常帶入，平台撥款在收支「實際撥款」記錄。
+        is_platform = source_type == SalesOrder.SourceType.PLATFORM
+        if is_platform:
+            data["payment_type"] = SalesOrder.PaymentType.CASH
+            self.cleaned_data["payment_type"] = SalesOrder.PaymentType.CASH
+            self.errors.pop("payment_type", None)
         if data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
             option = resolve_installment_plan_option(
                 model.pk if model else None,
@@ -622,6 +629,12 @@ class SalesOrderForm(forms.ModelForm):
                 data.get("payment_type"),
             )
         submitted_price = data.get("vehicle_price")
+        if is_platform:
+            submitted_price = recommended_price = Decimal("0")
+            for field_name, value in (("vehicle_price", Decimal("0")), ("vehicle_price_adjustment_reason", "")):
+                data[field_name] = value
+                self.cleaned_data[field_name] = value
+                self.errors.pop(field_name, None)
         if submitted_price is None:
             if recommended_price is not None:
                 submitted_price = recommended_price

@@ -308,6 +308,10 @@
   });
   updateActiveSection();
 
+  // 網路平台訂單車款由平台收：不選付款方式、車價為 0（使用者 2026-10-15）。
+  const isPlatformOrder = () => sourceType?.value === "platform";
+  let sourceWasPlatform = isPlatformOrder();
+
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
   }
@@ -344,6 +348,14 @@
   async function loadVehiclePrice({force = false} = {}) {
     vehiclePriceRequestController?.abort();
     currentPriceRecommendation = null;
+    if (isPlatformOrder()) {
+      if (vehiclePrice.value !== "0") {
+        vehiclePrice.value = "0";
+        vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
+      }
+      updateVehiclePriceAdjustmentState();
+      return;
+    }
     if (!vehicleModel.value) {
       vehiclePriceGuidanceTitle.textContent = "請先選擇車型";
       vehiclePriceGuidanceDetail.textContent = "選擇後會依付款方式帶入訂單日適用售價。";
@@ -546,8 +558,15 @@
     if (addressField && addressTarget && addressField.parentElement !== addressTarget) {
       addressTarget.appendChild(addressField);
     }
-    showConditional("installment", paymentType.value === "installment");
-    const installmentRequired = paymentType.value === "installment";
+    const platform = isPlatformOrder();
+    if (platform && paymentType.value !== "cash") {
+      paymentType.value = "cash";
+      installmentInputs.forEach(input => { input.value = ""; });
+    }
+    showConditional("not-platform", !platform);
+    showConditional("platform-payment", platform);
+    showConditional("installment", !platform && paymentType.value === "installment");
+    const installmentRequired = !platform && paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
     installmentPicker.syncRequired();
     showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
@@ -585,6 +604,12 @@
   });
   [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy, tradeInIntent].filter(Boolean)
     .forEach(el => el.addEventListener("change", refresh));
+  sourceType?.addEventListener("change", () => {
+    // 切入或切出網路平台時重新帶車價；店內／合作車行之間切換不覆蓋人工調整的車價。
+    if (sourceWasPlatform && !isPlatformOrder() && vehiclePrice.value === "0") vehiclePrice.value = "";
+    if (isPlatformOrder() !== sourceWasPlatform) loadVehiclePrice({force: true});
+    sourceWasPlatform = isPlatformOrder();
+  });
   if (!vehicleEnergyType.value && vehicleModel.value) {
     vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
   }

@@ -33,21 +33,22 @@ class AgencySummaryTests(SimpleTestCase):
             item(Category.INDUSTRY, Status.NOT_SUBMITTED, 8000),
             item(Category.ENVIRONMENT, Status.SUBMITTED, 1000),
             item(Category.ENVIRONMENT, Status.NOT_SUBMITTED, 2000),
-            item(Category.LOCAL, Status.COMPLETED, 5000),
+            item(Category.LOCAL, Status.SUBMITTED, 5000),
             item(Category.LOCAL, Status.SUBMITTED, 3000),
         ])
-        self.assertEqual(rows["工業局"]["progress"], "尚未送出申請")
-        self.assertEqual(rows["環境部"]["progress"], "已送出 1／2 筆")
+        # 1.80.0 起只分未申請／已申請。
+        self.assertEqual(rows["工業局"]["progress"], "尚未申請")
+        self.assertEqual(rows["環境部"]["progress"], "已申請 1／2 筆")
         self.assertEqual(rows["環境部"]["total"], Decimal("3000"))
-        self.assertEqual(rows["地方政府"]["progress"], "已送出申請")
-        self.assertEqual(rows["地方政府"]["text"], "已送出申請（2 筆，合計 $8,000）")
+        self.assertEqual(rows["地方政府"]["progress"], "已申請")
+        self.assertEqual(rows["地方政府"]["text"], "已申請（2 筆，合計 $8,000）")
 
     def test_all_completed_and_other_category(self):
         rows = self.by_label([
-            item(Category.INDUSTRY, Status.COMPLETED, 100),
+            item(Category.INDUSTRY, Status.SUBMITTED, 100),
             item(Category.OTHER, Status.SUBMITTED, 50),
         ])
-        self.assertEqual(rows["工業局"]["progress"], "已申請完成")
+        self.assertEqual(rows["工業局"]["progress"], "已申請")
         self.assertEqual(rows["其他"]["count"], 1)
         self.assertNotIn("其他", self.by_label([]))
 
@@ -74,7 +75,7 @@ class AgencySummaryPageTests(TestCase):
     def test_subsidy_tab_shows_summary_instead_of_dropdowns(self):
         page = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "subsidy"})
         self.assertContains(page, 'id="subsidy-agency-summary"')
-        self.assertContains(page, "已送出申請")
+        self.assertContains(page, "已申請")
         self.assertContains(page, "尚未登錄補助項目")  # 環境部、地方政府沒有項目
         self.assertNotContains(page, 'name="operations-industry_bureau_status"')
         self.assertNotContains(page, 'name="operations-local_government_status"')
@@ -98,7 +99,7 @@ class AgencySummaryPageTests(TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content[:300])
         html = response.json()["subsidy_summary_html"]
-        self.assertIn("尚未送出申請", html)
+        self.assertIn("尚未申請", html)
         self.assertIn("1 筆・合計 $3,000", html)
 
     def test_operations_export_uses_summary_text(self):
@@ -109,5 +110,5 @@ class AgencySummaryPageTests(TestCase):
         self.assertIn("工業局補助進度", headers)
         self.assertNotIn("縣市政府", headers)
         row = [cell.value for cell in sheet[2]]
-        self.assertEqual(row[headers.index("工業局補助進度")], "已送出申請（1 筆，合計 $8,000）")
+        self.assertEqual(row[headers.index("工業局補助進度")], "已申請（1 筆，合計 $8,000）")
         self.assertIn(row[headers.index("環境部補助進度")], ("", None))

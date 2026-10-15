@@ -5154,6 +5154,19 @@ class OrderOperationsTests(TestCase):
         self.assertIn("最終成交抹零", text)
         self.assertNotIn("已核准優惠", text)
 
+    def test_contract_discount_reason_wraps_and_grows_row(self):
+        # 折扣原因太長時自動換行並撐高該列，不超出格子（2026-10-15）。
+        from reportlab.lib.units import mm
+        from sales.services.order_contract_pdf import fitted_row_height, p, wrap_style
+        widths = [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm]
+        short = [p("其他"), p("最終成交抹零", wrap_style), p("1"), p("-500"), p("-500")]
+        long = [p("其他"), p("客戶為老顧客並同時購買兩台車，經店長同意給予總價折讓，另補貼部分配件費用與領牌規費差額" * 3, wrap_style), p("1"), p("-500"), p("-500")]
+        self.assertEqual(fitted_row_height(short, widths), 7 * mm)
+        self.assertGreater(fitted_row_height(long, widths), 14 * mm)
+        _, line_height = p("最終成交抹零", wrap_style).wrap(widths[1] - 8, 1000)
+        _, wrapped_height = long[1].wrap(widths[1] - 8, 1000)
+        self.assertGreater(wrapped_height, line_height * 2)
+
     def test_financial_totals_include_split_expenses_and_scrap_income(self):
         profile = self.order.operations
         profile.actual_disbursement = Decimal("80000")

@@ -70,6 +70,12 @@ center_style = ParagraphStyle(
     parent=body_style,
     alignment=TA_CENTER,
 )
+# 中文沒有空白，需用 CJK 斷行才會在欄寬內自動換行。
+wrap_style = ParagraphStyle(
+    "wrap",
+    parent=body_style,
+    wordWrap="CJK",
+)
 right_style = ParagraphStyle(
     "right",
     parent=body_style,
@@ -117,6 +123,16 @@ def draw_table(c, data, col_widths, y_top, row_heights=None, styles=None):
     width, height = table.wrapOn(c, CONTENT_W, PAGE_H)
     table.drawOn(c, MARGIN_X, y_top - height)
     return y_top - height
+
+
+def fitted_row_height(row, col_widths, minimum=7 * mm):
+    """文字換行後撐高該列；一行放得下的列維持固定列高。左右 padding 共 8pt、上下共 5pt，同 draw_table。"""
+    needed = max(
+        cell.wrap(width - 8, PAGE_H)[1]
+        for cell, width in zip(row, col_widths)
+        if isinstance(cell, Paragraph)
+    )
+    return max(minimum, needed + 5)
 
 
 def money(value):
@@ -381,7 +397,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             [
                 p("其他"),
                 # 項目欄顯示折扣原因（申請或下單時填的備註）；沒填才退回「已核准優惠」。
-                p(safe(order.discount_reason, "已核准優惠")),
+                p(safe(order.discount_reason, "已核准優惠"), wrap_style),
                 p("依最終成交內容調整"),
                 p("1", center_style),
                 p(f"-{money(order.approved_discount_amount)}", right_style),
@@ -402,12 +418,14 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
                 p(money(order.installment_opening_fee), right_style),
             ]
         )
+    price_widths = [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm]
+    price_data = [[cell for index, cell in enumerate(row) if index != 2] for row in [price_header] + rows]
     y = draw_table(
         c,
-        [[cell for index, cell in enumerate(row) if index != 2] for row in [price_header] + rows],
-        [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm],
+        price_data,
+        price_widths,
         y,
-        row_heights=[7 * mm] + [7 * mm] * len(rows),
+        row_heights=[7 * mm] + [fitted_row_height(row, price_widths) for row in price_data[1:]],
         styles=[
             ("BACKGROUND", (0, 0), (-1, 0), GREEN_LIGHT),
             ("TEXTCOLOR", (0, 0), (-1, 0), GREEN),

@@ -283,7 +283,8 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
         and rule.calculation_type
         == BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS
     ):
-        rate_class = f"FIXED-COMPONENTS-{rule.pk}"
+        # 訂單費率級距欄位只有 10 字元，固定規則用短代碼。
+        rate_class = f"FC-{rule.pk}"
         if vehicle_model.energy_type in {
             VehicleModel.EnergyType.ELECTRIC,
             VehicleModel.EnergyType.LIGHT_ELECTRIC,
@@ -313,7 +314,7 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
             rate_class=(
                 MICRO_ELECTRIC_RATE_CLASS
                 if vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC
-                else f"FIXED-BUNDLE-{rule.pk}"
+                else f"FB-{rule.pk}"
             ),
             standard_remaining_days=standard_remaining_days(registration_date),
             calendar_remaining_days=calendar_remaining_days(registration_date),

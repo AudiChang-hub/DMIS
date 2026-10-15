@@ -328,10 +328,6 @@
         <label for="{{ registration_form.registration_date.id_for_label }}">實際領牌日期 <span class="required-inline">必填</span></label>
         {{ registration_form.registration_date }}
       </div>
-      <div class="registration-data-form__county">
-        <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
-        {{ registration_form.registration_county }}
-      </div>
       <small class="field-help registration-data-form__help">{% site_text 'order_detail.b03ace01bdda' %}</small>
       <div class="registration-data-form__plate">
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
@@ -409,7 +405,7 @@
               </form>
               {% endif %}
             {% endif %}
-            {% if not order.is_registration_complete %}
+            {% if not order.is_registration_complete or not row.document %}
             <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
               {% csrf_token %}
               <input type="hidden" name="document_type" value="{{ row.type }}">
@@ -446,7 +442,7 @@
         {% empty %}
           <p class="muted">目前沒有其他保險單。</p>
         {% endfor %}
-        {% if not order.is_registration_complete %}
+        {% if order.status != 'cancelled' %}
         <form class="other-insurance__form" method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
           {% csrf_token %}
           <input type="hidden" name="document_type" value="other_insurance">

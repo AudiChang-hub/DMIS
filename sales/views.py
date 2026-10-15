@@ -22,6 +22,7 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import BooleanField, Case, Count, DecimalField, Exists, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -6838,13 +6839,32 @@ def registration_save(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
+    workspace = order_workspace.is_workspace_save(request)
     if order.is_registration_complete:
+        if workspace:
+            return order_workspace.save_error("此訂單已完成領牌，領牌資料已鎖定。", status=409)
         messages.error(request, "此訂單已完成領牌，領牌資料已鎖定。")
         return redirect("order_detail", pk=pk)
     if not order.allocated_vehicle_id:
+        if workspace:
+            return order_workspace.save_error("請先完成配車，再填寫領牌資料。", status=409)
         messages.error(request, "請先完成配車，再填寫領牌資料。")
         return redirect("order_detail", pk=pk)
     form = RegistrationStageForm(request.POST, instance=order)
+    if workspace:
+        # 自動儲存只存資料，不自動完成領牌：完成會鎖定日期與車牌，要由「確認領牌完成」明確按下（使用者 2026-10-15）。
+        if not form.is_valid():
+            return order_workspace.save_error("領牌資料未保存。", forms=(form,))
+        notes = _save_registration_form(request, form)
+        order.refresh_from_db()
+        # 回傳完整同步資料：領牌日會帶入成本、獎勵與傭金，收支區塊的版本號要跟著更新。
+        return order_workspace.saved(request, order, extra={
+            "message": notes[0][1] if notes else "領牌資料已保存。",
+            "registration_html": render_to_string(
+                "sales/_registration_completion.html",
+                {"order": order, "registration_missing": order.missing_registration_requirements()}, request=request,
+            ),
+        })
     if form.is_valid():
         for level, text in _save_registration_form(request, form):
             getattr(messages, level)(request, text)

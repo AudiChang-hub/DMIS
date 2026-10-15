@@ -39,9 +39,9 @@
     <details class="finance-strip__disclosure" open>
       <summary>調整折扣</summary>
       <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
-      <form class="form-grid compact-grid" data-workspace-save="discount" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
+      <form class="form-grid compact-grid" data-workspace-save="discount" data-autosave-off data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
         {% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
-        <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">儲存並套用折扣</button>
+        <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">套用折扣</button>
       </form>
     </details>
     {% else %}<p class="finance-strip__meta">由具財務編輯及折扣核定權限的人員調整。</p>{% endif %}
@@ -136,10 +136,15 @@
     </details>
   </details>
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
+  {% if order_workspace %}
+  {% if form.confirm_legacy_finance %}<div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>{% endif %}
+  <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
+  {% else %}
   <div class="finance-submit">
     <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
-    <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">{% if order_workspace %}儲存收支與後續資料{% else %}儲存營運資料{% endif %}</button></div>
+    <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">儲存營運資料</button></div>
   </div>
+  {% endif %}
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
 {% include "sales/_payment_ledger.html" %}

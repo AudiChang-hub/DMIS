@@ -2437,27 +2437,6 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .subsidy-edit-grid > div { display: grid; min-width: 0; align-content: start; gap: var(--space-2); }
 .subsidy-change-reason { grid-column: 1 / -1; }
-/* 只在補助表單範圍內黏住畫面底部；捲到下方其他表單時跟著表單結尾離開，不會蓋住別的儲存列。 */
-.subsidy-save-dock {
-  position: sticky; z-index: 30; bottom: 24px; margin: 0 var(--card-pad) var(--card-pad) auto;
-  display: flex; width: min(620px, calc(100% - 2 * var(--card-pad))); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-4);
-  align-items: center; justify-content: space-between; gap: var(--stack-gap-sm);
-  color: var(--on-accent); background: color-mix(in srgb, var(--navy) 98%, transparent); border: 1px solid color-mix(in srgb, var(--surface) 18%, transparent);
-  border-radius: var(--radius-lg); box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-ink) 28%, transparent); backdrop-filter: blur(12px);
-  transition: width .18s ease, color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-.subsidy-save-dock__copy { display: grid; min-width: 0; gap: 2px; }
-.subsidy-save-dock__copy strong { font-size: var(--text-sm-plus); }
-.subsidy-save-dock__copy small { color: color-mix(in srgb, var(--surface) 76%, transparent); font-size: var(--text-xs); line-height: 1.4; }
-.subsidy-save-dock .button { flex: 0 0 auto; min-width: 142px; }
-.subsidy-save-dock.is-saved {
-  width: fit-content; color: var(--action-text); background: var(--surface-glass);
-  border-color: var(--line); box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-ink) 13%, transparent);
-}
-.subsidy-save-dock.is-saved .subsidy-save-dock__copy small { color: var(--muted); }
-.subsidy-save-dock.is-saved .button:disabled {
-  color: var(--action-text); background: var(--mint); border-color: transparent; opacity: 1;
-}
 .content-section-heading {
   position: relative; display: flex; min-height: 72px; margin: 0; padding: var(--bar-pad);
   align-items: center; gap: var(--stack-gap-sm); background: var(--surface-soft); border: 1px solid var(--line);
@@ -4568,16 +4547,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .ocr-status.is-floating-processing p { margin-top: 1px; font-size: var(--text-xs); line-height: 1.35; }
   .subsidy-change-reason { grid-column: auto; }
   .ocr-conflict-card, .ocr-conflict-card__actions { align-items: stretch; flex-direction: column; }
-  .subsidy-save-dock {
-    bottom: calc(82px + env(safe-area-inset-bottom));
-    width: calc(100% - 2 * var(--card-pad)); padding: var(--bar-pad); align-items: stretch; flex-direction: column; gap: var(--space-3);
-  }
-  .subsidy-save-dock.is-saved {
-    width: fit-content; padding: var(--space-2) var(--space-3); align-items: center; flex-direction: row;
-  }
-  .subsidy-save-dock.is-saved .subsidy-save-dock__copy small { display: none; }
-  .subsidy-save-dock.is-saved .button { width: auto; min-width: 112px; }
-  .subsidy-save-dock .button { width: 100%; }
   .content-section-heading {
     min-height: 64px; padding: var(--bar-pad); gap: var(--space-3); border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
@@ -4947,6 +4916,25 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .document-archive-card__actions .button { width: 100%; }
 }
 .cancellation-panel { margin-top: var(--stack-gap); }
+/* 自動儲存狀態（2026-10-15）：取代各區塊的儲存按鈕；儲存中、已儲存、未完成各有顏色，不搶焦點。 */
+.autosave-status {
+  display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0;
+  color: var(--muted); font-size: var(--text-sm); line-height: 1.45;
+}
+.autosave-status::before {
+  content: ""; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--line); transition: background .2s ease;
+}
+.autosave-status[data-state="saving"]::before { background: var(--amber); animation: autosave-pulse 1s ease-in-out infinite; }
+.autosave-status[data-state="saved"] { color: var(--green); }
+.autosave-status[data-state="saved"]::before { background: var(--green); }
+.autosave-status[data-state="pending"], .autosave-status[data-state="error"] { color: var(--red); }
+.autosave-status[data-state="pending"]::before, .autosave-status[data-state="error"]::before { background: var(--red); }
+[data-autosave] [aria-invalid="true"] { border-color: var(--red); }
+@keyframes autosave-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .autosave-status[data-state="saving"]::before { animation: none; } }
+.subsidy-edit-form > .autosave-status { margin: var(--stack-gap-sm) var(--card-pad) var(--card-pad); }
+.operations-section-form .autosave-status, .finance-form > fieldset > .autosave-status { margin-top: var(--stack-gap-sm); }
 .close-panel > p { max-width: 68ch; color: var(--muted); }
 .close-panel > form { margin-top: var(--space-3); }
 .cancellation-panel > summary { display: flex; justify-content: space-between; gap: var(--stack-gap-sm); cursor: pointer; }
@@ -6607,7 +6595,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .operations-form .operation-section>summary{cursor:pointer}
 .operations-form .secret-reveal{align-self:end;justify-self:start;min-height:36px;padding:var(--space-2) var(--space-3);width:auto;font-size:var(--text-sm-plus)}
 .operations-form .operation-grid{row-gap:var(--stack-gap)}
-.subsidy-edit-form>.subsidy-save-dock,.subsidy-edit-form>.dynamic-detail-section{margin-top: var(--stack-gap-sm)}
+.subsidy-edit-form>.dynamic-detail-section{margin-top: var(--stack-gap-sm)}
 #source>.form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--stack-gap-sm)}
 #source .field,#source select{min-width:0;max-width:100%}
 .announcement-images figure{margin:var(--stack-gap-sm) 0}.announcement-images img{display:block;max-width:100%;max-height:560px;object-fit:contain}

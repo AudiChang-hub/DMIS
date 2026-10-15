@@ -5230,11 +5230,11 @@ class OrderOperationsTests(TestCase):
         profile.refresh_from_db()
         self.assertEqual(profile.registration_tax_expense, Decimal("838"))
         self.assertEqual(profile.compulsory_insurance_expense, Decimal("658"))
-        # 選號支出預設監理站 1,000，收入跟著支出（2026-10-15）。
+        # 選號支出預設監理站 1,000，選號收入＝選號費（2026-10-15）。
         self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
         self.assertEqual(profile.registration_tax_income, Decimal("838"))
         self.assertEqual(profile.compulsory_insurance_income, Decimal("658"))
-        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
+        self.assertEqual(profile.plate_selection_income, Decimal("300"))
 
         profile.registration_tax_expense = Decimal("900")
         profile.compulsory_insurance_income = Decimal("700")
@@ -5256,7 +5256,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
         # 規費收入跟著（人工改過的）規費支出。
         self.assertEqual(profile.registration_tax_income, Decimal("900"))
-        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
+        self.assertEqual(profile.plate_selection_income, Decimal("500"))
 
     def test_registration_financial_pairs_are_editable_and_grouped(self):
         response = self.client.get(

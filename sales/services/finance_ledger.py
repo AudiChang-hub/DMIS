@@ -11,7 +11,7 @@ ZERO = Decimal("0")
 
 INCOME_GROUPS = (
     ("撥款", "現金單為車價；分期單為分期公司撥款", ("actual_disbursement",)),
-    ("領牌相關", "客戶支付的牌險與選號，溢收記在代辦費收入", ("registration_tax_income", "compulsory_insurance_income", "plate_selection_income")),
+    ("領牌相關", "客戶支付的牌險與選號；牌險溢收記在代辦費收入", ("registration_tax_income", "compulsory_insurance_income", "plate_selection_income")),
     ("手續費與代辦", "", ("agency_fee_income", "installment_fee_income", "card_fee_income", "other_income")),
     ("中古與報廢", "", ("used_vehicle_income", "scrap_agency_income", "scrap_vehicle_income")),
     ("獎勵與補助", "依實際領牌日期套用車型版本", OrderOperationsProfile.INCENTIVE_FIELDS),
@@ -39,9 +39,9 @@ HINTS = {
     "registration_tax_expense": "號牌、行照、檢驗、公路養管、牌照稅",
     "compulsory_insurance_income": "預設等於強制險支出",
     "compulsory_insurance_expense": "依強制險年期帶入",
-    "plate_selection_income": "預設等於選號支出；沒有選號時為 0 元",
+    "plate_selection_income": "客人付的選號費；沒有選號時為 0 元",
     "plate_selection_expense": "監理站 1,000 元；請代辦人員領牌時改成實際支出",
-    "agency_fee_income": "牌險溢收（牌險費－規費－強制險）＋選號溢收（選號費－選號支出），少收為負數",
+    "agency_fee_income": "牌險溢收（牌險費－規費－強制險），少收為負數",
     "installment_fee_expense": "預設跟開辦費一樣",
 }
 LEGACY_GROUP = "歷史匯入欄位"

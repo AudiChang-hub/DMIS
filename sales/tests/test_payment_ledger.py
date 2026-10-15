@@ -169,7 +169,7 @@ class PaymentLedgerTests(TestCase):
 
     def test_installment_balance_follows_manual_plate_income(self):
         # SO20261010-167D11：分期吸收規費與強制險，只收選號；改收支頁收入後分期外應收要跟著變。
-        # 牌險不含選號（2026-10-15）：牌險 1,406＋選號 1,200；選號收入 1,000＋選號溢收 200 記代辦費。
+        # 牌險不含選號（2026-10-15）：牌險 1,406＋選號 1,200；選號收入＝選號費 1,200。
         SalesOrder.objects.filter(pk=self.order.pk).update(
             payment_type="installment", installment_company="和潤", installment_periods=24,
             installment_monthly=Decimal("3125"), deposit_amount=0, plate_insurance_fee=1406,

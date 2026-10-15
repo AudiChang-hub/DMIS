@@ -1,7 +1,7 @@
 """代辦費收入：牌險與選號溢收（使用者 2026-10-15）。
 
-牌險費不含選號；牌險溢收＝牌險費－領牌規費－強制險，選號溢收＝選號費－選號支出，
-兩者加總為代辦費收入，少收時為負數。油車未排領牌日（規費尚未試算）時牌險溢收先不計；
+牌險費不含選號；代辦費收入＝牌險溢收（牌險費－領牌規費－強制險），少收時為負數。
+選號另計：選號收入＝客人付的選號費、選號支出預設監理站 1,000，差額留在選號（使用者 2026-10-15 更正）。油車未排領牌日（規費尚未試算）時牌險溢收先不計；
 電動類規費與強制險為固定口徑，建單即可計算。
 """
 from decimal import Decimal
@@ -9,8 +9,6 @@ from decimal import Decimal
 ZERO = Decimal("0")
 # 監理站選號費；請其他代辦人員領牌時，選號支出由人工改成實際付出的金額。
 PLATE_SELECTION_STATION_FEE = Decimal("1000")
-# 有選號時建單預設向客人收的選號費。
-PLATE_SELECTION_DEFAULT_CHARGE = Decimal("1200")
 
 
 def _money(value):
@@ -118,9 +116,5 @@ def plate_fee_surplus(order, profile=None):
     return _money(order.plate_insurance_fee) - cost
 
 
-def plate_selection_surplus(order, profile):
-    return _money(order.plate_selection_fee) - _money(profile.plate_selection_expense)
-
-
 def default_agency_fee(order, profile):
-    return (plate_fee_surplus(order, profile) or ZERO) + plate_selection_surplus(order, profile)
+    return plate_fee_surplus(order, profile) or ZERO

@@ -163,18 +163,13 @@ class FormPrintViewTests(TestCase):
         })
         return [f"{self.order.pk}:envelope"]
 
-    def test_electric_envelope_password_requires_own_login_password(self):
+    def test_electric_envelope_prints_saved_password_without_login_password(self):
+        # 2026-10-15 起只有店內人員使用：不再要求輸入本人登入密碼，列印仍留處理紀錄。
         jobs = self.make_electric_with_password()
         page = self.client.get(reverse("form_print"))
-        self.assertContains(page, "data-secret")
+        self.assertNotContains(page, "data-secret-panel")
 
-        denied = self.client.post(reverse("form_print_pdf"), {"job": jobs})
-        self.assertRedirects(denied, reverse("form_print"), fetch_redirect_response=False)
-        wrong = self.client.post(reverse("form_print_pdf"), {"job": jobs, "password": "nope"})
-        self.assertRedirects(wrong, reverse("form_print"), fetch_redirect_response=False)
-        self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed").exists())
-
-        response = self.client.post(reverse("form_print_pdf"), {"job": jobs, "password": "test-pass-123"})
+        response = self.client.post(reverse("form_print_pdf"), {"job": jobs})
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Pw-9527", pdf_pages(response)[0].extract_text())

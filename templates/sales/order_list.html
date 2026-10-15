@@ -53,7 +53,7 @@
 <div class="section-block">
   <div class="inventory-list-summary order-list-summary">
     <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
-    <div class="order-list-summary__controls">{% include 'sales/_profit_control.html' %}
+    <div class="order-list-summary__controls">
       <form class="order-page-size-form" method="get">
         {% for key,value in analysis_filters %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
         <input type="hidden" name="sort" value="{{ sort_value }}">
@@ -87,7 +87,7 @@
   <div class="inventory-table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
     <table class="inventory-table inventory-table--fit"><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}
       <th scope="col" aria-sort="{% if column.key == 'owner_name' and sort_number_column.rank == 1 %}{{ sort_number_column.aria_sort }}{% else %}{{ column.aria_sort }}{% endif %}">
-        {% if column.locked %}<span>{{ column.label }}<small>解鎖後可排序</small></span>{% else %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}<small>{% if column.rank %}{{ column.direction_label }} · 第 {{ column.rank }} 順位{% else %}點擊排序{% endif %}</small></a>{% endif %}
+        {% if column.locked %}<span>{{ column.label }}<small>未授權</small></span>{% else %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}<small>{% if column.rank %}{{ column.direction_label }} · 第 {{ column.rank }} 順位{% else %}點擊排序{% endif %}</small></a>{% endif %}
         {% if column.key == 'owner_name' %}<a class="order-number-sort" href="{{ sort_number_column.url }}" data-order-sort-key="number">訂單編號{% if sort_number_column.rank %} · {{ sort_number_column.direction_label }} · {{ sort_number_column.rank }}{% else %}排序{% endif %}</a>{% endif %}
       </th>
     {% endif %}{% endfor %}</tr></thead>

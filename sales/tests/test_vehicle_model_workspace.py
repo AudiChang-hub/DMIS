@@ -84,7 +84,7 @@ class VehicleModelWorkspaceTests(TestCase):
         for model, price, label in ((self.model, "65,980", "含牌險"), (self.other, "59,980", "不含牌險")):
             row = re.search(rf'<tr[^>]*>(?:(?!</tr>).)*?{model.model_number}(?:(?!</tr>).)*?</tr>', html, re.S)
             self.assertIsNotNone(row, model.model_number)
-            cell = re.search(r'data-label="目前建議售價">(.*?)</td>', row.group(0), re.S).group(1)
+            cell = re.search(r'data-label="目前分期總價">(.*?)</td>', row.group(0), re.S).group(1)
             self.assertIn(price.replace(",", ""), cell.replace(",", ""))
             self.assertIn(f'>{label}</span>', cell)
             self.assertNotIn("不含牌險" if label == "含牌險" else ">含牌險<", cell)

@@ -244,7 +244,7 @@ class WizardDiscountTests(IntakeFixtures):
     def test_deposit_step_validates_discount_and_summary_previews_totals(self):
         self.key = str(uuid.uuid4())
         draft = None
-        for step in ("vehicle", "accessories", "tradein", "delivery", "owner", "payment"):
+        for step in ("vehicle", "payment", "owner", "tradein", "delivery"):
             self.assertEqual(self.wizard_post(step, draft).status_code, 302)
             draft = OrderDraft.objects.get()
         too_much = self.wizard_post("deposit", draft, intake_discount_amount="90000", intake_discount_reason="太多")

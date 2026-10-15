@@ -104,7 +104,7 @@
   </a>{% endif_access %}
   {% if_access 'subsidy_program_list' %}<a class="maintenance-card" href="{% url 'subsidy_program_list' %}">
     <span class="maintenance-card__icon">補</span>
-    <div><h2>補助方案</h2><p>汰舊換新、新購補助、貨物稅補助等，訂車時可多選帶入。</p><strong>{{ subsidy_program_count }} 個啟用方案</strong></div>
+    <div><h2>補助方案</h2><p>汰舊換新、新購補助、新購貨物稅補助等，訂車時可多選帶入。</p><strong>{{ subsidy_program_count }} 個啟用方案</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
   {% if_access 'brand_registration_fee_rule_list' %}<a class="maintenance-card" href="{% url 'brand_registration_fee_rule_list' %}">

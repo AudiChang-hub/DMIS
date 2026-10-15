@@ -112,7 +112,6 @@ class ScreenAccessTests(TestCase):
     def test_explicit_report_grant_overrides_legacy_audience_and_sensitive_ceiling(self):
         ReportAccessGrant.objects.create(user=self.user, report=self.report, view=True, export=True)
         self.grant("profit", export=True)
-        self.client.post(reverse("profit_unlock"), {"password": "Test-Only-123"})
         for config in ({"audience": "admin"}, {"records_mode": "population"}, {"records_columns": ["legacy_notes"]}):
             self.report.published = {**self.report.draft, **config}
             self.report.save()
@@ -138,7 +137,6 @@ class ScreenAccessTests(TestCase):
         self.assertTrue(policy.report(self.report, "operate"))
         self.client.force_login(self.user)
         for route in ("system_integrity_report", "user_management"):
-            self.client.post(reverse("profit_unlock"), {"password": "Test-Only-123"})
             self.assertEqual(self.client.get(reverse(route)).status_code, 200)
         self.assertNotContains(self.client.get(reverse("user_management")), "＋ 建立帳號")
         self.assertEqual(self.client.get(reverse("user_account_create")).status_code, 403)

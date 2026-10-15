@@ -2734,8 +2734,8 @@ class VehiclePriceVersionForm(forms.ModelForm):
             "active",
         ]
         labels = {
-            "suggested_price": "建議售價",
-            "suggested_price_includes_registration": "此建議售價包含牌險",
+            "suggested_price": "分期總價",
+            "suggested_price_includes_registration": "此分期總價包含牌險",
             "cash_price": "現金價",
             "announced_on": "原廠／公司通知日期",
             "effective_from": "訂單生效日期",
@@ -4954,7 +4954,7 @@ class SubsidyProgramForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["name"].widget.attrs["placeholder"] = "例如：貨物稅補助、各縣市環保局 新購"
+        self.fields["name"].widget.attrs["placeholder"] = "例如：新購貨物稅補助、各縣市環保局 新購"
         self.fields["default_amount"].widget.attrs["placeholder"] = "可留空"
         for name in ("requires_old_vehicle", "active"):
             self.fields[name].widget.attrs["class"] = "form-check"

@@ -261,14 +261,14 @@ def build_summary(form, formset, fee_formset, draft):
         vehicle_rows.append((form.fields["color"].label, color.name))
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
-         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))},
-        {"step": "accessories", "label": wizard.STEP_LABELS["accessories"], "rows": [("配件", "、".join(accessories) or "無")]},
+         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))
+         + ([("配件", "、".join(accessories))] if accessories else [])},
+        {"step": "payment", "label": wizard.STEP_LABELS["payment"], "rows": payment_rows},
+        {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
         {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
         {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (
             "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note", "delivery_method",
             "delivery_destination", "note"))},
-        {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
-        {"step": "payment", "label": wizard.STEP_LABELS["payment"], "rows": payment_rows},
         {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],
          "rows": deposit_rows + ([("其他費用", "、".join(fees))] if fees else [])},
     ]

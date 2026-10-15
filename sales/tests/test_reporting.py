@@ -394,7 +394,7 @@ class ReportingTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("errors", response.json())
 
-    def test_population_groups_keep_identity_distinct_and_mask_every_output(self):
+    def test_population_groups_keep_identity_distinct_and_show_full_id(self):
         from sales.reporting.records import record_context
         config = {**self.config, "audience": "admin", "include_records": True,
                   "records_mode": "population", "records_page_size": 100}
@@ -405,18 +405,16 @@ class ReportingTests(TestCase):
         context = record_context(validate_config(config), {})
         self.assertEqual(context["records_page"].paginator.count, 2)
         self.assertEqual([row["cells"][-1]["value"] for row in context["records_rows"]], [2, 1])
-        self.assertEqual({row["cells"][3]["value"] for row in context["records_rows"]}, {"A＊＊＊＊＊＊89"})
-        self.assertNotIn("A123456789", repr(context["records_rows"]))
-        self.assertNotIn("A198765489", repr(context["records_page"].object_list))
+        # 2026-10-15 起證號完整顯示，不同證號各自成組。
+        self.assertEqual({row["cells"][3]["value"] for row in context["records_rows"]}, {"A123456789", "A198765489"})
         self.assertEqual(record_context(config, {"source": [str(self.a.pk)]})["records_rows"][0]["cells"][-1]["value"], 1)
         self.report.published = config
         self.report.save()
         self.login()
         for route in ("report_display", "report_records_export"):
             response = self.client.get(reverse(route, args=[self.report.pk]))
-            self.assertContains(response, "A＊＊＊＊＊＊89")
-            self.assertNotContains(response, "A123456789")
-            self.assertNotContains(response, "A198765489")
+            self.assertContains(response, "A123456789")
+            self.assertContains(response, "A198765489")
         exported = self.client.get(reverse("report_records_export", args=[self.report.pk])).content.decode("utf-8-sig")
         self.assertIn("'=測試車主", exported)
         for user in (self.user, self.other_admin):

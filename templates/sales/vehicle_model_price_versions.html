@@ -65,7 +65,7 @@
           </div>
         </div>
         <dl class="price-version-values">
-          <div><dt>建議售價</dt><dd>{% if version.suggested_price %}${{ version.suggested_price|floatformat:0 }}・{% if version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>分期總價</dt><dd>{% if version.suggested_price %}${{ version.suggested_price|floatformat:0 }}・{% if version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}{% else %}未填寫{% endif %}</dd></div>
           <div><dt>現金價</dt><dd>{% if version.cash_price %}${{ version.cash_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
         </dl>
         {% if version.display_state == "superseded" %}<p class="price-version-item__explanation">{% site_text 'vehicle_model_price_versions.bcd8f217ae1d' %}</p>{% endif %}

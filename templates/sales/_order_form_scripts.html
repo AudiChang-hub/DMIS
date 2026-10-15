@@ -391,7 +391,7 @@
         vehiclePrice.value = data.recommended_price;
         vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
       }
-      const registrationText = data.recommended_label === "建議售價"
+      const registrationText = data.recommended_label === "分期總價"
         ? (data.version.suggested_price_includes_registration ? "，含牌險" : "，不含牌險")
         : "";
       const versionSource = data.version.is_snapshot
@@ -571,7 +571,8 @@
     installmentPicker.syncRequired();
     showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
-    showConditional("plate-selection", plateChoice.value !== "none");
+    // 「待確認」還沒決定選號，跟「不選號」一樣不顯示也不計選號費。
+    showConditional("plate-selection", !["none", "pending"].includes(plateChoice.value));
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
     showConditional("delivery-destination", needsDestination);
@@ -1674,7 +1675,7 @@
     }
     function preDiscountTotal() {
       const installment = paymentType.value === "installment";
-      const plateSelection = plateChoice.value !== "none" ? numberOf("id_plate_selection_fee") : 0;
+      const plateSelection = !["none", "pending"].includes(plateChoice.value) ? numberOf("id_plate_selection_fee") : 0;
       return numberOf("id_vehicle_price") + numberOf("id_plate_insurance_fee")
         + plateSelection + numberOf("id_lien_registration_fee")
         + (installment ? numberOf("id_installment_opening_fee") : 0)

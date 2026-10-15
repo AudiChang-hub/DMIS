@@ -40,13 +40,13 @@ def recommended_vehicle_price(version, payment_type):
         return None, ""
     if payment_type == "installment":
         candidates = (
-            ("suggested_price", "建議售價"),
+            ("suggested_price", "分期總價"),
             ("cash_price", "現金價"),
         )
     else:
         candidates = (
             ("cash_price", "現金價"),
-            ("suggested_price", "建議售價"),
+            ("suggested_price", "分期總價"),
         )
     for field_name, label in candidates:
         value = getattr(version, field_name)
@@ -61,13 +61,13 @@ def recommended_price_from_snapshot(snapshot, payment_type):
         return None, ""
     if payment_type == "installment":
         candidates = (
-            ("suggested_price", "建議售價"),
+            ("suggested_price", "分期總價"),
             ("cash_price", "現金價"),
         )
     else:
         candidates = (
             ("cash_price", "現金價"),
-            ("suggested_price", "建議售價"),
+            ("suggested_price", "分期總價"),
         )
     for field_name, label in candidates:
         raw_value = snapshot.get(field_name)

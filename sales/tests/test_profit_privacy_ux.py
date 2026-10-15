@@ -1,15 +1,11 @@
-from datetime import timedelta
-from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.utils import timezone
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.services import AccessPolicy
 from sales.models import SalesOrder, VehicleModel, VehicleColor, OrderOperationsProfile, SalesSource, OrderAccountProfile, VehicleCatalogEntry
 from sales.services.audience_content import RELEASE_RULES, release_context
-from sales.services.profit_access import SESSION_KEY
 from config.release_notes import RELEASES
 
 
@@ -22,13 +18,14 @@ class ProfitPrivacyTests(TestCase):
         LegacySalesSnapshot.objects.create(order=self.order, import_row=row, raw_financials={"單筆淨利": "privateprofit98271"})
         OrderOperationsProfile.objects.filter(order=self.order).update(legacy_finance_reconciliation={"source_profit": "privatejson76193"})
         rebuild_order_search_index(self.order.pk)
-        self.client.force_login(self.root)
+        # 沒有淨利授權的人員搜不到原始財務值，一般車主／車牌搜尋照常。
+        self.client.force_login(self.staff)
         for query in ("privateprofit98271", "privatejson76193"):
             response = self.client.get(reverse("order_list"), {"q": query})
             self.assertEqual(response.context["page_obj"].paginator.count, 0)
-        # 一般車主／車牌搜尋繼續可用，不依賴解鎖。
         self.assertEqual(self.client.get(reverse("order_list"), {"q": self.order.owner_name}).context["page_obj"].paginator.count, 1)
-        self.unlock()
+        # 有淨利授權（admin）不必再輸入密碼即可搜到。
+        self.client.force_login(self.root)
         self.assertEqual(self.client.get(reverse("order_list"), {"q": "privateprofit98271"}).context["page_obj"].paginator.count, 1)
         # 舊快取回填也必須移除敏感值，且可重跑。
         from importlib import import_module
@@ -46,25 +43,24 @@ class ProfitPrivacyTests(TestCase):
     def test_profit_export_needs_separate_export_grant(self):
         ScreenAccessGrant.objects.create(user=self.staff, screen_key="profit", view=True, export=False)
         ScreenAccessGrant.objects.create(user=self.staff, screen_key="operations", view=True, export=True)
-        self.unlock(self.staff)
+        self.client.force_login(self.staff)
         self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 403)
         ScreenAccessGrant.objects.filter(user=self.staff, screen_key="profit").update(export=True)
         self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 200)
 
-    def test_history_and_emergency_admin_do_not_bypass_lock(self):
+    def test_history_and_admin_raw_finance_follow_profit_grant_without_password(self):
         from sales.models import OrderChange
         OrderChange.objects.create(order=self.order, actor_name="合成人員", reason="合成核對",
             changes={"legacy_finance_reconciliation": {"before": "", "after": "privateprofit86423"},
                      "備註": {"before": "", "after": "正常可見備註"}})
-        self.client.force_login(self.root)
+        ScreenAccessGrant.objects.create(user=self.staff, screen_key="work", view=True)
+        self.client.force_login(self.staff)
         response = self.client.get(reverse("order_detail", args=[self.order.pk]))
         self.assertNotContains(response, "privateprofit86423")
         self.assertContains(response, "正常可見備註")
-        url = reverse("admin:sales_orderoperationsprofile_change", args=[self.order.operations.pk])
-        self.assertEqual(self.client.get(url).status_code, 302)
-        self.assertIn(reverse("profit_unlock"), self.client.get(url).url)
-        self.unlock()
+        self.client.force_login(self.root)
         self.assertContains(self.client.get(reverse("order_detail", args=[self.order.pk])), "privateprofit86423")
+        url = reverse("admin:sales_orderoperationsprofile_change", args=[self.order.operations.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_color_image_validation_and_parent_isolation(self):
@@ -115,71 +111,36 @@ class ProfitPrivacyTests(TestCase):
     def setUp(self):
         cache.clear()
 
-    def unlock(self, user=None):
-        self.client.force_login(user or self.root)
-        return self.client.post(reverse("profit_unlock"), {"password": "Privacy-test-730!", "next": reverse("order_list")})
-
-    def test_root_locked_default_then_password_and_lock(self):
+    def test_profit_shows_directly_with_grant_and_unlock_routes_are_gone(self):
+        # 2026-10-15 起只有店內人員使用：有淨利授權直接顯示、可依淨利排序，不再有解鎖／立即鎖定。
         self.client.force_login(self.root)
         response = self.client.get(reverse("order_list"), {"sort": "profit,owner_name"})
-        self.assertNotContains(response, "987,333")
-        self.assertEqual(response.context["sort_value"], "owner_name")
-        self.assertContains(response, "解鎖後可排序")
-        self.assertEqual(self.unlock().status_code, 302)
-        response = self.client.get(reverse("order_list"), {"sort": "profit"})
         self.assertContains(response, "987,333")
-        self.assertEqual(response.context["sort_value"], "profit")
-        self.client.post(reverse("profit_lock"))
-        self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
+        self.assertEqual(response.context["sort_value"], "profit,owner_name")
+        for text in ("立即鎖定", "淨利已解鎖", "輸入密碼查看", "data-profit-until", "profit-lock.js"):
+            self.assertNotContains(response, text)
+        for path in ("/account/profit/unlock/", "/account/profit/lock/", "/account/unlock/touch/"):
+            self.assertEqual(self.client.get(path).status_code, 404)
 
     def test_permission_is_explicit_even_legacy_and_other_superuser(self):
         for user in [self.staff, get_user_model().objects.create_superuser("manager", password="test")]:
             self.client.force_login(user)
             self.assertFalse(AccessPolicy(user).screen("profit"))
-            self.assertEqual(self.client.post(reverse("profit_unlock"), {"password": "test"}).status_code, 403)
-        ScreenAccessGrant.objects.create(user=self.staff, screen_key="profit", view=True)
-        self.assertEqual(self.unlock(self.staff).status_code, 302)
-        self.assertContains(self.client.get(reverse("order_list")), "987,333")
-
-    def test_expiration_revoke_regrant_password_and_session_isolation(self):
+            response = self.client.get(reverse("order_list"), {"sort": "profit"})
+            self.assertNotContains(response, "987,333")
+            self.assertNotEqual(response.context["sort_value"], "profit")
         grant = ScreenAccessGrant.objects.create(user=self.staff, screen_key="profit", view=True)
-        self.unlock(self.staff)
-        other = Client(); other.force_login(self.staff)
-        self.assertNotContains(other.get(reverse("order_list")), "987,333")
-        with patch("sales.services.profit_access.timezone.now", return_value=timezone.now() + timedelta(seconds=601)):
-            self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
+        self.client.force_login(self.staff)
+        self.assertContains(self.client.get(reverse("order_list")), "987,333")
         grant.delete()
         self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
-        ScreenAccessGrant.objects.create(user=self.staff, screen_key="profit", view=True)
-        UserAccessState.objects.filter(user=self.staff).update(version=2)
-        self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
-        self.unlock(self.staff)
-        self.staff.set_password("Changed-9382!"); self.staff.save()
-        self.assertEqual(self.client.get(reverse("order_list")).status_code, 302)
 
-    def test_wrong_password_throttled_csrf_and_safe_redirect(self):
+    def test_export_and_raw_financial_routes_follow_profit_grant(self):
         self.client.force_login(self.root)
-        for _ in range(5):
-            self.assertEqual(self.client.post(reverse("profit_unlock"), {"password": "wrong"}).status_code, 400)
-        self.assertEqual(self.client.post(reverse("profit_unlock"), {"password": "Privacy-test-730!"}).status_code, 429)
-        self.assertNotIn(SESSION_KEY, self.client.session)
-        csrf = Client(enforce_csrf_checks=True); csrf.force_login(self.root)
-        self.assertEqual(csrf.post(reverse("profit_unlock"), {"password": "Privacy-test-730!"}).status_code, 403)
-        self.assertEqual(csrf.post(reverse("profit_lock")).status_code, 403)
-        self.assertEqual(self.client.get(reverse("profit_lock")).status_code, 405)
-        cache.clear()
-        response = self.client.post(reverse("profit_unlock"), {"password": "Privacy-test-730!", "next": "https://evil.example/"})
-        self.assertEqual(response.url, reverse("order_list"))
-        self.assertIn("no-store", response["Cache-Control"])
-
-    def test_export_and_raw_financial_routes_require_unlock(self):
-        self.client.force_login(self.root)
-        for route in ["operations_report_export"]:
-            response = self.client.get(reverse(route))
-            self.assertEqual(response.status_code, 302)
-            self.assertIn(reverse("profit_unlock"), response.url)
-        self.unlock()
         self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 200)
+        ScreenAccessGrant.objects.create(user=self.staff, screen_key="operations", view=True, export=True)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 403)
 
     def test_narrow_text_preserves_original_and_column_order(self):
         self.client.force_login(self.root)

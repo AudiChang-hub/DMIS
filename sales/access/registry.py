@@ -22,7 +22,7 @@ SCREENS = (
     Screen("order_gift", "贈送配件（不含售價調整）", "order_start"),
     Screen("order_documents", "列印客戶簽署文件（不含內部財務）", "order_list", False, True),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
-    Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
+    Screen("profit", "查看淨利", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
     Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
@@ -155,7 +155,6 @@ ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_fill_images"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
-PERSONAL.update({"profit_unlock", "profit_lock", "unlock_touch"})
 PERSONAL.add("notification_list")
 PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊；車行帳號依 DEALER_ACCOUNT_ROUTES 不開放
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}

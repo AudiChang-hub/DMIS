@@ -2,7 +2,7 @@ from django.urls import path
 from .permission_workspace import order_entry as order_customer_access, workspace as permission_workspace, create_dealer_entry
 from django.views.generic import RedirectView
 
-from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views, profit_views
+from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views
 from . import order_deletion_views
 from . import draft_cleanup_views
 from . import import_review_views
@@ -52,9 +52,6 @@ urlpatterns = [
     path("orders/deletion-review/", order_deletion_views.order_deletion_queue, name="order_deletion_queue"),
     path("orders/<int:pk>/delete/", order_deletion_views.order_delete, name="order_delete"),
     path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),
-    path("account/profit/unlock/", profit_views.profit_unlock, name="profit_unlock"),
-    path("account/profit/lock/", profit_views.profit_lock, name="profit_lock"),
-    path("account/unlock/touch/", profit_views.unlock_touch, name="unlock_touch"),
     path("catalog/", catalog_views.catalog, name="catalog"),
     path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
     path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),

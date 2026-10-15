@@ -98,7 +98,7 @@ RELATED_FIELDS = (
     ("operations__vehicle_control_account", "車控帳號"),
     ("operations__battery_plan", "電池合約方案"),
     ("operations__battery_account", "電池合約帳號"),
-    ("operations__battery_rate_plan", "電池方案"),
+    ("operations__battery_rate_plan", "交車前確認備註"),
     ("operations__helmet", "安全帽"),
     ("operations__company_gift_or_remittance", "公司禮券、匯款"),
     ("operations__platform_gift", "平台贈品"),

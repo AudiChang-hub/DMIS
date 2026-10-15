@@ -197,7 +197,7 @@ def sign_documents(order, *, documents, signature_png, signer_name, staff_name, 
 
 
 def record_paper_upload(order, document):
-    """紙本上傳視為簽署當下內容；之後改合約內容同樣需要重簽。"""
+    """紙本上傳視為簽署當下內容並記錄指紋；之後改內容不要求重簽（使用者 2026-10-15）。"""
     from sales.models import SignatureMethod
 
     field = DOCUMENTS[document]["field"]

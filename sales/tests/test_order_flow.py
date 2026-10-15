@@ -237,7 +237,6 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
 
         for route in (
-            reverse("order_list"),
             reverse("inventory_list"),
             reverse("inventory_create"),
             reverse("order_create"),
@@ -249,8 +248,12 @@ class OrderFlowTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'class="page-context-nav"')
 
-        dashboard = self.client.get(reverse("dashboard"))
-        self.assertNotContains(dashboard, 'class="page-context-nav"')
+        # 上一層就是首頁的第一層頁面不放返回列，主選單的「首頁」就是返回。
+        for route_name in ("dashboard", "order_list", "data_maintenance", "operations_report"):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, 'class="page-context-nav"')
 
     def inventory_payload(self, vehicle=None, **overrides):
         vehicle = vehicle or self.vehicle
@@ -768,7 +771,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "機種與售價")
         self.assertNotContains(response, "data-smart-back")
 
-    def test_maintenance_pages_separate_previous_screen_from_fixed_parent(self):
+    def test_maintenance_pages_return_to_fixed_parent_not_browser_history(self):
         self.client.force_login(self.user)
         maintenance_url = reverse("data_maintenance")
 
@@ -794,19 +797,18 @@ class OrderFlowTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'href="{maintenance_url}"')
                 self.assertContains(response, "資料維護區")
-                self.assertContains(response, "回到上一畫面")
-                self.assertContains(response, "data-smart-back")
-                self.assertContains(
-                    response,
-                    f'data-fallback-url="{maintenance_url}"',
-                )
+                # 返回鍵寫明目的地、固定回上一層，不再用瀏覽器上一頁。
+                self.assertContains(response, 'aria-label="回到資料維護區"')
+                self.assertContains(response, "data-return-to")
+                self.assertNotContains(response, "回到上一畫面")
+                self.assertNotContains(response, "data-smart-back")
 
         brand, _created = VehicleBrand.objects.get_or_create(name="測試品牌")
         editing_brand = self.client.get(
             f'{reverse("vehicle_brand_list")}?edit={brand.pk}'
         )
         self.assertContains(editing_brand, f'href="{maintenance_url}"')
-        self.assertContains(editing_brand, "data-smart-back")
+        self.assertContains(editing_brand, "data-return-to")
 
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)

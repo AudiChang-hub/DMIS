@@ -608,10 +608,14 @@ class ProductExperienceTests(TestCase):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, "回到上一畫面")
+                self.assertNotContains(response, "data-smart-back")
+                if parent_name == "dashboard":
+                    # 上一層是首頁時由主選單返回，不另放返回列。
+                    self.assertNotContains(response, 'class="page-context-nav"')
+                    continue
                 self.assertContains(response, 'class="page-context-nav"')
-                self.assertContains(response, f'href="{reverse(parent_name)}"')
-                self.assertContains(response, "data-smart-back")
-                self.assertContains(response, "回到上一畫面")
+                self.assertContains(response, f'class="back-link" href="{reverse(parent_name)}" data-return-to')
                 self.assertContains(response, 'class="page-breadcrumbs"')
 
     def test_every_response_has_non_sensitive_request_id(self):

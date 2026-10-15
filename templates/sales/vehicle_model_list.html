@@ -62,9 +62,9 @@
   </div>
 
   {% for group in vehicle_model_groups %}
-  <details class="vehicle-brand-group" id="vm-brand-{{ forloop.counter }}" data-brand-group="{{ group.name }}"{% if filters_applied %} open{% endif %}>
+  <details class="vehicle-brand-group" data-brand-group="{{ group.name }}"{% if filters_applied %} open{% endif %}>
     <summary class="vehicle-brand-group__header">
-      <span class="vehicle-brand-group__identity">
+      <span class="vehicle-brand-group__identity" id="vm-brand-{{ forloop.counter }}">
         <strong>{{ group.name }}</strong>
         <small>{% if group.child_brands %}包含 {{ group.child_brands|join:"、" }}{% else %}品牌車型{% endif %}</small>
       </span>

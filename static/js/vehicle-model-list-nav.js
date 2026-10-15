@@ -9,7 +9,12 @@
   const empty = index.querySelector("[data-model-index-empty]");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const links = [...index.querySelectorAll("[data-model-index-link]")];
-  const targetOf = (link) => document.getElementById(link.hash.slice(1));
+  // 品牌錨點在品牌名稱上，實際跳轉與標示以整個品牌段落為準。
+  const resolve = (id) => {
+    const el = id && document.getElementById(id);
+    return el && !el.matches("tr") ? el.closest("details[data-brand-group]") || el : el;
+  };
+  const targetOf = (link) => resolve(link.hash.slice(1));
   const linkByTarget = new Map(links.map((link) => [targetOf(link), link]).filter(([target]) => target));
 
   const closeIfFloating = () => {
@@ -119,6 +124,6 @@
   }
 
   // 帶著 #vm-… 回到這頁（返回鍵、分享連結）時，展開該品牌並停在那一列。
-  const initial = location.hash && document.getElementById(location.hash.slice(1));
+  const initial = resolve(decodeURIComponent(location.hash.slice(1)));
   if (initial && linkByTarget.has(initial)) window.setTimeout(() => locate(initial, { smooth: false }), 0);
 })();

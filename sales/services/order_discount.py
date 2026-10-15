@@ -78,6 +78,7 @@ def intake_pre_discount_total(form, formset, fee_formset):
         return None
     total = (
         _money(instance.vehicle_price) + _money(instance.plate_insurance_fee)
+        + _money(instance.registration_extra_fee_total)
         + _money(instance.effective_installment_fee) + _money(instance.old_vehicle_tax)
     )
     for row in formset.forms:

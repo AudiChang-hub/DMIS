@@ -131,6 +131,7 @@ class ChannelFinanceTests(TestCase):
                 "vehicle_category": SalesOrder.VehicleCategory.NEW,
                 "payment_type": SalesOrder.PaymentType.INSTALLMENT,
                 "vehicle_price": "77000",
+                "plate_insurance_fee": "0",
                 "deposit_amount": "0",
                 "installment_periods": "24",
                 "plate_choice": SalesOrder.PlateChoice.NONE,
@@ -287,7 +288,9 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(profile.actual_disbursement, Decimal("65750"))
         self.assertEqual(profile.installment_interest_subsidy, Decimal("0"))
         self.assertEqual(profile.installment_fee_income, Decimal("2500"))
-        self.assertEqual(profile.net_profit, Decimal("68250"))
+        # 分期手續費支出預設跟開辦費一樣（2026-10-15），收支相抵。
+        self.assertEqual(profile.installment_fee_expense, Decimal("2500"))
+        self.assertEqual(profile.net_profit, Decimal("65750"))
 
     def test_deleted_blank_installment_row_does_not_block_plan_save(self):
         self.client.force_login(self.user)

@@ -184,7 +184,8 @@ class SiteReviewTests(TestCase):
         from sales.intake_forms import IntakeOrderForm
         from sales.forms import RegistrationStageForm
         data = self.complete_data()
-        data.update(registration_manual='on', registration_plate_fee='999', compulsory_insurance_fee='1234')
+        # 油車牌險費留空時以人工明細合計帶入；有輸入實收則照輸入（2026-10-15）。
+        data.update(registration_manual='on', registration_plate_fee='999', compulsory_insurance_fee='1234', plate_insurance_fee='')
         files = {'id_front':self.image('front.png'), 'id_back':self.image('back.png')}
         form = IntakeOrderForm(data, files, user=self.root)
         self.assertFalse(form.is_valid())

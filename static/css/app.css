@@ -1450,6 +1450,8 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 /* 已交車但補助未完成：狀態下方的琥珀提示（訂單仍在「已交車」頁籤，補助完成才結案）。 */
 .order-subsidy-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
 .order-row-status { display: grid; justify-items: end; gap: var(--space-1); }
+/* 牌險少收（牌險費＜規費＋強制險）：紅色提示，選號有溢收也照樣顯示（使用者 2026-10-15）。 */
+.order-plate-shortfall { display: block; width: fit-content; padding: 0 var(--space-2); color: var(--red-ink); background: var(--red-soft); border: 1px solid var(--red-border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
 /* 畫面與列印說明文字：區域頁籤（可橫向捲動）＋該區頁面捷徑；頁面標題分隔每組文字。 */
 .copy-tabs { display: flex; gap: var(--space-2); margin: var(--stack-gap-sm) 0; padding: var(--space-2); overflow-x: auto; background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius); scrollbar-width: thin; }
 .copy-tab { display: inline-flex; flex: none; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4); color: var(--ink); font-weight: 700; white-space: nowrap; border-radius: var(--radius-md); text-decoration: none; }

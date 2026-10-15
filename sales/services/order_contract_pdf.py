@@ -314,8 +314,8 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             p(money(order.vehicle_price), right_style),
         ]
     ]
-    separated_other_fees = order.plate_selection_fee + order.lien_registration_fee
-    plate_amount = max(order.plate_insurance_fee - separated_other_fees, 0)
+    # 牌險不含選號與動保設定，兩者另列於下方（使用者 2026-10-15）。
+    plate_amount = order.plate_insurance_fee
     if order.registration_date:
         plate_description = safe(print_copy(c, "contract.plate_description", "領牌＋強制險"))
         rate_label = registration_rate_label(

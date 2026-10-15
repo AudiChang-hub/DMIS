@@ -4,6 +4,7 @@
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
+      {% if order.plate_selection_fee %}<div><dt>選號</dt><dd>${{ order.plate_selection_fee|number_with_commas }}</dd></div>{% endif %}
       {% if order.price_snapshot %}
       <div class="price-snapshot-summary">
         <dt>車價依據</dt>
@@ -51,8 +52,6 @@
           <div><span>公路養管</span><strong>${{ order.road_maintenance_fee|number_with_commas }}</strong></div>
           <div><span>牌照稅</span><strong>${{ order.license_tax_fee|number_with_commas }}</strong></div>
           <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee|number_with_commas }}</strong></div>
-          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee|number_with_commas }}</strong></div>{% endif %}
-          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee|number_with_commas }}</strong></div>{% endif %}
         </div>
       </div>
       {% endif %}
@@ -68,6 +67,8 @@
         <div class="balance-equation__terms">
           <div><span>＋ 車價</span><strong>${{ order.vehicle_price|number_with_commas }}</strong></div>
           <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee|number_with_commas }}</strong></div>
+          {% if order.plate_selection_fee %}<div><span>＋ 選號</span><strong>${{ order.plate_selection_fee|number_with_commas }}</strong></div>{% endif %}
+          {% if order.lien_registration_fee %}<div><span>＋ 動保設定</span><strong>${{ order.lien_registration_fee|number_with_commas }}</strong></div>{% endif %}
           {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee|number_with_commas }}</strong></div>{% endif %}
           {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total|number_with_commas }}</strong></div>{% endif %}
           {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total|number_with_commas }}</strong></div>{% endif %}

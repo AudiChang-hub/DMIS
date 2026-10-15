@@ -1,4 +1,4 @@
-"""1.63.0：領牌前以訂單日預估車輛成本；選號費在訂車時填寫並計入牌險合計與收支。"""
+"""1.63.0：領牌前以訂單日預估車輛成本；選號費在訂車時填寫並計入總價與收支（2026-10-15 起不併入牌險）。"""
 from datetime import date
 from decimal import Decimal
 from importlib import import_module
@@ -52,22 +52,24 @@ class CostEstimateAndPlateSelectionTests(TestCase):
 
     def test_plate_selection_fee_counts_before_registration_date(self):
         order = self.pending(plate_choice="watch")
-        response = self.post(order, plate_choice="watch", plate_selection_fee="1200", plate_insurance_fee="",
+        response = self.post(order, plate_choice="watch", plate_selection_fee="1200", plate_insurance_fee="0",
                              registration_date="", confirm_completed_correction="")
         self.assert_saved(response, order)
         self.assertEqual(order.plate_selection_fee, Decimal("1200"))
-        self.assertEqual(order.plate_insurance_fee, Decimal("1200"))
+        self.assertEqual(order.plate_insurance_fee, Decimal("0"))
         self.assertEqual(order.calculate_balance(), Decimal("71200"))
         profile = OrderOperationsProfile.objects.get(order=order)
-        self.assertEqual(profile.plate_selection_income, Decimal("1200"))
-        self.assertEqual(profile.plate_selection_expense, Decimal("1200"))
+        # 選號收入跟著監理站支出 1,000，多收的 200 記代辦費收入。
+        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
+        self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
+        self.assertEqual(profile.agency_fee_income, Decimal("200"))
         page = self.client.get(f"/orders/{order.pk}/edit/")
         self.assertContains(page, 'data-conditional="plate-selection"')
 
     def test_installment_customer_balance_includes_plate_selection(self):
         order = self.pending(payment_type="installment", installment_company="測試分期", installment_periods=24,
                              installment_monthly=Decimal("2917"), installment_amount=70000, cash_receivable_v2=True,
-                             plate_selection_fee=1200, plate_insurance_fee=1200, registration_calculated_total=1200,
+                             plate_selection_fee=1200, plate_insurance_fee=0, registration_calculated_total=0,
                              actual_balance=71200)
         self.assertEqual(default_customer_balance(order), Decimal("1200"))
 
@@ -80,5 +82,12 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         self.assertEqual(order.plate_selection_fee, Decimal("1200"))
         self.assertEqual(order.plate_insurance_fee, Decimal("1200"))
         self.assertFalse(order.other_fees.exists())
+        # 0185 再把選號從牌險移出、另列總價（2026-10-15）：兩步合計客人應付總額不變。
+        from django.db import connection
+        from django.db.migrations.loader import MigrationLoader
+        state_apps = MigrationLoader(connection).project_state(("sales", "0185_plate_fee_excludes_selection")).apps
+        import_module("sales.migrations.0185_plate_fee_excludes_selection").forwards(state_apps, None)
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertEqual(order.plate_insurance_fee, Decimal("0"))
         self.assertEqual(order.calculate_balance(), before_total, "客人應付總額不變")
         self.assertTrue(order.events.filter(actor_name__contains="選號費搬移").exists())

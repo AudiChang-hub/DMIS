@@ -231,7 +231,8 @@ class OrderDraftTests(TestCase):
             {
                 "registration_date": "",
                 "registration_calculated_total": "",
-                "plate_insurance_fee": "",
+                # 油車牌險費必填（2026-10-15），由人員依實收輸入；試算與動保留空仍正規化為 0。
+                "plate_insurance_fee": "0",
                 "lien_registration_fee": "",
             }
         )

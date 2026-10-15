@@ -4025,19 +4025,35 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def registration_bundle_fee(self):
-        """固定整包規則沒有分項，試算合計扣掉分項、選號與動保設定後的差額即整包金額。"""
+        """固定整包規則沒有分項，試算合計扣掉分項後的差額即整包金額（試算合計不含選號與動保設定）。"""
         itemized = (
             self.registration_plate_fee + self.registration_license_fee
             + self.registration_inspection_fee + self.road_maintenance_fee
             + self.license_tax_fee + self.compulsory_insurance_fee
-            + self.plate_selection_fee + self.lien_registration_fee
         )
         return max(self.registration_calculated_total - itemized, 0)
+
+    @property
+    def registration_extra_fee_total(self):
+        """牌險以外另收的領牌費用：選號費＋舊有動保設定費（使用者 2026-10-15：牌險不含選號）。"""
+        return (self.plate_selection_fee or 0) + (self.lien_registration_fee or 0)
+
+    @property
+    def plate_fee_surplus(self):
+        from sales.services.agency_fee import plate_fee_surplus
+
+        return plate_fee_surplus(self)
+
+    @property
+    def plate_fee_shortfall(self):
+        surplus = self.plate_fee_surplus
+        return surplus is not None and surplus < 0
 
     def calculate_balance(self):
         return (
             self.vehicle_price
             + self.plate_insurance_fee
+            + self.registration_extra_fee_total
             + self.effective_installment_fee
             + self.other_fee_total
             + self.old_vehicle_tax
@@ -4377,6 +4393,8 @@ class OrderOperationsProfile(TimeStampedModel):
         "registration_tax_income",
         "compulsory_insurance_income",
         "plate_selection_income",
+        "agency_fee_income",
+        "installment_fee_expense",
         "sales_bonus",
         "promotion_subsidy",
         "installment_interest_subsidy",

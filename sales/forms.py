@@ -67,11 +67,13 @@ from .models import (
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
+from .services.agency_fee import PLATE_SELECTION_DEFAULT_CHARGE
 from .services.registration_fee import (
     ManualRegistrationFeeRequired,
     UnsupportedRegistrationFee,
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
+    compulsory_insurance,
     has_registration_rate_basis,
     registration_fee_date,
     registration_period_for,
@@ -432,6 +434,10 @@ class SalesOrderForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs["readonly"] = True
                 self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
+        self.fields["plate_insurance_fee"].label = "牌險費（不含選號）"
+        self.fields["plate_insurance_fee"].help_text = "油車依實收輸入；電動車依年期帶入固定金額，可修改。"
+        # 動保設定費不再於建單填寫（使用者 2026-10-15），保留舊值不被清空。
+        self.fields["lien_registration_fee"].widget = forms.HiddenInput()
         # 前端會立即帶入售價；後端仍以同一版本解析補齊，避免網路或 JS
         # 暫時失敗時讓使用者建立出缺少車價的訂單。
         self.fields["vehicle_price"].required = False
@@ -654,10 +660,24 @@ class SalesOrderForm(forms.ModelForm):
         )
         data["compulsory_insurance_period"] = insurance_period
         self.cleaned_data["compulsory_insurance_period"] = insurance_period
+        if (
+            data.get("plate_selection_fee") is None
+            and data.get("plate_choice") not in (None, "", SalesOrder.PlateChoice.NONE)
+        ):
+            # 有選號需求時預設向客人收 1,200（監理站 1,000，自行領牌的差額記代辦費收入）。
+            data["plate_selection_fee"] = PLATE_SELECTION_DEFAULT_CHARGE
+            self.cleaned_data["plate_selection_fee"] = PLATE_SELECTION_DEFAULT_CHARGE
         for field_name in ("plate_selection_fee", "lien_registration_fee"):
             if data.get(field_name) is None:
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
+        # 牌險費不含選號與動保設定（使用者 2026-10-15）；油車牌險費一律由人員依實收輸入，不用試算覆蓋。
+        is_gas = bool(model and model.energy_type == VehicleModel.EnergyType.GAS)
+        if (
+            is_gas and data.get("plate_insurance_fee") is None and not data.get("registration_manual")
+            and not self.fields["plate_insurance_fee"].disabled  # 接待模式不開放財務欄位，由店內補填
+        ):
+            self.add_error("plate_insurance_fee", "油車請輸入要向客人收的牌險費（不含選號）。")
         preserve_completed_registration = bool(
             self.instance.pk and self.instance.is_delivered and model
             and model.pk == self._initial_vehicle_model_id
@@ -726,18 +746,14 @@ class SalesOrderForm(forms.ModelForm):
                     for field_name, value in calculated_fields.items():
                         data[field_name] = value
                         self.cleaned_data[field_name] = value
-                    calculated_total = (
-                        result.fixed_and_variable_total
-                        + data["plate_selection_fee"]
-                        + data["lien_registration_fee"]
-                    )
+                    calculated_total = result.fixed_and_variable_total
                     data["registration_calculated_total"] = calculated_total
                     self.cleaned_data["registration_calculated_total"] = (
                         calculated_total
                     )
                     self.instance.registration_rate_class = result.rate_class
                     self.instance.registration_calculated_total = calculated_total
-                    if (
+                    if not is_gas and (
                         data.get("plate_insurance_fee") is None
                         or (
                             self._plate_fee_was_automatic
@@ -748,21 +764,20 @@ class SalesOrderForm(forms.ModelForm):
                         data["plate_insurance_fee"] = calculated_total
                         self.cleaned_data["plate_insurance_fee"] = calculated_total
             else:
-                # 尚未排領牌日：先把選號費與動保設定費計入牌險合計（使用者 2026-10-10），領牌試算後由正式規費取代。
-                pending_total = data["plate_selection_fee"] + data["lien_registration_fee"]
+                # 尚未排領牌日（或微電車沒有固定規則）：規費尚未試算，牌險依人員輸入，代辦費收入暫不計牌險溢收。
                 self.instance.registration_rate_class = ""
-                self.instance.registration_calculated_total = pending_total
-                data["registration_calculated_total"] = pending_total
-                self.cleaned_data["registration_calculated_total"] = pending_total
-                if (
-                    data.get("plate_insurance_fee") in (None, Decimal("0"))
-                    or (
-                        self._plate_fee_was_automatic
-                        and data.get("plate_insurance_fee") == self._previous_plate_insurance_fee
-                    )
-                ):
-                    data["plate_insurance_fee"] = pending_total
-                    self.cleaned_data["plate_insurance_fee"] = pending_total
+                self.instance.registration_calculated_total = 0
+                data["registration_calculated_total"] = Decimal("0")
+                self.cleaned_data["registration_calculated_total"] = Decimal("0")
+                if is_gas and model.displacement_cc and not data.get("registration_manual"):
+                    # 油車強制險只看排氣量與年期，未排領牌日也先帶入，收支的強制險收支才有預設值。
+                    try:
+                        insurance_fee = compulsory_insurance(model.displacement_cc, int(insurance_period))
+                    except UnsupportedRegistrationFee:
+                        insurance_fee = None
+                    if insurance_fee is not None:
+                        data["compulsory_insurance_fee"] = insurance_fee
+                        self.cleaned_data["compulsory_insurance_fee"] = insurance_fee
         elif model:
             self.instance.registration_rate_class = ""
             self.instance.registration_calculated_total = 0
@@ -796,7 +811,12 @@ class SalesOrderForm(forms.ModelForm):
                 if value < 0:
                     self.add_error(name, "金額不可小於零。")
                 data[name] = value
-            data["plate_insurance_fee"] = sum(manual_fee_values.values())
+            itemized_total = sum(
+                value for name, value in manual_fee_values.items()
+                if name not in ("plate_selection_fee", "lien_registration_fee")
+            )
+            if not is_gas or not self.data.get(self.add_prefix("plate_insurance_fee")):
+                data["plate_insurance_fee"] = itemized_total
 
         if data.get("delivery_method") in {
             SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
@@ -3041,6 +3061,8 @@ class OrderOperationsForm(forms.ModelForm):
                     "registration_tax_income",
                     "compulsory_insurance_income",
                     "plate_selection_income",
+                    "agency_fee_income",
+                    "installment_fee_expense",
                     "sales_bonus",
                     "promotion_subsidy",
                     "installment_interest_subsidy",
@@ -4143,11 +4165,7 @@ class RegistrationStageForm(forms.ModelForm):
             if order.registration_date and hasattr(self, "_registration_result"):
                 result = self._registration_result
                 order.registration_rate_class = result.rate_class
-                order.registration_calculated_total = (
-                    result.fixed_and_variable_total
-                    + order.plate_selection_fee
-                    + order.lien_registration_fee
-                )
+                order.registration_calculated_total = result.fixed_and_variable_total
         elif order.registration_date and hasattr(self, "_registration_result"):
             result = self._registration_result
             order.registration_rate_class = result.rate_class
@@ -4157,16 +4175,12 @@ class RegistrationStageForm(forms.ModelForm):
             order.road_maintenance_fee = result.road_maintenance_fee
             order.license_tax_fee = result.license_tax_fee
             order.compulsory_insurance_fee = result.compulsory_insurance_fee
-            calculated_total = (
-                result.fixed_and_variable_total
-                + order.plate_selection_fee
-                + order.lien_registration_fee
-            )
+            # 試算合計不含選號與動保設定；油車牌險是人員輸入的實收，只有還沒填（0）時才帶入試算。
+            calculated_total = result.fixed_and_variable_total
             order.registration_calculated_total = calculated_total
-            if (
-                not self._previous_actual_total
-                or self._previous_actual_total
-                == self._previous_calculated_total
+            if not self._previous_actual_total or (
+                model.energy_type != VehicleModel.EnergyType.GAS
+                and self._previous_actual_total == self._previous_calculated_total
             ):
                 order.plate_insurance_fee = calculated_total
             recalculated_balance = order.calculate_balance()

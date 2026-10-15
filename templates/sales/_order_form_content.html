@@ -298,7 +298,7 @@
           {% include "sales/_field.html" with field=form.road_maintenance_fee %}
           {% include "sales/_field.html" with field=form.license_tax_fee %}
           {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
-          {% include "sales/_field.html" with field=form.lien_registration_fee %}
+          {{ form.lien_registration_fee }}
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>

@@ -3,6 +3,9 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 
+from sales.services.agency_fee import (
+    compulsory_insurance_cost, default_agency_fee, default_plate_selection_expense, registration_fee_cost,
+)
 from sales.services.customer_receivable import default_customer_balance
 
 
@@ -156,57 +159,23 @@ def sync_order_operations(order_id, *, update_receivables=False):
         and "actual_disbursement" not in (profile.manual_financial_fields or [])
     ):
         profile.actual_disbursement = _money(order.vehicle_price)
-    registration_tax_expense = sum(
-        (
-            _money(order.registration_plate_fee),
-            _money(order.registration_license_fee),
-            _money(order.registration_inspection_fee),
-            _money(order.road_maintenance_fee),
-            _money(order.license_tax_fee),
-        ),
-        Decimal("0"),
-    )
-    registration_tax_income = max(
-        _money(order.plate_insurance_fee)
-        - _money(order.compulsory_insurance_fee)
-        - _money(order.plate_selection_fee),
-        Decimal("0"),
-    )
-    _sync_financial_field(
-        profile,
-        "registration_tax_expense",
-        registration_tax_expense,
-    )
-    _sync_financial_field(
-        profile,
-        "compulsory_insurance_expense",
-        order.compulsory_insurance_fee,
-    )
-    _sync_financial_field(
-        profile,
-        "plate_selection_expense",
-        order.plate_selection_fee,
-    )
-    _sync_financial_field(
-        profile,
-        "registration_tax_income",
-        registration_tax_income,
-    )
-    _sync_financial_field(
-        profile,
-        "compulsory_insurance_income",
-        order.compulsory_insurance_fee,
-    )
-    _sync_financial_field(
-        profile,
-        "plate_selection_income",
-        order.plate_selection_fee,
-    )
-    profile.installment_fee_income = (
+    installment_fee = (
         _money(order.installment_opening_fee)
         if order.payment_type == SalesOrder.PaymentType.INSTALLMENT
         else Decimal("0")
     )
+    profile.installment_fee_income = installment_fee
+    if order.status != SalesOrder.Status.COMPLETED and not order.is_cancelled_sale:
+        # 收支領牌相關（使用者 2026-10-15，已完成與取消的訂單不重算）：規費、強制險、選號收入預設等於支出；
+        # 牌險與選號的溢收（可為負數）集中到代辦費收入；分期手續費支出預設跟開辦費一樣。
+        _sync_financial_field(profile, "registration_tax_expense", registration_fee_cost(order))
+        _sync_financial_field(profile, "compulsory_insurance_expense", compulsory_insurance_cost(order))
+        _sync_financial_field(profile, "plate_selection_expense", default_plate_selection_expense(order))
+        _sync_financial_field(profile, "registration_tax_income", profile.registration_tax_expense)
+        _sync_financial_field(profile, "compulsory_insurance_income", profile.compulsory_insurance_expense)
+        _sync_financial_field(profile, "plate_selection_income", profile.plate_selection_expense)
+        _sync_financial_field(profile, "agency_fee_income", default_agency_fee(order, profile))
+        _sync_financial_field(profile, "installment_fee_expense", installment_fee)
     profile.installment_info = (
         f"{order.installment_company}／{order.installment_periods}期／"
         f"每期 {order.installment_monthly:.0f} 元"

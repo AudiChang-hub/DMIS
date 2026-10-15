@@ -238,6 +238,7 @@ from .services.order_search import (
     build_order_match_summary,
     build_order_search_query,
 )
+from .services.customer_receivable import PLATE_INCOME_FIELDS
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
 from .services.payment_summary import payment_summary
@@ -5860,6 +5861,16 @@ def order_operations(request, pk):
                     payment.confirmed_at = None
                     payment.confirmed_by = ""
                     payment.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
+            plate_income_changed = any(
+                name in form.fields and form.cleaned_data.get(name) != financial_before.get(name)
+                for name in PLATE_INCOME_FIELDS
+            )
+            # 改了支出（例如請代辦人員領牌的選號支出）時，跟著支出的收入與代辦費收入要重算。
+            # 分期客戶應收依牌險收入計算，收入這次有改才連已收款的應收一起改（人工調整過的應收不動）。
+            sync_order_operations(
+                order.pk,
+                update_receivables=plate_income_changed and order.payment_type == SalesOrder.PaymentType.INSTALLMENT,
+            )
             from .services.operations_sync import sync_payment_financials
             adopted = next((payment for payment in payments if payment.confirmed and (
                 payment.effective_receipt_kind == "lender" or

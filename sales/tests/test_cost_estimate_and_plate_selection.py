@@ -59,10 +59,10 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         self.assertEqual(order.plate_insurance_fee, Decimal("0"))
         self.assertEqual(order.calculate_balance(), Decimal("71200"))
         profile = OrderOperationsProfile.objects.get(order=order)
-        # 選號收入跟著監理站支出 1,000，多收的 200 記代辦費收入。
-        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
+        # 選號收入＝客人付的選號費，支出預設監理站 1,000；差額留在選號，不併入代辦費。
+        self.assertEqual(profile.plate_selection_income, Decimal("1200"))
         self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
-        self.assertEqual(profile.agency_fee_income, Decimal("200"))
+        self.assertEqual(profile.agency_fee_income, Decimal("0"))
         page = self.client.get(f"/orders/{order.pk}/edit/")
         self.assertContains(page, 'data-conditional="plate-selection"')
 

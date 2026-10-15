@@ -581,14 +581,14 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("plate_insurance_fee", form.errors)
         form = self.edit_order(order, plate_insurance_fee="3000", compulsory_insurance_period="2",
-                               plate_choice="watch", plate_selection_fee="")
+                               plate_choice="watch", plate_selection_fee="1500")
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
-        # 未排領牌日：強制險依排氣量與年期先帶入，試算合計為 0，牌險照人員輸入，選號預設 1,200 另收。
+        # 未排領牌日：強制險依排氣量與年期先帶入，試算合計為 0，牌險照人員輸入，選號費照人員填寫另收。
         self.assertEqual(saved.compulsory_insurance_fee, 1200)
         self.assertEqual(saved.registration_calculated_total, 0)
         self.assertEqual(saved.plate_insurance_fee, 3000)
-        self.assertEqual(saved.plate_selection_fee, 1200)
+        self.assertEqual(saved.plate_selection_fee, 1500)
         form = self.edit_order(order, plate_insurance_fee="3000", registration_date="2026-10-14")
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)

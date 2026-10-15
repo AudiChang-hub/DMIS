@@ -170,7 +170,7 @@ class DealerSettlementTests(FinanceLedgerTestBase):
 
 
 class AgencyFeeTests(FinanceLedgerTestBase):
-    """牌險不含選號；規費／強制險／選號收入等於支出，溢收（可為負）記代辦費收入（使用者 2026-10-15）。"""
+    """牌險不含選號；規費／強制險收入等於支出，牌險溢收（可為負）記代辦費收入；選號收入＝選號費（使用者 2026-10-15）。"""
 
     # 規費 300＋150＋200＋450＋700＝1,800；兩年強制險 1,200；試算合計 3,000（不含選號）。
     REGISTERED = dict(
@@ -184,13 +184,14 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         sync_order_operations(order.pk)
         return self.profile(order)
 
-    def test_plate_and_selection_surplus_go_to_agency_fee(self):
+    def test_plate_surplus_goes_to_agency_fee_and_selection_keeps_its_own(self):
         order = self.make_order(plate_insurance_fee=3200, plate_selection_fee=1200, plate_choice="preference", **self.REGISTERED)
         profile = self.synced(order)
         self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (1800, 1800))
         self.assertEqual((profile.compulsory_insurance_expense, profile.compulsory_insurance_income), (1200, 1200))
-        self.assertEqual((profile.plate_selection_expense, profile.plate_selection_income), (1000, 1000))
-        self.assertEqual(profile.agency_fee_income, 200 + 200)
+        # 選號收入＝客人付的 1,200、支出監理站 1,000，差額 200 留在選號，不併入代辦費。
+        self.assertEqual((profile.plate_selection_expense, profile.plate_selection_income), (1000, 1200))
+        self.assertEqual(profile.agency_fee_income, 200)
         self.assertFalse(order.plate_fee_shortfall)
         # 總價另加選號：79,800＋3,200＋1,200。
         self.assertEqual(order.calculate_balance(), 84200)
@@ -203,23 +204,23 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         profile.save()
         profile = self.synced(order)
         self.assertEqual((profile.plate_selection_expense, profile.plate_selection_income), (1200, 1200))
-        self.assertEqual(profile.agency_fee_income, 200)
+        self.assertEqual(profile.agency_fee_income, 200, "代辦費只看牌險溢收")
 
     def test_plate_shortfall_is_negative_and_flagged_even_with_selection_surplus(self):
         order = self.make_order(plate_insurance_fee=2700, plate_selection_fee=1200, plate_choice="preference", **self.REGISTERED)
         profile = self.synced(order)
-        self.assertEqual(profile.agency_fee_income, -300 + 200)
+        self.assertEqual(profile.agency_fee_income, -300)
         order.refresh_from_db()
         self.assertTrue(order.plate_fee_shortfall)
         self.client.force_login(self.admin)
         page = self.client.get(reverse("order_list")).content.decode()
         self.assertIn("order-plate-shortfall", page)
 
-    def test_unregistered_gas_order_counts_only_selection_surplus(self):
+    def test_unregistered_gas_order_has_no_plate_surplus_yet(self):
         order = self.make_order(plate_insurance_fee=3200, plate_selection_fee=1200, plate_choice="preference",
                                 compulsory_insurance_fee=1200)
         profile = self.synced(order)
-        self.assertEqual(profile.agency_fee_income, 200)
+        self.assertEqual(profile.agency_fee_income, 0)
         self.assertIsNone(order.plate_fee_surplus)
         self.assertFalse(order.plate_fee_shortfall)
 
@@ -272,7 +273,7 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         # 微電車沒收牌險：建單就看得出牌險少收。
         unpaid = self.electric_order("micro_electric", plate_insurance_fee=0, plate_selection_fee=1200, plate_choice="watch")
         profile = self.synced(unpaid)
-        self.assertEqual(profile.agency_fee_income, -450 - 1358 + 200)
+        self.assertEqual(profile.agency_fee_income, -450 - 1358)
         self.assertTrue(unpaid.plate_fee_shortfall)
 
     def test_imported_orders_are_never_flagged_as_plate_shortfall(self):

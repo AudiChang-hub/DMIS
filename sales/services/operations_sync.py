@@ -166,14 +166,14 @@ def sync_order_operations(order_id, *, update_receivables=False):
     )
     profile.installment_fee_income = installment_fee
     if order.status != SalesOrder.Status.COMPLETED and not order.is_cancelled_sale:
-        # 收支領牌相關（使用者 2026-10-15，已完成與取消的訂單不重算）：規費、強制險、選號收入預設等於支出；
-        # 牌險與選號的溢收（可為負數）集中到代辦費收入；分期手續費支出預設跟開辦費一樣。
+        # 收支領牌相關（使用者 2026-10-15，已完成與取消的訂單不重算）：規費、強制險收入預設等於支出，
+        # 牌險溢收（可為負數）記代辦費收入；選號收入＝選號費、支出預設 1,000；分期手續費支出預設跟開辦費一樣。
         _sync_financial_field(profile, "registration_tax_expense", registration_fee_cost(order))
         _sync_financial_field(profile, "compulsory_insurance_expense", compulsory_insurance_cost(order))
         _sync_financial_field(profile, "plate_selection_expense", default_plate_selection_expense(order))
         _sync_financial_field(profile, "registration_tax_income", profile.registration_tax_expense)
         _sync_financial_field(profile, "compulsory_insurance_income", profile.compulsory_insurance_expense)
-        _sync_financial_field(profile, "plate_selection_income", profile.plate_selection_expense)
+        _sync_financial_field(profile, "plate_selection_income", order.plate_selection_fee)
         _sync_financial_field(profile, "agency_fee_income", default_agency_fee(order, profile))
         _sync_financial_field(profile, "installment_fee_expense", installment_fee)
     profile.installment_info = (

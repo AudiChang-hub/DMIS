@@ -5,6 +5,7 @@
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+{% if vehicle_model_groups %}{% include "sales/_side_nav.html" with nav_key="vehicle-models" nav_title="品牌與機種" nav_subtitle="點品牌或機種，直接跳到那一列" nav_handle="品牌機種" nav_include="sales/_vehicle_model_list_nav.html" %}{% endif %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
@@ -61,7 +62,7 @@
   </div>
 
   {% for group in vehicle_model_groups %}
-  <details class="vehicle-brand-group" data-brand-group="{{ group.name }}"{% if filters_applied %} open{% endif %}>
+  <details class="vehicle-brand-group" id="vm-brand-{{ forloop.counter }}" data-brand-group="{{ group.name }}"{% if filters_applied %} open{% endif %}>
     <summary class="vehicle-brand-group__header">
       <span class="vehicle-brand-group__identity">
         <strong>{{ group.name }}</strong>
@@ -88,7 +89,7 @@
           </tr>
           {% endif %}
           {% with item=family.display_model %}
-          <tr class="vehicle-model-family-group{% if not family.is_active %} is-inactive{% endif %}" data-family-group="{{ group.name }}::{{ family.key }}">
+          <tr class="vehicle-model-family-group{% if not family.is_active %} is-inactive{% endif %}" id="vm-family-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" tabindex="-1" data-family-group="{{ group.name }}::{{ family.key }}">
             <td data-label="機種" class="vehicle-model-machine-cell">
               <strong>{{ family.name }}</strong>
               {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}
@@ -116,4 +117,5 @@
 {% block scripts %}
 <script src="{% static 'js/vehicle-model-year-panels.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/vehicle-brand-groups.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/vehicle-model-list-nav.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

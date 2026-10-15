@@ -7156,6 +7156,47 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .side-nav .wizard-bar__step, .side-nav .wizard-bar__step.is-current { flex: none; min-width: 0; }
 .side-nav .wizard-bar__link { justify-content: flex-start; }
 .side-nav .wizard-bar__step:not(.is-current) .wizard-bar__label { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+/* 機種與售價：左側「品牌 → 機種」目錄，點了跳到該列。 */
+.model-index { display: grid; gap: var(--space-3); }
+.model-index__search { position: sticky; z-index: 1; top: calc(-1 * var(--space-3)); display: block; margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-3)) 0; padding: var(--space-3); background: var(--surface-raised); }
+.model-index__search input {
+  width: 100%; min-height: 40px; padding: 0 var(--space-3); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-pill); font: inherit; font-size: var(--text-sm);
+}
+.model-index__search input:focus { outline: 3px solid var(--focus-ring); outline-offset: 1px; border-color: var(--action-bg); }
+.model-index__list { display: grid; gap: var(--space-4); }
+.model-index__brand { display: grid; gap: 2px; }
+.model-index__brand[hidden] { display: none; }
+.model-index__brand ul { display: grid; margin: 0; padding: 0 0 0 var(--space-2); gap: 1px; list-style: none; border-left: 1px solid var(--line-soft); margin-left: var(--space-3); }
+.model-index__brand li[hidden] { display: none; }
+.model-index__brand-link, .model-index__family {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); color: var(--ink-soft); text-decoration: none;
+  border-radius: var(--radius-md); transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.model-index__brand-link { padding: var(--space-2) var(--space-3); color: var(--ink); font-size: var(--text-sm); font-weight: 900; letter-spacing: .02em; }
+.model-index__brand-link small { flex: none; color: var(--muted); font-size: var(--text-2xs); font-weight: 750; letter-spacing: 0; }
+.model-index__family { min-height: 32px; padding: var(--space-1) var(--space-3); align-items: center; font-size: var(--text-sm); font-weight: 700; line-height: 1.35; }
+.model-index__family-name { min-width: 0; overflow-wrap: anywhere; }
+.model-index__family small { flex: none; padding: 1px var(--space-1); color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 750; }
+.model-index__family.is-inactive { color: var(--muted); }
+.model-index__brand-link:hover, .model-index__family:hover { color: var(--ink); background: var(--surface-soft); }
+.model-index__brand-link:focus-visible, .model-index__family:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.model-index__brand-link.is-within { color: var(--action-bg); }
+.model-index__brand-link, .model-index__family { position: relative; }
+.model-index__brand-link.is-current, .model-index__family.is-current { color: var(--ink); background: color-mix(in srgb, var(--action-bg) 9%, var(--surface)); }
+.model-index__brand-link.is-current::before, .model-index__family.is-current::before { content: ""; position: absolute; top: 6px; bottom: 6px; left: 0; width: 3px; background: var(--action-bg); border-radius: var(--radius-pill); }
+.model-index__divider { margin: var(--space-2) 0 2px; padding: 0 var(--space-3); color: var(--muted); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .12em; }
+.model-index__empty { margin: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
+.vehicle-brand-group[id], .vehicle-model-family-group[id] { scroll-margin-top: calc(var(--app-header-height, 72px) + 24px); }
+.vehicle-model-family-group:focus { outline: none; }
+.vehicle-model-family-group.is-located > td { animation: model-index-locate 2.2s var(--ease-out); }
+@keyframes model-index-locate {
+  0%, 35% { background: color-mix(in srgb, var(--action-bg) 14%, var(--surface)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--action-bg) 40%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--action-bg) 40%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .model-index__brand-link, .model-index__family { transition: none; }
+  .vehicle-model-family-group.is-located > td { animation: none; background: color-mix(in srgb, var(--action-bg) 12%, var(--surface)); }
+}
 @media (min-width: 1100px) {
   body.is-side-nav-pinned .page-shell { padding-left: calc(var(--side-nav-width, 260px) + var(--space-5)); }
 }

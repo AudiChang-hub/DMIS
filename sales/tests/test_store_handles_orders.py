@@ -62,6 +62,39 @@ class StoreHandlesOrdersTests(TestCase):
         line = SalesOrder.objects.get().accessories.get()
         self.assertEqual((line.name, line.amount, line.labor_fee), ("行車紀錄器", 2500, 300))
 
+    def custom_accessory(self, name, amount="2500", labor="300", line_type="purchase"):
+        return {"accessories-TOTAL_FORMS": "1", "accessories-0-accessory_product": "other",
+                "accessories-0-custom_name": name, "accessories-0-quantity": "1",
+                "accessories-0-line_type": line_type, "accessories-0-amount": amount, "accessories-0-labor_fee": labor}
+
+    def test_custom_accessory_is_added_to_master_once(self):
+        # 「其他」加購配件自動加入配件主檔並啟用；同名（忽略空白與大小寫）不重複、不改主檔價格（使用者 2026-10-15 選 A）。
+        from sales.models import AccessoryProduct, OrderEvent
+        response = self.submit("order_create", **self.custom_accessory("行車紀錄器 Pro"))
+        self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
+        order = SalesOrder.objects.latest("pk")
+        product = AccessoryProduct.objects.get(name="行車紀錄器 Pro")
+        self.assertEqual((product.sale_price, product.labor_fee, product.active), (2500, 300, True))
+        self.assertIn(order.number, product.note)
+        self.assertTrue(OrderEvent.objects.filter(order=order, event_type="accessory_master_added").exists())
+        page = self.client.get(reverse("order_create")).content.decode()
+        self.assertIn("行車紀錄器 Pro", page)
+        response = self.submit("order_create", **self.custom_accessory("  行車紀錄器   PRO ", amount="1800"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(AccessoryProduct.objects.filter(name__iexact="行車紀錄器 pro").count(), 1)
+        self.assertEqual(AccessoryProduct.objects.get().sale_price, 2500)
+
+    def test_gift_custom_accessory_is_not_added_to_master(self):
+        # 贈送售價固定為 0，不加入主檔；已連到主檔的配件也不重複建立。
+        from sales.models import AccessoryLine, AccessoryProduct
+        from sales.services.accessory_catalog import learn_custom_accessories
+        response = self.submit("order_create")
+        self.assertEqual(response.status_code, 302)
+        order = SalesOrder.objects.latest("pk")
+        AccessoryLine.objects.create(order=order, name="贈品雨衣", line_type="gift", amount=0, labor_fee=0)
+        self.assertEqual(learn_custom_accessories(order, "測試"), [])
+        self.assertFalse(AccessoryProduct.objects.exists())
+
     def test_deposit_field_starts_empty(self):
         # 1.70.2：建立訂單時訂金欄位保持清空，不帶預設值，也不自動帶入配件金額。
         import re

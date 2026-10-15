@@ -4985,6 +4985,10 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     formset.save()
     fee_formset.instance = order
     fee_formset.save()
+    if form.pricing_editable:
+        # 只有可訂價的人輸入的「其他」配件才加入主檔，避免車行帳號的價格成為主檔售價。
+        from sales.services.accessory_catalog import learn_custom_accessories
+        learn_custom_accessories(order, request.user.get_username())
     _apply_submitted_subsidy_programs(order, form, post_data)
     # 下單時填寫的總價優惠以實際明細重新換算後直接核定，訂購單簽署時即為最終金額。
     discount_message = apply_intake_discount(order, form, request.user.get_username())
@@ -6273,6 +6277,8 @@ def order_edit(request, pk):
                 apply_order_installment_snapshot(order)
             formset.save()
             fee_formset.save()
+            from sales.services.accessory_catalog import learn_custom_accessories
+            learn_custom_accessories(order, _editing_name(request.user))
             order._prefetched_objects_cache = {}
             order.calculated_balance = order.calculate_balance()
             order.actual_balance = (

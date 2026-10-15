@@ -218,7 +218,12 @@ FIXED_CALCULATION_TYPES = (
 
 
 def registration_period_for(vehicle_model, on_date, period_years):
-    """電動類訂單選的強制險年期沒有對應固定規則、而該品牌當日只有一種年期時，改用規則年期（使用者 2026-10-15）。"""
+    """電動類訂單選的強制險年期沒有對應固定規則、而該品牌當日只有一種年期時，改用規則年期（使用者 2026-10-15）。
+
+    微型電動二輪車一定保三年（使用者 2026-10-15）。
+    """
+    if vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+        return 3
     if vehicle_model.energy_type not in ELECTRIC_ENERGY_TYPES or not on_date:
         return period_years
     if resolve_brand_registration_rule(vehicle_model, on_date, period_years):

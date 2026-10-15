@@ -436,7 +436,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
             fixed_registration_fee=300,
             fixed_compulsory_insurance_fee=500,
-            insurance_period_years=1,
+            insurance_period_years=3,  # 微電車一定保三年（2026-10-15）
             effective_from=date(2026, 1, 1),
         )
 
@@ -459,7 +459,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
             calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
             fixed_total=900,
-            insurance_period_years=1,
+            insurance_period_years=3,  # 微電車一定保三年（2026-10-15）
             effective_from=date(2026, 1, 1),
         )
 
@@ -493,7 +493,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(saved.registration_rate_class, "")
         self.assertEqual(saved.registration_calculated_total, 0)
         self.assertEqual(saved.plate_insurance_fee, 1500)
-        self.assertEqual(saved.compulsory_insurance_period, 1)
+        self.assertEqual(saved.compulsory_insurance_period, 3, "微電車一定保三年")
 
     def test_micro_electric_adopts_the_only_rule_period(self):
         order = self.micro_electric_order()
@@ -514,21 +514,32 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(saved.registration_bundle_fee, 2300)
 
     def test_rule_period_is_not_guessed_when_brand_has_several_periods(self):
-        order = self.micro_electric_order(plate_insurance_fee=1500)
+        # 微電車固定三年（2026-10-15），改以重型電動車驗證多種年期時不猜年期。
+        model = VehicleModel.objects.create(
+            brand="BOBE", name="重型電動測試", energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.HEAVY,
+        )
+        color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        order = SalesOrder.objects.create(
+            owner_name="電動車領牌測試", owner_phone="0911222333", owner_address="新北市",
+            owner_id_number="A123456789", vehicle_model=model, color=color, vehicle_price=30000,
+            plate_insurance_fee=1500, balance_adjustment_reason="人工牌險依單據輸入",
+        )
         for years, total in ((2, 1800), (3, 2300)):
             BrandRegistrationFeeRule.objects.create(
                 brand="BOBE",
-                energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+                energy_type=VehicleModel.EnergyType.ELECTRIC,
+                electric_registration_class=VehicleModel.ElectricRegistrationClass.HEAVY,
                 calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
                 fixed_total=total,
                 insurance_period_years=years,
                 effective_from=date(2026, 1, 1),
             )
 
-        saved = self.register(order)
+        from sales.services.registration_fee import registration_period_for
 
-        self.assertEqual(saved.compulsory_insurance_period, 1)
-        self.assertEqual(saved.plate_insurance_fee, 1500)
+        self.assertEqual(registration_period_for(model, date(2026, 10, 14), 1), 1)
+        self.assertEqual(order.plate_insurance_fee, 1500)
 
     def test_micro_electric_rule_keeps_existing_manual_plate_fee(self):
         order = self.micro_electric_order(plate_insurance_fee=1500)
@@ -537,7 +548,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
             calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
             fixed_total=900,
-            insurance_period_years=1,
+            insurance_period_years=3,  # 微電車一定保三年（2026-10-15）
             effective_from=date(2026, 1, 1),
         )
 
@@ -554,6 +565,41 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         data.update(changes)
         form = SalesOrderForm(data=data, instance=order)
         return form
+
+    def gas_order(self, **extra):
+        fields = dict(
+            owner_type=SalesOrder.OwnerType.COMPANY, owner_name="油車手填測試", owner_phone="0912345678",
+            owner_address="新北市", owner_id_number="12345678", vehicle_model=self.model, color=self.color,
+            vehicle_price=70000, order_date=date(2026, 10, 14),
+        )
+        fields.update(extra)
+        return SalesOrder.objects.create(**fields)
+
+    def test_gas_plate_fee_is_manual_and_insurance_follows_period(self):
+        order = self.gas_order()
+        form = self.edit_order(order, plate_insurance_fee="", compulsory_insurance_period="2")
+        self.assertFalse(form.is_valid())
+        self.assertIn("plate_insurance_fee", form.errors)
+        form = self.edit_order(order, plate_insurance_fee="3000", compulsory_insurance_period="2",
+                               plate_choice="watch", plate_selection_fee="")
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        # 未排領牌日：強制險依排氣量與年期先帶入，試算合計為 0，牌險照人員輸入，選號預設 1,200 另收。
+        self.assertEqual(saved.compulsory_insurance_fee, 1200)
+        self.assertEqual(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_insurance_fee, 3000)
+        self.assertEqual(saved.plate_selection_fee, 1200)
+        form = self.edit_order(order, plate_insurance_fee="3000", registration_date="2026-10-14")
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save(commit=False)
+        self.assertGreater(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_insurance_fee, 3000, "油車試算不覆蓋人員輸入的牌險")
+
+    def test_micro_electric_insurance_period_is_always_three_years(self):
+        order = self.micro_electric_order(order_date=date(2026, 10, 14))
+        form = self.edit_order(order, compulsory_insurance_period="1", plate_insurance_fee="2300")
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.save(commit=False).compulsory_insurance_period, 3)
 
     def test_order_edit_fills_micro_electric_plate_fee_before_registration(self):
         BrandRegistrationFeeRule.objects.create(
@@ -577,8 +623,10 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
                 self.assertTrue(form.is_valid(), form.errors)
                 saved = form.save(commit=False)
                 self.assertEqual(saved.compulsory_insurance_period, 3)
-                self.assertEqual(saved.registration_calculated_total, 3500)
-                self.assertEqual(saved.plate_insurance_fee, 3500)
+                # 牌險不含選號（2026-10-15）：選號 1,200 另收、另計入總價。
+                self.assertEqual(saved.registration_calculated_total, 2300)
+                self.assertEqual(saved.plate_insurance_fee, 2300)
+                self.assertEqual(saved.registration_extra_fee_total, 1200)
                 self.assertEqual(saved.registration_rate_class, "EV-MICRO")
 
     def test_order_edit_keeps_manual_micro_electric_plate_fee(self):
@@ -598,7 +646,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(saved.registration_calculated_total, 2300)
         self.assertEqual(saved.plate_insurance_fee, 2600)
 
-    def test_order_edit_without_micro_rule_uses_pending_other_fees(self):
+    def test_order_edit_without_micro_rule_keeps_selection_fee_separate(self):
         order = self.micro_electric_order(order_date=date(2026, 10, 14))
         form = self.edit_order(
             order, plate_selection_fee="1200", plate_insurance_fee="0"
@@ -607,7 +655,10 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
         self.assertEqual(saved.registration_rate_class, "")
-        self.assertEqual(saved.plate_insurance_fee, 1200)
+        # 沒有規則時牌險依人員輸入；選號不再併進牌險（2026-10-15）。
+        self.assertEqual(saved.plate_insurance_fee, 0)
+        self.assertEqual(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_selection_fee, 1200)
 
     def test_electric_fixed_rule_fills_before_registration_date(self):
         electric_model = VehicleModel.objects.create(

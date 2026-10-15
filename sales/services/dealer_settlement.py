@@ -37,6 +37,10 @@ def dealer_settlement(order, profile=None):
             {"key": "plate_insurance", "label": "牌險費", "sign": 1, "amount": _money(order.plate_insurance_fee)},
             {"key": "accessories", "label": "配件費", "sign": 1, "amount": accessories},
         ]
+        if _money(order.registration_extra_fee_total):
+            # 牌險不含選號（使用者 2026-10-15），有選號時另列。
+            terms.insert(3, {"key": "plate_selection", "label": "選號費", "sign": 1,
+                             "amount": _money(order.registration_extra_fee_total)})
     total = sum((term["sign"] * term["amount"] for term in terms), ZERO)
     if total > 0:
         direction, label = "collect", "向車行收"

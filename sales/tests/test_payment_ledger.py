@@ -167,6 +167,36 @@ class PaymentLedgerTests(TestCase):
         self.order.refresh_from_db()
         self.assertEqual(self.order.deposit_amount, 5000)
 
+    def test_installment_balance_follows_manual_plate_income(self):
+        # SO20261010-167D11：分期吸收規費與強制險，只收選號；改收支頁收入後分期外應收要跟著變。
+        # 牌險不含選號（2026-10-15）：牌險 1,406＋選號 1,200；選號收入 1,000＋選號溢收 200 記代辦費。
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            payment_type="installment", installment_company="和潤", installment_periods=24,
+            installment_monthly=Decimal("3125"), deposit_amount=0, plate_insurance_fee=1406,
+            compulsory_insurance_fee=658, plate_selection_fee=1200,
+        )
+        sync_order_operations(self.order.pk, update_receivables=True)
+        balance = self.order.payment_records.get(system_key="balance")
+        self.assertEqual(balance.expected_amount, 2606)
+        payload = self.payload()
+        payload["operations-registration_tax_income"] = "0"
+        payload["operations-compulsory_insurance_income"] = "0"
+        payload["operations-change_reason"] = "分期含規費與強制險"
+        response = self.post_operations(payload)
+        self.assertLess(response.status_code, 400)
+        balance.refresh_from_db()
+        self.assertEqual(balance.expected_amount, 1200)
+        self.assertEqual(payment_summary(self.order)["customer_expected"], 1200)
+        # 收入早已改好、應收卻還是舊值的訂單：不改收入直接儲存也會重算。
+        PaymentRecord.objects.filter(pk=balance.pk).update(expected_amount=2606)
+        self.post_operations(self.payload())
+        balance.refresh_from_db()
+        self.assertEqual(balance.expected_amount, 1200)
+        # 之後的一般同步（例如改訂單）保留人工收入，不把應收改回牌險。
+        sync_order_operations(self.order.pk, update_receivables=True)
+        balance.refresh_from_db()
+        self.assertEqual(balance.expected_amount, 1200)
+
     def test_cancel_pending_order_content_is_locked(self):
         SalesOrder.objects.filter(pk=self.order.pk).update(status=SalesOrder.Status.CANCEL_REFUND_PENDING)
         self.order.refresh_from_db()

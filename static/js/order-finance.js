@@ -14,6 +14,8 @@
   let baseline = new Map(inputs().map(input => [input.name, toAmount(input.value)]));
   const sum = scope => [...scope.querySelectorAll('[data-ledger-input]')].reduce((total, input) => total + toAmount(input.value), 0);
   const setText = (nodes, value) => nodes.forEach(node => { node.textContent = format(value); });
+  // 收支小計可能為負（例如代辦費收入少收），保留負號；車行結算以方向文字表示正負，仍用絕對值。
+  const setSigned = (nodes, value) => nodes.forEach(node => { node.textContent = `${value < 0 ? '-' : ''}${format(value)}`; });
 
   function settlement(commission) {
     document.querySelectorAll('[data-dealer-settlement]').forEach(card => {
@@ -35,9 +37,9 @@
       const kind = block.dataset.ledgerBlock;
       totals[kind] = sum(block);
       block.querySelectorAll('[data-ledger-group]').forEach(group => {
-        setText(group.querySelectorAll('[data-ledger-group-total]'), sum(group));
+        setSigned(group.querySelectorAll('[data-ledger-group-total]'), sum(group));
       });
-      setText(block.querySelectorAll(`[data-ledger-total="${kind}"]`), totals[kind]);
+      setSigned(block.querySelectorAll(`[data-ledger-total="${kind}"]`), totals[kind]);
     });
     const summary = document.querySelector('[data-finance-overview]');
     let dirty = false;

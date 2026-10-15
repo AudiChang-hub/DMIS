@@ -4718,7 +4718,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "requestPhotoVersion")
         self.assertContains(
             order_response,
-            "領牌日期於後續編輯時填寫，牌險依單據收款",
+            "油車牌險費請依實收輸入（不含選號），領牌日期於後續編輯時填寫",
         )
         self.assertContains(
             order_response,
@@ -5230,10 +5230,11 @@ class OrderOperationsTests(TestCase):
         profile.refresh_from_db()
         self.assertEqual(profile.registration_tax_expense, Decimal("838"))
         self.assertEqual(profile.compulsory_insurance_expense, Decimal("658"))
-        self.assertEqual(profile.plate_selection_expense, Decimal("300"))
+        # 選號支出預設監理站 1,000，收入跟著支出（2026-10-15）。
+        self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
         self.assertEqual(profile.registration_tax_income, Decimal("838"))
         self.assertEqual(profile.compulsory_insurance_income, Decimal("658"))
-        self.assertEqual(profile.plate_selection_income, Decimal("300"))
+        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
 
         profile.registration_tax_expense = Decimal("900")
         profile.compulsory_insurance_income = Decimal("700")
@@ -5252,9 +5253,10 @@ class OrderOperationsTests(TestCase):
         profile.refresh_from_db()
         self.assertEqual(profile.registration_tax_expense, Decimal("900"))
         self.assertEqual(profile.compulsory_insurance_income, Decimal("700"))
-        self.assertEqual(profile.plate_selection_expense, Decimal("500"))
-        self.assertEqual(profile.registration_tax_income, Decimal("1000"))
-        self.assertEqual(profile.plate_selection_income, Decimal("500"))
+        self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
+        # 規費收入跟著（人工改過的）規費支出。
+        self.assertEqual(profile.registration_tax_income, Decimal("900"))
+        self.assertEqual(profile.plate_selection_income, Decimal("1000"))
 
     def test_registration_financial_pairs_are_editable_and_grouped(self):
         response = self.client.get(
@@ -5829,6 +5831,7 @@ class OrderOperationsTests(TestCase):
             "vehicle_category": SalesOrder.VehicleCategory.NEW,
             "payment_type": SalesOrder.PaymentType.CASH,
             "vehicle_price": "69000",
+            "plate_insurance_fee": "0",
             "deposit_amount": "0",
             "plate_choice": SalesOrder.PlateChoice.NONE,
             "delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP,
@@ -5863,6 +5866,7 @@ class OrderOperationsTests(TestCase):
             "vehicle_category": SalesOrder.VehicleCategory.NEW,
             "payment_type": SalesOrder.PaymentType.CASH,
             "vehicle_price": "",
+            "plate_insurance_fee": "0",
             "deposit_amount": "0",
             "plate_choice": SalesOrder.PlateChoice.NONE,
             "delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP,

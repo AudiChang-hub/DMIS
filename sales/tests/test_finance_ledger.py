@@ -169,6 +169,141 @@ class DealerSettlementTests(FinanceLedgerTestBase):
         self.assertIsNone(self.settle(self.make_order(source_type="platform", source=self.platform)))
 
 
+class AgencyFeeTests(FinanceLedgerTestBase):
+    """牌險不含選號；規費／強制險／選號收入等於支出，溢收（可為負）記代辦費收入（使用者 2026-10-15）。"""
+
+    # 規費 300＋150＋200＋450＋700＝1,800；兩年強制險 1,200；試算合計 3,000（不含選號）。
+    REGISTERED = dict(
+        registration_date=date(2026, 9, 10), compulsory_insurance_period=2,
+        registration_plate_fee=300, registration_license_fee=150, registration_inspection_fee=200,
+        road_maintenance_fee=450, license_tax_fee=700, compulsory_insurance_fee=1200,
+        registration_calculated_total=3000,
+    )
+
+    def synced(self, order):
+        sync_order_operations(order.pk)
+        return self.profile(order)
+
+    def test_plate_and_selection_surplus_go_to_agency_fee(self):
+        order = self.make_order(plate_insurance_fee=3200, plate_selection_fee=1200, plate_choice="preference", **self.REGISTERED)
+        profile = self.synced(order)
+        self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (1800, 1800))
+        self.assertEqual((profile.compulsory_insurance_expense, profile.compulsory_insurance_income), (1200, 1200))
+        self.assertEqual((profile.plate_selection_expense, profile.plate_selection_income), (1000, 1000))
+        self.assertEqual(profile.agency_fee_income, 200 + 200)
+        self.assertFalse(order.plate_fee_shortfall)
+        # 總價另加選號：79,800＋3,200＋1,200。
+        self.assertEqual(order.calculate_balance(), 84200)
+
+    def test_agent_selection_expense_removes_selection_surplus(self):
+        order = self.make_order(plate_insurance_fee=3200, plate_selection_fee=1200, plate_choice="preference", **self.REGISTERED)
+        profile = self.synced(order)
+        profile.plate_selection_expense = 1200
+        profile.manual_financial_fields = ["plate_selection_expense"]
+        profile.save()
+        profile = self.synced(order)
+        self.assertEqual((profile.plate_selection_expense, profile.plate_selection_income), (1200, 1200))
+        self.assertEqual(profile.agency_fee_income, 200)
+
+    def test_plate_shortfall_is_negative_and_flagged_even_with_selection_surplus(self):
+        order = self.make_order(plate_insurance_fee=2700, plate_selection_fee=1200, plate_choice="preference", **self.REGISTERED)
+        profile = self.synced(order)
+        self.assertEqual(profile.agency_fee_income, -300 + 200)
+        order.refresh_from_db()
+        self.assertTrue(order.plate_fee_shortfall)
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse("order_list")).content.decode()
+        self.assertIn("order-plate-shortfall", page)
+
+    def test_unregistered_gas_order_counts_only_selection_surplus(self):
+        order = self.make_order(plate_insurance_fee=3200, plate_selection_fee=1200, plate_choice="preference",
+                                compulsory_insurance_fee=1200)
+        profile = self.synced(order)
+        self.assertEqual(profile.agency_fee_income, 200)
+        self.assertIsNone(order.plate_fee_surplus)
+        self.assertFalse(order.plate_fee_shortfall)
+
+    def test_manual_agency_fee_survives_sync(self):
+        order = self.make_order(plate_insurance_fee=3200, **self.REGISTERED)
+        profile = self.synced(order)
+        profile.agency_fee_income = 900
+        profile.manual_financial_fields = ["agency_fee_income"]
+        profile.save()
+        self.assertEqual(self.synced(order).agency_fee_income, 900)
+
+    def test_installment_fee_expense_defaults_to_opening_fee(self):
+        order = self.make_order(payment_type="installment", installment_company="和潤", installment_amount=79800,
+                                installment_periods=24, installment_monthly=3600, installment_opening_fee=1500)
+        profile = self.synced(order)
+        self.assertEqual((profile.installment_fee_income, profile.installment_fee_expense), (1500, 1500))
+
+    def test_completed_order_finance_is_not_recalculated(self):
+        order = self.make_order(plate_insurance_fee=3200, **self.REGISTERED)
+        profile = self.profile(order)
+        OrderOperationsProfile.objects.filter(pk=profile.pk).update(registration_tax_income=1400, agency_fee_income=0)
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.COMPLETED)
+        profile = self.synced(order)
+        self.assertEqual((profile.registration_tax_income, profile.agency_fee_income), (1400, 0))
+
+
+    def electric_order(self, energy_type, registration_class="", **extra):
+        model = VehicleModel.objects.create(brand="GOGORO", name=f"電動 {energy_type}{registration_class}",
+                                            energy_type=energy_type, electric_registration_class=registration_class)
+        color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        return self.make_order(vehicle_model=model, color=color, **extra)
+
+    def test_electric_costs_use_fixed_fee_and_equivalent_gas_insurance(self):
+        # 規則填的是向客人收的總額；成本：規費 650，強制險重型比照 125cc、輕型比照 50cc（使用者 2026-10-15）。
+        heavy = self.electric_order("electric", "heavy", plate_insurance_fee=2263, compulsory_insurance_period=1)
+        profile = self.synced(heavy)
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (650, 658))
+        self.assertEqual((profile.registration_tax_income, profile.compulsory_insurance_income), (650, 658))
+        self.assertEqual(profile.agency_fee_income, 2263 - 650 - 658)
+        light = self.electric_order("light_electric", plate_insurance_fee=2340, compulsory_insurance_period=2)
+        profile = self.synced(light)
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (650, 1200))
+        self.assertEqual(profile.agency_fee_income, 2340 - 650 - 1200)
+
+    def test_micro_electric_costs_are_three_year_fixed(self):
+        micro = self.electric_order("micro_electric", plate_insurance_fee=2300, compulsory_insurance_period=3)
+        profile = self.synced(micro)
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (450, 1358))
+        self.assertEqual(profile.agency_fee_income, 2300 - 450 - 1358)
+        # 微電車沒收牌險：建單就看得出牌險少收。
+        unpaid = self.electric_order("micro_electric", plate_insurance_fee=0, plate_selection_fee=1200, plate_choice="watch")
+        profile = self.synced(unpaid)
+        self.assertEqual(profile.agency_fee_income, -450 - 1358 + 200)
+        self.assertTrue(unpaid.plate_fee_shortfall)
+
+    def test_migration_moves_selection_out_of_existing_plate_fee(self):
+        from importlib import import_module
+
+        from django.db import connection
+        from django.db.migrations.loader import MigrationLoader
+
+        migration = import_module("sales.migrations.0185_plate_fee_excludes_selection")
+        apps = MigrationLoader(connection).project_state(("sales", "0185_plate_fee_excludes_selection")).apps
+        order = self.make_order(plate_insurance_fee=2606, plate_selection_fee=1200, plate_choice="watch",
+                                registration_calculated_total=2606)
+        # 牌險本來就沒有併入選號（例如微電車手填 0）：進行中訂單尾款補上選號。
+        missing = self.make_order(plate_insurance_fee=0, plate_selection_fee=1200, plate_choice="watch")
+        SalesOrder.objects.filter(pk=missing.pk).update(calculated_balance=79800, actual_balance=79800)
+        profile = self.profile(order)
+        profile.plate_selection_income = 1200
+        profile.manual_financial_fields = ["plate_selection_income", "registration_tax_income"]
+        profile.save()
+        migration.forwards(apps, None)
+        order.refresh_from_db()
+        missing.refresh_from_db()
+        self.assertEqual((order.plate_insurance_fee, order.registration_calculated_total), (1406, 1406))
+        # 舊口徑總價 79,800＋2,606（含選號）＝新口徑 79,800＋1,406＋1,200。
+        self.assertEqual(order.calculate_balance(), 79800 + 2606)
+        self.assertEqual(missing.plate_insurance_fee, 0)
+        self.assertEqual((missing.calculated_balance, missing.actual_balance), (81000, 81000))
+        self.assertEqual(missing.calculate_balance(), missing.actual_balance)
+        self.assertEqual(self.profile(order).manual_financial_fields, ["registration_tax_income"])
+
+
 class FinanceStepPageTests(FinanceLedgerTestBase):
     def setUp(self):
         self.client.force_login(self.admin)
@@ -234,6 +369,14 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
     def test_non_dealer_order_has_no_settlement(self):
         page, _finance = self.finance_panel(self.make_order(source_type="store", source=self.staff))
         self.assertNotIn("data-dealer-settlement", page)
+
+    def test_store_order_hides_dealer_receipt_fields(self):
+        _page, finance = self.finance_panel(self.make_order(source_type="store", source=self.staff))
+        self.assertNotIn('name="operations-dealer_name"', finance)
+        self.assertNotIn('name="operations-payment_confirmed"', finance)
+        _page, finance = self.finance_panel(self.make_order())
+        self.assertIn('name="operations-dealer_name"', finance)
+        self.assertIn('name="operations-payment_confirmed"', finance)
 
     def test_net_profit_stays_gated(self):
         order = self.make_order()

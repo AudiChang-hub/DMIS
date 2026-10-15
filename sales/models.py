@@ -852,12 +852,12 @@ class VehiclePriceVersion(TimeStampedModel):
         verbose_name="車型",
     )
     suggested_price = models.DecimalField(
-        "建議售價", max_digits=12, decimal_places=0, blank=True, null=True
+        "分期總價", max_digits=12, decimal_places=0, blank=True, null=True
     )
     suggested_price_includes_registration = models.BooleanField(
-        "建議售價包含牌險",
+        "分期總價包含牌險",
         default=True,
-        help_text="勾選表示此版本的建議售價已包含牌險；未勾選則依正式單據另收。",
+        help_text="勾選表示此版本的分期總價已包含牌險；未勾選則依正式單據另收。",
     )
     cash_price = models.DecimalField(
         "現金價", max_digits=12, decimal_places=0, blank=True, null=True
@@ -1851,7 +1851,7 @@ class SubsidyItem(TimeStampedModel):
 
 
 class SubsidyProgram(TimeStampedModel):
-    """可申請的補助方案主檔（油車：貨物稅補助、汰舊換新；電動車：環保局、環境部、產業發展署…）；訂車時多選帶入訂單的補助項目。"""
+    """可申請的補助方案主檔（油車：新購貨物稅補助、汰舊換新；電動車：環保局、環境部、產業發展署…）；訂車時多選帶入訂單的補助項目。"""
 
     name = models.CharField("方案名稱", max_length=160, unique=True)
     category = models.CharField(
@@ -3091,6 +3091,8 @@ class SalesOrder(TimeStampedModel):
         THREE_YEARS = 3, "三年"
 
     class PlateChoice(models.TextChoices):
+        # 待確認：接單時客人還沒決定要不要選號（使用者 2026-10-15）。
+        PENDING = "pending", "待確認"
         NONE = "none", "不選號"
         WATCH = "watch", "指定號碼監控"
         PREFERENCE = "preference", "一般領牌偏好"

@@ -69,19 +69,13 @@ class ScreenAccessMiddleware(MiddlewareMixin):
             get_object_or_404(OrderDraft, pk=view_kwargs.get("pk"), owner_account=request.user)
         if name == "vehicle_price_options" and request.GET.get("order_id") and not policy.screen("orders"):
             raise PermissionDenied("沒有查詢訂單快照權限。")
-        # 隱私閘門在 root／舊制捷徑前執行，admin 也必須重新驗證。
-        from sales.services.profit_access import profit_is_unlocked, can_view_profit
+        # 含淨利或原始財務資料的路由另需淨利授權；在 root／舊制捷徑前執行。
+        from sales.services.profit_access import can_view_profit
         sensitive = name in {"operations_report_export", "legacy_import_detail", "legacy_import_status"}
         if match.app_name == "admin" and name and name.startswith(("sales_orderoperationsprofile_", "sales_legacysalessnapshot_", "sales_orderchange_", "sales_salesordersearchindex_", "sales_legacyimportrow_")):
             sensitive = True
-        if sensitive and policy.route(name, request.method, view_kwargs) and not profit_is_unlocked(request):
-            if not can_view_profit(request):
-                raise PermissionDenied("此內容含淨利或原始財務資料，尚未取得查看淨利權限。")
-            if request.method not in {"GET", "HEAD"}:
-                raise PermissionDenied("請先解鎖淨利再操作。")
-            from django.urls import reverse
-            from urllib.parse import urlencode
-            return redirect(reverse("profit_unlock") + "?" + urlencode({"next": request.get_full_path()}))
+        if sensitive and policy.route(name, request.method, view_kwargs) and not can_view_profit(request):
+            raise PermissionDenied("此內容含淨利或原始財務資料，尚未取得查看淨利權限。")
         if sensitive and name in {"operations_report_export", "report_export", "report_records_export"} and not policy.screen("profit", "export"):
             raise PermissionDenied("沒有淨利匯出權限。")
         if name in {"data_maintenance", "report_center"} and not policy.route(name):

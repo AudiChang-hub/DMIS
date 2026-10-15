@@ -54,7 +54,7 @@
     });
     if (summary) {
       Object.entries(totals).forEach(([kind, value]) => setText(summary.querySelectorAll(`[data-ledger-summary="${kind}"]`), value));
-      // 淨利只在已解鎖時由伺服器輸出；鎖定時頁面上沒有淨利節點可更新。
+      // 淨利只在有查看權限時由伺服器輸出；沒有權限時頁面上沒有淨利節點可更新。
       const net = summary.querySelector('[data-ledger-net-card] [data-profit-value]');
       if (net && 'income' in totals && 'expense' in totals) {
         const value = totals.income - totals.expense;

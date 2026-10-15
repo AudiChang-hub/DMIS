@@ -6,14 +6,15 @@
 from django.forms.utils import ErrorDict
 from django.http import QueryDict
 
-# 一步只處理一件事，依現場詢問客人的順序排列（使用者 2026-10-10：避免填完配件又回頭往上找汰舊與補助）。
+# 一步只處理一件事，一次只問一件事（使用者 2026-10-10 拆步驟）。
+# 使用者 2026-10-15：順序改為車款→付款與車價→車主→汰舊與補助→選號與交車→訂金；
+# 配件不在接單流程，建立後到訂單頁「訂車與配件」維護。
 STEPS = (
     ("vehicle", "車款與來源", "選擇車型、顏色與訂單來源"),
-    ("accessories", "配件", "加購配件、數量與安裝工資"),
+    ("payment", "付款與車價", "付款方式、車價、分期與領牌規費"),
+    ("owner", "車主與證件", "上傳證件正反面並核對車主資料"),
     ("tradein", "汰舊與補助", "是否汰舊、申請補助與舊車主"),
     ("delivery", "選號與交車", "選號方式、交車方式與備註"),
-    ("owner", "車主與證件", "上傳證件正反面並核對車主資料"),
-    ("payment", "付款與車價", "付款方式、車價、分期與領牌規費"),
     ("deposit", "訂金與費用", "訂金、其他費用與附件"),
     ("confirm", "確認送出", "核對整張訂單後建立"),
 )
@@ -31,7 +32,6 @@ STEP_FIELDS = {
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
         "assisted_company_confirmed", "assisted_company_revision",
     },
-    "accessories": set(),
     "tradein": {"trade_in_intent", "subsidy_programs", "subsidy_other", "is_trade_in_subsidy", "old_owner_same_as_owner"},
     "delivery": {
         "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note",
@@ -55,7 +55,8 @@ STEP_FIELDS = {
         "intake_discount_rate", "intake_discount_reason",
     },
 }
-FORMSET_STEPS = {"accessories": "accessories", "other_fees": "deposit"}
+# 舊草稿可能已有配件明細；接單流程沒有配件步驟，錯誤歸到確認送出。
+FORMSET_STEPS = {"accessories": "confirm", "other_fees": "deposit"}
 SERVER_KEYS = (DONE_KEY,)
 
 

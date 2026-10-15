@@ -26,7 +26,7 @@ from sales.services.vehicle_model_copy import (
 
 # 代號: (名稱, 畫面權限, 欄位[(欄位, 名稱)], 是否立即生效, 說明)
 DATASETS = {
-    "price": ("售價", "models", (("cash_price", "現金價"), ("suggested_price", "建議售價")), False,
+    "price": ("售價", "models", (("cash_price", "現金價"), ("suggested_price", "分期總價")), False,
               "建立新的售價版本；是否含牌險沿用目前版本。"),
     "commission": ("車行基礎傭金", "commissions", (("base_dealer_commission", "基礎傭金"),), True,
                    "基礎傭金沒有版本，確認後立即生效，原值與新值記入異動紀錄。"),

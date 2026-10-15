@@ -13,16 +13,17 @@
 {% for card in cards %}
 {% ifchanged card.model.brand card.model.name %}<header class="catalog-group-heading"><p class="eyebrow">{{ card.model.brand }}</p><h2>{{ card.model.name }}</h2><p class="muted">{{ card.model.get_energy_type_display }}{% if card.model.displacement_cc %} · {{ card.model.displacement_cc }} CC{% endif %}</p></header>{% endifchanged %}
 <article class="card catalog-card" data-catalog-color="{{ card.color.pk }}">
-  <a href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}" aria-label="查看 {{ card.model.name }} {{ card.model.model_year|default:'未填年式' }} {{ card.color.name }}">
+  {# 使用者 2026-10-15：選好車色直接接單，不再經過車款明細頁；付款方式在接單的「付款與車價」步驟選。 #}
+  {% if intake_can_submit %}<a href="{% url 'order_start' %}?model={{ card.model.pk }}&amp;color={{ card.color.pk }}" aria-label="以 {{ card.model.name }} {{ card.model.model_year|default:'未填年式' }} {{ card.color.name }} 接單">{% else %}<a href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}" aria-label="查看 {{ card.model.name }} {{ card.model.model_year|default:'未填年式' }} {{ card.color.name }}">{% endif %}
     {% if card.color.catalog_image %}<img src="{% url 'catalog_color_image' card.model.pk card.color.pk %}" alt="{{ card.model.name }} · {{ card.color.name }}" loading="lazy" class="catalog-image">{% else %}<div class="catalog-placeholder">{{ card.color.name }}<br>此車色圖片待補</div>{% endif %}
     <h2>{{ card.model.name }}</h2>
   </a>
   <p class="catalog-variant-label">{{ card.model.model_year|default:"待補年式" }}/{{ card.model.model_number|default:"待補型號" }}/{% if card.model.model_code %}{{ card.model.get_model_code_display }}{% else %}待補型式{% endif %}/{{ card.color.name }}</p>
   {% if card.cash_price != None or card.suggested_price != None %}<dl class="catalog-prices">
     {% if card.cash_price != None %}<div><dt>現金價</dt><dd>NT$ {{ card.cash_price|number_with_commas }}</dd></div>{% endif %}
-    {% if card.suggested_price != None %}<div><dt>建議售價</dt><dd>NT$ {{ card.suggested_price|number_with_commas }}</dd></div>{% endif %}
+    {% if card.suggested_price != None %}<div><dt>分期總價</dt><dd>NT$ {{ card.suggested_price|number_with_commas }}</dd></div>{% endif %}
   </dl>{% else %}<p class="catalog-prices catalog-prices--empty">售價請洽馭盛</p>{% endif %}
-  {% if user.is_authenticated %}<a class="button primary" href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}">查看車款與分期</a>{% else %}<a class="button primary" href="{% url 'login' %}?next={% url 'catalog_detail' card.model.pk %}%3Fcolor%3D{{ card.color.pk }}">登入查看分期與下單</a>{% endif %}
+  {% if intake_can_submit %}<a class="button primary" href="{% url 'order_start' %}?model={{ card.model.pk }}&amp;color={{ card.color.pk }}">選這台接單</a>{% elif user.is_authenticated %}<a class="button primary" href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}">查看車款與分期</a>{% else %}<a class="button primary" href="{% url 'login' %}?next={% url 'order_start' %}%3Fmodel%3D{{ card.model.pk }}%26color%3D{{ card.color.pk }}">登入後接單</a>{% endif %}
 </article>
 {% empty %}<div class="card"><h2>目前沒有符合條件的啟用車色</h2><p>{% site_text 'catalog.ea9ea39f13c5' %}</p></div>{% endfor %}</div>
 {% pagination page_obj aria_label="車色選項分頁" %}

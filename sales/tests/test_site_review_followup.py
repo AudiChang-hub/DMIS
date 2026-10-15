@@ -126,15 +126,6 @@ class SiteReviewFollowupTests(TestCase):
         self.assertContains(response, 'id="news-announcements"')
         self.assertContains(response, 'id="news-releases"')
 
-    def test_unlock_export_returns_finished_page(self):
-        cache.clear()
-        self.client.force_login(self.root)
-        target = reverse('operations_report_export') + '?date_from=2026-09-01'
-        response = self.client.post(reverse('profit_unlock'), {'password':'test-only', 'next':target})
-        self.assertContains(response, '已解鎖淨利')
-        self.assertContains(response, '下載檔案')
-        self.assertNotContains(response, 'type="password"')
-
     def test_announcement_dealers_and_image_are_scoped(self):
         item = SystemAnnouncement.objects.create(title='甲專屬', body='圖文', published=True, audience='dealers')
         item.dealers.add(self.dealer)

@@ -127,7 +127,7 @@
   - 核對內容較多時可連續放多張 `confirm-panel`（例：歷史更正頁的核對 → 影響 → 確認），送出表單固定在最後一張。
   - 被阻擋時仍保留操作列，只放返回按鈕；阻擋原因用 `callout--danger`。
   - 目前套用：訂單刪除／還原、台數獎金規則刪除、車行永久刪除、公告整理、歷史領牌改期、歷史退訂換買家、
-    開單公司確認、開單公司未確認、淨利解鎖；清單見 `test_confirm_pages_share_confirm_panel`。
+    開單公司確認、開單公司未確認；清單見 `test_confirm_pages_share_confirm_panel`。
 - 多行文字框一律帶 `form-control`：Django 表單在 `attrs` 加 `"class": "form-control"` 或由表單類別統一補上；模板手寫的 `<textarea>` 也要加。
   欄位（`.field`）內的輸入元件填滿欄位寬度。
 

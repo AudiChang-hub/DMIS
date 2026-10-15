@@ -62,12 +62,12 @@ class OrderWorkspaceTests(TestCase):
         return {**form_data(OrderOperationsForm(instance=self.order.operations, prefix='operations')),
                 **formset_data(PaymentRecordFormSet(instance=self.order, prefix='payments'))}
 
-    def test_detail_has_three_tabs_and_finance_without_unlocked_profit(self):
+    def test_detail_has_three_tabs_and_finance_shows_profit_for_admin(self):
         response = self.client.get(reverse('order_detail', args=[self.order.pk]))
         self.assertEqual(response.status_code, 200)
         for name in ('訂車與配件', '收入與支出', '補助', 'data-order-step-bar', 'data-workspace-save="operations"'):
             self.assertContains(response, name)
-        self.assertNotContains(response, 'data-profit-value')
+        self.assertContains(response, 'data-profit-value')  # 2026-10-15 起淨利不再需要解鎖
         self.assertNotContains(response, '<iframe')
 
     def test_edit_uses_same_workspace_and_keeps_distinct_forms(self):
@@ -84,7 +84,7 @@ class OrderWorkspaceTests(TestCase):
         self.assertNotContains(response, 'data-workspace-tab="finance"')
         self.assertEqual(self.post('order_operations', {}).status_code, 403)
 
-    def test_ajax_finance_save_keeps_audit_and_returns_masked_summary(self):
+    def test_ajax_finance_save_keeps_audit_and_returns_summary(self):
         data = self.operations_data()
         data['operations-shipping_expense'] = '800'
         response = self.post('order_operations', data)
@@ -93,7 +93,7 @@ class OrderWorkspaceTests(TestCase):
         self.assertTrue(payload['ok'])
         self.order.operations.refresh_from_db()
         self.assertEqual(self.order.operations.shipping_expense, 800)
-        self.assertNotIn('data-profit-value', payload['summary_html'])
+        self.assertIn('data-profit-value', payload['summary_html'])  # 有淨利授權直接顯示
         self.assertNotIn('net_profit', payload['sync']['operations'])
         self.assertTrue(OrderChange.objects.filter(order=self.order).exists())
 

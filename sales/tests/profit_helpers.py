@@ -1,11 +1,9 @@
-"""既有財務功能測試的明確授權／已驗證 session fixture。
+"""既有財務功能測試的淨利授權 fixture。
 
-密碼驗證、逾期及撤權本身由 test_profit_privacy_ux 獨立驗收。
+2026-10-15 起淨利不再需要本人密碼解鎖，有 `profit` 畫面授權即可查看；函式名稱沿用。
 """
-from django.utils import timezone
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.services import AccessPolicy, snapshot
-from sales.services.profit_access import SESSION_KEY
 
 
 def unlock_profit(testcase, user):
@@ -17,7 +15,3 @@ def unlock_profit(testcase, user):
             UserAccessState.objects.update_or_create(user=user, defaults={'configured': True})
         ScreenAccessGrant.objects.update_or_create(user=user, screen_key='profit',
             defaults={'view': True, 'export': True})
-    session = testcase.client.session
-    session[SESSION_KEY] = {'user': user.pk, 'version': AccessPolicy(user).version,
-        'auth': user.get_session_auth_hash(), 'until': timezone.now().timestamp() + 300}
-    session.save()

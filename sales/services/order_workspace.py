@@ -161,7 +161,7 @@ def save_error(message, *, status=400, forms=()):
     return JsonResponse({'ok': False, 'error': message, 'errors': errors}, status=status)
 
 
-def saved(request, order, *, form=None, formsets=()):
+def saved(request, order, *, form=None, formsets=(), extra=None):
     """只回傳已保存資料；維持欄位 index，讓新增的明細可再次編輯。"""
     order.refresh_from_db()
     values = {}
@@ -200,4 +200,5 @@ def saved(request, order, *, form=None, formsets=()):
         'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
+        **(extra or {}),
     })

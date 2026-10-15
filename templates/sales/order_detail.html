@@ -322,7 +322,7 @@
       <p>{% site_text 'order_detail.dac67b8f5494' %}</p>
     </div>
   {% else %}
-    <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}">
+    <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}" data-workspace-save="registration">
       {% csrf_token %}
       <div class="registration-data-form__date">
         <label for="{{ registration_form.registration_date.id_for_label }}">實際領牌日期 <span class="required-inline">必填</span></label>
@@ -333,13 +333,7 @@
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
         {{ registration_form.final_plate_number }}
       </div>
-      {% if not order.is_registration_complete %}
-        {% if registration_docs_ready %}
-        <button class="button primary registration-data-form__submit" type="submit" data-confirm="必備文件已齊全，儲存後會直接完成領牌，領牌日期與車牌號碼將鎖定。請確認車牌與日期正確。">儲存並完成領牌</button>
-        {% else %}
-        <button class="button secondary registration-data-form__submit" type="submit">儲存領牌資料</button>
-        {% endif %}
-      {% endif %}
+      <p class="autosave-status registration-data-form__submit" data-autosave-status role="status" aria-live="polite">{% if order.is_registration_complete %}領牌資料已鎖定{% else %}修改後會自動儲存{% endif %}</p>
     </form>
     {% if operations_profile.vehicle_cost_rule_id %}
     <div class="note-box">
@@ -460,26 +454,7 @@
       </div>
     </div>
 
-    <div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}">
-      <div>
-        {% if order.is_registration_complete %}
-          <strong>領牌已完成</strong>
-          <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}</p>
-        {% elif registration_missing %}
-          <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
-          <p>{{ registration_missing|join:"、" }}</p>
-        {% else %}
-          <strong>領牌資料與必備文件已齊全</strong>
-          <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
-        {% endif %}
-      </div>
-      {% if not order.is_registration_complete %}
-      <form method="post" action="{% url 'registration_complete' order.pk %}">
-        {% csrf_token %}
-        <button class="button primary" type="submit" {% if registration_missing %}disabled{% endif %}>確認領牌完成</button>
-      </form>
-      {% endif %}
-    </div>
+    {% include "sales/_registration_completion.html" %}
   {% endif %}
 </section>
 </div></section>{% endwith %}
@@ -659,7 +634,7 @@
       <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
-      <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更說明（選填）</label>{{ subsidy_form.change_reason }}</div>
+
     </div>
     <section class="dynamic-detail-section" data-subsidy-items>
       <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div></div>
@@ -677,13 +652,7 @@
       <template data-empty-form><div class="dynamic-detail-row" data-form-row>{% with item_form=subsidy_item_formset.empty_form %}{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>{% endwith %}</div></template>
       <button class="button ghost" type="button" data-add-form>＋ 新增補助項目</button>
     </section>
-    <div class="subsidy-save-dock is-saved" data-subsidy-save-dock role="status" aria-live="polite">
-      <div class="subsidy-save-dock__copy">
-        <strong data-subsidy-save-title>補助資料已儲存</strong>
-        <small data-subsidy-save-description>{% site_text 'order_detail.6033f4a4b570' %}</small>
-      </div>
-      <button class="button primary" type="submit" data-subsidy-save-button disabled>資料已儲存</button>
-    </div>
+    <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
   </form>
   {% if order.old_owner_ocr_name or order.old_owner_ocr_id_number %}
   <div class="ocr-conflict-card">

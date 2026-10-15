@@ -3203,6 +3203,9 @@ class PaymentRecordForm(forms.ModelForm):
             ]
         )
         self.fields["payment_method"].label = "收款方式"
+        # 訂單頁自動儲存：勾選確認入帳前先確認，入帳後金額與日期會鎖定（使用者 2026-10-15）。
+        if "confirmed" in self.fields:
+            self.fields["confirmed"].widget.attrs["data-autosave-confirm"] = "確認已收到這筆款項？確認入帳後，金額、日期與收款方式會鎖定。"
         original_method = self.initial.get("payment_method")
         widget = self.fields["payment_method"].widget
         if original_method and original_method not in {key for key, _label in widget.choices}:
@@ -4125,6 +4128,10 @@ class RegistrationStageForm(forms.ModelForm):
         self._previous_actual_balance = self.instance.actual_balance
         self.fields["registration_date"].required = True
         self.fields["final_plate_number"].required = True
+        if self.instance.pk and self.instance.is_registration_complete:
+            # 完成領牌後日期與車牌鎖定；欄位直接停用，訂單頁自動儲存不會再送出。
+            for field in self.fields.values():
+                field.disabled = True
         self.fields["final_plate_number"].widget.attrs.update(
             {
                 "class": "form-control",

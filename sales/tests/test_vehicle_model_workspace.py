@@ -343,6 +343,18 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertContains(response, reverse("brand_registration_fee_rule_list"))
         self.assertContains(response, reverse("dealer_volume_bonus_list"))
 
+    def test_rules_tab_applies_micro_electric_three_year_rule(self):
+        # 微電車一定保三年：三年的固定整包規則要顯示「今天套用」，不是「未被採用」。
+        micro = VehicleModel.objects.create(brand="金大力", name="微電測試", energy_type="micro_electric")
+        BrandRegistrationFeeRule.objects.create(
+            brand="金大力", energy_type="micro_electric", calculation_type="fixed_bundle", fixed_total=2300,
+            insurance_period_years=3, effective_from=date(2020, 1, 1))
+        response = self.client.get(reverse("vehicle_model_rules", args=[micro.pk]))
+        self.assertContains(response, "今天套用")
+        self.assertContains(response, "強制險 3 年")
+        self.assertNotContains(response, "未被採用")
+        self.assertNotContains(response, "目前沒有可套用的規則")
+
     def test_rules_tab_asks_for_displacement_before_matching_gas_rules(self):
         self.model.displacement_cc = None
         self.model.save(update_fields=["displacement_cc"])

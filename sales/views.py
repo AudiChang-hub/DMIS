@@ -9728,7 +9728,14 @@ def vehicle_model_rules(request, model_pk):
     )
     if can_fees and not missing_displacement:
         applied = {}
-        for years in (1, 2):
+        # 年期依車種：油車一、兩年；微電車一定三年；其他電動類一～三年（與建單可選的年期一致）。
+        if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
+            period_options = (1, 2)
+        elif vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+            period_options = (3,)
+        else:
+            period_options = (1, 2, 3)
+        for years in period_options:
             rule = resolve_brand_registration_rule(vehicle_model, today, years)
             if rule:
                 applied.setdefault(rule.pk, []).append(years)

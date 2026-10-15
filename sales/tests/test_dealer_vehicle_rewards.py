@@ -166,7 +166,7 @@ class DealerVehicleRewardTests(TestCase):
         self.assertContains(response, 'class="dealer-reward-item__fields"')
         self.assertContains(response, 'class="dealer-reward-item__note"')
         self.assertNotContains(response, "返回方案總覽")
-        self.assertEqual(content.count("儲存附加獎勵"), 1)
+        self.assertEqual(content.count("套用附加獎勵"), 1)
 
         css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(
             encoding="utf-8"

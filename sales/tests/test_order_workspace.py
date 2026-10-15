@@ -71,7 +71,7 @@ class OrderWorkspaceTests(TestCase):
         self.assertNotContains(response, '<iframe')
 
     def test_edit_uses_same_workspace_and_keeps_distinct_forms(self):
-        response = self.client.get(reverse('order_edit', args=[self.order.pk]))
+        response = self.client.get(reverse('order_detail', args=[self.order.pk]), {"tab": "order"})
         self.assertEqual(response.status_code, 200)
         for kind in ('order', 'operations', 'subsidy'):
             self.assertContains(response, f'data-workspace-save="{kind}"')
@@ -135,7 +135,7 @@ class OrderWorkspaceTests(TestCase):
         self.assertEqual(self.post('subsidy_data_update', data).status_code, 409)
 
     def test_order_ajax_save_and_stale_revision(self):
-        response = self.client.get(reverse('order_edit', args=[self.order.pk]))
+        response = self.client.get(reverse('order_detail', args=[self.order.pk]), {"tab": "order"})
         data = {**form_data(response.context['form']), **formset_data(response.context['formset']),
                 **formset_data(response.context['fee_formset']), '_order_revision': self.order.revision, '_workspace':'1'}
         data.update(change_reason='工作區驗收', note='平順切換', id_verified='on')

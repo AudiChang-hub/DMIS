@@ -29,7 +29,7 @@
       <p class="model-rule-note">{% site_text 'incentive_rule_form.a844efbb3476' %} {% site_text 'incentive_rule_form.b3fe47b46d70' %}</p>
       <div class="form-actions price-version-form__actions">
         {% if editing %}<button class="button danger-outline" type="submit" form="delete-rule">刪除此版本</button>{% endif %}
-        <button class="button primary" type="submit">{% if editing %}儲存版本修改{% else %}新增獎勵補助版本{% endif %}</button>
+        <button class="button primary" type="submit">{% if editing %}套用版本修改{% else %}新增獎勵補助版本{% endif %}</button>
       </div>
     </form>
     {% if editing %}<form id="delete-rule" method="post" action="{{ tab_url }}" data-confirm="確定刪除此版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="rule_id" value="{{ editing.pk }}"></form>{% endif %}

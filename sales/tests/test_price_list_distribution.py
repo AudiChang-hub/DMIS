@@ -398,7 +398,7 @@ class PriceListDistributionTests(TestCase):
         self.assertContains(response, "data-batch-controls")
         self.assertContains(response, "data-save-controls")
         self.assertContains(response, "勾選車行後，即可一次指派負責人")
-        self.assertContains(response, "儲存排序與個別調整")
+        self.assertContains(response, "套用排序與個別調整")
         self.assertNotContains(response, ">儲存變更</button>")
         self.assertContains(response, "data-drag-handle")
         self.assertContains(response, "price-assignment-order-cell")

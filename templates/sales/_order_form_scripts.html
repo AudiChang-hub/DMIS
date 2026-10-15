@@ -1419,6 +1419,7 @@
   }
 
   async function refreshDraftPresence() {
+    if (editingOrderId && orderForm.hasAttribute("data-inline-order")) return;
     if (editingOrderId) {
       try {
         const response = await fetch(`/orders/${editingOrderId}/edit/presence/`, {

@@ -33,7 +33,7 @@
     {% include "sales/_catalog_image_preview.html" with photo=entry.image upload=form.image preview_url=main_preview_url preview_class="catalog-main-preview" %}
     {% include "sales/_field.html" with field=form.main_image_color %}
   </details>
-  <div class="form-actions"><a class="button ghost" href="{% url 'catalog_edit' model.pk %}">放棄變更</a><button class="button primary">儲存展示設定</button></div>
+  <div class="form-actions"><a class="button ghost" href="{% url 'catalog_edit' model.pk %}">放棄變更</a><button class="button primary">套用展示設定</button></div>
 </form>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/catalog-image-preview.js' %}?v={{ app_version }}" defer></script>{% endblock %}

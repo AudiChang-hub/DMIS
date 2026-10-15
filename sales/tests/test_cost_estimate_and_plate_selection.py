@@ -63,7 +63,7 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         self.assertEqual(profile.plate_selection_income, Decimal("1200"))
         self.assertEqual(profile.plate_selection_expense, Decimal("1000"))
         self.assertEqual(profile.agency_fee_income, Decimal("0"))
-        page = self.client.get(f"/orders/{order.pk}/edit/")
+        page = self.client.get(f"/orders/{order.pk}/?tab=order")
         self.assertContains(page, 'data-conditional="plate-selection"')
 
     def test_installment_customer_balance_includes_plate_selection(self):

@@ -112,9 +112,15 @@ class OrderArchiveTests(TestCase):
         OrderArchiveRecord.objects.filter(order=order).delete()
         folder = sync_order(order.pk)
         self.assertTrue(folder.is_dir(), "沒有檔案的未結案訂單也有資料夾")
-        for status in (SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED):
+        # 1.80.0 起已結案＝人員確認結案；已完成但還沒結案的照樣建資料夾。
+        from django.utils import timezone
+        waiting = self.create_order()
+        SalesOrder.objects.filter(pk=waiting.pk).update(id_front="", id_back="", status=SalesOrder.Status.COMPLETED)
+        OrderArchiveRecord.objects.filter(order=waiting).delete()
+        self.assertTrue(sync_order(waiting.pk).is_dir(), "已交車待結案")
+        for status, closed_at in ((SalesOrder.Status.COMPLETED, timezone.now()), (SalesOrder.Status.CANCELLED, None)):
             closed = self.create_order()
-            SalesOrder.objects.filter(pk=closed.pk).update(id_front="", id_back="", status=status)
+            SalesOrder.objects.filter(pk=closed.pk).update(id_front="", id_back="", status=status, closed_at=closed_at)
             OrderArchiveRecord.objects.filter(order=closed).delete()
             self.assertIsNone(sync_order(closed.pk), status)
 

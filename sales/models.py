@@ -1827,8 +1827,8 @@ class SubsidyItem(TimeStampedModel):
 
     class Status(models.TextChoices):
         NOT_SUBMITTED = "not_submitted", "未申請"
-        SUBMITTED = "submitted", "已送出申請"
-        COMPLETED = "completed", "已申請完成"
+        # 只分未申請／已申請（使用者 2026-10-15）；補助是否跑完由人員在訂單「確認結案」判斷。
+        SUBMITTED = "submitted", "已申請"
 
     order = models.ForeignKey(
         "SalesOrder", on_delete=models.CASCADE, related_name="subsidy_items", verbose_name="訂單"
@@ -2998,28 +2998,52 @@ class SalesOrder(TimeStampedModel):
     def display_status(self):
         if self.deletion_requested_at:
             return "刪除確認中"
-        if self.subsidy_in_progress:
-            return "已交車／補助處理中"
+        if self.awaiting_close:
+            return "已交車／待結案"
+        if self.is_closed:
+            return "已結案"
         return self.get_status_display()
 
     @property
     def display_status_code(self):
         if self.deletion_requested_at:
             return "deletion_pending"
-        return "subsidy_pending" if self.subsidy_in_progress else self.status
+        return "close_pending" if self.awaiting_close else self.status
 
     @property
-    def subsidy_in_progress(self):
-        """已完成（交車＋領牌）但還有補助項目未「已申請完成」：列表顯示為已交車／補助處理中，不改訂單狀態。
-        列表會先註記 pending_subsidy_count（services/order_tabs.py），其他頁面才查補助項目。"""
-        if self.status != self.Status.COMPLETED or not self.pk:
-            return False
-        pending = getattr(self, "pending_subsidy_count", None)
-        if pending is not None:
-            return pending > 0
-        if not hasattr(self, "_subsidy_in_progress"):
-            self._subsidy_in_progress = self.subsidy_items.exclude(status=SubsidyItem.Status.COMPLETED).exists()
-        return self._subsidy_in_progress
+    def is_closed(self):
+        return bool(self.closed_at) and self.is_delivered
+
+    @property
+    def awaiting_close(self):
+        """已完成交車與領牌、還沒由人員確認結案：列表顯示為已交車／待結案，不改訂單狀態。"""
+        return self.status == self.Status.COMPLETED and not self.closed_at
+
+    @transaction.atomic
+    def mark_closed(self, actor_name):
+        """人員確認結案；不檢查文件或補助（使用者 2026-10-15：按了就給過）。"""
+        self.lock_for_update()
+        self.refresh_from_db(fields=["closed_at", "closed_by"])
+        if not self.is_delivered:
+            raise ValidationError("尚未交車的訂單不能結案。")
+        if self.closed_at:
+            raise ValidationError("此訂單已結案。")
+        now = timezone.now()
+        # 只寫結案欄位，不經整單驗證，歷史資料不完整也能結案。
+        type(self).all_objects.filter(pk=self.pk).update(closed_at=now, closed_by=actor_name, updated_at=now)
+        self.closed_at, self.closed_by = now, actor_name
+        OrderEvent.objects.create(order=self, event_type="order_closed", description="確認結案", actor_name=actor_name)
+
+    @transaction.atomic
+    def reopen_closed(self, actor_name):
+        self.lock_for_update()
+        self.refresh_from_db(fields=["closed_at", "closed_by"])
+        if not self.closed_at:
+            raise ValidationError("此訂單尚未結案。")
+        now = timezone.now()
+        type(self).all_objects.filter(pk=self.pk).update(closed_at=None, closed_by="", updated_at=now)
+        self.closed_at, self.closed_by = None, ""
+        OrderEvent.objects.create(order=self, event_type="order_reopened", description="撤回結案，回到已交車", actor_name=actor_name)
 
     class VehicleCategory(models.TextChoices):
         NEW = "new", "新車"
@@ -3480,6 +3504,9 @@ class SalesOrder(TimeStampedModel):
     exception_reason = models.CharField("例外結案原因", max_length=250, blank=True, editable=False)
     exception_closed_at = models.DateTimeField("例外結案時間", null=True, blank=True, editable=False)
     exception_closed_by = models.CharField("例外結案人員", max_length=150, blank=True, editable=False)
+    # 已交車到已結案由人員確認（使用者 2026-10-15）：只有人能判斷補助是否跑完，不設任何關卡。
+    closed_at = models.DateTimeField("確認結案時間", null=True, blank=True, editable=False)
+    closed_by = models.CharField("確認結案人員", max_length=150, blank=True, editable=False)
     exception_vehicle = models.ForeignKey(
         "VehicleInventory", on_delete=models.PROTECT, null=True, blank=True, editable=False,
         related_name="exception_orders", verbose_name="例外結案釋回車輛",

@@ -44,7 +44,7 @@ def order_step_url(order_pk, step, anchor=""):
 
 def _document_summary(order, document):
     from sales.services.document_signing import document_state
-    return {"electronic": "已電子簽署", "paper": "已上傳", "stale": "需重簽", "missing": "未簽署"}[
+    return {"electronic": "已電子簽署", "paper": "已上傳", "missing": "未簽署"}[
         document_state(order, document)
     ]
 

@@ -94,6 +94,21 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.save().commission_recipient_id, self.a.pk)
 
+    def test_source_field_reads_as_staff_for_store_orders(self):
+        # 本店單的來源是承辦人員；車行／網路平台維持來源名稱（使用者 2026-10-16）。
+        store_field = SalesOrderForm(initial={"source_type": "store"})["source"]
+        self.assertEqual(store_field.label, "承辦人員")
+        self.assertIn("本店人員傭金", store_field.help_text)
+        self.assertEqual(store_field.field.widget.attrs["data-search-placeholder"], "輸入承辦人員姓名")
+        self.assertEqual(store_field.field.widget.attrs["data-source-copy-kind"], "store")
+        for source_type in ("dealer", "platform"):
+            field = SalesOrderForm(data=self.post_data(source_type=source_type))["source"]
+            self.assertEqual(field.label, "來源名稱")
+            self.assertEqual(field.field.widget.attrs["data-search-placeholder"], "輸入車行或平台名稱")
+            # 前端切換訂單來源時用兩組文字即時更換。
+            self.assertEqual(field.field.widget.attrs["data-store-label"], "承辦人員")
+            self.assertEqual(field.field.widget.attrs["data-other-label"], "來源名稱")
+
     def test_store_legacy_form_preserves_attribution(self):
         order = self.make_order(source_type="store", recipient=self.a)
         form = SalesOrderForm(data=self.post_data(source_type="store", source=""), instance=order)

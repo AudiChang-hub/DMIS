@@ -315,6 +315,25 @@
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
   }
 
+  // 本店單選的是承辦人員，車行／網路平台才是來源名稱（使用者 2026-10-16）。
+  function syncSourceCopy() {
+    const source = byId("id_source");
+    if (!source || !sourceType) return;
+    const kind = sourceType.value === "store" ? "store" : "other";
+    // 伺服器已依目前來源渲染（含站內文案設定），沒換類型就不覆寫。
+    if (source.dataset.sourceCopyKind === kind) return;
+    source.dataset.sourceCopyKind = kind;
+    const label = source.closest("[data-field-container]")?.querySelector("label");
+    const labelText = label && [...label.childNodes].find(node => node.nodeType === Node.TEXT_NODE);
+    if (labelText) labelText.nodeValue = source.getAttribute(`data-${kind}-label`);
+    const placeholder = source.getAttribute(`data-${kind}-placeholder`);
+    source.dataset.searchPlaceholder = placeholder;
+    const searchInput = byId("id_source-search");
+    if (searchInput) searchInput.placeholder = placeholder;
+    const help = byId("id_source_help");
+    if (help) help.textContent = source.getAttribute(`data-${kind}-help`);
+  }
+
   function numericValue(input) {
     return Number(input?.value || 0);
   }
@@ -542,6 +561,7 @@
 
   function refresh() {
     showConditional("source", true);
+    syncSourceCopy();
     showConditional("identity-upload", ["local", "foreign"].includes(ownerType.value));
     showConditional("corporate", ownerType.value === "corporate");
     document.querySelector(".owner-form-grid")?.classList.toggle(

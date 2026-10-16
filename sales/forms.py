@@ -230,6 +230,20 @@ class OrderCommissionAttributionForm(forms.Form):
         return data
 
 
+SOURCE_FIELD_COPY = {
+    "store": {
+        "label": "承辦人員",
+        "placeholder": "輸入承辦人員姓名",
+        "help": "選擇負責這張訂單的本店人員，會帶入本店人員傭金；可不指定。",
+    },
+    "other": {
+        "label": "來源名稱",
+        "placeholder": "輸入車行或平台名稱",
+        "help": "選擇接到這張訂單的車行或網路平台。",
+    },
+}
+
+
 class SalesOrderForm(forms.ModelForm):
     assign_commission_to_other = forms.BooleanField(
         label="這台算給其他車行", required=False, widget=forms.HiddenInput,
@@ -388,9 +402,11 @@ class SalesOrderForm(forms.ModelForm):
         if self.commission_attribution_locked:
             self.fields["commission_recipient"].disabled = True
             self.fields["assign_commission_to_other"].disabled = True
-        self.fields["source"].help_text = (
-            "本店訂單可選擇承辦員工；車行與網路平台則必須選擇來源名稱。"
-        )
+        # 本店單的來源是承辦人員（帶本店人員傭金），車行／網路平台才是來源名稱（使用者 2026-10-16）。
+        source_copy_kind = "store" if selected_source_type == SalesOrder.SourceType.STORE else "other"
+        source_copy = SOURCE_FIELD_COPY[source_copy_kind]
+        self.fields["source"].label = source_copy["label"]
+        self.fields["source"].help_text = source_copy["help"]
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         self.fields["registration_date"].required = False
         self.fields["compulsory_insurance_period"].initial = (
@@ -406,7 +422,7 @@ class SalesOrderForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         searchable_selects = {
-            "source": "輸入車行或平台名稱",
+            "source": source_copy["placeholder"],
             "commission_recipient": "輸入歸屬車行名稱",
             "vehicle_model": "輸入品牌、車型、型號或年份",
             "color": "輸入車色名稱",
@@ -418,6 +434,14 @@ class SalesOrderForm(forms.ModelForm):
                     "data-search-placeholder": placeholder,
                 }
             )
+        # 前端切換訂單來源時依此切換標題、搜尋提示與說明（_order_form_scripts.html）。
+        self.fields["source"].widget.attrs.update({
+            "data-source-copy-kind": source_copy_kind,
+        } | {
+            f"data-{kind}-{key}": value
+            for kind, copy in SOURCE_FIELD_COPY.items()
+            for key, value in copy.items()
+        })
         apply_mobile_keyboard_attrs(self)
         for field_name in (
             "registration_plate_fee",

@@ -4825,6 +4825,8 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
         self.assertLess(content.index("分期資料"), content.index("其他費用"))
+        # 分期資料緊接在付款方式與車價之後，排在領牌規費與強制險前（2026-10-16）。
+        self.assertLess(content.index("分期資料"), content.index("領牌規費與強制險"))
         self.assertNotContains(order_response, "折扣／抵扣")
         self.assertEqual(
             order_response.context["form"]["deposit_date"].value(),

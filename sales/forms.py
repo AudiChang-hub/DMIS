@@ -471,6 +471,13 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["payment_type"].required = False
         self.fields["payment_splits"].required = False
         self.fields["vehicle_price"].widget = forms.HiddenInput(attrs=self.fields["vehicle_price"].widget.attrs)
+        # 草稿以 POST 原文保存，initial 的付款明細是 JSON 字串；先解回清單，避免 HiddenInput 再編碼一次。
+        raw_splits = self.initial.get("payment_splits")
+        if isinstance(raw_splits, str):
+            try:
+                self.initial["payment_splits"] = json.loads(raw_splits) if raw_splits.strip() else []
+            except ValueError:
+                self.initial["payment_splits"] = []
         self.fields["payment_splits"].widget.attrs["data-split-methods"] = json.dumps(
             [{"value": value, "label": label} for value, label in SalesOrder.PaymentSplitMethod.choices],
             ensure_ascii=False,

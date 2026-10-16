@@ -99,3 +99,57 @@ class PaymentSplitTests(TestCase):
         order = self.create(payment_type="card", vehicle_price="79800")
         self.assertEqual(order.payment_type, "card")
         self.assertEqual(order.payment_splits, [{"method": "card", "amount": 79800}])
+
+    def test_contract_pdf_lists_each_payment_on_its_own_line(self):
+        # 使用者 2026-10-16：訂購單 PDF 的付款方式每筆各占一行，不在金額中間斷行。
+        from io import BytesIO
+        from pypdf import PdfReader
+        order = self.create(payment_splits=splits(("cash", 50000), ("card", 20000), ("transfer", 9800)))
+        response = self.client.get(reverse("contract_print", args=[order.pk]))
+        self.assertEqual(response.status_code, 200)
+        reader = PdfReader(BytesIO(b"".join(response.streaming_content)))
+        lines = [line.strip() for page in reader.pages for line in page.extract_text().splitlines()]
+        for expected in ("現金 $50,000", "刷卡 $20,000", "匯款 $9,800"):
+            self.assertEqual(sum(expected in line for line in lines), 4, expected)  # 兩聯 × 車主區與收款區
+        self.assertFalse([line for line in lines if "＋" in line and "$" in line])
+
+    def test_wizard_draft_keeps_every_payment_split(self):
+        # 回歸（1.85.1）：草稿保存的付款明細是 JSON 字串，下一步不可再編碼一次而退回單筆。
+        import html
+        import re
+        import uuid
+        from sales.models import OrderDraft
+        self.client.force_login(self.root)
+        key = str(uuid.uuid4())
+        two_rows = splits(("cash", 20000), ("installment", 55000))
+        extra = dict(payment_splits=two_rows, vehicle_price_adjustment_reason="部分付現",
+                     installment_custom="on", installment_company="分期甲", installment_periods="24",
+                     installment_monthly="3000")
+        draft = None
+        for step in ("vehicle", "owner", "tradein", "delivery", "deposit"):
+            data = {**self.complete_data(), **extra, "_wizard_step": step, "_wizard_action": "next", "_submission_key": key}
+            if draft:
+                data.update(_draft_id=str(draft.pk), _draft_revision=str(draft.revision))
+            response = self.client.post(reverse("order_create"), data)
+            self.assertEqual(response.status_code, 302, response.content.decode()[:300])
+            draft = OrderDraft.objects.get()
+            page = self.client.get(response.url).content.decode()
+            value = re.search(r'name="payment_splits"[^>]*value="([^"]*)"|value="([^"]*)"[^>]*name="payment_splits"', page)
+            rendered = json.loads(html.unescape(value.group(1) or value.group(2)))
+            self.assertEqual(rendered, json.loads(two_rows), step)
+            extra["payment_splits"] = json.dumps(rendered)  # 瀏覽器下一步送回的是畫面上的值
+        data = {**self.complete_data(), **extra, "_wizard_step": "confirm", "_wizard_action": "submit",
+                "_submission_key": key, "_draft_id": str(draft.pk), "_draft_revision": str(draft.revision)}
+        response = self.client.post(reverse("order_create"), data)
+        self.assertEqual(response.status_code, 302, response.content.decode()[:300])
+        order = SalesOrder.objects.get()
+        self.assertEqual(order.payment_splits, json.loads(two_rows))
+        self.assertEqual((order.installment_split_amount, order.customer_vehicle_split_amount), (55000, 20000))
+
+    def test_form_initial_from_draft_string_is_not_double_encoded(self):
+        from sales.forms import SalesOrderForm
+        form = SalesOrderForm(initial={"payment_splits": splits(("cash", 20000), ("card", 5000))})
+        self.assertEqual(json.loads(form["payment_splits"].value() if isinstance(form["payment_splits"].value(), str)
+                                    else json.dumps(form["payment_splits"].value())),
+                         [{"method": "cash", "amount": 20000}, {"method": "card", "amount": 5000}])
+        self.assertIn("&quot;method&quot;: &quot;cash&quot;", str(form["payment_splits"]))

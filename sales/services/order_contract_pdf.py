@@ -87,6 +87,14 @@ def p(text, style=body_style):
     return Paragraph(str(text), style)
 
 
+def payment_lines(order):
+    """付款方式：多筆時每筆各占一行（例如「現金 $20,000」換行「分期 $25,000」），不在金額中間斷行。"""
+    rows = order.payment_split_rows
+    if len(rows) <= 1:
+        return p(escape(order.payment_split_display))
+    return p("<br/>".join(escape(f"{row['label']} ${int(row['amount']):,}") for row in rows))
+
+
 def safe(value, default="—"):
     text = str(value or "").strip()
     return escape(text) if text else default
@@ -208,7 +216,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             p("<b>行動電話</b>"),
             p(safe(order.owner_phone)),
             p("<b>付款方式</b>"),
-            p(order.payment_split_display),
+            payment_lines(order),
             p("<b>分期資訊</b>"),
             p(
                 safe(
@@ -271,12 +279,14 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             "",
         ],
     ]
+    info_widths = [19 * mm, 45 * mm, 19 * mm, 32 * mm, 19 * mm, 52 * mm]
     y = draw_table(
         c,
         info_data,
-        [19 * mm, 45 * mm, 19 * mm, 32 * mm, 19 * mm, 52 * mm],
+        info_widths,
         y,
-        row_heights=[7 * mm, 7 * mm, 8 * mm, 8 * mm, 12 * mm],
+        # 付款方式多筆時每筆一行，第 2 列依內容撐高。
+        row_heights=[7 * mm, fitted_row_height(info_data[1], info_widths), 8 * mm, 8 * mm, 12 * mm],
         styles=[
             ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
             ("BACKGROUND", (2, 0), (2, 3), GREEN_LIGHT),
@@ -475,7 +485,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
     payment_first_row = [
         p("<b>付款方式</b>"),
-        p(order.payment_split_display),
+        payment_lines(order),
     ]
     if is_installment:
         payment_first_row.extend(
@@ -526,12 +536,13 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
         payment_styles.append(("BACKGROUND", (4, 0), (4, 0), GREEN_LIGHT))
     else:
         payment_styles.append(("SPAN", (3, 0), (5, 0)))
+    payment_widths = [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm]
     y = draw_table(
         c,
         payment_data,
-        [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm],
+        payment_widths,
         y,
-        row_heights=[7 * mm, 7 * mm, 8 * mm],
+        row_heights=[fitted_row_height(payment_data[0], payment_widths), 7 * mm, 8 * mm],
         styles=payment_styles,
     )
 

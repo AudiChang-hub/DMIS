@@ -52,7 +52,7 @@ class ReceptionEntryTests(TestCase):
     def test_reception_allows_admin_pricing_but_hides_finance_and_is_idempotent(self):
         self.client.force_login(self.root)
         key = str(uuid.uuid4())
-        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="5000", accept_by_me="on",
+        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="5000",
                              registration_plate_fee="999",
                              **{"other_fees-0-name": "FORGED-INTERNAL", "other_fees-0-amount": "999"})
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
@@ -91,16 +91,16 @@ class ReceptionEntryTests(TestCase):
         legacy.refresh_from_db()
         self.assertEqual(legacy.data["deposit_amount"], "9988")
 
-    def test_independent_dealer_submit_without_company_order_visibility(self):
-        self.profile.can_view_orders = False
-        self.profile.save()
-        self.client.force_login(self.dealer_user)
+    def test_restricted_staff_submits_without_company_order_visibility(self):
+        ScreenAccessGrant.objects.filter(user=self.clerk, screen_key="orders").delete()
+        self.client.force_login(self.clerk)
         self.assertEqual(self.client.get(reverse("order_list")).status_code, 403)
         result = self.submit()
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
+        order = SalesOrder.objects.get()
+        self.assertEqual((order.status, order.accepted_by), ("allocation_pending", self.clerk))
         self.assertEqual(self.client.get(result.url).status_code, 200)
-        self.profile.can_submit_orders = False
-        self.profile.save()
+        ScreenAccessGrant.objects.filter(user=self.clerk, screen_key="order_intake").update(operate=False)
         self.assertEqual(self.client.get(reverse("order_start")).status_code, 403)
 
     def test_revoke_intake_keeps_query_but_blocks_submission(self):
@@ -142,10 +142,11 @@ class ReceptionEntryTests(TestCase):
         listing = self.client.get(reverse("order_list"))
         self.assertNotContains(listing, "＋ 建立訂單")
 
-    def test_reception_home_navigation_is_consistent_for_staff_and_dealers(self):
+    def test_reception_home_navigation_is_consistent_for_admin_and_staff(self):
         from sales.models import VehicleCatalogEntry
         VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True))[0]
-        for user in (self.root, self.dealer_user):
+        ScreenAccessGrant.objects.create(user=self.clerk, screen_key="catalog", view=True, operate=True)
+        for user in (self.root, self.clerk):
             self.client.force_login(user)
             for url in (reverse("catalog"), reverse("catalog_detail", args=[self.model.pk]), reverse("order_start")):
                 page = self.client.get(url)

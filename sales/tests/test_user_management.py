@@ -44,11 +44,13 @@ class UserManagementTests(TestCase):
         response = self.client.get(reverse("user_management"))
         self.assertContains(response, 'class="account-overview"')
         self.assertContains(response, 'css/account-overview.css')
-        self.assertContains(response, 'js/account-overview.js')
-        for field in ("kind", "source", "search", "status"):
+        self.assertNotContains(response, 'js/account-overview.js')
+        for field in ("search", "status"):
             self.assertContains(response, f'class="form-control" id="account-{field}"')
+        for field in ("kind", "source"):
+            self.assertNotContains(response, f'id="account-{field}"')
         self.assertContains(response, 'class="account-columns"')
-        self.assertContains(response, 'data-open-dealer')
+        self.assertNotContains(response, 'data-open-dealer')
         self.assertContains(response, reverse("permission_workspace", args=[self.user.pk]))
         self.assertContains(response, reverse("user_account_reset_password", args=[self.user.pk]))
         self.assertNotContains(response, reverse("user_account_reset_password", args=[self.admin.pk]))

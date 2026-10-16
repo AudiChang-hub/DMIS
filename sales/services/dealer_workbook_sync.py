@@ -146,7 +146,7 @@ def read_dealer_workbook(path):
 
 def _dealer_category():
     category, _ = SalesSourceCategory.objects.get_or_create(
-        name="合作車行",
+        name="車行",
         defaults={
             "system_behavior": SalesSource.SourceType.DEALER,
             "active": True,

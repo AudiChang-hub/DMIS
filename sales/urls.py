@@ -1,8 +1,8 @@
 from django.urls import path
-from .permission_workspace import order_entry as order_customer_access, workspace as permission_workspace, create_dealer_entry
+from .permission_workspace import order_entry as order_customer_access, workspace as permission_workspace
 from django.views.generic import RedirectView
 
-from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views
+from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views
 from . import order_deletion_views
 from . import draft_cleanup_views
 from . import import_review_views
@@ -23,12 +23,9 @@ from .access import views as access_views
 
 
 urlpatterns = [
-    path("system/users/new/dealer/", create_dealer_entry, name="create_dealer_entry"),
     path("system/users/<int:pk>/permissions/", permission_workspace, name="permission_workspace"),
     path("orders/<int:pk>/customer-access/", order_customer_access, name="order_customer_access"),
     path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
-    path("data/channels/<int:source_pk>/print-company/", print_company_views.company_settings, name="dealer_print_company"),
-    path("orders/<int:pk>/print-company/", print_company_views.order_company, name="order_print_company"),
     path("orders/forms-print/", form_print_views.form_print_page, name="form_print"),
     path("orders/forms-print/pdf/", form_print_views.form_print_pdf, name="form_print_pdf"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
@@ -67,10 +64,6 @@ urlpatterns = [
     path("data/catalog/official/<int:pk>/acknowledge/", official_catalog_views.official_catalog_acknowledge, name="official_catalog_acknowledge"),
     path("data/catalog/official/<int:pk>/ignore/", official_catalog_views.official_catalog_ignore, name="official_catalog_ignore"),
     path("data/catalog/official/<int:pk>/fill-images/", official_catalog_views.official_catalog_fill_images, name="official_catalog_fill_images"),
-    path("data/channels/<int:source_pk>/accounts/", dealer_account_views.dealer_accounts, name="dealer_accounts"),
-    path("data/channels/<int:source_pk>/accounts/new/", dealer_account_views.dealer_account_create, name="dealer_account_create"),
-    path("system/users/<int:pk>/dealer/", dealer_account_views.dealer_account_edit, name="dealer_account_edit"),
-    path("orders/<int:pk>/receive/", intake_views.order_receive, name="order_receive"),
     path("orders/intake-attachments/<int:pk>/", intake_views.order_intake_attachment, name="order_intake_attachment"),
     path("system/users/<int:pk>/order-scope/", intake_views.order_account_scope, name="order_account_scope"),
     path("account/home-favorites/", favorite_views.home_favorites, name="home_favorites"),

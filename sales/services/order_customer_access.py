@@ -14,8 +14,6 @@ def customer_orders(user, queryset=None, *, printing=False):
     from sales.access.services import is_root
     if is_root(user) or not user.is_active or not profile:
         return normal
-    if profile.kind == "dealer" and (not profile.source_id or not profile.source.active):
-        return queryset.none()
     grants = OrderCustomerAccessGrant.objects.filter(account=profile, identity_epoch=profile.identity_epoch, active=True)
     flag = "can_print" if printing else "can_view"
     allowed = grants.filter(**{flag: True})
@@ -34,14 +32,14 @@ def set_customer_access(*, actor, order_id, account_id, expected_revision, expec
     order = SalesOrder.objects.select_for_update().get(pk=order_id)
     account = OrderAccountProfile.objects.select_for_update(of=("self",)).select_related("user", "source").get(pk=account_id)
     if active and account.identity_epoch != expected_identity_epoch:
-        raise ValidationError("帳號身分或所屬車行已變更，請重新載入後再授權。")
+        raise ValidationError("帳號的預設店別已變更，請重新載入後再授權。")
     grant = OrderCustomerAccessGrant.objects.select_for_update().filter(order=order, account=account).first()
     if expected_revision != (grant.revision if grant else 0):
         raise ValidationError("授權已被其他視窗更新，請重新整理後再操作。")
     if is_root(account.user):
         raise ValidationError("admin 為固定最高權限，不設定單筆例外。")
-    if active and (not account.user.is_active or (account.kind == "dealer" and (not account.source_id or not account.source.active))):
-        raise ValidationError("只能設定啟用中的帳號；車行帳號亦需有效且啟用中的所屬車行。")
+    if active and not account.user.is_active:
+        raise ValidationError("只能設定啟用中的帳號。")
     if active and not is_override and not (can_view or can_print):
         raise ValidationError("請勾選查看或列印；若不再開放，請使用撤銷。")
     if active and is_override:
@@ -52,7 +50,7 @@ def set_customer_access(*, actor, order_id, account_id, expected_revision, expec
             raise ValidationError("帳號尚未開放訂單查詢，請先到「畫面與操作」啟用。")
         if can_print and not policy.screen("order_documents", "export"):
             raise ValidationError("帳號尚未開放客戶文件列印，請先到「畫面與操作」啟用。")
-        if account.kind != "dealer" and (can_view or can_print) and not scoped_orders(account.user, apply_overrides=False).filter(pk=order.pk).exists():
+        if (can_view or can_print) and not scoped_orders(account.user, apply_overrides=False).filter(pk=order.pk).exists():
             raise ValidationError("內部人員請先調整訂單範圍；單筆設定不能繞過內部資料範圍。")
     def state(row):
         if not row:

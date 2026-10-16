@@ -75,8 +75,8 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (5000, 0, False))
         self.assertEqual(deposit.payment_method, "匯款")
 
-    def test_dealer_can_enter_deposit_but_not_other_finance(self):
-        self.client.force_login(self.dealer_user)
+    def test_restricted_staff_can_enter_deposit_but_not_other_finance(self):
+        self.client.force_login(self.clerk)
         page = self.client.get(reverse("order_start"), {"classic": "1"})
         self.assertEqual(page.status_code, 200)
         self.assertFalse(page.context["intake_finance_editable"])
@@ -88,7 +88,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
             "order_start", deposit_amount="3000", deposit_method="cash", vehicle_price="1",
             compulsory_insurance_fee="777", **{"other_fees-0-name": "FORGED", "other_fees-0-amount": "50"},
         ))
-        self.assertEqual((order.source, order.deposit_amount, order.vehicle_price), (self.dealer, 3000, 79800))
+        self.assertEqual((order.deposit_amount, order.vehicle_price, order.accepted_by), (3000, 79800, self.clerk))
         self.assertNotEqual(order.compulsory_insurance_fee, 777)
         self.assertFalse(order.other_fees.exists())
         self.assertTrue(PaymentRecord.objects.filter(order=order, system_key="deposit", expected_amount=3000, confirmed=False).exists())
@@ -112,7 +112,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertTrue(OrderEvent.objects.filter(order=order, description__contains="建立訂單時登記訂金實收").exists())
 
     def test_deposit_received_needs_payment_confirmation_access(self):
-        # 接待模式與合作車行沒有收款確認權限：看不到勾選，偽造送出也仍是未確認。
+        # 接待模式與受限店員沒有收款確認權限：看不到勾選，偽造送出也仍是未確認。
         self.grant_intake_only()
         page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()
         self.assertNotIn('name="deposit_received"', page)
@@ -156,8 +156,8 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         if balance:
             self.assertEqual(balance.expected_amount, order.actual_balance)
 
-    def test_dealer_rate_discount_is_approved_with_dealer_as_actor(self):
-        self.client.force_login(self.dealer_user)
+    def test_restricted_staff_rate_discount_is_approved_with_staff_as_actor(self):
+        self.client.force_login(self.clerk)
         order = self.assert_created(self.submit_to(
             "order_start", intake_discount_mode="rate", intake_discount_rate="9.5",
             intake_discount_amount="99999", intake_discount_reason="展示車",
@@ -165,7 +165,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         # 79,800 × 0.95 = 75,810；殘留在另一種方式的金額不採用。
         self.assertEqual(order.approved_discount_amount, 3990)
         self.assertEqual(order.discounted_total, 75810)
-        self.assertEqual(order.discount_decided_by, self.dealer_user.username)
+        self.assertEqual(order.discount_decided_by, self.clerk.username)
         self.assertEqual(order.discount_status, SalesOrder.DiscountStatus.APPROVED)
         self.assertIn("9.5 折", OrderEvent.objects.get(order=order, event_type="discount_decided").description)
 
@@ -197,8 +197,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
 
     def test_post_creation_discount_request_still_works(self):
         order = self.assert_created(self.submit(intake_discount_amount="1000", intake_discount_reason="下單優惠"))
-        receive = self.client.post(reverse("order_receive", args=[order.pk]))
-        self.assertIn(receive.status_code, {200, 302})
+        self.assertEqual((order.status, order.accepted_by), ("allocation_pending", self.user))
         self.client.force_login(self.root)
         response = self.client.post(reverse("order_discount_request", args=[order.pk]),
                                     {"mode": "amount", "amount": "500", "reason": "追加優惠"})
@@ -244,7 +243,7 @@ class WizardDiscountTests(IntakeFixtures):
     def test_deposit_step_validates_discount_and_summary_previews_totals(self):
         self.key = str(uuid.uuid4())
         draft = None
-        for step in ("vehicle", "payment", "owner", "tradein", "delivery"):
+        for step in ("vehicle", "owner", "tradein", "delivery"):
             self.assertEqual(self.wizard_post(step, draft).status_code, 302)
             draft = OrderDraft.objects.get()
         too_much = self.wizard_post("deposit", draft, intake_discount_amount="90000", intake_discount_reason="太多")
@@ -277,7 +276,7 @@ class DealerRewardSnapshotTests(IntakeFixtures):
 
     def test_snapshot_captured_on_create_and_unaffected_by_master_edits(self):
         plan = self.make_plan()
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         response = self.client.post(reverse("order_start"), {
             **self.complete_data(), "id_front": self.image("f.png"), "id_back": self.image("b.png"),
             "_submission_key": str(uuid.uuid4())})

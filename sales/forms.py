@@ -389,7 +389,7 @@ class SalesOrderForm(forms.ModelForm):
             self.fields["commission_recipient"].disabled = True
             self.fields["assign_commission_to_other"].disabled = True
         self.fields["source"].help_text = (
-            "本店訂單可選擇承辦員工；合作車行與網路平台則必須選擇來源名稱。"
+            "本店訂單可選擇承辦員工；車行與網路平台則必須選擇來源名稱。"
         )
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         self.fields["registration_date"].required = False
@@ -909,7 +909,7 @@ class SalesSourceForm(forms.ModelForm):
         self.instance.has_line_group = has_line_group
         address = cleaned_data.get("address", "")
         if not is_dealer:
-            # 掛帳額度只適用合作車行。
+            # 掛帳額度只適用車行。
             cleaned_data["credit_limit"] = None
             self.instance.credit_limit = None
         if is_dealer:
@@ -1418,9 +1418,9 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         self.fields["dealer"].queryset = SalesSource.objects.filter(
             Q(active=True) | Q(pk=self.instance.dealer_id), source_type=SalesSource.SourceType.DEALER,
         ).order_by("name")
-        self.fields["dealer"].empty_label = "全部合作車行"
+        self.fields["dealer"].empty_label = "全部車行"
         self.fields["dealer"].label = "適用車行"
-        self.fields["dealer"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "全部合作車行，或搜尋指定一家"})
+        self.fields["dealer"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "全部車行，或搜尋指定一家"})
         self.fields["energy_type"].choices = [("", "不限能源"), *VehicleModel.EnergyType.choices]
         selected = self.instance.vehicle_models.values_list("pk", flat=True) if self.instance.pk else []
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
@@ -2650,7 +2650,7 @@ class LegacySalesSourceQuickCreateForm(forms.ModelForm):
         label="通路類別",
         queryset=SalesSourceCategory.objects.none(),
         required=False,
-        help_text="例如：合作車行、網路平台、本店員工。",
+        help_text="例如：車行、網路平台、本店員工。",
     )
     new_category_name = forms.CharField(
         label="新類別名稱",
@@ -2662,7 +2662,7 @@ class LegacySalesSourceQuickCreateForm(forms.ModelForm):
         label="新類別的系統處理方式",
         required=False,
         choices=SalesSourceCategory.SystemBehavior.choices,
-        help_text="本店來源不套車行傭金；合作車行與網路平台會進入各自對帳流程。",
+        help_text="本店來源不套車行傭金；車行與網路平台會進入各自對帳流程。",
     )
 
     class Meta:
@@ -3382,7 +3382,7 @@ class VehicleModelCommissionForm(forms.Form):
         max_digits=12,
         decimal_places=0,
         min_value=Decimal("0"),
-        help_text="合作車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
+        help_text="車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
         widget=forms.NumberInput(attrs={"min": "0", "inputmode": "numeric"}),
     )
 
@@ -4372,7 +4372,7 @@ class DeliveryCompletionForm(forms.Form):
 
         order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
         self._confirm_delivery_prep(order, actor_name)
-        # 合作車行可先交車；未收清部分記為掛帳並受車行額度控管。
+        # 車行可先交車；未收清部分記為掛帳並受車行額度控管。
         on_account = (
             payment_summary(order)["customer_due"]
             if order.source_type == SalesOrder.SourceType.DEALER else Decimal("0")

@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.services import AccessPolicy, snapshot
-from sales.models import OrderAccountProfile, OrderEvent, PaymentRecord, SalesOrder, SalesSource, VehicleColor, VehicleModel
+from sales.models import OrderEvent, PaymentRecord, SalesOrder, SalesSource, VehicleColor, VehicleModel
 from sales.services.order_deletion import change_deletion, deletion_blockers, review_deletion, confirmation_token
 
 
@@ -56,7 +56,7 @@ class OrderDeletionTests(TestCase):
             self.assertEqual(before[key], after[key], key)
         self.assertEqual(list(OrderEvent.objects.filter(order=self.order, event_type__in=["soft_deleted", "restored"]).order_by("pk").values_list("event_type", flat=True)), ["soft_deleted", "restored"])
 
-    def test_default_deny_explicit_grant_revoke_and_dealer_deny(self):
+    def test_default_deny_explicit_grant_and_revoke(self):
         self.assertFalse(AccessPolicy(self.staff).screen("order_delete"))
         self.assertFalse(snapshot(self.staff, [])["screens"]["order_delete"]["view"])
         self.client.force_login(self.staff)
@@ -72,8 +72,6 @@ class OrderDeletionTests(TestCase):
         grant.operate = False
         grant.save()
         self.assertEqual(self.client.post(reverse("order_delete", args=[self.order.pk]), self.payload()).status_code, 403)
-        source = SalesSource.objects.create(name="測試車行", source_type="dealer")
-        OrderAccountProfile.objects.create(user=self.staff, kind="dealer", source=source)
         self.assertFalse(AccessPolicy(self.staff).screen("order_delete", "operate"))
         with self.assertRaises(PermissionDenied):
             change_deletion(user=self.staff, order_id=self.order.pk, restore=False, reason="測試", expected_updated_at=self.order.updated_at.isoformat())

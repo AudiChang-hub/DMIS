@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
-{% block title %}合作車行｜車輛銷售管理{% endblock %}
+{% block title %}車行｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -8,18 +8,18 @@
 
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">合作車行資料</p>
-    <h1>合作車行</h1>
+    <p class="eyebrow">車行資料</p>
+    <h1>車行</h1>
     <p class="muted">{% site_text 'sales_source_list.9be09c61d765' %}</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">車型基礎傭金</a>
     <a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">台數獎金</a>
-    <a class="button primary" href="{% url 'sales_source_create' %}?kind=dealer">＋ 新增合作車行</a>
+    <a class="button primary" href="{% url 'sales_source_create' %}?kind=dealer">＋ 新增車行</a>
   </div>
 </section>
 
-<nav class="source-status-switch" aria-label="依使用狀態查看合作車行">
+<nav class="source-status-switch" aria-label="依使用狀態查看車行">
   <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
     <span>目前使用</span>
     <strong>啟用中車行</strong>
@@ -78,7 +78,7 @@
           {% for region in line_section.region_groups %}
             <details class="source-region-group" data-source-region="{{ region.storage_key }}" {% if region.open %}open{% endif %}>
               <summary>
-                <span><strong>{{ region.label }}</strong><small data-source-region-count>{{ region.count }} 家合作車行</small></span>
+                <span><strong>{{ region.label }}</strong><small data-source-region-count>{{ region.count }} 家車行</small></span>
                 <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
               </summary>
               <template data-source-region-template>
@@ -99,14 +99,14 @@
           {% empty %}
             <div class="source-line-group-section__empty" role="status">
               <strong>此區目前 0 筆符合</strong>
-              <span>{% if has_active_filters %}其他區域的結果仍顯示在同一頁；可直接調整上方條件繼續搜尋。{% else %}目前沒有這類合作車行。{% endif %}</span>
+              <span>{% if has_active_filters %}其他區域的結果仍顯示在同一頁；可直接調整上方條件繼續搜尋。{% else %}目前沒有這類車行。{% endif %}</span>
             </div>
           {% endfor %}
         </div>
       </section>
     {% endfor %}
   </div>
-  {% pagination page_obj aria_label="合作車行分頁" %}
+  {% pagination page_obj aria_label="車行分頁" %}
 </section>
 {{ district_filters_by_city|json_script:"source-district-options" }}
 <script>

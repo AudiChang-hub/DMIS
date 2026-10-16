@@ -43,7 +43,7 @@ class OrderNextActionTests(TestCase):
             name="灰",
         )
         self.dealer = SalesSource.objects.create(
-            name="合作車行甲",
+            name="車行甲",
             source_type=SalesSource.SourceType.DEALER,
         )
         self.platform = SalesSource.objects.create(

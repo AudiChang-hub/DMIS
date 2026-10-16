@@ -1,6 +1,5 @@
 import io
 import tempfile
-import uuid
 from datetime import timedelta
 from PIL import Image
 from django.contrib.auth import get_user_model
@@ -20,7 +19,7 @@ from sales.models import (
     InstallmentPlanVersion,
     InstallmentPlanOption,
 )
-from sales.access.models import UserAccessState
+from sales.access.models import ScreenAccessGrant, UserAccessState
 
 
 class CatalogAccountTests(TestCase):
@@ -28,7 +27,7 @@ class CatalogAccountTests(TestCase):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.root)
         for url in [
-            reverse("dealer_account_create", args=[self.source.pk]),
+            reverse("user_account_reset_password", args=[self.clerk.pk]),
             reverse("catalog_edit", args=[self.model.pk]),
         ]:
             self.assertEqual(client.post(url, {}).status_code, 403)
@@ -36,7 +35,7 @@ class CatalogAccountTests(TestCase):
     def test_password_reset_keeps_binding_and_requires_change(self):
         self.client.force_login(self.root)
         response = self.client.post(
-            reverse("user_account_reset_password", args=[self.dealer.pk]),
+            reverse("user_account_reset_password", args=[self.clerk.pk]),
             {
                 "password1": "Reset-test-8032!",
                 "password2": "Reset-test-8032!",
@@ -44,12 +43,16 @@ class CatalogAccountTests(TestCase):
             },
         )
         self.assertRedirects(
-            response, reverse("dealer_accounts", args=[self.source.pk])
+            response, reverse("user_management"), fetch_redirect_response=False
         )
-        self.dealer.refresh_from_db()
-        self.assertTrue(self.dealer.check_password("Reset-test-8032!"))
-        self.assertTrue(self.dealer.security_profile.must_change_password)
-        self.assertEqual(self.dealer.order_account.source, self.source)
+        self.clerk.refresh_from_db()
+        self.assertTrue(self.clerk.check_password("Reset-test-8032!"))
+        self.assertTrue(self.clerk.security_profile.must_change_password)
+        self.assertEqual(self.clerk.order_account.source, self.store)
+        self.assertEqual(self.clerk.order_account.order_scope, "own")
+        self.assertTrue(
+            UserAccountAuditLog.objects.filter(target=self.clerk, action="reset_password").exists()
+        )
 
     def setUp(self):
         self.media = tempfile.TemporaryDirectory()
@@ -60,15 +63,15 @@ class CatalogAccountTests(TestCase):
         User = get_user_model()
         self.root = User.objects.create_superuser("admin", password="Test-admin-925!")
         self.internal = User.objects.create_user("staff", password="Test-staff-925!")
-        self.source = SalesSource.objects.create(
-            name="甲合作車行", source_type="dealer"
-        )
-        self.other = SalesSource.objects.create(name="乙合作車行", source_type="dealer")
-        self.dealer = User.objects.create_user("dealer", password="Test-dealer-925!")
+        # 只能建立與查本人訂單的店內人員；source＝預設店別。
+        self.store = SalesSource.objects.create(name="本店", source_type="store")
+        self.clerk = User.objects.create_user("clerk", password="Test-clerk-925!")
         self.profile = OrderAccountProfile.objects.create(
-            user=self.dealer, kind="dealer", source=self.source
+            user=self.clerk, order_scope="own", source=self.store
         )
-        UserAccessState.objects.create(user=self.dealer, configured=True)
+        UserAccessState.objects.create(user=self.clerk, configured=True)
+        for screen_key in ("orders", "order_intake"):
+            ScreenAccessGrant.objects.create(user=self.clerk, screen_key=screen_key, view=True, operate=True)
         self.model = VehicleModel.objects.create(
             brand="TEST", name="展示用車款", energy_type="gas", displacement_cc=125
         )
@@ -81,33 +84,6 @@ class CatalogAccountTests(TestCase):
         return SimpleUploadedFile(
             "photo.png", data.getvalue(), content_type="image/png"
         )
-
-    def create_payload(self, **changes):
-        data = {
-            "order_scope": "own", "can_print_documents": "on",
-            "display_name": "車行人員",
-            "username": "new-dealer",
-            "password1": "Strong-test-7302!",
-            "password2": "Strong-test-7302!",
-            "is_active": "on",
-            "can_submit_orders": "on",
-            "can_view_orders": "on", "can_browse_catalog": "on",
-        }
-        data.update(changes)
-        return data
-
-    def edit_payload(self, **changes):
-        data = {
-            "order_scope": "own", "can_print_documents": "on",
-            "display_name": "車行人員",
-            "username": self.dealer.username,
-            "is_active": "on",
-            "can_submit_orders": "on",
-            "can_view_orders": "on", "can_browse_catalog": "on",
-            "expected_revision": "0",
-        }
-        data.update(changes)
-        return data
 
     def test_public_listing_hides_unpublished_and_inactive(self):
         self.assertContains(self.client.get(reverse("catalog")), self.model.name)
@@ -201,7 +177,7 @@ class CatalogAccountTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn("next=", response.url)
-        self.client.force_login(self.dealer)
+        self.client.force_login(self.clerk)
         response = self.client.get(
             reverse("order_create"), {"model": self.model.pk, "color": self.color.pk}
         )
@@ -273,162 +249,16 @@ class CatalogAccountTests(TestCase):
             404,
         )
 
-    def test_create_account_atomic_binding_no_privilege_escalation(self):
-        self.client.force_login(self.root)
-        response = self.client.post(
-            reverse("dealer_account_create", args=[self.source.pk]),
-            self.create_payload(
-                is_superuser="on", source=self.other.pk, must_change_password=""
-            ),
-        )
-        self.assertEqual(response.status_code, 302)
-        user = get_user_model().objects.get(username="new-dealer")
-        self.assertFalse(user.is_superuser or user.is_staff)
-        self.assertEqual(user.order_account.source, self.source)
-        self.assertEqual(user.order_account.kind, "dealer")
-        self.assertTrue(user.security_profile.must_change_password)
-        self.assertTrue(user.check_password("Strong-test-7302!"))
-        self.assertTrue(
-            UserAccountAuditLog.objects.filter(target=user, action="create").exists()
-        )
-        self.assertContains(
-            self.client.get(
-                reverse("user_management"), {"kind": "dealer", "source": self.source.pk}
-            ),
-            "new-dealer",
-        )
-        self.assertNotIn(
-            "new-dealer",
-            [
-                u.username
-                for u in self.client.get(
-                    reverse("user_management"), {"kind": "internal"}
-                ).context["accounts"]
-            ],
-        )
-
-    def test_bad_password_and_duplicate_create_nothing(self):
-        self.client.force_login(self.root)
-        before = get_user_model().objects.count()
-        for changes in [
-            {"password1": "x", "password2": "y"},
-            {"username": self.dealer.username},
-        ]:
-            self.assertEqual(
-                self.client.post(
-                    reverse("dealer_account_create", args=[self.source.pk]),
-                    self.create_payload(**changes),
-                ).status_code,
-                200,
-            )
-        self.assertEqual(get_user_model().objects.count(), before)
-
-    def test_only_root_manages_dealer_accounts_in_both_entries(self):
-        manager = get_user_model().objects.create_superuser(
-            "manager", password="Test-manager-925!"
-        )
-        for actor in [manager, self.internal, self.dealer]:
+    def test_staff_without_admin_rights_cannot_manage_user_accounts(self):
+        for actor in [self.internal, self.clerk]:
             self.client.force_login(actor)
             for name, args in [
-                ("dealer_accounts", [self.source.pk]),
-                ("dealer_account_create", [self.source.pk]),
-                ("dealer_account_edit", [self.dealer.pk]),
-                ("user_account_edit", [self.dealer.pk]),
-                ("user_account_status", [self.dealer.pk]),
-                ("user_account_reset_password", [self.dealer.pk]),
+                ("user_account_edit", [self.clerk.pk]),
+                ("user_account_status", [self.clerk.pk]),
+                ("user_account_reset_password", [self.clerk.pk]),
             ]:
                 self.assertEqual(
                     self.client.get(reverse(name, args=args)).status_code,
                     403,
                     (actor.username, name),
                 )
-
-    def test_readonly_revoke_blocks_post_and_hides_controls(self):
-        self.client.force_login(self.root)
-        url = reverse("dealer_account_edit", args=[self.dealer.pk])
-        self.assertEqual(
-            self.client.post(url, self.edit_payload(can_submit_orders="")).status_code,
-            302,
-        )
-        self.client.force_login(self.dealer)
-        self.assertContains(self.client.get(reverse("dashboard")), "唯讀進度")
-        self.assertNotContains(
-            self.client.get(reverse("catalog_detail", args=[self.model.pk])),
-            "選這台，開始下單",
-        )
-        for name in ["order_create", "draft_save", "draft_delete", "id_card_ocr"]:
-            args = [uuid.uuid4()] if name == "draft_delete" else []
-            self.assertEqual(
-                self.client.post(reverse(name, args=args), {}).status_code, 403
-            )
-        self.assertEqual(self.client.get(reverse("order_list")).status_code, 200)
-
-    def test_edit_conflict_and_source_forgery(self):
-        self.client.force_login(self.root)
-        url = reverse("dealer_account_edit", args=[self.dealer.pk])
-        self.assertEqual(
-            self.client.post(
-                url, self.edit_payload(source=self.other.pk, is_superuser="on")
-            ).status_code,
-            302,
-        )
-        self.assertContains(
-            self.client.post(url, self.edit_payload()), "已被其他視窗更新"
-        )
-        self.profile.refresh_from_db()
-        self.dealer.refresh_from_db()
-        self.assertEqual(self.profile.source_id, self.source.pk)
-        self.assertFalse(self.dealer.is_superuser)
-
-    def test_deactivation_preserves_account(self):
-        self.client.force_login(self.root)
-        self.assertEqual(
-            self.client.post(
-                reverse("dealer_account_edit", args=[self.dealer.pk]),
-                self.edit_payload(is_active=""),
-            ).status_code,
-            302,
-        )
-        self.dealer.refresh_from_db()
-        self.assertFalse(self.dealer.is_active)
-        self.assertTrue(OrderAccountProfile.objects.filter(user=self.dealer).exists())
-
-    def test_inactive_source_cannot_open_account(self):
-        self.source.active = False
-        self.source.save()
-        self.client.force_login(self.root)
-        self.assertContains(
-            self.client.post(
-                reverse("dealer_account_create", args=[self.source.pk]),
-                self.create_payload(),
-            ),
-            "此車行已停用",
-        )
-        self.assertFalse(
-            get_user_model().objects.filter(username="new-dealer").exists()
-        )
-
-    def test_dealer_navigation_excludes_internal_management(self):
-        self.client.force_login(self.dealer)
-        response = self.client.get(reverse("dashboard"))
-        self.assertContains(response, "車行工作台")
-        self.assertNotContains(response, "營運總表")
-        self.assertNotContains(response, "資料維護區")
-        self.assertEqual(
-            self.client.get(
-                reverse("dealer_accounts", args=[self.other.pk])
-            ).status_code,
-            403,
-        )
-
-    def test_access_editor_redirects_to_effective_dealer_permissions(self):
-        from sales.permission_workspace import workspace_url
-        self.client.force_login(self.root)
-        self.assertRedirects(
-            self.client.get(reverse("access_edit", args=[self.dealer.pk])),
-            workspace_url(self.dealer.pk, "features"),
-        )
-        self.assertRedirects(
-            self.client.get(reverse("user_account_edit", args=[self.dealer.pk])),
-            workspace_url(self.dealer.pk, "account"),
-        )

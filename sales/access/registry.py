@@ -32,7 +32,7 @@ SCREENS = (
     Screen("accessories", "配件與工資", "accessory_product_list"),
     Screen("rewards", "車行獎勵品項", "dealer_reward_catalog_list"),
     Screen("customers", "客戶查詢（含聯絡與歷史摘要）", "customer_list", False),
-    Screen("sources", "通路與人員（合作車行、平台、本店人員、類別、節禮）", "sales_source_list"),
+    Screen("sources", "通路與人員（車行、平台、本店人員、類別、節禮）", "sales_source_list"),
     Screen("distribution", "價格表分發", "price_list_distribution"),
     Screen("gift_distribution", "年節送禮分發", "gift_distribution"),
     Screen("costs", "車輛結算成本", "settlement_cost_rule_list"),
@@ -80,7 +80,6 @@ register("order_delete", "order_recycle_bin", "view")
 register("order_delete", "order_delete order_restore", "operate")
 register("order_intake", "intake_drafts", "operate")
 register("orders", "order_intake_attachment", "view")
-register("work", "order_receive", "operate")
 register("work", "order_payout_reveal", "operate")
 register("orders", "order_create order_edit draft_save draft_presence draft_delete order_edit_presence contract_upload privacy_consent_upload order_sign order_sign_done id_card_ocr id_card_ocr_status id_card_ocr_invalidate", "operate")
 register("orders", "contract_print privacy_consent_print order_documents_print identity_documents_print", "export")
@@ -142,9 +141,8 @@ ROOT_ONLY.add("order_account_scope")
 ROOT_ONLY.add("transfer_signoff_void")  # 作廢調車簽收會把車改回庫存
 ROOT_ONLY.add("order_customer_access")
 ROOT_ONLY.add("permission_workspace")
-ROOT_ONLY.add("create_dealer_entry")
 ROOT_ONLY.update({"draft_cleanup_list", "draft_cleanup_delete"})  # admin 清理所有人的草稿
-ROOT_ONLY.update({"print_company_settings", "dealer_print_company", "order_print_company"})
+ROOT_ONLY.update({"print_company_settings"})
 register("gift_distribution", "gift_distribution gift_distribution_detail")
 register("gift_distribution", "gift_distribution_update", "operate")
 ROOT_ONLY.add("announcement_action")
@@ -152,11 +150,11 @@ ROOT_ONLY.add("site_copy_manage")
 ROOT_ONLY.add("allocation_rule_settings")  # 優先配車月數（admin 隨時調整）
 PERSONAL.update({"announcement_detail", "announcement_image", "announcement_attachment", "release_history"})
 ROOT_ONLY.add("order_deletion_queue")
-ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
+ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image"})
 ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_fill_images"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.add("notification_list")
-PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊；車行帳號依 DEALER_ACCOUNT_ROUTES 不開放
+PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("order_intake", "orders", "inventory", "models"),

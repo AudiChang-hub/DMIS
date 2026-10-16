@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -39,18 +38,6 @@ class NotificationTests(TestCase):
         self.assertContains(page, "待退款結算")
         self.client.post(reverse("notification_list"))
         self.assertFalse(inbox.filter(read_at__isnull=True).exists())
-
-    def test_dealer_accounts_are_not_notified(self):
-        from sales.models import OrderAccountProfile
-        dealer_user = get_user_model().objects.create_user("dealer-account")
-        OrderAccountProfile.objects.create(user=dealer_user, kind="dealer")
-        order = self.prepared_order()
-        SalesOrder.objects.filter(pk=order.pk).update(submitted_by=dealer_user)
-        order.refresh_from_db()
-        with self.captureOnCommitCallbacks(execute=True):
-            notify("test", order, "測試")
-        self.assertFalse(Notification.objects.filter(recipient=dealer_user).exists())
-        self.assertTrue(Notification.objects.filter(recipient=self.user).exists())
 
     @override_settings(DMIS_NOTIFICATION_EMAIL_ENABLED=False, REDIS_URL="")
     def test_email_skipped_when_channel_not_configured(self):

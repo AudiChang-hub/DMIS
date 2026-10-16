@@ -52,7 +52,7 @@ class StateIntegrityTests(TestCase):
         order, _vehicle = self.make_order()
         order.ensure_transition(SalesOrder.Status.DELIVERY_PENDING)
         with self.assertRaisesMessage(ValidationError, "不能轉為"):
-            order.ensure_transition(SalesOrder.Status.INTAKE_PENDING)
+            order.ensure_transition(SalesOrder.Status.DRAFT)
         completed = SalesOrder(status=SalesOrder.Status.COMPLETED)
         with self.assertRaises(ValidationError):
             completed.ensure_transition(SalesOrder.Status.CANCELLED)

@@ -12,7 +12,7 @@ from .models import GiftDistribution, GiftDistributionItem, GiftDistributionEven
 
 
 class DistributionForm(forms.ModelForm):
-    include_holiday_dealers = forms.BooleanField(label="帶入預設年節送禮車行名單", required=False, help_text="僅帶入啟用且已勾選「列入年節送禮名單」的合作車行；建立後可自行增減。")
+    include_holiday_dealers = forms.BooleanField(label="帶入預設年節送禮車行名單", required=False, help_text="僅帶入啟用且已勾選「列入年節送禮名單」的車行；建立後可自行增減。")
     class Meta:
         model = GiftDistribution
         fields = ["title", "scheduled_on", "note"]
@@ -40,7 +40,7 @@ def manage(request, pk=None):
                     activity.deleted_at = timezone.now()
                     activity.save(update_fields=["deleted_at", "updated_at"])
                     GiftDistributionEvent.objects.create(distribution=activity, actor=request.user.get_username(), description="刪除活動（保留名單與稽核紀錄）")
-            messages.success(request, "活動已從清單移除；名單與稽核紀錄保留，不影響合作車行資料。")
+            messages.success(request, "活動已從清單移除；名單與稽核紀錄保留，不影響車行資料。")
             return redirect("gift_distribution")
         elif activity and activity.archived:
             messages.error(request, "此活動已封存，不可再修改工作紀錄。")

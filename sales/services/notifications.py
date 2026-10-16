@@ -10,12 +10,10 @@ MAX_ATTEMPTS = 3
 
 
 def order_recipients(order):
-    """接單人與內部下單人；車行與客戶帳號不接收內部財務通知。"""
-    from sales.services.order_intake import is_dealer
-
+    """接單人與下單人（都是店內人員）。"""
     users = []
     for user in (getattr(order, "accepted_by", None), getattr(order, "submitted_by", None)):
-        if user is None or not user.is_active or user in users or is_dealer(user):
+        if user is None or not user.is_active or user in users:
             continue
         users.append(user)
     return users

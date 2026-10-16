@@ -128,18 +128,20 @@ class CatalogSelectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("catalog_selection", response.context['form'].errors)
 
-    def test_login_return_keeps_selection_and_dealer_receives_same_terms(self):
+    def test_login_return_keeps_selection_and_restricted_staff_receives_same_terms(self):
         token = self.token(True)
         response = Client().get(reverse("order_start"), {"selection": token})
         self.assertEqual(response.status_code, 302)
         self.assertIn("selection", response.url)
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         page = self.client.get(reverse("order_start"), {"selection": token})
         self.assertEqual(page.context["form"]["payment_type"].value(), "installment")
         response = self.submit(catalog_selection=token, payment_type="installment", installment_periods=24, installment_company=self.company.name)
         self.assertEqual(response.status_code, 302, response.context and response.context["form"].errors)
-        self.profile.can_submit_orders = False
-        self.profile.save()
+        order = SalesOrder.objects.get()
+        self.assertEqual((order.installment_monthly, order.accepted_by), (3500, self.clerk))
+        from sales.access.models import ScreenAccessGrant
+        ScreenAccessGrant.objects.filter(user=self.clerk, screen_key="order_intake").update(operate=False)
         self.assertEqual(self.client.get(reverse("order_start"), {"selection": token}).status_code, 403)
 
     def test_shared_filters_intersection_scope_order_and_old_model_link(self):

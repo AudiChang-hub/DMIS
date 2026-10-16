@@ -159,7 +159,7 @@ def _source_for_legacy(dealer, summary, apply):
     category_name = store_type or (
         "網路平台"
         if source_type == SalesSource.SourceType.PLATFORM
-        else "合作車行"
+        else "車行"
     )
     category, _ = SalesSourceCategory.objects.get_or_create(
         name=category_name,

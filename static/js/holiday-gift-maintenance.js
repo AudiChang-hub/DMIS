@@ -32,7 +32,7 @@
     if (filterStatus) {
       filterStatus.textContent = keyword
         ? `搜尋結果共 ${visibleCount} 家；批次勾選只會套用到目前顯示的車行。`
-        : `目前顯示全部 ${visibleCount} 家合作車行。`;
+        : `目前顯示全部 ${visibleCount} 家車行。`;
     }
     if (noResult) noResult.hidden = visibleCount !== 0;
   }

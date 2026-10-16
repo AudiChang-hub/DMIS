@@ -173,8 +173,8 @@ class OrderWizardTests(TestCase):
         draft = self.draft()
         self.assertEqual(draft.data["_wizard_done"], ["vehicle"])
         self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=owner", fetch_redirect_response=False)
-        # 車價有錯就停在第一步。
-        response = self.post("vehicle", draft=draft, files=False, payment_type="", **blank_later)
+        # 付款方式有錯就停在第一步（2026-10-16 起付款方式為多筆明細）。
+        response = self.post("vehicle", draft=draft, files=False, payment_splits='[{"method": "bitcoin", "amount": 1}]', **blank_later)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "這一步還有資料需要處理")
 

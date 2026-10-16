@@ -31,7 +31,7 @@ STEP_FIELDS = {
     "vehicle": {
         "vehicle_energy_type", "vehicle_model", "color", "vehicle_category", "transaction_type", "catalog_selection",
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
-        "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
+        "payment_type", "payment_splits", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
         "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
         "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
         "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",

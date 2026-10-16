@@ -253,15 +253,27 @@
   </details>
 
   <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">7</span><span><strong>付款與車價</strong><small>售價與分期預帶車型設定，人工調整依 admin 授權開放</small></span></summary>
+    <summary><span class="step-number">7</span><span><strong>付款與車價</strong><small>付款方式可多筆，預設現金並帶入現金價；分期預帶車型設定</small></span></summary>
     <div class="form-grid">
       <div class="span-2 info-banner" data-conditional="platform-payment" hidden>
         網路平台訂單：車款由平台收，不選付款方式也不帶售價；客人只付牌險費、選號費、配件與其他加收項目。車輛成本照常帶入，平台撥款請到收入與支出的「實際撥款」記錄。
       </div>
-      <div data-conditional="not-platform">{% include "sales/_field.html" with field=form.payment_type %}</div>
-      <div data-conditional="not-platform">{% include "sales/_field.html" with field=form.vehicle_price %}</div>
+      {% comment %}付款方式可多筆（使用者 2026-10-16）：預設一筆現金帶現金價；計價基準與車價由明細推導，存在隱藏欄位。{% endcomment %}
+      <div class="span-2 payment-splits" id="payment-splits" data-conditional="not-platform" {% if form.vehicle_price.field.disabled %} data-price-locked{% endif %}>
+        <div class="field payment-splits__head">
+          <label id="payment-splits-label">付款方式<em>必填</em></label>
+          <span class="payment-splits__hint">客人同時用多種方式付款時，逐筆新增並填各自金額；車價＝各筆合計。</span>
+        </div>
+        <ol class="payment-splits__list" data-payment-split-list aria-labelledby="payment-splits-label"></ol>
+        <div class="payment-splits__foot">
+          <button class="button ghost payment-splits__add" type="button" data-payment-split-add>＋ 新增付款方式</button>
+          <div class="payment-splits__total" aria-live="polite"><span>車價合計</span><strong data-payment-split-total>—</strong></div>
+        </div>
+        {% if form.payment_splits.errors or form.vehicle_price.errors or form.payment_type.errors %}<p class="payment-splits__errors" role="alert">{% for error in form.payment_splits.errors %}<small class="field-error">{{ error }}</small>{% endfor %}{% for error in form.vehicle_price.errors %}<small class="field-error">{{ error }}</small>{% endfor %}{% for error in form.payment_type.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</p>{% endif %}
+        {{ form.payment_splits }}{{ form.payment_type }}{{ form.vehicle_price }}
+      </div>
       <div class="span-2 vehicle-price-guidance" id="vehicle-price-guidance" data-conditional="not-platform" aria-live="polite">
-        <strong id="vehicle-price-guidance-title">選擇車型與付款方式後，系統會帶入適用售價</strong>
+        <strong id="vehicle-price-guidance-title">選擇車型後，系統會依付款方式帶入適用售價</strong>
         <span id="vehicle-price-guidance-detail">{% if intake_mode and not intake_pricing_editable %}成交條件如需調整，請在備註說明，由具調價權限的人員核對。{% else %}若本案成交價不同，可修改並記錄原因。{% endif %}</span>
       </div>
       <div class="span-2 vehicle-price-adjustment" id="vehicle-price-adjustment" hidden>

@@ -16,7 +16,6 @@
     {% include 'sales/_announcement_media_editor.html' %}
     <label>{{ form.pinned }}置頂公告</label>
     <label>顯示對象{{ form.audience }}{{ form.audience.errors }}</label>
-    <fieldset data-recipient-picker data-audience="dealers"><legend>指定合作車行</legend><label>搜尋車行、代碼、地區或通路類別<input type="search" data-recipient-search placeholder="例如：新北、專銷或車行名稱"></label><div class="form-actions"><button type="button" class="button ghost small" data-recipient-select="yes">勾選搜尋結果</button><button type="button" class="button ghost small" data-recipient-select="no">取消搜尋結果</button></div><div class="recipient-options">{{ form.dealers }}</div>{{ form.dealers.errors }}</fieldset>
     <fieldset data-recipient-picker data-audience="selected"><legend>指定人員</legend><label>搜尋姓名或帳號<input type="search" data-recipient-search placeholder="輸入關鍵字縮小勾選清單"></label><div class="form-actions"><button type="button" class="button ghost small" data-recipient-select="yes">勾選搜尋結果</button><button type="button" class="button ghost small" data-recipient-select="no">取消搜尋結果</button></div><div class="recipient-options">{{ form.recipients }}</div>{{ form.recipients.errors }}</fieldset>
     <p class="muted">{% site_text 'announcement_manage.9c9929773cc9' %}</p>
     <div class="announcement-time-grid"><label>開始顯示時間{{ form.starts_at }}{{ form.starts_at.errors }}</label><label>結束顯示時間{{ form.ends_at }}{{ form.ends_at.errors }}</label></div>

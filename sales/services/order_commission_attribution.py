@@ -51,7 +51,7 @@ def change_order_commission_recipient(
             pk=recipient_id, source_type=SalesSource.SourceType.DEALER,
         ).first()
         if not recipient or (not recipient.active and recipient.pk != order.commission_recipient_id):
-            raise ValidationError("請選擇啟用中的合作車行。")
+            raise ValidationError("請選擇啟用中的車行。")
     normalized_id = recipient.pk if recipient else None
     if normalized_id == order.commission_recipient_id:
         return False

@@ -57,7 +57,7 @@ class OrderLifecycleTests(TestCase):
         )
         self.store = Store.objects.create(name="總店", code="HQ")
         self.source = SalesSource.objects.create(
-            name="合作車行甲",
+            name="車行甲",
             source_type=SalesOrder.SourceType.DEALER,
         )
         self.model = VehicleModel.objects.create(
@@ -509,7 +509,7 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(response, 'name="vehicle_condition_note"', count=3)
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
-        self.assertContains(response, "尾款已收清或由合作車行掛帳")
+        self.assertContains(response, "尾款已收清或由車行掛帳")
         self.assertContains(response, 'data-workspace-go="finance"')
         self.assertNotContains(response, "儲存收款資料")
         self.assertNotContains(response, 'name="payment_checked"')

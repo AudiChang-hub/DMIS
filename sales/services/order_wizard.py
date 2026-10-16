@@ -7,11 +7,11 @@ from django.forms.utils import ErrorDict
 from django.http import QueryDict
 
 # 一步只處理一件事，一次只問一件事（使用者 2026-10-10 拆步驟）。
-# 使用者 2026-10-15：順序改為車款→付款與車價→車主→汰舊與補助→選號與交車→訂金；
+# 使用者 2026-10-15：順序改為車款→付款與車價→車主→汰舊與補助→選號與交車→訂金（2026-10-16 前兩步合併）；
 # 配件不在接單流程，建立後到訂單頁「訂車與配件」維護。
+# 使用者 2026-10-16：車款與來源、付款與車價合併為同一步——跟客人確認車款就接著寫價格。
 STEPS = (
-    ("vehicle", "車款與來源", "選擇車型、顏色與訂單來源"),
-    ("payment", "付款與車價", "付款方式、車價、分期與領牌規費"),
+    ("vehicle", "車款與車價", "車型、顏色、來源，接著付款方式、車價與領牌規費"),
     ("owner", "車主與證件", "上傳證件正反面並核對車主資料"),
     ("tradein", "汰舊與補助", "是否汰舊、申請補助與舊車主"),
     ("delivery", "選號與交車", "選號方式、交車方式與備註"),
@@ -19,7 +19,8 @@ STEPS = (
     ("confirm", "確認送出", "核對整張訂單後建立"),
 )
 # 舊版草稿的步驟代號（拆步驟前）：完成「extras」等於完成配件、汰舊與補助、選號與交車；舊的「payment」含訂金。
-LEGACY_DONE = {"extras": ("accessories", "tradein", "delivery"), "payment": ("payment", "deposit")}
+# 1.83 的「payment」已併入「vehicle」；只完成 vehicle 的舊草稿在送出前整張驗證時會回到這一步補齊。
+LEGACY_DONE = {"extras": ("accessories", "tradein", "delivery"), "payment": ("deposit",)}
 STEP_KEYS = tuple(key for key, _label, _hint in STEPS)
 STEP_LABELS = {key: label for key, label, _hint in STEPS}
 DONE_KEY = "_wizard_done"
@@ -30,7 +31,12 @@ STEP_FIELDS = {
     "vehicle": {
         "vehicle_energy_type", "vehicle_model", "color", "vehicle_category", "transaction_type", "catalog_selection",
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
-        "assisted_company_confirmed", "assisted_company_revision",
+        "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
+        "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
+        "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
+        "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
+        "installment_company", "installment_custom", "installment_periods", "installment_monthly",
+        "installment_opening_fee",
     },
     "tradein": {"trade_in_intent", "subsidy_programs", "subsidy_other", "is_trade_in_subsidy", "old_owner_same_as_owner"},
     "delivery": {
@@ -41,14 +47,6 @@ STEP_FIELDS = {
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date",
         "owner_nationality", "owner_address", "owner_id_number", "residence_expiry", "id_front", "id_back",
         "id_verified",
-    },
-    "payment": {
-        "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
-        "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
-        "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
-        "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
-        "installment_company", "installment_custom", "installment_periods", "installment_monthly",
-        "installment_opening_fee",
     },
     "deposit": {
         "deposit_amount", "deposit_date", "deposit_method", "deposit_received", "intake_discount_mode", "intake_discount_amount",

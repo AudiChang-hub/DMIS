@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.services import AccessPolicy
-from sales.models import SalesOrder, VehicleModel, VehicleColor, OrderOperationsProfile, SalesSource, OrderAccountProfile, VehicleCatalogEntry
+from sales.models import SalesOrder, VehicleModel, VehicleColor, OrderOperationsProfile, VehicleCatalogEntry
 from sales.services.audience_content import RELEASE_RULES, release_context
 from config.release_notes import RELEASES
 
@@ -175,17 +175,15 @@ class ProfitPrivacyTests(TestCase):
                 self.assertEqual(len(RELEASE_RULES[(entry["version"], group["kind"])]), len(group["items"]))
         self.assertTrue(release_context(AccessPolicy(self.staff))["release_history"])
 
-    def test_dealer_can_hide_entire_category_and_catalog_permission(self):
-        source = SalesSource.objects.create(name="測試車行", source_type="dealer")
-        profile = OrderAccountProfile.objects.create(user=self.staff, kind="dealer", source=source,
-            can_view_orders=False, can_browse_catalog=False, can_submit_orders=False)
+    def test_screen_grants_hide_entire_category_and_catalog(self):
+        ScreenAccessGrant.objects.filter(user=self.staff, screen_key="orders").delete()
         self.client.force_login(self.staff)
         response = self.client.get(reverse("dashboard"))
         self.assertNotContains(response, 'href="/orders/"')
         self.assertNotContains(response, 'href="/catalog/"')
         self.assertEqual(self.client.get(reverse("order_list")).status_code, 403)
         self.assertEqual(self.client.get(reverse("catalog")).status_code, 403)
-        profile.can_browse_catalog = True; profile.save()
+        ScreenAccessGrant.objects.create(user=self.staff, screen_key="catalog", view=True)
         self.assertEqual(self.client.get(reverse("catalog")).status_code, 200)
         self.assertEqual(self.client.get(reverse("order_create")).status_code, 403)
         self.assertContains(self.client.get(reverse("dashboard")), 'href="/catalog/"')
@@ -209,9 +207,5 @@ class ProfitPrivacyTests(TestCase):
         self.assertContains(response, 'data-access-bulk="1"')
         self.assertContains(response, "選車下單入口")
         self.assertContains(response, "查看淨利")
-        source = SalesSource.objects.create(name="車行", source_type="dealer", code="D001")
-        response = self.client.get(reverse("dealer_account_create", args=[source.pk]))
+        response = self.client.get(reverse("user_account_create"))
         self.assertFalse(response.context["form"]["username"].value())
-        self.assertEqual(response.context["suggested_username"], "D001-01")
-        get_user_model().objects.create_user("D001-01")
-        self.assertEqual(self.client.get(reverse("dealer_account_create", args=[source.pk])).context["suggested_username"], "D001-02")

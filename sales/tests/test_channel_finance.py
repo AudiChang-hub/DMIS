@@ -648,7 +648,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_dealer_source_form_saves_line_group_presence_and_keeps_code_readonly(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
-            name="合作車行",
+            name="車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
         )
         self.client.force_login(self.user)
@@ -693,7 +693,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_dealer_source_form_accepts_line_group_without_scope(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
-            name="合作車行",
+            name="車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
         )
         self.client.force_login(self.user)
@@ -896,7 +896,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_source_list_uses_clear_identity_holiday_and_capacity_display(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
-            name="合作車行",
+            name="車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
         )
         self.dealer.code = "N26032615"
@@ -1015,7 +1015,7 @@ class ChannelFinanceTests(TestCase):
                     relationship_type=relationship_type,
                 )
         group_only_source = SalesSource.objects.create(
-            name="僅有群組未合作車行",
+            name="僅有群組未車行",
             source_type=SalesSource.SourceType.DEALER,
             has_line_group=True,
         )
@@ -1073,7 +1073,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_source_edit_saves_price_list_recipient_scopes(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
-            name="合作車行",
+            name="車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
         )
         self.dealer.category = category
@@ -1093,7 +1093,7 @@ class ChannelFinanceTests(TestCase):
                 "other_contact": "LINE：冠廷車行",
                 "address": "新北市汐止區測試路 1 號",
                 "holiday_gift": "on",
-                "note": "主要合作車行",
+                "note": "主要車行",
                 "active": "on",
                 "sym_vehicle_capacity": "3",
                 "suzuki_vehicle_capacity": "2",

@@ -27,10 +27,10 @@ class SiteReviewTests(TestCase):
 
     def test_announcement_audience_detail_and_expiry(self):
         item = SystemAnnouncement.objects.create(title="指定公告", body="https://example.com/ <script>alert(1)</script>", published=True, audience="selected")
-        item.recipients.add(self.dealer_user)
+        item.recipients.add(self.clerk)
         url = reverse("announcement_detail", args=[item.pk])
         self.assertEqual(self.client.get(url).status_code, 404)
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         response = self.client.get(url)
         self.assertContains(response, 'href="https://example.com/"')
         self.assertNotContains(response, "<script>alert(1)</script>")
@@ -80,7 +80,7 @@ class SiteReviewTests(TestCase):
 
     def test_gift_list_is_manual_scoped_and_audited(self):
         url = reverse("gift_distribution")
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         self.assertEqual(self.client.get(url).status_code, 403)
         self.client.force_login(self.root)
         self.assertEqual(self.client.post(url, {"title":"中秋", "action":"add"}).status_code, 302)

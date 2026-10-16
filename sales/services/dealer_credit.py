@@ -1,4 +1,4 @@
-"""合作車行掛帳：未收清先交車的累計追蹤與額度檢查。"""
+"""車行掛帳：未收清先交車的累計追蹤與額度檢查。"""
 from decimal import Decimal
 
 ZERO = Decimal("0")

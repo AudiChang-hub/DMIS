@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from sales.reporting.models import ReportDefinition
 from .models import UserAccessRevision
 from .registry import SCREENS, SCREEN_GROUPS
-from .services import AccessPolicy, apply_policy, is_root, normalize, policy_for, snapshot
+from .services import apply_policy, is_root, normalize, policy_for, snapshot
 
 SALT = "dmis.screen-access.preview.v1"
 
@@ -89,9 +89,6 @@ def edit(request, pk):
     destination = workspace_redirect(request, pk, "features")
     if destination:
         return destination
-    from sales.services.order_intake import is_dealer
-    if is_dealer(get_object_or_404(get_user_model(), pk=pk)):
-        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     if account.get_username() == "admin":
         messages.info(request, "admin 權限固定，不可取消或複製覆蓋。")

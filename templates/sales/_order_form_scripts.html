@@ -2,7 +2,6 @@
 
 <script src="{% static 'js/order-installment-picker.js' %}?v={{ app_version }}"></script>
 <script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
-{% if intake_mode and form.assisted_confirmation %}{{ form.assisted_companies|json_script:"assisted-companies" }}<script src="{% static 'js/assisted-order.js' %}?v={{ app_version }}" defer></script>{% endif %}
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
@@ -606,7 +605,7 @@
   [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy, tradeInIntent].filter(Boolean)
     .forEach(el => el.addEventListener("change", refresh));
   sourceType?.addEventListener("change", () => {
-    // 切入或切出網路平台時重新帶車價；店內／合作車行之間切換不覆蓋人工調整的車價。
+    // 切入或切出網路平台時重新帶車價；店內／車行之間切換不覆蓋人工調整的車價。
     if (sourceWasPlatform && !isPlatformOrder() && vehiclePrice.value === "0") vehiclePrice.value = "";
     if (isPlatformOrder() !== sourceWasPlatform) loadVehiclePrice({force: true});
     sourceWasPlatform = isPlatformOrder();
@@ -1288,7 +1287,7 @@
   }
 
   function connectCollaboration() {
-    {% if intake_dealer or reception_mode %}return;{% endif %}
+    {% if reception_mode %}return;{% endif %}
     if (!draftId.value || submittingOrder) return;
     if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(collaborationSocket?.readyState)) return;
     clearTimeout(collaborationReconnectTimer);

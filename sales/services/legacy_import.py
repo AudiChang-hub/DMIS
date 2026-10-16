@@ -1702,7 +1702,7 @@ def _default_store():
 def _default_source_category(source_type):
     default_names = {
         SalesSource.SourceType.STORE: "其他來源",
-        SalesSource.SourceType.DEALER: "合作車行",
+        SalesSource.SourceType.DEALER: "車行",
         SalesSource.SourceType.PLATFORM: "網路平台",
     }
     category, _ = SalesSourceCategory.objects.get_or_create(

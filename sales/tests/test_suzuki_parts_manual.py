@@ -4,7 +4,7 @@ from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from sales.access.models import UserAccessState
-from sales.models import OrderAccountProfile, SalesSource, VehicleBrand, VehicleModel
+from sales.models import VehicleBrand, VehicleModel
 
 
 @override_settings(SUZUKI_PARTS_MANUAL_URL="https://parts.example.test/")
@@ -13,10 +13,9 @@ class SuzukiPartsManualTests(TestCase):
     def setUpTestData(cls):
         User = get_user_model()
         cls.staff = User.objects.create_user("parts-staff")
-        cls.dealer = User.objects.create_user("parts-dealer")
-        source = SalesSource.objects.create(name="QA零件車行", source_type="dealer")
-        OrderAccountProfile.objects.create(user=cls.dealer, kind="dealer", source=source)
-        UserAccessState.objects.create(user=cls.dealer, configured=True)
+        # 已設定權限但沒有任何畫面授權的店內人員：官方零件圖冊屬個人工具，仍可使用。
+        cls.clerk = User.objects.create_user("parts-clerk")
+        UserAccessState.objects.create(user=cls.clerk, configured=True)
 
     def render_lookup(self, user, brand, number="F4A1-123456"):
         request = RequestFactory().get("/")
@@ -32,12 +31,12 @@ class SuzukiPartsManualTests(TestCase):
         page = self.client.get(reverse("dashboard"))
         self.assertContains(page, f'href="{reverse("suzuki_parts_manual")}" target="_blank" rel="noopener"', count=2)
 
-    def test_anonymous_and_dealer_cannot_open_manual(self):
+    def test_anonymous_cannot_open_manual_but_restricted_staff_can(self):
         response = self.client.get(reverse("suzuki_parts_manual"))
         self.assertTrue(response["Location"].startswith(reverse("login")))
-        self.client.force_login(self.dealer)
+        self.client.force_login(self.clerk)
         response = self.client.get(reverse("suzuki_parts_manual"))
-        self.assertNotEqual(response.get("Location"), "https://parts.example.test/")
+        self.assertRedirects(response, "https://parts.example.test/", fetch_redirect_response=False)
 
     def test_lookup_button_only_for_suzuki_brand_and_aliases(self):
         VehicleBrand.objects.update_or_create(name="SUZUKI", defaults={"aliases": "台鈴"})
@@ -47,4 +46,4 @@ class SuzukiPartsManualTests(TestCase):
         self.assertIn("data-parts-lookup", self.render_lookup(self.staff, "台鈴"))
         self.assertNotIn("data-parts-lookup", self.render_lookup(self.staff, "SYM"))
         self.assertNotIn("data-parts-lookup", self.render_lookup(self.staff, "SUZUKI", number=""))
-        self.assertNotIn("data-parts-lookup", self.render_lookup(self.dealer, "SUZUKI"))
+        self.assertIn("data-parts-lookup", self.render_lookup(self.clerk, "SUZUKI"))

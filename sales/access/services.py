@@ -27,7 +27,6 @@ class AccessPolicy:
         self.active = bool(user.is_authenticated and user.is_active)
         from sales.services.order_intake import account_profile
         self.order_profile = account_profile(user)
-        self.dealer = bool(self.order_profile and self.order_profile.kind == "dealer")
         state = UserAccessState.objects.filter(user_id=user.pk).first() if user.is_authenticated else None
         self.configured = bool(state and state.configured)
         self.version = state.version if state else 0
@@ -41,28 +40,14 @@ class AccessPolicy:
     def screen(self, key, action="view"):
         if key in {"order_pricing", "order_gift"}:
             return bool(self.active and action in {"view", "operate"} and (self.root or
-                (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action)))
-                and (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active
-                                         and self.order_profile.can_submit_orders)))
+                (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
         if key == "order_documents":
             grant = self.screens.get(key, {})
-            if self.active and self.dealer and not self.configured:
-                # 舊車行尚未有畫面權限 state；只讀新文件授權，不順便啟用舊 pricing grant。
-                grant = ScreenAccessGrant.objects.filter(user=self.user, screen_key=key).values("view", "export").first() or {}
             return bool(self.active and action in {"view", "export"} and
-                (self.root or (not self.configured and not self.dealer) or
-                 (grant.get("view") and grant.get("export"))) and
-                (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active)))
+                (self.root or not self.configured or (grant.get("view") and grant.get("export"))))
         if key in {"profit", "order_delete"}:
-            return bool(self.active and not self.dealer and (self.root or
+            return bool(self.active and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
-        if self.dealer:
-            if key == "order_intake":
-                return bool(self.active and self.order_profile.source_id and self.order_profile.source.active
-                            and self.order_profile.can_submit_orders and action in {"view", "operate"})
-            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders"
-                and self.order_profile.can_view_orders
-                and (action == "view" or (action == "operate" and self.order_profile.can_submit_orders)))
         screen = BY_KEY.get(key)
         if not self.active or not screen or action not in {"view", "operate", "export"}:
             return False
@@ -76,8 +61,6 @@ class AccessPolicy:
         return bool(grant.get("view") and grant.get(action))
 
     def report(self, report, action="view"):
-        if self.dealer:
-            return False
         if not self.active or not report.published or action not in {"view", "operate", "export"}:
             return False
         if self.root:
@@ -96,11 +79,6 @@ class AccessPolicy:
                 from sales.services.order_customer_access import customer_orders
                 return customer_orders(self.user, printing=True).filter(pk=kwargs["pk"]).exists()
             return allowed
-        if self.dealer:
-            from sales.services.order_intake import dealer_route_allowed, DEALER_ACCOUNT_ROUTES
-            if name in DEALER_ACCOUNT_ROUTES:
-                return True
-            return bool(self.active and dealer_route_allowed(self.order_profile, name))
         if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"}:
             return not self.user.is_authenticated or self.screen("catalog")
         if name in PERSONAL:

@@ -63,12 +63,12 @@
     {% elif bonus_rules %}
     <div class="inventory-table-wrap" tabindex="0" aria-label="會計入本機種的車行台數獎金規則">
       <table class="inventory-table inventory-table--fit model-rules-table">
-        <thead><tr><th scope="col">規則</th><th scope="col">合作車行</th><th scope="col">條件</th><th scope="col">統計期間</th><th scope="col">狀態</th></tr></thead>
+        <thead><tr><th scope="col">規則</th><th scope="col">車行</th><th scope="col">條件</th><th scope="col">統計期間</th><th scope="col">狀態</th></tr></thead>
         <tbody>
           {% for rule in bonus_rules %}
           <tr>
             <th scope="row">{% can_access 'dealer_volume_bonus_edit' rule.pk as can_edit_bonus %}{% if can_edit_bonus %}<a href="{% url 'dealer_volume_bonus_edit' rule.pk %}">{{ rule.display_name }}</a>{% else %}{{ rule.display_name }}{% endif %}<span>{% for tier in rule.tiers.all %}滿 {{ tier.minimum_quantity }} 台 ${{ tier.bonus_per_vehicle|floatformat:0 }}／台{% if not forloop.last %}、{% endif %}{% empty %}尚未設定門檻{% endfor %}</span></th>
-            <td data-label="合作車行">{{ rule.dealer.name|default:"全部合作車行" }}</td>
+            <td data-label="車行">{{ rule.dealer.name|default:"全部車行" }}</td>
             <td data-label="條件">{{ rule.conditions_label }}</td>
             <td data-label="統計期間">{% if rule.current_period %}{{ rule.current_period.starts_on|date:"Y/m/d" }}～{{ rule.current_period.ends_on|date:"Y/m/d" }}<span>本期統計中</span>{% else %}{{ rule.starts_on|date:"Y/m/d" }}～{{ rule.ends_on|date:"Y/m/d" }}<span>{{ rule.period_label }}</span>{% endif %}</td>
             <td data-label="狀態"><span class="status-pill cost-rule-{{ rule.display_status }}">{{ rule.display_status_label }}</span></td>

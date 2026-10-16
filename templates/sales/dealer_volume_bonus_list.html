@@ -4,9 +4,9 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'sales_source_list' as source_url %}{% url 'dealer_volume_bonus_list' as list_url %}
-{% include "sales/_page_back.html" with fallback_url=source_url label="返回合作車行" %}
+{% include "sales/_page_back.html" with fallback_url=source_url label="返回車行" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">合作車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}先設定獎金條件，再到「試算／結算」核對各車行金額。{% else %}依領牌日期與獎金歸屬車行統計，各期間分開結算。{% endif %}</p></div>
+  <div><p class="eyebrow">車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}先設定獎金條件，再到「試算／結算」核對各車行金額。{% else %}依領牌日期與獎金歸屬車行統計，各期間分開結算。{% endif %}</p></div>
   {% if tab == 'rules' %}<a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>{% endif %}
 </section>
 <nav class="bonus-page-tabs" aria-label="台數獎金功能">
@@ -35,7 +35,7 @@
     </div>
     {% if tab == 'rules' %}
       <dl class="bonus-rule-details">
-        <div><dt>適用車行</dt><dd>{{ row.rule.dealer|default:'全部合作車行，逐家計算' }}</dd></div>
+        <div><dt>適用車行</dt><dd>{{ row.rule.dealer|default:'全部車行，逐家計算' }}</dd></div>
         <div><dt>車輛條件</dt><dd>{{ row.rule.conditions_label }}</dd></div>
       </dl>
       <div class="bonus-rule-periods"><h3>統計期間</h3><ul>{% for period in row.rule.periods.all %}<li><strong>{{ period.label }}</strong><span>{{ period.starts_on|date:'Y/m/d' }}－{{ period.ends_on|date:'Y/m/d' }}</span></li>{% empty %}<li>尚未設定期間</li>{% endfor %}</ul></div>

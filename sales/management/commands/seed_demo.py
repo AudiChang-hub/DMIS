@@ -17,7 +17,7 @@ class Command(BaseCommand):
             Store.objects.get_or_create(code=code, defaults={"name": name})
 
         SalesSource.objects.get_or_create(
-            source_type=SalesSource.SourceType.DEALER, name="示範合作車行"
+            source_type=SalesSource.SourceType.DEALER, name="示範車行"
         )
         SalesSource.objects.get_or_create(
             source_type=SalesSource.SourceType.PLATFORM, name="示範網路平台"

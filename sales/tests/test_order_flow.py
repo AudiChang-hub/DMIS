@@ -97,7 +97,7 @@ class OrderFlowTests(TestCase):
         self.store_a = Store.objects.create(name="總店", code="HQ")
         self.store_b = Store.objects.create(name="二店", code="B02")
         self.dealer = SalesSource.objects.create(
-            name="測試合作車行",
+            name="測試車行",
             source_type=SalesSource.SourceType.DEALER,
         )
         self.model = VehicleModel.objects.create(
@@ -284,7 +284,7 @@ class OrderFlowTests(TestCase):
         self.vehicle.refresh_from_db()
         self.assertEqual(self.vehicle.engine_number, "ENG-UPDATED")
         self.assertEqual(self.vehicle.current_dealer, self.dealer)
-        self.assertEqual(self.vehicle.actual_location_label, "測試合作車行")
+        self.assertEqual(self.vehicle.actual_location_label, "測試車行")
         self.assertEqual(self.vehicle.condition_note, "到店檢查正常")
         history = self.vehicle.history_entries.get()
         self.assertEqual(
@@ -292,7 +292,7 @@ class OrderFlowTests(TestCase):
             VehicleInventoryHistory.EventType.TRANSFERRED,
         )
         self.assertEqual(history.from_location_label, "本店")
-        self.assertEqual(history.to_location_label, "測試合作車行")
+        self.assertEqual(history.to_location_label, "測試車行")
         self.assertEqual(history.actor_name, "tester")
         self.assertEqual(history.reason, "")
         self.assertEqual(
@@ -2110,13 +2110,13 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'name="sort"')
         self.assertContains(response, 'class="inventory-row--condition-issue"')
         self.assertContains(response, "車況異常")
-        self.assertContains(response, "測試合作車行")
+        self.assertContains(response, "測試車行")
         self.assertContains(
             response,
-            '<td data-label="實際位置"><strong>測試合作車行</strong></td>',
+            '<td data-label="實際位置"><strong>測試車行</strong></td>',
             html=True,
         )
-        self.assertNotContains(response, "<span>合作車行</span>", html=True)
+        self.assertNotContains(response, "<span>車行</span>", html=True)
         self.assertNotContains(response, "庫存歸屬")
         self.assertNotContains(response, 'name="ownership_store"')
 
@@ -2310,7 +2310,7 @@ class OrderFlowTests(TestCase):
             'data-search-placeholder="輸入本店或車行名稱"',
         )
         self.assertContains(response, "實際位置")
-        self.assertNotContains(response, "實際位置／合作車行")
+        self.assertNotContains(response, "實際位置／車行")
 
     def test_inventory_dropdown_filters_are_searchable_and_multiple(self):
         self.client.force_login(self.user)
@@ -2344,7 +2344,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'data-searchable-search-icon="1"', count=7)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
-        self.assertNotContains(response, "實際位置／合作車行")
+        self.assertNotContains(response, "實際位置／車行")
 
     def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
         other_model = VehicleModel.objects.create(
@@ -2447,7 +2447,7 @@ class OrderFlowTests(TestCase):
 
     def test_inventory_location_filter_combines_store_and_selected_dealers(self):
         other_dealer = SalesSource.objects.create(
-            name="另一間合作車行",
+            name="另一間車行",
             source_type=SalesSource.SourceType.DEALER,
         )
         dealer_vehicle = VehicleInventory.objects.create(
@@ -4334,7 +4334,7 @@ class OrderFlowTests(TestCase):
             "2026/08/20",
             "ABC-1234",
             "$ 19,800",
-            "測試合作車行",
+            "測試車行",
             "momo員購",
         ):
             with self.subTest(value=value):
@@ -4726,7 +4726,7 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(order_response.status_code, 200)
         self.assertContains(order_response, "訂單精靈")
-        self.assertContains(order_response, "車款與來源")
+        self.assertContains(order_response, "車款與車價")
         self.assertNotContains(order_response, "手機下單")
         self.assertContains(order_response, "editing-presence")
         self.assertContains(order_response, "refreshDraftPresence")
@@ -5352,7 +5352,7 @@ class OrderOperationsTests(TestCase):
         self.assertContains(hub, "機種與售價")
         self.assertContains(hub, "車輛庫存")
         self.assertContains(hub, "配件與工資")
-        self.assertContains(hub, "合作車行")
+        self.assertContains(hub, "車行")
         self.assertContains(hub, "網路平台")
         self.assertContains(hub, "本店人員")
         self.assertContains(hub, "通路類別")

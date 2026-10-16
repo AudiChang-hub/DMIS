@@ -178,3 +178,17 @@ class DraftCollaborationTests(TransactionTestCase):
         self.assertEqual(resolved["version"], 2)
         await first.disconnect()
         await second.disconnect()
+
+
+class TunnelProxyWebSocketTests(TransactionTestCase):
+    def test_tunnel_proxy_forwards_websocket_upgrade(self):
+        # 正式網域經 tunnel-proxy 轉送；少了 Upgrade／Connection 時共編 WebSocket 會 404（2026-10-16）。
+        from pathlib import Path
+
+        from django.conf import settings
+
+        conf = (Path(settings.BASE_DIR) / "deployment" / "nginx" / "tunnel-proxy.conf").read_text(encoding="utf-8")
+        self.assertIn("map $http_upgrade $connection_upgrade", conf)
+        self.assertIn("proxy_set_header Upgrade $http_upgrade;", conf)
+        self.assertIn("proxy_set_header Connection $connection_upgrade;", conf)
+        self.assertIn("proxy_http_version 1.1;", conf)

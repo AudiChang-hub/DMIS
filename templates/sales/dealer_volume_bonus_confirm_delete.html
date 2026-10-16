@@ -8,7 +8,7 @@
   <div class="section-title"><h2>{{ rule.display_name }}</h2><span>規則編號 #{{ rule.pk }}</span></div>
   <div class="section-body confirm-panel__body">
     <dl class="confirm-facts">
-      <div><dt>適用車行</dt><dd>{{ rule.dealer|default:'全部合作車行，逐家計算' }}</dd></div>
+      <div><dt>適用車行</dt><dd>{{ rule.dealer|default:'全部車行，逐家計算' }}</dd></div>
       <div><dt>車輛條件</dt><dd>{{ rule.conditions_label }}</dd></div>
       <div><dt>{% if settlement_count %}統計期間{% else %}將一併刪除的期間{% endif %}（{{ periods|length }} 期）</dt><dd><ul class="confirm-facts__list">{% for period in periods %}<li><strong>{{ period.label }}</strong> {{ period.starts_on|date:'Y/m/d' }}－{{ period.ends_on|date:'Y/m/d' }}</li>{% endfor %}</ul></dd></div>
       <div><dt>{% if settlement_count %}台數門檻{% else %}將一併刪除的門檻{% endif %}（{{ tiers|length }} 段）</dt><dd><ul class="confirm-facts__list">{% for tier in tiers %}<li>{{ tier.minimum_quantity }} 台起 · 每台 &#36;{{ tier.bonus_per_vehicle|floatformat:0 }}</li>{% endfor %}</ul></dd></div>

@@ -305,7 +305,7 @@ class UiConsistencyTests(SimpleTestCase):
         confirm_pages = [
             "order_deletion_confirm", "dealer_volume_bonus_confirm_delete", "sales_source_confirm_delete",
             "announcement_action", "historical_date_change", "historical_buyer_replacement",
-            "order_print_company", "print_company_missing",
+            "print_company_missing",
         ]
         offenders = []
         for name in confirm_pages:
@@ -350,7 +350,7 @@ class UiConsistencyTests(SimpleTestCase):
         for retired in (".master-model-actions {", ".dealer-reward-actions {", ".bonus-save-bar {", ".account-savebar{", ".vehicle-model-save-actions {"):
             self.assertNotIn(retired, css)
         self.assertNotIn(".standalone-form { max-width: 860px; margin-inline: auto; }", css)
-        for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_rule_form", "settlement_cost_rule_form", "dealer_reward_catalog_form", "dealer_account_form"):
+        for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_rule_form", "settlement_cost_rule_form", "dealer_reward_catalog_form"):
             self.assertIn("form-savebar", (TEMPLATES / "sales" / f"{name}.html").read_text(encoding="utf-8"), name)
 
     def test_filter_bar_fits_medium_screens(self):

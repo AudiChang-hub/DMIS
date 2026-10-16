@@ -103,16 +103,6 @@
       </div>
     </div>
     <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_order_commission_recipient.html" %}</div>
-    {% if intake_mode and form.assisted_confirmation %}
-    <div class="card" data-assisted-company hidden>
-      <h3>代開訂單的公司確認</h3>
-      <p>建立人保留目前操作帳號；銷售來源為所選車行。該車行具「本車行訂單」查詢權限的人員可查閱，另有文件列印權限即可在待接單時列印。</p>
-      <p data-assisted-company-summary aria-live="polite"></p>
-      {{ form.assisted_company_revision }}
-      {% include "sales/_field.html" with field=form.assisted_company_confirmed %}
-      <p class="muted">列印公司會保存在本張訂單，不隨操作人員或登入帳號改變；不會替車行自動開放財務或補助。</p>
-    </div>
-    {% endif %}
   </details>
 
   <details class="form-section" id="accessories" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="accessories" {% if wizard.current != 'accessories' %}hidden{% endif %}{% endif %}>
@@ -262,7 +252,7 @@
     </div>
   </details>
 
-  <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="payment" {% if wizard.current != 'payment' %}hidden{% endif %}{% endif %}>
+  <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">7</span><span><strong>付款與車價</strong><small>售價與分期預帶車型設定，人工調整依 admin 授權開放</small></span></summary>
     <div class="form-grid">
       <div class="span-2 info-banner" data-conditional="platform-payment" hidden>
@@ -404,7 +394,6 @@
   <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存，變更紀錄會保留在處理紀錄。</p>
   {% endif %}
   {% if wizard %}{% include "sales/_order_wizard_confirm.html" %}{% endif %}
-  {% if intake_mode and intake_can_receive and not intake_auto_accept %}<div class="card intake-accept-card" {% if wizard %}data-wizard-panel="confirm" {% if wizard.current != 'confirm' %}hidden{% endif %}{% endif %}><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
   {% if wizard %}{% include "sales/_order_wizard_nav.html" %}{% elif not editing_order %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}

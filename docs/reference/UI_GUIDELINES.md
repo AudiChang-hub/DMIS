@@ -66,7 +66,7 @@
 
    模組需要不同排版時，在 `hero-row` 上加修飾 class（例如 `report-heading`），不另建頁首元件。
    確認頁與單卡片頁也一樣：標題放在卡片上方的頁首，卡片只放說明與表單。
-3. **分頁**：同一物件的多個設定頁用 `account-tabs`；車行管理共用 `sales/_dealer_source_tabs.html`。
+3. **分頁**：同一物件的多個設定頁用 `account-tabs`。
    機種的各項設定共用 `sales/_vehicle_model_workspace.html`（頁首＋分頁列取代標準頁首與返回列，
    樣式在 `static/css/vehicle-model-workspace.css`，頁面以 `_vehicle_model_workspace_head.html` 載入）；
    新增機種相關設定頁時加入此工作區，送出後導回同一分頁。
@@ -127,7 +127,7 @@
   - 核對內容較多時可連續放多張 `confirm-panel`（例：歷史更正頁的核對 → 影響 → 確認），送出表單固定在最後一張。
   - 被阻擋時仍保留操作列，只放返回按鈕；阻擋原因用 `callout--danger`。
   - 目前套用：訂單刪除／還原、台數獎金規則刪除、車行永久刪除、公告整理、歷史領牌改期、歷史退訂換買家、
-    開單公司確認、開單公司未確認；清單見 `test_confirm_pages_share_confirm_panel`。
+    本店公司資料未設定；清單見 `test_confirm_pages_share_confirm_panel`。
 - 多行文字框一律帶 `form-control`：Django 表單在 `attrs` 加 `"class": "form-control"` 或由表單類別統一補上；模板手寫的 `<textarea>` 也要加。
   欄位（`.field`）內的輸入元件填滿欄位寬度。
 

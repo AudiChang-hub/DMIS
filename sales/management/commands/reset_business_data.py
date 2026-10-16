@@ -61,31 +61,14 @@ def referenced_files(cleared):
 
 
 def detach_kept_rows():
-    """車行帳號失去所屬車行後停用，待重新綁定再啟用；車行的訂購單公司隨車行清除。"""
-    from django.contrib.auth import get_user_model
+    """保留的帳號解除預設店別；本店以外的開單公司（早期車行公司資料）一併清除。"""
+    from sales.models import OrderAccountProfile, PrintCompany
 
-    from sales.models import OrderAccountProfile, PrintCompany, UserAccountAuditLog
-
-    dealer_profiles = OrderAccountProfile.objects.filter(kind="dealer").select_related("user")
-    deactivated = []
-    for profile in dealer_profiles:
-        user = profile.user
-        if user.is_active:
-            get_user_model().objects.filter(pk=user.pk).update(is_active=False)
-            UserAccountAuditLog.objects.create(
-                target=user,
-                target_username=user.get_username(),
-                action=UserAccountAuditLog.Action.DEACTIVATE,
-                description="清除業務資料：所屬車行已清除，重新綁定車行後再啟用。",
-            )
-            deactivated.append(user.get_username())
-    OrderAccountProfile.objects.filter(order_scope="dealer").update(order_scope="own")
     for profile in OrderAccountProfile.objects.exclude(source=None):
         profile.source = None
         profile.save(update_fields=["source"])
-    dealer_companies = PrintCompany.objects.exclude(source=None)
-    dealer_companies._raw_delete(dealer_companies.db)
-    return deactivated
+    others = PrintCompany.objects.exclude(key="home")
+    others._raw_delete(others.db)
 
 
 class Command(BaseCommand):
@@ -109,7 +92,7 @@ class Command(BaseCommand):
         quote = connection.ops.quote_name
         with transaction.atomic():
             with connection.constraint_checks_disabled():
-                deactivated = detach_kept_rows()
+                detach_kept_rows()
                 with connection.cursor() as cursor:
                     for model in cleared:
                         cursor.execute(f"DELETE FROM {quote(model._meta.db_table)}")
@@ -122,6 +105,4 @@ class Command(BaseCommand):
             if default_storage.exists(name):
                 default_storage.delete(name)
                 removed += 1
-        if deactivated:
-            self.stdout.write(f"已停用車行帳號（需重新綁定車行）：{'、'.join(deactivated)}")
         self.stdout.write(self.style.SUCCESS(f"已清除 {sum(counts.values())} 筆資料、{removed} 個附件檔"))

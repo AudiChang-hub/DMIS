@@ -50,8 +50,8 @@
               {% if data_people_visible %}<section class="data-menu-group" aria-labelledby="data-menu-channels">
                 <h2 id="data-menu-channels">通路、客戶與人員</h2>
                 {% if_access 'customer_list' %}<a href="{% url 'customer_list' %}"><strong>客戶查詢</strong><small>聯絡資料與歷史訂單</small></a>{% endif_access %}
-                {% if_access 'sales_source_category_list' %}<a href="{% url 'sales_source_category_list' %}"><strong>通路類別</strong><small>合作車行、平台與本店人員的系統分類</small></a>{% endif_access %}
-                {% if_access 'sales_source_list' %}<a href="{% url 'sales_source_list' %}"><strong>合作車行</strong><small>聯絡資料、品牌合作與傭金加減</small></a>{% endif_access %}
+                {% if_access 'sales_source_category_list' %}<a href="{% url 'sales_source_category_list' %}"><strong>通路類別</strong><small>車行、平台與本店人員的系統分類</small></a>{% endif_access %}
+                {% if_access 'sales_source_list' %}<a href="{% url 'sales_source_list' %}"><strong>車行</strong><small>聯絡資料、品牌合作與傭金加減</small></a>{% endif_access %}
                 {% if_access 'sales_source_platform_list' %}<a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>{% endif_access %}
                 {% if_access 'sales_source_staff_list' %}<a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>人員、所在店與每筆傭金</small></a>{% endif_access %}
                 {% if_access 'price_list_distribution' %}<a href="{% url 'price_list_distribution' %}"><strong>價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>{% endif_access %}

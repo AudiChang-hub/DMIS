@@ -3,7 +3,6 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.http import FileResponse
 from django.shortcuts import redirect, render
@@ -11,7 +10,7 @@ from django.views.decorators.http import require_POST
 
 from sales.models import OrderEvent, SalesOrder
 from sales.services import form_print, order_tabs
-from sales.services.order_intake import is_dealer, scoped_orders
+from sales.services.order_intake import scoped_orders
 from sales.services.order_search import build_order_search_query
 
 PAGE_SIZE = 30
@@ -49,8 +48,6 @@ def _row(order):
 
 @login_required
 def form_print_page(request):
-    if is_dealer(request.user):
-        raise PermissionDenied
     orders = _orders(request.user)
     query = request.GET.get("q", "").strip()
     tab = request.GET.get("tab", "")
@@ -89,8 +86,6 @@ def _parse_jobs(request):
 @login_required
 @require_POST
 def form_print_pdf(request):
-    if is_dealer(request.user):
-        raise PermissionDenied
     picked = _parse_jobs(request)
     if not picked:
         messages.error(request, "請至少勾選一張訂單的一份套表。")

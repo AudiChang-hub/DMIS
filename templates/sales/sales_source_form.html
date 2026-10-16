@@ -9,11 +9,10 @@
   <div>
     <p class="eyebrow">{{ source_context_label }}資料</p>
     <h1>{% if source %}編輯 {{ source.name }}{% else %}新增{{ source_context_label }}{% endif %}</h1>
-    <p class="muted">本頁只維護{{ source_context_label }}；合作車行、網路平台與本店人員各自從獨立清單進入。</p>
+    <p class="muted">本頁只維護{{ source_context_label }}；車行、網路平台與本店人員各自從獨立清單進入。</p>
   </div>
 </section>
 
-{% if source and source_context_kind == 'dealer' and can_manage_screen_access %}{% include "sales/_dealer_source_tabs.html" with active="basic" %}{% endif %}
 <form method="post" class="stacked-form" id="source-form">
   {% csrf_token %}
   {% if source_context_kind == 'store' %}
@@ -186,7 +185,7 @@
   <section class="form-section static-section source-editor-section dealer-brand-section dealer-only-section" id="brand-policies" data-dealer-only>
     <div class="section-title">
       <div>
-        <p class="eyebrow">合作車行設定</p>
+        <p class="eyebrow">車行設定</p>
         <h2>合作類別</h2>
         <p class="muted">{% site_text 'sales_source_form.7debd44d4dbe' %}</p>
       </div>

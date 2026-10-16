@@ -12,7 +12,7 @@ from sales.services.legacy_finance import source_decimal
 
 PAID_MARKS = {"V", "Ｖ", "✓", "✔", "ˇ"}
 OPEN_STATUSES = {
-    "draft", "intake_pending", "allocation_pending", "allocated",
+    "draft", "allocation_pending", "allocated",
     "delivery_pending", "delivered_docs_pending",
 }
 

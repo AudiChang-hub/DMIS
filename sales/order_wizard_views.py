@@ -262,8 +262,7 @@ def build_summary(form, formset, fee_formset, draft):
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
          "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))
-         + ([("配件", "、".join(accessories))] if accessories else [])},
-        {"step": "payment", "label": wizard.STEP_LABELS["payment"], "rows": payment_rows},
+         + ([("配件", "、".join(accessories))] if accessories else []) + payment_rows},
         {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
         {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
         {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (

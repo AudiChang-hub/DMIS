@@ -25,7 +25,7 @@ _DEALER_DELETE_RELATIONS = (
 
 
 def sales_source_delete_blockers(source):
-    """列出會阻止合作車行永久刪除的營運資料。"""
+    """列出會阻止車行永久刪除的營運資料。"""
     blockers = []
     for relation_name, label in _DEALER_DELETE_RELATIONS:
         count = getattr(source, relation_name).count()
@@ -42,14 +42,14 @@ def sales_source_delete_blockers(source):
 
 @transaction.atomic
 def delete_unused_dealer(*, source_id):
-    """鎖定並刪除未被營運資料引用的合作車行。"""
+    """鎖定並刪除未被營運資料引用的車行。"""
     try:
         source = SalesSource.objects.select_for_update().get(
             pk=source_id,
             source_type=SalesSource.SourceType.DEALER,
         )
     except SalesSource.DoesNotExist as exc:
-        raise ValidationError("找不到要刪除的合作車行。") from exc
+        raise ValidationError("找不到要刪除的車行。") from exc
 
     blockers = sales_source_delete_blockers(source)
     if blockers:

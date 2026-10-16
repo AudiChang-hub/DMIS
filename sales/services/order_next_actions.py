@@ -80,7 +80,7 @@ def _pending_reconciliation_action(order, today):
     delivered_on = _delivered_on(order)
     if order.source_type == SalesOrder.SourceType.DEALER and delivered_on:
         due_date = add_business_days(delivered_on, 7)
-        description = _deadline_description("合作車行款項", due_date, today)
+        description = _deadline_description("車行款項", due_date, today)
         tone = "urgent" if today >= due_date else "primary"
         badge = "收款期限"
 
@@ -287,9 +287,6 @@ def build_order_next_actions(
 ):
     """依訂單事實產生一項主要建議與最多兩項平行建議。"""
     today = today or timezone.localdate()
-    if order.status == SalesOrder.Status.INTAKE_PENDING:
-        primary = NextAction(key="receive-order", title="等待店內接單", description="先確認接單人，接單後再進行配車。", action_label="查看接單進度", url=reverse("order_detail", args=[order.pk]) + "#order-acceptance")
-        return OrderNextActions(primary, (), _state_key(primary, ()))
     registration_missing = (
         list(registration_missing)
         if registration_missing is not None
@@ -378,7 +375,7 @@ def build_order_next_actions(
         primary = NextAction(
             key="registration",
             title="補齊領牌資料與文件",
-            description=_deadline_description("合作車行交付後的領牌資料", due_date, today),
+            description=_deadline_description("車行交付後的領牌資料", due_date, today),
             action_label="前往領牌",
             url=_tab_url(order, "registration"),
             badge="交付後期限",
@@ -391,7 +388,7 @@ def build_order_next_actions(
             secondary.append(
                 NextAction(
                     key="dealer-early-delivery",
-                    title="合作車行可先領車",
+                    title="車行可先領車",
                     description="如需先交付，可完成交付核對，領牌資料於交付後三個工作日內補齊。",
                     action_label="前往交付",
                     url=_tab_url(order, "delivery"),

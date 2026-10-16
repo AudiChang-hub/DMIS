@@ -18,7 +18,6 @@ from sales.models import (
     SalesOrder,
     SalesSource,
     SalesSourceCategory,
-    UserAccountAuditLog,
     Store,
     VehicleBrand,
     VehicleColor,
@@ -50,11 +49,10 @@ class ResetBusinessDataTests(TestCase):
         holidays = BusinessHoliday.objects.count()
         order, _vehicle = self.make_order(dealer=True)
         self.vehicle("SPARE")
-        dealer = get_user_model().objects.create_user("dealer-a", password="Dealer-pass-925!")
-        OrderAccountProfile.objects.create(user=dealer, kind="dealer", source=self.source, order_scope="dealer")
-        staff = OrderAccountProfile.objects.create(user=self.user, kind="internal", source=self.source, order_scope="dealer")
-        own = PrintCompany.objects.create(key="own", legal_name="本店", tax_id="12345678", address="台北", phone="02")
-        dealer_company = PrintCompany.objects.create(key="dealer", source=self.source, legal_name="車行",
+        staff = OrderAccountProfile.objects.create(user=self.user, source=self.source, order_scope="own")
+        own = PrintCompany.objects.get_or_create(key="home", defaults=dict(
+            legal_name="本店", tax_id="12345678", address="台北", phone="02"))[0]
+        dealer_company = PrintCompany.objects.create(key="dealer", legal_name="車行",
                                                      tax_id="87654321", address="新北", phone="02")
         PrintCompanyChange.objects.create(company=dealer_company, order=order, actor=self.user)
         with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
@@ -73,11 +71,7 @@ class ResetBusinessDataTests(TestCase):
         self.assertEqual(BusinessHoliday.objects.count(), holidays)
         self.assertTrue(Store.objects.filter(pk=self.store.pk).exists())
         self.assertTrue(PrintCompany.objects.filter(pk=own.pk).exists())
-        self.assertFalse(PrintCompany.objects.exclude(source=None).exists())
-        dealer.refresh_from_db()
-        self.assertFalse(dealer.is_active)
-        self.assertEqual(dealer.order_account.source_id, None)
-        self.assertTrue(UserAccountAuditLog.objects.filter(target=dealer, action="deactivate").exists())
+        self.assertFalse(PrintCompany.objects.exclude(key="home").exists())
+        self.assertTrue(get_user_model().objects.get(pk=self.user.pk).is_active)
         staff.refresh_from_db()
         self.assertEqual((staff.source_id, staff.order_scope), (None, "own"))
-        self.assertIn("dealer-a", output)

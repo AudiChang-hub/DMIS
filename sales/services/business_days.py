@@ -67,7 +67,7 @@ def build_dealer_reminders(today=None):
                 {
                     "order": order,
                     "kind": "dealer_balance",
-                    "label": "合作車行尾款尚未確認",
+                    "label": "車行尾款尚未確認",
                     "due_date": due,
                     "days_overdue": max((today - due).days, 0),
                     "is_overdue": today > due,

@@ -65,7 +65,7 @@ class InventoryAcquisitionTests(TestCase):
         url = reverse("inventory_create")
         page = self.client.get(url)
         self.assertContains(page, 'id="transfer-source-options"')
-        self.assertContains(page, '<option value="合作車行甲">')
+        self.assertContains(page, '<option value="車行甲">')
         self.assertContains(page, "車行調車")
 
         response = self.client.post(url, self.single_payload(acquisition_type=TRANSFER))

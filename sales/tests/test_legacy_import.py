@@ -208,10 +208,10 @@ class LegacyImportTests(TestCase):
 
     def test_confirm_is_blocked_until_masters_are_resolved(self):
         from sales.models import LegacyImportMasterMapping
-        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        batch = self.batch_from_workbook(self.source_workbook("新車行"))
         build_import_preview(batch)
         batch.refresh_from_db()
-        self.assertEqual(unresolved_master_count(batch), 2)  # 車型 TEST125、來源 新合作車行
+        self.assertEqual(unresolved_master_count(batch), 2)  # 車型 TEST125、來源 新車行
         page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
         self.assertContains(page, "處理 2 個待補主檔")
         self.assertNotContains(page, "確認匯入 ")
@@ -233,7 +233,7 @@ class LegacyImportTests(TestCase):
 
     def test_bulk_keep_only_touches_unresolved_values_and_checks_the_count(self):
         from sales.models import LegacyImportMasterMapping
-        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        batch = self.batch_from_workbook(self.source_workbook("新車行"))
         build_import_preview(batch)
         batch.refresh_from_db()
         kind = LegacyImportMasterMapping.MappingType.SALES_SOURCE
@@ -243,7 +243,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(ignore_all_unmapped(batch, kind, "tester", 1), 1)
         mapping = LegacyImportMasterMapping.objects.get()
         self.assertTrue(mapping.ignored)
-        self.assertEqual((mapping.mapping_type, mapping.source_value, mapping.updated_by), (kind, "新合作車行", "tester"))
+        self.assertEqual((mapping.mapping_type, mapping.source_value, mapping.updated_by), (kind, "新車行", "tester"))
         batch.refresh_from_db()
         self.assertEqual(unresolved_master_count(batch), 1)  # 車型沒被動到
         with self.assertRaisesMessage(ValueError, "目前沒有待處理"):
@@ -261,7 +261,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(len(_unresolved_master_values(batch, kind)), 2)
 
     def test_bulk_keep_through_the_page_and_restore_a_mistake(self):
-        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        batch = self.batch_from_workbook(self.source_workbook("新車行"))
         build_import_preview(batch)
         url = reverse("legacy_import_master_resolve", args=[batch.pk, "sales_source"])
         stale = self.client.post(url, {"resolution_action": "ignore_all", "expected_count": "9"})
@@ -271,28 +271,28 @@ class LegacyImportTests(TestCase):
         ok = self.client.post(url, {"resolution_action": "ignore_all", "expected_count": "1"}, follow=True)
         self.assertContains(ok, "已將其餘 1 個通路全部保留為歷史文字")
         self.assertContains(ok, "已保留歷史文字的項目")
-        self.assertContains(ok, "新合作車行")
+        self.assertContains(ok, "新車行")
         batch.refresh_from_db()
         self.assertEqual(unresolved_master_count(batch), 1)
         restored = self.client.post(
             reverse("legacy_import_master_restore", args=[batch.pk, "sales_source"]),
-            {"source_value": "新合作車行"}, follow=True)
-        self.assertContains(restored, "已將「新合作車行」改回待處理")
+            {"source_value": "新車行"}, follow=True)
+        self.assertContains(restored, "已將「新車行」改回待處理")
         batch.refresh_from_db()
         self.assertEqual(unresolved_master_count(batch), 2)
         again = self.client.post(
             reverse("legacy_import_master_restore", args=[batch.pk, "sales_source"]),
-            {"source_value": "新合作車行"}, follow=True)
+            {"source_value": "新車行"}, follow=True)
         self.assertContains(again, "找不到這個已保留的項目")
 
     def test_restore_is_refused_after_the_import_has_started(self):
-        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        batch = self.batch_from_workbook(self.source_workbook("新車行"))
         build_import_preview(batch)
         self.keep_unmapped_masters(batch)
         LegacyImportBatch.objects.filter(pk=batch.pk).update(status=LegacyImportBatch.Status.COMPLETED)
         batch.refresh_from_db()
         with self.assertRaises(ValueError):
-            restore_ignored_mapping(batch, "sales_source", "新合作車行")
+            restore_ignored_mapping(batch, "sales_source", "新車行")
 
     def upload_through_page(self, sheets, kind="operations"):
         data = {"import_type": kind, "source_file": SimpleUploadedFile(
@@ -1421,7 +1421,7 @@ class LegacyImportTests(TestCase):
     def test_quick_create_source_and_mapping_are_reused_by_next_batch(self):
         content = workbook_bytes()
         workbook = load_workbook(BytesIO(content))
-        workbook["銷貨"]["AN4"] = "新合作車行"
+        workbook["銷貨"]["AN4"] = "新車行"
         stream = BytesIO()
         workbook.save(stream)
         payload = stream.getvalue()
@@ -1436,7 +1436,7 @@ class LegacyImportTests(TestCase):
         build_import_preview(batch)
         self.assertEqual(
             batch.preview_summary["validation"]["unmapped_sources"],
-            ["新合作車行"],
+            ["新車行"],
         )
         response = self.client.post(
             reverse(
@@ -1444,18 +1444,18 @@ class LegacyImportTests(TestCase):
                 args=[batch.pk, LegacyImportMasterMapping.MappingType.SALES_SOURCE],
             ),
             {
-                "source_value": "新合作車行",
+                "source_value": "新車行",
                 "resolution_action": "create",
                 "source-create-source_category": SalesSourceCategory.objects.get(
-                    name="合作車行"
+                    name="車行"
                 ).pk,
-                "source-create-name": "新合作車行",
+                "source-create-name": "新車行",
                 "source-create-address": "新北市測試路",
             },
         )
         self.assertEqual(response.status_code, 302)
-        source = SalesSource.objects.get(name="新合作車行")
-        self.assertEqual(source.category.name, "合作車行")
+        source = SalesSource.objects.get(name="新車行")
+        self.assertEqual(source.category.name, "車行")
         self.assertEqual(source.source_type, SalesSource.SourceType.DEALER)
         batch.refresh_from_db()
         self.assertEqual(batch.preview_summary["validation"]["unmapped_sources"], [])

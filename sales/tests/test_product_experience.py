@@ -84,7 +84,7 @@ class ProductExperienceTests(TestCase):
 
         self.assertEqual(source_page.status_code, 200)
         self.assertContains(source_page, 'class="desktop-data-menu active"')
-        self.assertContains(source_page, "合作車行")
+        self.assertContains(source_page, "車行")
         self.assertContains(source_page, "網路平台")
         self.assertContains(source_page, "本店人員")
         self.assertContains(source_page, reverse("accessory_product_list"))
@@ -183,7 +183,7 @@ class ProductExperienceTests(TestCase):
             ("dealer_reward_catalog_list", "車行獎勵品項", "dealer_reward_catalog_list.html"),
             ("customer_list", "客戶查詢", "customer_list.html"),
             ("sales_source_category_list", "通路類別", "sales_source_category_list.html"),
-            ("sales_source_list", "合作車行", "sales_source_list.html"),
+            ("sales_source_list", "車行", "sales_source_list.html"),
             ("price_list_distribution", "價格表分發", "price_list_distribution.html"),
             ("settlement_cost_rule_list", "車輛結算成本", "settlement_cost_rule_list.html"),
             ("incentive_rule_list", "原廠獎勵與補助", "incentive_rule_list.html"),

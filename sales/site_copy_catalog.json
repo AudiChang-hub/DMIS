@@ -31,11 +31,6 @@
     "default": "不需要的檔案可勾選移除，下一次暫存或送出時生效；新增附件暫存成功後，重新開啟草稿即可查看。",
     "template": "templates/sales/_intake_attachments.html"
   },
-  "_order_acceptance.e23fbf07e849": {
-    "page": "內部接單",
-    "default": "訂單已送達，等待店內人員接單。接單後會在此顯示負責人與時間。",
-    "template": "templates/sales/_order_acceptance.html"
-  },
   "_order_commission_recipient.fc1aef0a2743": {
     "page": "台數歸屬",
     "default": "只影響這張訂單，保留原銷售來源。本店單不新增基礎傭金，車行單沿用原傭金。",
@@ -90,16 +85,6 @@
     "page": "我的可用功能",
     "default": "尚未獲授權使用業務畫面。仍可變更個人密碼與登出。",
     "template": "templates/sales/access/home.html"
-  },
-  "overview.d113553a021d": {
-    "page": "人員畫面權限總覽",
-    "default": "ADMIN · 畫面授權",
-    "template": "templates/sales/access/overview.html"
-  },
-  "overview.c19207fae5aa": {
-    "page": "人員畫面權限總覽",
-    "default": "沿用舊制者尚未限制；請逐人預覽並確認，才會啟用白名單。",
-    "template": "templates/sales/access/overview.html"
   },
   "accessory_product_form.6ccffe67463d": {
     "page": "共通畫面說明",
@@ -353,7 +338,7 @@
   },
   "data_maintenance.156fba8a63ca": {
     "page": "資料維護區",
-    "default": "維護合作車行、網路平台與本店人員使用的系統類別。",
+    "default": "維護車行、網路平台與本店人員使用的系統類別。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.befed6a27348": {
@@ -363,12 +348,12 @@
   },
   "data_maintenance.e28c9e5876ca": {
     "page": "資料維護區",
-    "default": "維護網路銷售平台與聯絡資料，不混入合作車行。",
+    "default": "維護網路銷售平台與聯絡資料，不混入車行。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.982feebb9388": {
     "page": "資料維護區",
-    "default": "維護姓名、所在店、電話與每筆傭金，不混入合作車行。",
+    "default": "維護姓名、所在店、電話與每筆傭金，不混入車行。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.bb89fc95743e": {
@@ -413,7 +398,7 @@
   },
   "data_maintenance.012258bacb6a": {
     "page": "資料維護區",
-    "default": "維護國定假日，供合作車行三日文件與七日尾款提醒排除。",
+    "default": "維護國定假日，供車行三日文件與七日尾款提醒排除。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.d685f822b3a5": {
@@ -461,66 +446,6 @@
     "default": "查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。",
     "template": "templates/sales/data_maintenance.html"
   },
-  "dealer_account_form.9cc6fa7e3faa": {
-    "page": "車行帳號設定",
-    "default": "請填新使用者的資料，不是你目前登入的帳密。",
-    "template": "templates/sales/dealer_account_form.html"
-  },
-  "dealer_account_form.823cd488ec02": {
-    "page": "車行帳號設定",
-    "default": "也可自行輸入；車行編號＋人員序號可支援同店多人，儲存時再次檢查重複。",
-    "template": "templates/sales/dealer_account_form.html"
-  },
-  "dealer_account_form.ac1dfdd338b8": {
-    "page": "車行帳號設定",
-    "default": "下單需同時開放訂單進度；全部取消後隱藏訂單大項，只保留首頁與個人設定。若取消選車但保留下單，可直接填單。",
-    "template": "templates/sales/dealer_account_form.html"
-  },
-  "dealer_accounts.e01ef7bdb6dd": {
-    "page": "共通畫面說明",
-    "default": "人員帳號與功能設定 · 與「帳號與權限」即時同步",
-    "template": "templates/sales/dealer_accounts.html"
-  },
-  "dealer_accounts.762dd25c43ed": {
-    "page": "共通畫面說明",
-    "default": "可分別開放選車、查看本車行訂單及建立訂單。沒有開放任何子項時，該大項不顯示；不能存取內部財務或其他車行。",
-    "template": "templates/sales/dealer_accounts.html"
-  },
-  "dealer_accounts.3ebc04c98b57": {
-    "page": "共通畫面說明",
-    "default": "管理登入狀態、可用功能與密碼重設。",
-    "template": "templates/sales/dealer_accounts.html"
-  },
-  "dealer_home.991611d48b14": {
-    "page": "車行首頁",
-    "default": "選車、選色，接續填寫本次訂單。",
-    "template": "templates/sales/dealer_home.html"
-  },
-  "dealer_home.4d51d28f6022": {
-    "page": "車行首頁",
-    "default": "接續本人尚未送出的訂單。",
-    "template": "templates/sales/dealer_home.html"
-  },
-  "dealer_home.c7a0c0559067": {
-    "page": "車行首頁",
-    "default": "目前無下單權限；已開放的訂單採唯讀進度模式。",
-    "template": "templates/sales/dealer_home.html"
-  },
-  "dealer_home.520c2dcaebd6": {
-    "page": "車行首頁",
-    "default": "功能開放及人員異動請洽馭盛 admin。",
-    "template": "templates/sales/dealer_home.html"
-  },
-  "dealer_order_detail.cdec17ff2b44": {
-    "page": "共通畫面說明",
-    "default": "需要修改已送出資料時，請聯絡店內人員協助，避免接單後資料不一致。",
-    "template": "templates/sales/dealer_order_detail.html"
-  },
-  "dealer_order_list.c057ed8dd5ad": {
-    "page": "訂單進度",
-    "default": "僅顯示所屬車行的訂單；送出後可查看接單人與後續進度。",
-    "template": "templates/sales/dealer_order_list.html"
-  },
   "dealer_reward_catalog_form.582b20f7a08d": {
     "page": "共通畫面說明",
     "default": "品項只建立一次；成本調整請新增生效版本，不要直接覆蓋歷史金額。",
@@ -543,7 +468,7 @@
   },
   "dealer_sales_program_list.778729eedf4b": {
     "page": "車行傭金與銷售獎勵",
-    "default": "先找到車型，再設定每賣一台給合作車行的現金傭金、實物、紅包、禮券或旅遊點數。",
+    "default": "先找到車型，再設定每賣一台給車行的現金傭金、實物、紅包、禮券或旅遊點數。",
     "template": "templates/sales/dealer_sales_program_list.html"
   },
   "dealer_sales_program_list.ade2027bfa3b": {
@@ -578,7 +503,7 @@
   },
   "dealer_volume_bonus_form.7d955c9a25fe": {
     "page": "台數獎金規則",
-    "default": "選「全部合作車行」仍逐家計算台數，不會把不同車行的台數加在一起。",
+    "default": "選「全部車行」仍逐家計算台數，不會把不同車行的台數加在一起。",
     "template": "templates/sales/dealer_volume_bonus_form.html"
   },
   "dealer_volume_bonus_form.8ac1e7426cf1": {
@@ -968,12 +893,12 @@
   },
   "order_account_scope.25058192b0c5": {
     "page": "下單身分與所屬通路",
-    "default": "店內人員使用原有畫面權限；合作車行僅能下單及查看所屬車行訂單，不能查看公司財務或其他車行資料。admin 為馭盛店內管理帳號。",
+    "default": "系統只給店內人員使用，畫面權限依各自設定。admin 為馭盛店內管理帳號。",
     "template": "templates/sales/order_account_scope.html"
   },
   "order_account_scope.0a9a4a2ac2cf": {
     "page": "下單身分與所屬通路",
-    "default": "變更所屬車行會立即變更此帳號可見的訂單範圍，請確認後儲存。",
+    "default": "變更預設店別只影響新訂單預先帶入的來源，請確認後儲存。",
     "template": "templates/sales/order_account_scope.html"
   },
   "order_deletion_confirm.3bc70b1b75a9": {
@@ -1098,7 +1023,7 @@
   },
   "order_detail.c4b8fc8f1bd2": {
     "page": "訂單內容",
-    "default": "合作車行可先領車；尚未收清時，首頁會持續提醒。",
+    "default": "車行可先領車；尚未收清時，首頁會持續提醒。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.a0bc4d13a7bb": {
@@ -1113,7 +1038,7 @@
   },
   "order_detail.3d2efe687324": {
     "page": "訂單內容",
-    "default": "此訂單為合作車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。",
+    "default": "此訂單為車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.63bfa0623e10": {
@@ -1239,11 +1164,6 @@
   "order_form.01b4c1935981": {
     "page": "訂單填寫",
     "default": "選擇配件與數量，預帶售價與工資。經 admin 授權者可選贈送或註明原因調價；配件總額自動計算。",
-    "template": "templates/sales/order_form.html"
-  },
-  "order_form.3c48542d2741": {
-    "page": "訂單填寫",
-    "default": "勾選後，建立訂單時同時記錄你為接單人；不勾選則先進入待接單清單。",
     "template": "templates/sales/order_form.html"
   },
   "order_form.f014372ecb14": {
@@ -1373,7 +1293,7 @@
   },
   "reconciliation_list.699f0b9879fe": {
     "page": "統一撥款對帳",
-    "default": "只核對分期公司、網路平台與合作車行的預計金額、實際金額及差額；不需逐張進入訂單。",
+    "default": "只核對分期公司、網路平台與車行的預計金額、實際金額及差額；不需逐張進入訂單。",
     "template": "templates/sales/reconciliation_list.html"
   },
   "card_form.b5d978c86009": {
@@ -1488,7 +1408,7 @@
   },
   "edit.7ee41ca2fe6b": {
     "page": "共通畫面說明",
-    "default": "原銷售車行與台數／傭金歸屬車行分開選擇；歸屬車行優先採訂單指定對象，否則採原合作車行。本店與平台不自動當成車行。",
+    "default": "原銷售車行與台數／傭金歸屬車行分開選擇；歸屬車行優先採訂單指定對象，否則採原車行。本店與平台不自動當成車行。",
     "template": "templates/sales/reporting/edit.html"
   },
   "edit.8a599d5b6014": {
@@ -1662,17 +1582,17 @@
     "template": "templates/sales/sales_source_category_list.html"
   },
   "sales_source_confirm_delete.46c3937cdeec": {
-    "page": "永久刪除合作車行",
+    "page": "永久刪除車行",
     "default": "正常停止合作請停用；永久刪除只適用於從未投入營運的誤建資料。",
     "template": "templates/sales/sales_source_confirm_delete.html"
   },
   "sales_source_confirm_delete.a37cb3dc30d1": {
-    "page": "永久刪除合作車行",
+    "page": "永久刪除車行",
     "default": "目前沒有訂單、庫存、台數獎金規則或舊資料匯入對應。刪除後，車行基本資料與合作設定無法復原；既有價格表月份仍保留當時的名稱與地址快照。",
     "template": "templates/sales/sales_source_confirm_delete.html"
   },
   "sales_source_confirm_delete.e73e893f22e3": {
-    "page": "永久刪除合作車行",
+    "page": "永久刪除車行",
     "default": "這間車行已有營運資料。為避免訂單、庫存或計算紀錄失去來源，請改用停用。",
     "template": "templates/sales/sales_source_confirm_delete.html"
   },
@@ -1743,16 +1663,16 @@
   },
   "sales_source_holiday_gift_manage.e72ec788bf20": {
     "page": "管理年節送禮名單",
-    "default": "直接勾選需要安排年節送禮的合作車行，完成後一次儲存，不必逐家進入編輯。",
+    "default": "直接勾選需要安排年節送禮的車行，完成後一次儲存，不必逐家進入編輯。",
     "template": "templates/sales/sales_source_holiday_gift_manage.html"
   },
   "sales_source_list.9be09c61d765": {
-    "page": "合作車行",
+    "page": "車行",
     "default": "合作類別同時作為價格表提供名單；傭金仍依車型基礎金額及車行加減額計算。",
     "template": "templates/sales/sales_source_list.html"
   },
   "sales_source_list.41dbf0f467e4": {
-    "page": "合作車行",
+    "page": "車行",
     "default": "沒有底色代表沒有 LINE 群組",
     "template": "templates/sales/sales_source_list.html"
   },
@@ -1838,7 +1758,7 @@
   },
   "user_management.33c628515715": {
     "page": "帳號與權限",
-    "default": "馭盛內部人員與合作車行帳號集中管理；與合作車行頁面同步，密碼只能重設、不顯示原文。",
+    "default": "店內人員帳號集中管理，密碼只能重設、不顯示原文。",
     "template": "templates/sales/user_management.html"
   },
   "user_management.0e410fb07e15": {
@@ -1873,7 +1793,7 @@
   },
   "vehicle_model_commission.6234fe3bef5e": {
     "page": "車行傭金與銷售獎勵",
-    "default": "合作車行銷售此車型時的預設金額；特定車行加減仍在該車行資料維護。",
+    "default": "車行銷售此車型時的預設金額；特定車行加減仍在該車行資料維護。",
     "template": "templates/sales/vehicle_model_commission.html"
   },
   "vehicle_model_commission.3d544bae8236": {
@@ -1963,7 +1883,7 @@
   },
   "field_help.c0f6ec1a7eef": {
     "page": "欄位提示說明",
-    "default": "本店訂單可選擇承辦員工；合作車行與網路平台則必須選擇來源名稱。",
+    "default": "本店訂單可選擇承辦員工；車行與網路平台則必須選擇來源名稱。",
     "template": "sales/forms.py"
   },
   "field_help.02b52587a168": {
@@ -2068,7 +1988,7 @@
   },
   "field_help.ee6167c354b8": {
     "page": "欄位提示說明",
-    "default": "例如：合作車行、網路平台、本店員工。",
+    "default": "例如：車行、網路平台、本店員工。",
     "template": "sales/forms.py"
   },
   "field_help.d377d6b0b0ee": {
@@ -2078,7 +1998,7 @@
   },
   "field_help.e72216a638ee": {
     "page": "欄位提示說明",
-    "default": "本店來源不套車行傭金；合作車行與網路平台會進入各自對帳流程。",
+    "default": "本店來源不套車行傭金；車行與網路平台會進入各自對帳流程。",
     "template": "sales/forms.py"
   },
   "field_help.5786ad329e57": {
@@ -2093,7 +2013,7 @@
   },
   "field_help.4b4e3fc4b12d": {
     "page": "欄位提示說明",
-    "default": "合作車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
+    "default": "車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
     "template": "sales/forms.py"
   },
   "field_help.cedcb758f85d": {

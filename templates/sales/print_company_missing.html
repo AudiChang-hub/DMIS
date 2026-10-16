@@ -3,6 +3,6 @@
 <section class="section-block confirm-panel">
   <div class="section-title"><h2>暫時不能列印</h2></div>
   <div class="section-body confirm-panel__body"><div class="callout callout--warning" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><p>本店（馭盛）的公司全名、地址、電話或統一編號尚未設定完整，請聯絡 admin 到「訂購單公司資訊」補齊後再列印。</p></div></div></div>
-  <div class="confirm-panel__form"><div class="form-actions confirm-panel__actions"><button class="button ghost" type="button" data-close-window>關閉列印視窗</button>{% if_access 'order_print_company' order.pk %}<a class="button primary" href="{% url 'order_print_company' order.pk %}">確認本單開單公司</a>{% endif_access %}</div></div>
+  <div class="confirm-panel__form"><div class="form-actions confirm-panel__actions"><button class="button ghost" type="button" data-close-window>關閉列印視窗</button>{% if_access 'print_company_settings' %}<a class="button primary" href="{% url 'print_company_settings' %}">設定本店公司資料</a>{% endif_access %}</div></div>
 </section>{% endblock %}
 {% block scripts %}<script>document.querySelector("[data-close-window]")?.addEventListener("click", () => window.close());</script>{% endblock %}

@@ -15,7 +15,7 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
     },
     {
         "key": "sales-sources",
-        "label": "合作車行",
+        "label": "車行",
         "icon": "行",
         "route": "sales_source_list",
     },

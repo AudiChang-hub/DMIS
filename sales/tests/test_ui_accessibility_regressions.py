@@ -82,7 +82,7 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
         template = Path("templates/help/user_guide.html").read_text(encoding="utf-8")
 
         self.assertIn(
-            'class="guide-flow" role="region" aria-label="建立訂單七個步驟" tabindex="0"',
+            'class="guide-flow" role="region" aria-label="建立訂單六個步驟" tabindex="0"',
             template,
         )
         self.assertIn('id="system-integrity"', template)

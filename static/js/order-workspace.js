@@ -78,7 +78,7 @@
     hero.style.transition = transition;
     return height;
   }
-  // 固定停點：頁首縮成精簡列，下方從接單紀錄／建議下一步開始，接著是步驟內容；進頁與切換步驟都停在同一處（使用者 2026-10-14）。
+  // 固定停點：頁首縮成精簡列，下方從建議下一步開始，接著是步驟內容；進頁與切換步驟都停在同一處（使用者 2026-10-14）。
   function stageTop() {
     const marker = root.querySelector('[data-order-stage-start]');
     if (!marker || !root.querySelector('[data-sticky-hero]')) return null;

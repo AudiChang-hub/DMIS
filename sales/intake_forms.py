@@ -1,24 +1,20 @@
-"""店內與車行共用下單表單；僅依帳號能力限制進階欄位。"""
+"""店內人員下單表單；僅依帳號能力限制進階欄位。"""
 from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.utils import timezone
 
 from sales.forms import SalesOrderForm
 from sales.models import SalesOrder
 from sales.services.installment_plan import resolve_installment_plan_version
-from sales.services.order_intake import account_profile, can_edit_finance, can_receive
+from sales.services.order_intake import account_profile, can_edit_finance
 from sales.services.upload_validation import validate_document_upload
 
 
-# 訂金是客人當場付的款項，所有可建立訂單的帳號（含接待模式與合作車行）都要能填寫，
+# 訂金是客人當場付的款項，所有可建立訂單的帳號（含接待模式）都要能填寫，
 # 因此不列入財務欄位；其他財務欄位仍依原權限。
 DEPOSIT_FIELDS = ("deposit_amount", "deposit_date", "deposit_method")
-# 代合作車行開單時的「代開公司確認」：現階段一律由本店代開、文件使用本店公司資料，先停用（使用者 2026-10-10）。
-# 改回 True 即恢復：須選定車行已設定的公司資料並勾選確認，訂購文件改用該車行公司。
-ASSISTED_COMPANY_CONFIRMATION = False
 
 FINANCE_FIELDS = (
     "registration_manual", "registration_adjustment_reason",
@@ -37,12 +33,9 @@ PRICING_FIELDS = {
 
 
 class IntakeOrderForm(SalesOrderForm):
-    accept_by_me = forms.BooleanField(label="由我接單（建立後直接進入待配車）", required=False)
     # 店內人員當場收到訂金可直接入帳，不必建立後再到訂單頁確認一次（使用者 2026-10-14）。
     deposit_received = forms.BooleanField(label="已收到這筆訂金（建立訂單時直接確認入帳）", required=False)
     catalog_selection = forms.CharField(required=False, widget=forms.HiddenInput, max_length=4096)
-    assisted_company_confirmed = forms.BooleanField(label="我已確認這是實際銷售車行，訂購單及個資同意書使用上述公司資料", required=False)
-    assisted_company_revision = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput)
     # 總價優惠：下單時填寫即直接核定（電子簽署的訂購單須為最終內容），規則同金額收支頁的折扣。
     intake_discount_mode = forms.ChoiceField(
         label="優惠方式", choices=[("amount", "減少金額"), ("rate", "折數")], required=False, initial="amount",
@@ -69,36 +62,16 @@ class IntakeOrderForm(SalesOrderForm):
         from sales.access.services import AccessPolicy
         self.pricing_editable = AccessPolicy(user).screen("order_pricing", "operate") or self.finance_editable
         profile = account_profile(user)
-        self.dealer = bool(profile and profile.kind == "dealer")
         super().__init__(*args, **kwargs)
-        self.assisted_company = None
-        self.assisted_companies = {}
-        self.assisted_confirmation = ASSISTED_COMPANY_CONFIRMATION and not self.dealer
-        if not self.dealer:
-            self.fields["source_type"].label = "開單方式／銷售來源"
-            self.fields["source_type"].choices = [
-                (key, "代合作車行開單" if key == "dealer" else label)
-                for key, label in self.fields["source_type"].choices
-            ]
-        if self.assisted_confirmation:
-            from sales.models import PrintCompany
-            from sales.services.print_company import FIELDS
-            self.assisted_companies = {str(c.source_id): {**{key: getattr(c, key) for key in FIELDS}, "revision": c.revision}
-                for c in PrintCompany.objects.filter(source__active=True, source__source_type="dealer")}
         self.fields["trade_in_intent"].required = False
         self.fields["installment_custom"].disabled = not self.pricing_editable
         if not self.pricing_editable:
             self.initial["installment_custom"] = False
-        self.fields["accept_by_me"].disabled = reception or not can_receive(user)
         if profile and profile.source_id:
-            from sales.models import SalesSource
+            # 帳號的預設店別只在新表單帶入，可改選。
             for key, value in (("source_type", profile.source.source_type), ("source", profile.source_id)):
-                if self.dealer or (not self.is_bound and key not in supplied_initial):
+                if not self.is_bound and key not in supplied_initial:
                     self.initial[key] = value
-                if self.dealer:
-                    self.fields[key].disabled = True
-            if self.dealer:
-                self.fields["source"].queryset = SalesSource.objects.filter(pk=profile.source_id, active=True)
         if not self.finance_editable:
             self.fields["commission_recipient"].queryset = self.fields["commission_recipient"].queryset.none()
             if not self.pricing_editable:
@@ -114,7 +87,7 @@ class IntakeOrderForm(SalesOrderForm):
             self.initial["compulsory_insurance_period"] = 1
         from sales.access.services import AccessPolicy as _Policy
         if not (self.finance_editable and _Policy(user).route("deposit_payment_update", "POST")):
-            # 沒有收款確認權限（含接待模式與合作車行）：訂金仍為未確認，由店內確認。
+            # 沒有收款確認權限（含接待模式）：訂金仍為未確認，建立後再確認。
             self.fields.pop("deposit_received")
         else:
             self.fields["deposit_received"].widget.attrs["class"] = "form-check"
@@ -157,25 +130,6 @@ class IntakeOrderForm(SalesOrderForm):
         for name in FINANCE_FIELDS:
             if name in self.fields and self.fields[name].disabled and data.get(name) is None:
                 data.pop(name, None)
-        if self.assisted_confirmation and data.get("source_type") == "dealer" and data.get("source"):
-            from sales.models import PrintCompany
-            from sales.services.print_company import validate_header, company_data
-            companies = PrintCompany.objects.filter(source=data["source"])
-            if transaction.get_connection().in_atomic_block:
-                companies = companies.select_for_update()
-            company = companies.first()
-            if not company:
-                self.add_error("assisted_company_confirmed", "此車行尚未設定訂購單公司資料，請 admin 完成設定後再代開。")
-            else:
-                try:
-                    validate_header(company_data(company))
-                except ValidationError:
-                    self.add_error("assisted_company_confirmed", "此車行公司資料不完整，請 admin 完成公司名稱、地址、電話及統編。")
-                if not data.get("assisted_company_confirmed"):
-                    self.add_error("assisted_company_confirmed", "請確認代開車行與訂購文件公司資料。")
-                if data.get("assisted_company_revision") != company.revision:
-                    self.add_error("assisted_company_confirmed", "公司資料已更新或尚未載入，請重新確認畫面上的公司資料後再送出。")
-                self.assisted_company = company
         data["trade_in_intent"] = data.get("trade_in_intent") or "unknown"
         data["is_trade_in_subsidy"] = data["trade_in_intent"] == "yes"
         if data["trade_in_intent"] != "yes":

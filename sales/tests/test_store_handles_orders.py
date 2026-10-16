@@ -1,4 +1,4 @@
-"""1.69.0：現階段訂單都由本店處理——建立人直接接單、代合作車行開單不需公司確認。"""
+"""訂單都由本店處理——建立人直接接單；車行來源訂單也用本店公司開單、不需公司確認。"""
 from django.urls import reverse
 
 from django.test import TestCase
@@ -26,7 +26,8 @@ class StoreHandlesOrdersTests(TestCase):
         order = SalesOrder.objects.get()
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATION_PENDING)
         self.assertEqual(order.accepted_by, self.user)
-        self.assertTrue(order.events.filter(event_type="accepted").exists())
+        self.assertIsNotNone(order.accepted_at)
+        self.assertIn("接單", order.events.get(event_type="created").description)
 
     def test_dealer_source_needs_no_company_confirmation_and_uses_store_company(self):
         self.client.force_login(self.root)
@@ -43,12 +44,6 @@ class StoreHandlesOrdersTests(TestCase):
         done = self.client.get(response.url).content.decode()
         self.assertIn(reverse("order_list"), done)
         self.assertIn(reverse("order_detail", args=[order.pk]), done)
-
-    def test_dealer_account_orders_still_wait_for_store(self):
-        self.client.force_login(self.dealer_user)
-        response = self.submit()
-        self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
-        self.assertEqual(SalesOrder.objects.get().status, SalesOrder.Status.INTAKE_PENDING)
 
     def test_catalog_entry_offers_other_accessory_to_everyone(self):
         # 1.70.1：清單找不到的配件（例如手機架），從選車頁進來也一律可選「其他」自行填名稱與售價。
@@ -105,7 +100,7 @@ class StoreHandlesOrdersTests(TestCase):
             self.assertIn('placeholder="沒有收訂金請留空"', field)
 
     def test_only_store_orders_show_signing_step(self):
-        # 1.73.2：只有本店訂單需要客人簽訂購單與個資同意書；合作車行、網路平台略過且不顯示。
+        # 1.73.2：只有本店訂單需要客人簽訂購單與個資同意書；車行、網路平台略過且不顯示。
         from sales.services.order_next_actions import build_order_next_actions
         from sales.services.order_steps import build_order_steps
         self.client.force_login(self.root)

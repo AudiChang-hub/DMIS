@@ -11,7 +11,6 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 HELP_TOPIC_BY_ROUTE = {
     "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-manage", "catalog_edit": "catalog-manage", "official_catalog": "official-catalog",
     "order_delete": "order-recycle-bin", "order_restore": "order-recycle-bin", "order_recycle_bin": "order-recycle-bin",
-    "dealer_accounts": "account-management", "dealer_account_create": "account-management", "dealer_account_edit": "account-management",
     "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",
     "report_center": "reports", "report_display": "reports", "report_detail": "reports",
@@ -87,7 +86,6 @@ HELP_TOPIC_BY_ROUTE = {
     "incentive_rule_edit": "master-data",
     "user_management": "account-management",
     "permission_workspace": "account-management",
-    "create_dealer_entry": "account-management",
     "system_integrity_report": "system-integrity",
     "user_account_create": "account-management",
     "user_account_edit": "account-management",
@@ -97,7 +95,7 @@ HELP_TOPIC_BY_ROUTE = {
 
 
 DATA_MAINTENANCE_ROUTES = {
-    "permission_workspace", "create_dealer_entry",
+    "permission_workspace",
     "gift_distribution", "gift_distribution_detail", "site_copy_manage", "announcement_action",
     "announcement_manage", "announcement_edit",
     "report_manage", "report_create", "report_edit",
@@ -208,10 +206,8 @@ def app_version(request):
         "data_rules_visible": any(access_policy.route(name) for name in ("settlement_cost_rule_list", "incentive_rule_list", "dealer_sales_program_list", "dealer_volume_bonus_list", "installment_company_list", "brand_registration_fee_rule_list", "business_holiday_list")),
         "data_tools_visible": any(access_policy.route(name) for name in ("legacy_import_list", "positioned_template_list", "system_diagnostics")),
         "app_version": get_app_version(),
-        "intake_dealer": access_policy.dealer,
         "intake_can_submit": access_policy.route("order_start"),
-        "intake_finance_editable": not access_policy.dealer and access_policy.screen("order_finance", "operate"),
-        "intake_can_receive": not access_policy.dealer and access_policy.screen("work", "operate"),
+        "intake_finance_editable": access_policy.screen("order_finance", "operate"),
         "release_version": CURRENT_VERSION,
         "can_manage_screen_access": is_root(request.user),
         "show_management_tools": bool(is_root(request.user) or access_policy.screen("accounts") or access_policy.screen("integrity")),

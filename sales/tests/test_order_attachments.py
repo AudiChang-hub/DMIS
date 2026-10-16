@@ -10,7 +10,6 @@ from django.urls import reverse
 from PIL import Image
 
 from sales.models import OrderAttachment, OrderEvent, RegistrationDocument
-from sales.services.order_intake import DEALER_ROUTES
 from sales.services.order_steps import order_step_url
 from sales.tests import test_order_lifecycle as lifecycle
 
@@ -133,10 +132,6 @@ class OrderAttachmentTests(TestCase):
         self.assertIn(">DOCX<", panel)
         self.assertIn('download="合約掃描.docx"', panel)
         self.assertIn("1／50", panel)
-
-    def test_dealer_accounts_cannot_reach_attachment_routes(self):
-        for name in ("order_attachment_upload", "order_attachment_delete", "order_attachment_file", "order_attachments_zip"):
-            self.assertNotIn(name, DEALER_ROUTES)
 
     def download_zip(self):
         response = self.client.get(reverse("order_attachments_zip", args=[self.order.pk]))
@@ -331,9 +326,6 @@ class RequiredDocumentSlotTests(TestCase):
 
         self.assertTrue(self.order.subsidy_documents.filter(document_type="old_vehicle_registration").exists())
         self.assertFalse(self.order.other_attachments.exists())
-
-    def test_dealer_cannot_reach_classify_route(self):
-        self.assertNotIn("order_attachment_classify", DEALER_ROUTES)
 
     @staticmethod
     def pdf_bytes():

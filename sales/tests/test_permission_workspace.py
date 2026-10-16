@@ -35,16 +35,19 @@ class PermissionWorkspaceTests(TestCase):
         self.assertFalse(OrderCustomerAccessGrant.objects.exists())
 
     def test_explicit_print_denial_wins_over_own_order(self):
+        print_link = 'href="%s"' % reverse('contract_print', args=[self.order.pk])
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse('order_detail', args=[self.order.pk])), print_link)
         self.override()
         self.assertTrue(customer_orders(self.user).filter(pk=self.order.pk).exists())
         self.assertFalse(customer_orders(self.user, printing=True).filter(pk=self.order.pk).exists())
         self.assertFalse(AccessPolicy(self.user).route('contract_print', kwargs={'pk': self.order.pk}))
-        self.client.force_login(self.user)
         from sales.services.order_intake import CUSTOMER_DOCUMENT_ROUTES
         for route in CUSTOMER_DOCUMENT_ROUTES:
             self.assertIn(self.client.get(reverse(route, args=[self.order.pk])).status_code, (403, 404))
         page = self.client.get(reverse('order_detail', args=[self.order.pk]))
-        self.assertNotContains(page, reverse('contract_print', args=[self.order.pk]))
+        # 內部訂單頁另有 contract_upload（/contract/upload/），只檢查列印連結本身。
+        self.assertNotContains(page, print_link)
 
     def test_both_unchecked_is_a_valid_deny_not_a_revoke(self):
         self.override(can_view=False)
@@ -88,7 +91,7 @@ class PermissionWorkspaceTests(TestCase):
         self.assertFalse(page.context['form']['can_print'].value())
         self.assertEqual(OrderEvent.objects.filter(event_type='customer_access_updated').count(), 1)
 
-    def test_all_tabs_render_for_internal_and_dealer(self):
+    def test_all_tabs_render_for_restricted_staff_legacy_staff_and_admin(self):
         for user in (self.user, self.staff, self.admin):
             for tab in ('account', 'features', 'scope', 'orders'):
                 with self.subTest(user=user.username, tab=tab):
@@ -105,37 +108,41 @@ class PermissionWorkspaceTests(TestCase):
                 self.assertEqual(self.client.post(url, {}).status_code, 403)
 
     def test_old_entry_points_redirect_to_same_workspace(self):
-        for route, tab in (('dealer_account_edit', 'account'), ('order_account_scope', 'scope'), ('access_edit', 'features')):
+        for route, tab in (('user_account_edit', 'account'), ('order_account_scope', 'scope'), ('access_edit', 'features')):
             self.assertRedirects(self.client.get(reverse(route, args=[self.user.pk])), workspace_url(self.user.pk, tab), fetch_redirect_response=False)
         self.assertRedirects(self.client.get(reverse('order_customer_access', args=[self.order.pk]), {'account': self.profile.pk}),
                              workspace_url(self.user.pk, 'orders', order=self.order.pk), fetch_redirect_response=False)
 
-    def test_dealer_account_tab_does_not_change_hidden_feature_fields(self):
-        page = self.client.get(workspace_url(self.user.pk, 'account'))
-        form = page.context['form']
+    def test_account_tab_does_not_change_feature_grants_or_scope(self):
         data = {'username': self.user.username, 'display_name': '新名稱', 'is_active': 'on',
-                'expected_revision': self.profile.revision, 'can_adjust_pricing': 'on'}
+                'can_adjust_pricing': 'on', 'order_scope': 'all'}
         response = self.client.post(workspace_url(self.user.pk, 'account'), data)
         self.assertEqual(response.status_code, 302, getattr(response, 'context', None))
         self.user.refresh_from_db()
+        self.profile.refresh_from_db()
         self.assertEqual(self.user.first_name, '新名稱')
+        self.assertEqual(self.profile.order_scope, 'own')
         self.assertTrue(AccessPolicy(self.user).screen('order_documents', 'export'))
         self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
 
-    def test_dealer_features_tab_preserves_identity_and_scope(self):
+    def test_features_tab_preserves_identity_and_scope(self):
         self.user.first_name = '測試'
         self.user.last_name = '人員'
         self.user.save()
-        self.profile.order_scope = 'dealer'
-        self.profile.save()
-        response = self.client.post(workspace_url(self.user.pk, 'features'), {
-            'expected_revision': self.profile.revision, 'can_print_documents': 'on', 'can_view_orders': 'on',
+        url = workspace_url(self.user.pk, 'features')
+        version = self.client.get(url).context['before']['version']
+        preview = self.client.post(url, {'action': 'preview', 'version': version,
+            'screens.orders.view': 'on', 'screens.order_documents.view': 'on', 'screens.order_documents.export': 'on',
+            'screens.order_gift.view': 'on', 'screens.order_gift.operate': 'on',
             'username': 'tampered', 'order_scope': 'all', 'is_active': ''})
-        self.assertEqual(response.status_code, 302, response.context['form'].errors if response.context else '')
+        self.assertEqual(preview.status_code, 200, preview.context.get('error'))
+        response = self.client.post(url, {'action': 'apply', 'preview_token': preview.context['preview_token']})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(AccessPolicy(self.user).screen('order_gift', 'operate'))
         self.profile.refresh_from_db()
         self.user.refresh_from_db()
-        self.assertEqual(self.profile.order_scope, 'dealer')
-        self.assertEqual(self.user.username, 'dealer-a')
+        self.assertEqual(self.profile.order_scope, 'own')
+        self.assertEqual(self.user.username, 'clerk-a')
         self.assertEqual((self.user.first_name, self.user.last_name), ('測試', '人員'))
         self.assertTrue(self.user.is_active)
 
@@ -145,8 +152,7 @@ class PermissionWorkspaceTests(TestCase):
         self.grant('order_pricing', 'operate')
         self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
         response = self.client.post(workspace_url(self.user.pk, 'account'), {
-            'username': self.user.username, 'display_name': '更名而已', 'is_active': 'on',
-            'expected_revision': self.profile.revision})
+            'username': self.user.username, 'display_name': '更名而已', 'is_active': 'on'})
         self.assertEqual(response.status_code, 302)
         self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
         self.assertFalse(UserAccessState.objects.get(user=self.user).configured)
@@ -181,7 +187,7 @@ class PermissionWorkspaceTests(TestCase):
         self.override(can_view=False)
         self.assertTrue(customer_orders(self.admin).filter(pk=self.order.pk).exists())
         from sales.models import OrderAccountProfile
-        OrderAccountProfile.objects.create(user=self.peer, kind='dealer', source=self.source)
+        OrderAccountProfile.objects.create(user=self.peer, order_scope='own', source=self.source)
         self.assertFalse(customer_orders(self.peer).filter(pk=self.order.pk).exists())
         self.user.is_active = False
         self.user.save()

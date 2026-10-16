@@ -32,7 +32,7 @@
   <nav class="guide-toc" aria-label="使用說明章節">{% for topic in scoped_help %}<a href="#{{ topic.id }}-current">{{ topic.title }}</a>{% endfor %}
     <strong>快速前往</strong>
     {% help_visible 'quick-start' as topic_visible %}{% if topic_visible %}<a href="#quick-start">三分鐘開始</a>{% endif %}
-    {% help_visible 'catalog-accounts' as topic_visible %}{% if topic_visible %}<a href="#catalog-accounts">選車入口與車行帳號</a>{% endif %}
+    {% help_visible 'catalog-accounts' as topic_visible %}{% if topic_visible %}<a href="#catalog-accounts">選車入口</a>{% endif %}
     {% help_visible 'mobile-shortcuts' as topic_visible %}{% if topic_visible %}<a href="#mobile-shortcuts">手機快速前往</a>{% endif %}
     {% help_visible 'dashboard' as topic_visible %}{% if topic_visible %}<a href="#dashboard">首頁與搜尋</a>{% endif %}
     {% help_visible 'home-favorites' as topic_visible %}{% if topic_visible %}<a href="#home-favorites">常用功能設定</a>{% endif %}
@@ -57,8 +57,8 @@
   <div class="guide-content" role="region" aria-label="操作說明內容">
 {% for topic in scoped_help %}<article class="guide-topic" id="{{ topic.id }}-current" data-guide-topic><h2>{{ topic.title }}</h2><ul class="guide-steps">{% for step in topic.steps %}<li>{{ step }}</li>{% endfor %}</ul></article>{% endfor %}
     {% if can_manage_screen_access %}<section id="catalog-accounts" class="guide-topic" data-guide-topic>
-      <h2>選車入口與車行帳號</h2>
-      <ol><li>admin 在「資料維護區 → 機種與售價」編輯年式，切到上方「選車圖片與介紹」分頁，上傳有權使用的圖片、填寫介紹。上架跟著機種啟用狀態：在機種與售價勾「啟用中」就自動上架，取消勾選就自動下架，這裡不用另外設定。售價、規格與分期沿用機種設定；未上架或停用不公開。</li><li>「合作車行 → 登入帳號」按「＋ 新增人員帳號」，或在「帳號與權限」按「＋ 建立車行帳號」選車行。帳號自動綁定該車行；「編輯帳號與功能」「重設密碼」會帶到帳號與權限的人員工作區，停用請在「帳號資料」取消「帳號啟用中」。</li><li>車行帳號預設可選車、查詢與下單、列印客戶文件，訂單範圍預設為「本人建立的訂單」；要看同車行其他人的單請改為「所屬車行的訂單」。另有「下單金額調整」「可贈送配件」可個別開放。取消「可建立訂單與使用自己的草稿」後為唯讀進度。只有 admin 可調整。</li><li>選車頁不登入也能瀏覽，可分享給客人或車行。選好車色後按「登入後接單」，車型與車色會帶入訂單；送出後為待接單，馭盛接單後可看到人員與時間。</li><li>首次登入需更換臨時密碼；不建議多人共用同一帳號。停用保留歷史紀錄。</li></ol>
+      <h2>選車入口</h2>
+      <ol><li>admin 在「資料維護區 → 機種與售價」編輯年式，切到上方「選車圖片與介紹」分頁，上傳有權使用的圖片、填寫介紹。上架跟著機種啟用狀態：在機種與售價勾「啟用中」就自動上架，取消勾選就自動下架，這裡不用另外設定。售價、規格與分期沿用機種設定；未上架或停用不公開。</li><li>系統只給店內人員使用，車行不另開登入帳號。</li><li>選車頁不登入也能瀏覽，可分享給客人。選好車色後按「選這台接單」（未登入為「登入後接單」），車型與車色會帶入訂單；建立訂單的人就是接單人。</li></ol>
       <h3>展示管理篩選與啟用車色</h3>
       <p>各車色與進階主圖選檔後即時預覽並標示「尚未儲存」；按「儲存展示設定」才上傳。「取消此次圖片變更」恢復原圖。支援 JPEG、PNG、WebP，每張最多 8 MB；格式、大小或圖片讀取有誤時請重選或取消變更。</p>
       <p>編輯頁每個啟用車色各有圖片預覽、上傳及移除；不選新檔會保留原圖，停用色的照片不會刪除。未上架圖片只有 admin 能預覽。主圖對應收在「車款主圖與既有圖片對應（進階）」。若編輯途中被停用或其他人已更新，請重新整理再操作。</p>
@@ -91,9 +91,9 @@
         <div class="guide-screen-footer"><span>首頁</span><b>＋建立訂單</b><span>全部訂單</span><span>營運</span><span>更多</span></div>
       </div>
       <ol class="guide-steps">
-        <li><strong>登入後先看首頁。</strong><span>先看待接單、未讀通知等待處理工作，再看公告與版本更新；經營數據請進營運總表。</span></li>
+        <li><strong>登入後先看首頁。</strong><span>先看未讀通知等待處理工作，再看公告與版本更新；經營數據請進營運總表。</span></li>
         <li><strong>要找資料就直接搜尋。</strong><span>在「全部訂單」的全欄位搜尋輸入任何片段，像 Excel 的尋找，不必先選姓名、電話或車牌欄位。</span></li>
-        <li><strong>客人在面前就按「建立訂單」。</strong><span>先選車選色，再依「車款與來源、配件與需求、車主與證件、付款與訂金、確認送出」五步填寫；每按一次下一步就存成草稿，送出後先待接單。</span></li>
+        <li><strong>客人在面前就按「建立訂單」。</strong><span>先選車選色，再依「車款與車價、車主與證件、汰舊與補助、選號與交車、訂金與費用、確認送出」六步填寫；每按一次下一步就存成草稿，建立後由你接單、直接進入待配車。</span></li>
         <li><strong>依訂單步驟處理。</strong><span>訂單分訂車與配件、訂金、列印與簽署文件、配車、領牌、收入與支出、交車與收尾款七步，只展開現在該做的一步；完成交付後訂單與車輛會鎖定。</span></li>
       </ol>
       <div class="guide-tip"><strong>手機加到主畫面後看不到新版？</strong><span>先確認草稿或修改已儲存，再點右上角自己的名字 →「檢查更新」；有新版時按「重新載入」。舊捷徑若仍開成瀏覽器分頁，刪除後重新加入主畫面。</span></div>
@@ -102,14 +102,14 @@
     {% help_visible 'mobile-shortcuts' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="mobile-shortcuts" data-guide-topic>
       <div class="guide-topic-heading"><span>手機</span><div><p class="eyebrow">每個帳號各自設定</p><h2>手機「更多」與快速前往</h2></div></div>
       <ol class="guide-steps">
-        <li><strong>點手機下方「更多」。</strong><span>上方先顯示你自己的快速前往；未設定時預設為價格表分發、合作車行、車輛庫存、機種與售價、客戶查詢、網路平台（依權限）。</span></li>
+        <li><strong>點手機下方「更多」。</strong><span>上方先顯示你自己的快速前往；未設定時預設為價格表分發、車行、車輛庫存、機種與售價、客戶查詢、網路平台（依權限）。</span></li>
         <li><strong>按「自訂捷徑」。</strong><span>在位置 1～6 各選一個功能（不要的選「不使用此位置」），按「儲存設定」；只套用到自己的帳號，留白位置自動略過。</span></li>
         <li><strong>需要其他功能時按「查看全部功能 →」。</strong><span>這是完整功能清單，和自訂捷徑是兩個不同入口。</span><span>「更多」也提供報表中心、SUZUKI 零件圖冊、外觀配色、變更密碼、使用說明與登出。</span></li>
       </ol>
       <div class="guide-tip"><strong>換手機仍會保留</strong><span>設定跟著登入帳號保存，不是只存在目前這支手機。</span></div>
     </article>{% endif %}
 
-    {% help_visible 'announcements' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="announcements" data-guide-topic><h2>系統公告管理（僅 admin）</h2><ol class="guide-steps"><li>從「資料維護區 → 系統公告管理」或首頁「管理系統公告」進入。</li><li>填標題、純文字內容、置頂、顯示對象（所有人員、店內人員、合作車行人員、指定人員、指定合作車行）與台北時間起訖；結束時間可留白。可加圖片（JPEG／PNG／WebP，每張 8 MB、每則 8 張）與附件（每份 20 MB）。</li><li>新公告按「儲存草稿」不會公開；既有公告按「儲存」維持目前發布狀態。「儲存並發布」會在到達開始時間後顯示。</li><li>到結束時間自動隱藏並移至歷史列表，首頁會提示「N 則公告已到期，待整理」；「儲存並取消發布」可立即隱藏。「封存／刪除公告」可移至歷史公告或刪除，都保留紀錄。也可在公告閱讀頁按「編輯」「刪除」直接處理。</li><li>每次修改保留修訂紀錄；版本衝突會阻擋覆寫，需重新載入。</li></ol><p>公告只顯示給所選的顯示對象，圖片與附件也受同樣限制；不填客戶個資或財務機密。版本歷程隨系統更新自動出現，不由公告編輯。</p></article>{% endif %}
+    {% help_visible 'announcements' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="announcements" data-guide-topic><h2>系統公告管理（僅 admin）</h2><ol class="guide-steps"><li>從「資料維護區 → 系統公告管理」或首頁「管理系統公告」進入。</li><li>填標題、純文字內容、置頂、顯示對象（所有人員、店內人員、車行人員、指定人員、指定車行）與台北時間起訖；結束時間可留白。可加圖片（JPEG／PNG／WebP，每張 8 MB、每則 8 張）與附件（每份 20 MB）。</li><li>新公告按「儲存草稿」不會公開；既有公告按「儲存」維持目前發布狀態。「儲存並發布」會在到達開始時間後顯示。</li><li>到結束時間自動隱藏並移至歷史列表，首頁會提示「N 則公告已到期，待整理」；「儲存並取消發布」可立即隱藏。「封存／刪除公告」可移至歷史公告或刪除，都保留紀錄。也可在公告閱讀頁按「編輯」「刪除」直接處理。</li><li>每次修改保留修訂紀錄；版本衝突會阻擋覆寫，需重新載入。</li></ol><p>公告只顯示給所選的顯示對象，圖片與附件也受同樣限制；不填客戶個資或財務機密。版本歷程隨系統更新自動出現，不由公告編輯。</p></article>{% endif %}
     {% help_visible 'dashboard' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="dashboard" data-guide-topic>
       <div class="guide-topic-heading"><span>02</span><div><p class="eyebrow">每天第一站</p><h2>首頁、Excel 式搜尋與營運總表</h2></div></div>
       <div class="guide-two-column">
@@ -122,26 +122,24 @@
 
     {% help_visible 'search-orders' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="search-orders" data-guide-topic>
       <div class="guide-topic-heading"><span>03</span><div><p class="eyebrow">全部訂單</p><h2>依狀態查看與繼續處理</h2></div></div>
-      <ol class="guide-steps"><li><strong>從上方「全部訂單」（依帳號範圍可能顯示為「本車行訂單」或「我的訂單」）進入，手機底部同名按鈕。</strong></li><li><strong>搜尋或選擇狀態。</strong><span>篩選只縮小清單，不會改變訂單。展開「日期、收款與營運條件」可再依日期依據、收款風險、能源別、收款確認、作業提醒與成交範圍篩選。</span></li><li><strong>先看清單摘要。</strong><span>每張訂單直接顯示訂單成立日期、領牌日期、車號、姓名與訂單編號、機種、顏色、車行、狀態、備註及淨利（需查看淨利權限）。</span></li><li><strong>依工作量選每頁 25、50、75 或 100 筆。</strong><span>分頁可回第一頁、上一頁、輸入頁碼、下一頁或到最後一頁。</span></li><li><strong>點訂單列進入訂單。</strong><span>先看狀態、建議下一步與處理紀錄。</span></li></ol>
+      <ol class="guide-steps"><li><strong>從上方「全部訂單」（依帳號範圍可能顯示為「我的訂單」）進入，手機底部同名按鈕。</strong></li><li><strong>搜尋或選擇狀態。</strong><span>篩選只縮小清單，不會改變訂單。展開「日期、收款與營運條件」可再依日期依據、收款風險、能源別、收款確認、作業提醒與成交範圍篩選。</span></li><li><strong>先看清單摘要。</strong><span>每張訂單直接顯示訂單成立日期、領牌日期、車號、姓名與訂單編號、機種、顏色、車行、狀態、備註及淨利（需查看淨利權限）。</span></li><li><strong>依工作量選每頁 25、50、75 或 100 筆。</strong><span>分頁可回第一頁、上一頁、輸入頁碼、下一頁或到最後一頁。</span></li><li><strong>點訂單列進入訂單。</strong><span>先看狀態、建議下一步與處理紀錄。</span></li></ol>
       <div class="guide-tip"><strong>避免重複訂單</strong><span>找不到訂單時，先到全部訂單用姓名、電話、證號或車牌做全欄位搜尋，再決定是否建立。</span></div>
     </article>{% endif %}
 
     {% help_visible 'create-order' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="create-order" data-guide-topic>
       <div class="guide-topic-heading"><span>04</span><div><p class="eyebrow">客人在面前</p><h2>建立訂單與自動草稿</h2></div></div>
-      <div class="guide-flow" role="region" aria-label="建立訂單七個步驟" tabindex="0">
-        <span><b>1</b>車款與來源</span><i>→</i><span><b>2</b>付款與車價</span><i>→</i><span><b>3</b>車主與證件</span><i>→</i><span><b>4</b>汰舊與補助</span><i>→</i><span><b>5</b>選號與交車</span><i>→</i><span><b>6</b>訂金與費用</span><i>→</i><span><b>7</b>確認送出</span>
+      <div class="guide-flow" role="region" aria-label="建立訂單六個步驟" tabindex="0">
+        <span><b>1</b>車款與車價</span><i>→</i><span><b>2</b>車主與證件</span><i>→</i><span><b>3</b>汰舊與補助</span><i>→</i><span><b>4</b>選號與交車</span><i>→</i><span><b>5</b>訂金與費用</span><i>→</i><span><b>6</b>確認送出</span>
       </div>
       <ol class="guide-steps">
-        <li><strong>車款與來源。</strong><span>從選車頁帶入車型與車色，不選引擎／車身號碼；接單後才配車。來源選本店、合作車行或網路平台，合作車行帳號固定所屬車行；找不到來源時先請管理者新增，不要亂選。</span></li>
-        <li><strong>付款與車價。</strong><span>選現金、分期或刷卡；分期選公司與期數後按「套用選取方案」。訂金在第 6 步「訂金與費用」填客人這次實付金額，沒收就留空。</span></li>
+        <li><strong>車款與車價。</strong><span>從選車頁帶入車型與車色，不選引擎／車身號碼；建立後才配車。來源選本店、車行或網路平台，找不到來源時先請管理者新增，不要亂選。同一步接著選現金、分期或刷卡；分期選公司與期數後按「套用選取方案」。訂金在第 5 步「訂金與費用」填客人這次實付金額，沒收就留空。</span></li>
         <li><strong>車主與證件。</strong><span>自然人上傳證件正反面，辨識完成並核對後才能按下一步；法人自行填公司資料。</span></li>
         <li><strong>汰舊、選號與交車。</strong><span>汰舊與補助可先選待確認；選號方式可選待確認、不選號、指定號碼監控或一般領牌偏好；送至指定地點或託運要填目的地。配件不在接單流程，建立後到訂單頁「訂車與配件」維護。</span></li>
         <li><strong>確認送出。</strong><span>逐段核對摘要，需要時按「修改」；按「確認並建立訂單」。每按「下一步」都會存草稿並檢查該步。</span></li>
       </ol>
-      <div class="guide-example"><strong>完整例子</strong><p>在馭盛購車，先選車型車色，來源選馭盛；依七個步驟完成付款方式、證件核對、汰舊補助與交車方式，最後在確認頁按「確認並建立訂單」。店內人員可勾「由我接單」，否則新單會進待接單，尚不可配車。</p></div>
+      <div class="guide-example"><strong>完整例子</strong><p>在馭盛購車，先選車型車色，來源選馭盛；依六個步驟完成付款方式、證件核對、汰舊補助與交車方式，最後在確認頁按「確認並建立訂單」。建立的人就是接單人，訂單直接進入待配車。</p></div>
       <div class="guide-tip"><strong>建立後立即簽署</strong><span>訂單成立後會問「這次要怎麼簽？」：在行動裝置上簽名，或印出紙本簽完上傳。之後也可在訂單的「列印與簽署文件」步驟處理。</span></div>
-      <div class="guide-tip"><strong>店內與車行共用流程</strong><span>車行帳號固定所屬車行，分期從車型方案選取，不能修改店內售價、收款或其他財務。需求寫在備註，分期表及補充檔案可隨草稿保存；送出後由店內協助修正。</span></div>
-      <div class="guide-two-column"><section><h3>有人接單了嗎？</h3><p>首頁「待接單工作」顯示筆數，點入可查看清單；尚未接單的訂單不能配車。店內開啟訂單按「由我接單」，會保存接單人與時間；車行在訂單進度看到相同資訊。重新整理可取得最新狀態。</p></section><section><h3>admin 如何指定帳號？</h3><p>資料維護區 → 帳號與權限 → 該人員「訂單範圍」的下單身分與「預設店別／所屬車行」。admin 為馭盛店內管理帳號；合作車行必須綁定車行。畫面權限中的「訂單內部財務編輯」控制店內財務表單修改，接單權限屬於訂單作業。車行不因勾選內部畫面而取得公司資料。</p></section></div>
+      <div class="guide-two-column"><section><h3>誰是接單人？</h3><p>系統只給店內人員使用，建立訂單的人就是接單人，建立後直接進入待配車，不另外按接單。</p></section><section><h3>admin 如何指定帳號？</h3><p>資料維護區 → 帳號與權限 → 該人員「訂單範圍」設定預設店別與訂單資料範圍。畫面權限中的「訂單內部財務編輯」控制店內財務表單修改。</p></section></div>
       <div class="guide-tip"><strong>外籍與法人</strong><span>外籍／居留者不需登記護照。法人由人員自行填基本資料；領牌前準備登記證明、核准函、近一期 401、公司大小章，申請補助另備公司存摺。沒有專屬名稱的資料放到對應工作的「其他文件」並清楚命名。</span></div>
       <div class="guide-two-column"><section><h3>草稿</h3><p>開始輸入後會自動保存；從「我的接待草稿」按「繼續本筆下單」，會回到尚未完成的步驟。新建單與重新開啟草稿都能看到「刪除草稿」。刪除會連草稿照片一起移除，無法復原。</p></section><section><h3>正式修改</h3><p>訂單建立後直接在訂單頁修改，停止輸入約 1 秒就自動儲存，修改記在處理紀錄；不需要再按「編輯訂單」或「儲存」。完成領牌、確認結案、交車與確認入帳仍要明確按下。</p></section></div>
     </article>{% endif %}
@@ -158,7 +156,7 @@
       <div class="guide-parallel-flow" role="img" aria-label="訂單工作可平行進行圖解"><b>訂單建立</b><div><span>配車 → 領牌 → 交付</span><span>補助資料與文件（可同步）</span><span>簽署文件在「列印與簽署文件」步驟隨時補上</span></div></div>
       <p>訂單頁上方是步驟列：訂車與配件、訂金、列印與簽署文件、配車、領牌、收入與支出、交車與收尾款；下方另有附件、補助、取消與結案。「附件」集中列出這張訂單的所有檔案，可預覽與下載，也能上傳任何格式的其他附件（每單最多 50 個、單檔 20 MB）。打開訂單只展開目前該做的步驟，其他收合成摘要。補助與簽署文件可隨時處理；一般客戶仍須先配車、完成領牌，才可交付。</p>
       <div class="guide-tip"><strong>看「建議下一步」</strong><span>系統會依目前資料提出一項主要建議，並在「另外可處理」列出最多兩項可同步工作。人在其他步驟時可點按前往；已位於建議步驟時會標示「目前作業」，不再顯示重複的前往按鈕。這是操作指引，不會自動替你配車或送出資料。</span></div>
-      <div class="guide-two-column"><section><h3>不想現在處理</h3><ul><li>按「收合」會縮成一列，不會消失。</li><li>按縮小列的「查看」可立即展開。</li><li>完成一個階段後，系統會依新狀態顯示新的建議。</li></ul></section><section><h3>例外情況</h3><ul><li>沒有可售車：引導到快速進車。</li><li>合作車行先領車：持續提醒三個工作日內補領牌文件。</li><li>取消待退款、逾期文件與收款會優先顯示。</li></ul></section></div>
+      <div class="guide-two-column"><section><h3>不想現在處理</h3><ul><li>按「收合」會縮成一列，不會消失。</li><li>按縮小列的「查看」可立即展開。</li><li>完成一個階段後，系統會依新狀態顯示新的建議。</li></ul></section><section><h3>例外情況</h3><ul><li>沒有可售車：引導到快速進車。</li><li>車行先領車：持續提醒三個工作日內補領牌文件。</li><li>取消待退款、逾期文件與收款會優先顯示。</li></ul></section></div>
       <div class="guide-example"><strong>角色交接</strong><p>業務完成訂單與證件核對 → 行政／庫存完成配車，補助可同步收件 → 行政完成領牌 → 交付人員核對車況與收款 → 財務確認撥款與單筆淨利。每次接手都先看建議下一步與處理紀錄，不用 LINE 訊息代替系統紀錄。</p></div>
     </article>{% endif %}
 
@@ -185,9 +183,9 @@
 
     {% help_visible 'delivery' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="delivery" data-guide-topic>
       <div class="guide-topic-heading"><span>10</span><div><p class="eyebrow">最後確認</p><h2>交付車輛</h2></div></div>
-      <p>一般客戶必須完成領牌才可交付；合作車行可先交車，再於期限內補領牌文件與收款。折扣不能待確認；交付分頁上方的「交車前確認」必須勾選「贈品與履約已確認」（沒有贈品也要勾），電動車另須勾選「車控與電池合約已確認」，可在領牌前先完成；合作車行有掛帳額度時不能超額。不符合時按鈕顯示「尚未符合交車條件」並列出原因。</p>
-      <ol class="guide-steps"><li><strong>尾款與交車一起送出。</strong><span>尾款未收清時，交車表單下方會出現「尾款」區塊，填實收金額、收款日期與方式，按「收尾款並完成交車」會同時確認收款；金額不足時不會交車也不會記錄收款。合作車行可先領車並由系統持續提醒。</span></li><li><strong>填交付方式與時間。</strong><span>託運時，時間是交給託運公司的時間。</span></li><li><strong>填收車人、電話與實際地點。</strong><span>指定地點或託運必填目的地，託運另填公司。</span></li><li><strong>快選交付車況。</strong><span>點選「正常」、「發現刮傷或損壞」或「其他狀況」，不必每次重新打字。</span></li><li><strong>需要時補充說明。</strong><span>刮傷或損壞必須填損壞說明；其他狀況寫在交付備註。</span></li><li><strong>完成車況、文件、鑰匙及配件贈品核對。</strong></li><li><strong>按表單最下方的「收尾款並完成交車」或「確認完成交付」。</strong><span>完成後訂單與實體車輛會鎖定，不需重複送出。</span></li></ol>
-      <div class="guide-tip"><strong>合作車行期限</strong><span>從實際交車時間起，三個工作日內補領牌文件、七個工作日內補尾款；週末與系統設定的國定假日不計。</span></div>
+      <p>一般客戶必須完成領牌才可交付；車行可先交車，再於期限內補領牌文件與收款。折扣不能待確認；交付分頁上方的「交車前確認」必須勾選「贈品與履約已確認」（沒有贈品也要勾），電動車另須勾選「車控與電池合約已確認」，可在領牌前先完成；車行有掛帳額度時不能超額。不符合時按鈕顯示「尚未符合交車條件」並列出原因。</p>
+      <ol class="guide-steps"><li><strong>尾款與交車一起送出。</strong><span>尾款未收清時，交車表單下方會出現「尾款」區塊，填實收金額、收款日期與方式，按「收尾款並完成交車」會同時確認收款；金額不足時不會交車也不會記錄收款。車行可先領車並由系統持續提醒。</span></li><li><strong>填交付方式與時間。</strong><span>託運時，時間是交給託運公司的時間。</span></li><li><strong>填收車人、電話與實際地點。</strong><span>指定地點或託運必填目的地，託運另填公司。</span></li><li><strong>快選交付車況。</strong><span>點選「正常」、「發現刮傷或損壞」或「其他狀況」，不必每次重新打字。</span></li><li><strong>需要時補充說明。</strong><span>刮傷或損壞必須填損壞說明；其他狀況寫在交付備註。</span></li><li><strong>完成車況、文件、鑰匙及配件贈品核對。</strong></li><li><strong>按表單最下方的「收尾款並完成交車」或「確認完成交付」。</strong><span>完成後訂單與實體車輛會鎖定，不需重複送出。</span></li></ol>
+      <div class="guide-tip"><strong>車行期限</strong><span>從實際交車時間起，三個工作日內補領牌文件、七個工作日內補尾款；週末與系統設定的國定假日不計。</span></div>
     </article>{% endif %}
 
     {% help_visible 'cancel-refund' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="cancel-refund" data-guide-topic>
@@ -198,8 +196,8 @@
 
     {% help_visible 'first-setup' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="first-setup" data-guide-topic>
       <div class="guide-topic-heading"><span>建檔</span><div><p class="eyebrow">系統清空後</p><h2>首次建立基本資料</h2></div></div>
-      <p>系統清空後，只保留帳號與畫面權限、門市（存放地點）、馭盛開單公司、通路類別、工作日與假日設定、報表；品牌、機種、車色、售價、分期、規則、合作車行、網路平台、本店人員、庫存與訂單都要重新建立。請依下列順序做，前一步沒做，後一步會選不到或存不了。</p>
-      <div class="guide-tip"><strong>開始前請 admin 確認</strong><span>「資料維護區 → 列印範本設定 → 訂購單公司資訊」的馭盛公司全名、統一編號、地址與電話仍正確；「通路類別」中本店來源、合作車行、網路平台三種各至少有一個啟用中的類別，否則無法新增本店人員、車行或平台。門市已保留，可以直接進車。</span></div>
+      <p>系統清空後，只保留帳號與畫面權限、門市（存放地點）、馭盛開單公司、通路類別、工作日與假日設定、報表；品牌、機種、車色、售價、分期、規則、車行、網路平台、本店人員、庫存與訂單都要重新建立。請依下列順序做，前一步沒做，後一步會選不到或存不了。</p>
+      <div class="guide-tip"><strong>開始前請 admin 確認</strong><span>「資料維護區 → 列印範本設定 → 訂購單公司資訊」的馭盛公司全名、統一編號、地址與電話仍正確；「通路類別」中本店來源、車行、網路平台三種各至少有一個啟用中的類別，否則無法新增本店人員、車行或平台。門市已保留，可以直接進車。</span></div>
       <ol class="guide-steps">
         <li><strong>車輛品牌。</strong><span>資料維護區 → 車輛品牌。新增機種、領牌與強制險時的品牌都從這裡選。</span></li>
         <li><strong>機種／年式與顏色。</strong><span>資料維護區 → 機種與售價 →「＋ 新增機種／年式」：填品牌、能源別、機種、原廠型號、年份、型式（油車填排氣量，電動車選領牌級別），同頁按「＋ 新增顏色」。</span></li>
@@ -208,11 +206,11 @@
         <li><strong>分期公司與方案。</strong><span>先在「分期公司與方案」按「＋ 新增分期公司」，再到機種工作區的「分期」分頁設定各期數。沒有方案就不能下分期訂單，現金訂單不受影響。</span></li>
         <li><strong>領牌與強制險。</strong><span>電動車一定要設定，否則填領牌日期時無法試算；油車沒設定時用公式試算。</span></li>
         <li><strong>車輛結算成本、原廠獎勵與補助。</strong><span>在機種工作區的「結算成本」「原廠獎勵與補助」分頁建立，車型固定為該機種、不需再選；要跨機種查看時，再到資料維護區的同名頁面。請在領牌前建好，否則成本是 0、單筆淨利不完整。</span></li>
-        <li><strong>本店人員、合作車行、網路平台。</strong><span>合作車行要勾「合作類別」，才會進入價格表分發；admin 到車行的「訂購單公司資訊」分頁填公司資料，店內才能代開，車行人員的訂單也才能列印訂購單。</span></li>
-        <li><strong>重新綁定帳號（admin）。</strong><span>清空時所有合作車行帳號已自動停用，因為所屬車行已不存在。建好車行後，到「帳號與權限」選該人員 →「訂單範圍」重新選「預設店別／所屬車行」，再到「帳號資料」勾「帳號啟用中」並儲存。店內人員也要在「訂單範圍」重新選預設店別。</span></li>
+        <li><strong>本店人員、車行、網路平台。</strong><span>車行要勾「合作類別」，才會進入價格表分發；訂購單一律使用本店公司資料，車行不必另外設定。</span></li>
+        <li><strong>重新選預設店別（admin）。</strong><span>清空後到「帳號與權限」選該人員 →「訂單範圍」重新選預設店別並儲存。</span></li>
         <li><strong>車行傭金與台數獎金（有才建）。</strong><span>從「車行傭金與銷售獎勵」「車行台數獎金」設定；沒設定時傭金為 0，台數獎金不會試算。</span></li>
         <li><strong>庫存進車。</strong><span>資料維護區 → 車輛庫存 →「＋ 快速進車」。</span></li>
-        <li><strong>價格表分發。</strong><span>合作車行建好後，到「價格表分發」按「重新同步本月名單」。</span></li>
+        <li><strong>價格表分發。</strong><span>車行建好後，到「價格表分發」按「重新同步本月名單」。</span></li>
       </ol>
       <div class="guide-example"><strong>建完後開一張測試單</strong><p>確認選車畫面看得到車款與售價；現金與分期各走到確認頁一次（可不送出）；進一台車後，確認配車選單看得到。卡住時回頭檢查上方對應的步驟。</p></div>
       <div class="guide-tip"><strong>從原廠官網快速建立機種（admin）</strong><span>資料維護區 → 原廠車型比對，在「待對應」按「從官網建立車型」。建立的機種一律停用、未上架，放在「機種與售價」的「已停用機種」分頁；補好車色與售價版本後，在機種工作區的「規格與車色」分頁改回啟用，系統會自動上架。</span></div>
@@ -241,7 +239,7 @@
     </article>{% endif %}
 
     {% help_visible 'dealer-sales-programs' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="dealer-sales-programs" data-guide-topic>
-      <div class="guide-topic-heading"><span>佣</span><div><p class="eyebrow">給合作車行／逐台給付</p><h2>車行傭金與銷售獎勵</h2></div></div>
+      <div class="guide-topic-heading"><span>佣</span><div><p class="eyebrow">給車行／逐台給付</p><h2>車行傭金與銷售獎勵</h2></div></div>
       <ol class="guide-steps">
         <li><strong>從資料維護區直接進入。</strong><span>選「車行傭金與銷售獎勵」；也可以在機種工作區切到「傭金與獎勵」分頁。</span></li>
         <li><strong>找到要設定的車型。</strong><span>「啟用中車型」與「已停用車型」分成兩個頁籤；切換時會保留搜尋條件，再依品牌、能源別及目前有無附加獎勵篩選。</span></li>
@@ -255,7 +253,7 @@
     </article>{% endif %}
 
     {% help_visible 'dealer-volume-bonus' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="dealer-volume-bonus" data-guide-topic>
-      <div class="guide-topic-heading"><span>獎金</span><div><p class="eyebrow">給合作車行</p><h2>車行台數獎金：條件、門檻與累加</h2></div></div>
+      <div class="guide-topic-heading"><span>獎金</span><div><p class="eyebrow">給車行</p><h2>車行台數獎金：條件、門檻與累加</h2></div></div>
       <ol>
         <li>在資料維護區開啟「車行台數獎金」，預設進入<strong>規則管理</strong>。這裡列出全部規則，包含未銷售及已停用規則；直接按該規則的「編輯規則」，不必先找車行。新增則按「新增規則」；名稱可自行填寫，也可留白由目前品牌與能源自動命名。</li>
         <li>選擇適用車行、品牌、能源別與車型。品牌與車型可以搜尋並複選，未選即不限；所選品牌合併台數，例如 SYM 2 台＋SUZUKI 1 台達 3 台門檻。不同類型條件仍須同時符合。</li>
@@ -270,16 +268,16 @@
       <div class="guide-tip"><strong>車型跟著品牌、能源篩選</strong><span>「指定車型」只列符合所選品牌與能源的車型；複選品牌會顯示這些品牌的車型，沒有符合結果時不會顯示其他車型。變更條件若影響已選車型，請先確認移除或按「還原品牌與能源」，再儲存。若全部移除，會明確提示將變成「不限車型」；未按儲存不會更改規則。</span></div>
       <div class="guide-example"><strong>同規則取最高門檻，不同規則累加</strong><p>A 車行達 3 台，每台 500 元，該規則即為 1,500 元，不再加低門檻金額。同一台另符合能源 300 元及車型 200 元，則該台獎金共 1,000 元。</p></div>
       <div class="guide-tip"><strong>試算不是付款，原傭金只計一次</strong><span>每個「規則＋期間＋車行」只能結算一次。逐單明細會標示其他獎金是試算或已結算；本次不要再輸入其他規則或原傭金。正式結算／更正才更新獎金分攤、成本及淨利，並非新增付款。更正須填原因，且保留其他規則獎金；人工覆寫傭金總額須另外核對，系統不擅自拆分。</span></div>
-      <p>只計歸屬合作車行的訂單；本店單須明確指定車行才計入，平台單、取消單、未完成領牌及期間外訂單不計入。收款車行及統計期間依已保存的歸屬與領牌資料，不因新增規則而更動。</p>
+      <p>只計歸屬車行的訂單；本店單須明確指定車行才計入，平台單、取消單、未完成領牌及期間外訂單不計入。收款車行及統計期間依已保存的歸屬與領牌資料，不因新增規則而更動。</p>
     </article>{% endif %}
 
     {% help_visible 'sales-sources' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="sales-sources" data-guide-topic>
-      <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>合作車行、網路平台與本店人員</h2></div></div>
+      <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>車行、網路平台與本店人員</h2></div></div>
       <p>三種來源各有獨立清單，不會混在同一個畫面；通路類別也從資料維護區進入。</p>
       <div class="guide-example"><strong>這一台要算給另一間車行</strong><p>新訂單在「訂單來源」點「這台算給其他車行」，選好後隨訂單儲存。已儲存、已交付或已完成的訂單，點明細標題旁的「調整台數歸屬」，或歸屬區塊的「變更車行」，選車行、填原因、按「儲存歸屬」；選回「原銷售車行」可恢復預設。</p><p>例如 B 的一台指定給 A：這台台數、基礎傭金與台數獎金歸 A，原銷售來源仍是 B。本店單也能指定車行，保留本店來源與承辦人，不新增基礎傭金；選「不指定車行」可取消。網路平台維持原限制。</p><p>只更新歸屬與未結算試算，不重算原車價、原傭金及其他收支，也不變更交付紀錄；台數沿用原領牌期間。獎金在正式結算後才分攤到成本與淨利。已取消或已結算的訂單不能直接調整，也不能直接加入目標車行已結算的期間。此操作不等於付款，修改人、時間、原因與前後值會保留。</p></div>
       <div class="guide-two-column">
-        <section><h3>合作車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。列表可直接按「Google Maps 導航」規劃路線。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li><li>掛帳額度：空白不設上限但仍追蹤，0 表示收清才能交車，超過額度不能交車。</li><li>編輯頁分「基本資料」「登入帳號」「訂購單公司資訊」；沒有設定公司資訊的車行，店內不能代開，車行人員的訂單也不能列印訂購單。</li><li>停止合作請停用；永久刪除見下方說明。</li></ul></section>
-        <section><h3>平台與本店人員</h3><ul><li>網路平台維護來源代碼、聯絡窗口、電話、分機、手機、Email 與備註；新資料由系統配置來源代碼。</li><li>本店人員維護姓名、所在店（永湛／馭盛）、電話與每筆傭金。</li><li>列表的「啟用中」是快速開關；合作車行的「年節送禮」也可直接切換，畫面會留在原位。</li><li>停用資料保留歷史訂單使用，但建立新訂單時不再提供選用。</li></ul></section>
+        <section><h3>車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。列表可直接按「Google Maps 導航」規劃路線。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li><li>掛帳額度：空白不設上限但仍追蹤，0 表示收清才能交車，超過額度不能交車。</li><li>停止合作請停用；永久刪除見下方說明。</li></ul></section>
+        <section><h3>平台與本店人員</h3><ul><li>網路平台維護來源代碼、聯絡窗口、電話、分機、手機、Email 與備註；新資料由系統配置來源代碼。</li><li>本店人員維護姓名、所在店（永湛／馭盛）、電話與每筆傭金。</li><li>列表的「啟用中」是快速開關；車行的「年節送禮」也可直接切換，畫面會留在原位。</li><li>停用資料保留歷史訂單使用，但建立新訂單時不再提供選用。</li></ul></section>
       </div>
       <div class="guide-tip"><strong>輸入更快</strong><span>一般文字欄位會依「目前帳號＋目前欄位」顯示最近 10 筆輸入；系統已關閉瀏覽器自己產生的黑色自動完成清單。</span></div>
       <div class="guide-exception"><strong>停用與永久刪除不同</strong><p>正常停止合作請使用停用，訂單與歷史資料都會保留。只有完全誤建、且沒有訂單、庫存、台數獎金或舊資料對應的車行，才能從編輯頁的「車行資料管理」輸入完整名稱後永久刪除；系統會先列出所有阻擋項目。</p></div>
@@ -296,13 +294,13 @@
         <li><strong>看品牌標記並完成分發。</strong><span>顯示應提供的三陽或台鈴價格表，三陽專銷會另外註記；整間車行跑完一次就按「標記完成」，不用依品牌分次完成。</span></li>
         <li><strong>外出直接聯絡、導航並留下當月備註。</strong><span>電話會盡量補齊區域碼供手機撥號；按「Google Maps 導航」會從目前位置規劃汽車路線，回到清單後仍可繼續勾選；需要追蹤的狀況寫在該月份備註。</span></li>
       </ol>
-      <div class="guide-two-column"><section><h3>沿用與歷史</h3><ul><li>需要重新套用時，可在分配畫面按「沿用上月分工」。</li><li>歷史月份保存當時負責人、順序、完成紀錄與備註，只供查詢。</li><li>每間車行只有一位當月負責人，避免重複跑訪。</li></ul></section><section><h3>名單有誤</h3><ul><li>先回合作車行修正啟用狀態、合作品牌或專銷關係。</li><li>再按「重新同步本月名單」。</li><li>同步不會清除已完成狀態、備註、負責人或拜訪順序。</li></ul></section></div>
+      <div class="guide-two-column"><section><h3>沿用與歷史</h3><ul><li>需要重新套用時，可在分配畫面按「沿用上月分工」。</li><li>歷史月份保存當時負責人、順序、完成紀錄與備註，只供查詢。</li><li>每間車行只有一位當月負責人，避免重複跑訪。</li></ul></section><section><h3>名單有誤</h3><ul><li>先回車行修正啟用狀態、合作品牌或專銷關係。</li><li>再按「重新同步本月名單」。</li><li>同步不會清除已完成狀態、備註、負責人或拜訪順序。</li></ul></section></div>
       <div class="guide-exception"><strong>只有台鈴電動車</strong><p>這類車行不會進入價格表分發清單；如果應該出現，請先確認車行是否另有三陽或台鈴油車合作。</p></div>
     </article>{% endif %}
 
     {% help_visible 'account-management' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="account-management" data-guide-topic>
       <div class="guide-topic-heading"><span>帳</span><div><p class="eyebrow">管理者專用</p><h2>建立帳號、停用人員與重設密碼</h2></div></div>
-      <div class="guide-two-column"><section><h3>建立新同仁帳號</h3><ol><li>從「資料維護區 → 管理者工具 → 帳號與權限」按「＋ 建立內部帳號」。</li><li>填顯示名稱與登入帳號。</li><li>按「產生安全密碼」再按「複製密碼」，或自行輸入（至少 8 碼、不能太常見或全數字）；保留「建立後立即啟用」與「首次登入必須變更密碼」。</li><li>建立後立即把臨時密碼交給本人；系統不會再次顯示。</li><li>admin 接著按該人員的「管理帳號與權限」，在「畫面與操作」「訂單範圍」設定可用功能與可看訂單。</li></ol></section><section><h3>人員異動</h3><ul><li>離職或暫停使用時，在帳號清單點該列「使用中」開關改為「已停用」（車行帳號在「帳號資料」取消「帳號啟用中」），不要刪除帳號。</li><li>忘記密碼時由管理者在清單按「重設密碼」，產生新臨時密碼並保留「下次登入必須變更密碼」；完成後其他裝置的登入立即失效。</li><li>管理者權限只給需要管理帳號與系統設定的人員。</li><li>系統會保留誰在何時建立、修改、停用或重設；清單最下方「帳號異動紀錄」可看最近 20 筆，畫面權限另有「權限異動歷程」可還原舊版。</li></ul></section></div>
+      <div class="guide-two-column"><section><h3>建立新同仁帳號</h3><ol><li>從「資料維護區 → 管理者工具 → 帳號與權限」按「＋ 建立內部帳號」。</li><li>填顯示名稱與登入帳號。</li><li>按「產生安全密碼」再按「複製密碼」，或自行輸入（至少 8 碼、不能太常見或全數字）；保留「建立後立即啟用」與「首次登入必須變更密碼」。</li><li>建立後立即把臨時密碼交給本人；系統不會再次顯示。</li><li>admin 接著按該人員的「管理帳號與權限」，在「畫面與操作」「訂單範圍」設定可用功能與可看訂單。</li></ol></section><section><h3>人員異動</h3><ul><li>離職或暫停使用時，在帳號清單點該列「使用中」開關改為「已停用」，不要刪除帳號。</li><li>忘記密碼時由管理者在清單按「重設密碼」，產生新臨時密碼並保留「下次登入必須變更密碼」；完成後其他裝置的登入立即失效。</li><li>管理者權限只給需要管理帳號與系統設定的人員。</li><li>系統會保留誰在何時建立、修改、停用或重設；清單最下方「帳號異動紀錄」可看最近 20 筆，畫面權限另有「權限異動歷程」可還原舊版。</li></ul></section></div>
       <div class="guide-example"><strong>例子</strong><p>新進同仁王小明：建立帳號 <code>wangming</code>，產生臨時密碼並勾選首次登入變更。王小明登入後，系統會先要求設定自己的新密碼，完成才可進入首頁。</p></div>
       <div class="guide-exception"><strong>管理者離職</strong><p>先確認至少還有另一個「啟用中」的系統管理者，再停用原帳號。系統會禁止停用自己或最後一位管理者，避免全公司都無法管理帳號。</p></div>
       <div class="guide-tip"><strong>每個人都能自行換密碼</strong><span>電腦版點右上角自己的名字 →「我的密碼」；手機版點「更多 → 變更密碼」。新密碼至少 8 碼，不強制符號或大小寫，但不能使用常見密碼或純數字。管理者看不到任何人的既有密碼。</span></div>
@@ -317,8 +315,8 @@
       <div class="guide-tip"><strong>金額原則</strong><span>系統帶入的是預設或試算；正式單據、實際撥款與可人工修改欄位仍需核對。人工修改要留下原因。</span></div>
       <div class="guide-exception"><strong>不要把不確定金額都放「其他」</strong><p>現金撥款通常等於車款售價；分期依方案設定的預估撥款（按比例試算、固定金額或本單另填）；平台依帳本人工填。領牌、保險、選號、運費與傭金應分欄依正式單據記錄，不確定時保留單據請財務確認，避免重複計算。</p></div>
       <div class="guide-tip"><strong>在哪裡填</strong><span>訂單明細的「收入與支出」步驟：最上方是收入合計、支出合計與淨利（需查看淨利權限），下方左欄「收入」（實際撥款、領牌、手續費、獎勵與補助），右欄「支出」（車輛成本、領牌規費、傭金、手續費與其他）。修改金額時小計即時更新；標「系統帶入」的欄位修改並儲存後改標「已人工調整」，不再被同步覆蓋。收款明細、應收設定與沖銷退款在兩欄下方。找不到結算成本時會顯示「尚未認列」，請先補成本版本，不要填 0。本店不記錄發票。</span></div>
-      <div class="guide-tip"><strong>傭金自動帶入</strong><span>建立訂單時即帶入「傭金支出（車行／本店人員）」：合作車行單＝機種基礎傭金＋車行品牌加減（再加已結算台數獎金）；本店單選了本店人員時帶入該人員的每筆傭金；本店單指定給車行時維持不新增基礎傭金。人工改過的金額不會被覆寫，領牌完成後固定。</span></div>
-      <div class="guide-example"><strong>車行結算（合作車行賣出的訂單）</strong><p>現金購車：原現金價（不扣已核准優惠）－傭金＋牌險費＋配件費；分期購車：配件費－傭金。正數顯示「向車行收」，負數顯示「付給車行」，零為「無需收付」。例：現金價 79,800－傭金 2,300＋牌險 2,350＋配件 1,500＝向車行收 81,350。結算卡片在「收入與支出」總覽與「交車與收尾款」，只供對帳，不會自動登記收款或車行掛帳。</p></div>
+      <div class="guide-tip"><strong>傭金自動帶入</strong><span>建立訂單時即帶入「傭金支出（車行／本店人員）」：車行單＝機種基礎傭金＋車行品牌加減（再加已結算台數獎金）；本店單選了本店人員時帶入該人員的每筆傭金；本店單指定給車行時維持不新增基礎傭金。人工改過的金額不會被覆寫，領牌完成後固定。</span></div>
+      <div class="guide-example"><strong>車行結算（車行賣出的訂單）</strong><p>現金購車：原現金價（不扣已核准優惠）－傭金＋牌險費＋配件費；分期購車：配件費－傭金。正數顯示「向車行收」，負數顯示「付給車行」，零為「無需收付」。例：現金價 79,800－傭金 2,300＋牌險 2,350＋配件 1,500＝向車行收 81,350。結算卡片在「收入與支出」總覽與「交車與收尾款」，只供對帳，不會自動登記收款或車行掛帳。</p></div>
     </article>{% endif %}
 
     {% help_visible 'reconciliation' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="reconciliation" data-guide-topic>
@@ -378,7 +376,7 @@
         <div role="listitem"><strong>沒有可配車輛</strong><span>檢查庫存、車型、年份、車色、是否標記「車況異常」與是否已被保留。</span></div>
         <div role="listitem"><strong>無法改配</strong><span>已有車牌、領牌完成紀錄或領牌文件時不能直接改配，請先由行政處理領牌資料。</span></div>
         <div role="listitem"><strong>領牌不能完成</strong><span>看「尚有 N 項未完成」的清單，補齊文件、日期、車牌或成本規則。</span></div>
-        <div role="listitem"><strong>不能交車</strong><span>依畫面原因處理：尚未配車、一般單未領牌、折扣待確認、分期尚未「已核准」、尾款未收清，或合作車行掛帳超過額度。</span></div>
+        <div role="listitem"><strong>不能交車</strong><span>依畫面原因處理：尚未配車、一般單未領牌、折扣待確認、分期尚未「已核准」、尾款未收清，或車行掛帳超過額度。</span></div>
         <div role="listitem"><strong>訂單停在「取消待退款」</strong><span>依已確認實收完成沒收／退款結算；客人改變心意可以撤銷取消。</span></div>
         <div role="listitem"><strong>不能取消訂單</strong><span>車輛已領牌：改走「例外結案」；分期公司已撥款：不能取消；有未確認的實收：先確認或清除該筆收款。</span></div>
         <div role="listitem"><strong>目前沒有網路</strong><span>保持頁面開啟，不要重複送出；恢復後確認草稿／修改的儲存時間。</span></div>
@@ -392,7 +390,7 @@
     {% help_visible 'security' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="security" data-guide-topic>
       <div class="guide-topic-heading"><span>安全</span><div><p class="eyebrow">每個人都要遵守</p><h2>個資、帳號與敏感資料</h2></div></div>
       <ul class="guide-checklist"><li>每人使用自己的帳號，不共用；變更紀錄才知道是誰操作。</li><li>密碼連續錯誤 5 次會暫停嘗試 15 分鐘；不要一直重按登入。</li><li>公用電腦或手機使用完畢要登出；裝置遺失立即通知管理者。</li><li>證件辨識完成仍要人工核對，不把證件照片貼到 LINE 群組當作系統歸檔。</li><li>下載到手機的證件與存摺，送件完成後刪除本機副本。</li><li>車控與電池密碼只填專用欄位，不抄到備註；每次查看都應有正當作業目的。</li><li>發現不認識的操作人、異常變更或不該看到的資料，立即停止操作並回報。</li></ul>
-      <div class="guide-tip"><strong>系統目前的權限</strong><span>帳號與畫面權限由管理者設定，合作車行帳號只看得到授權範圍內的訂單。看得到資料，不代表可以查看或修改與工作無關的個資。</span></div>
+      <div class="guide-tip"><strong>系統目前的權限</strong><span>帳號與畫面權限由管理者設定。看得到資料，不代表可以查看或修改與工作無關的個資。</span></div>
     </article>{% endif %}
 
     {% help_visible 'reports' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="reports" data-guide-topic>
@@ -429,7 +427,7 @@
       <p>admin 可在設計頁開啟明細表，選擇顯示欄位及每頁 10、25 或 50 筆，也可建立只有明細表的報表。明細與匯出同時遵守報表固定範圍及讀者篩選；單張圖表的額外條件只影響該圖與該圖下鑽，不會套到整份明細。匯出上限 5,000 筆，超過時須先縮小範圍。車主姓名只有 admin 明確選為明細欄位時才會顯示，不能將普通分類下鑽與此明細表混為一談；證件與聯絡資料不提供為報表欄位。</p>
       <p>「DMIS 已確認實收」加總目前已確認收款；「歷史收款價（原始）」是匯入的舊值，不代表已收款或已結清。缺少收支資料會標為待補。「舊報表銷售來源（比對用）」依歷史原車行名稱分為馭盛、網路平台、店內員工、展場及車行；新訂單使用目前通路名稱。這與目前通路類型不同，也不改變傭金歸屬。堆疊系列可依合計或名稱正反排序；相同舊分類在堆疊與圓環使用一致顏色。</p>
       <p>「原型號文字」以型號文字分組，不因 DMIS 年式主檔不同而拆開；「油車／電車分類」依訂單車型主檔的能源別：油車歸油車，電動、輕型電動、微型電動二輪車一律歸電車；只有沒連車型主檔的訂單才沿用舊報表的型號公式。它不會修改傭金規則。歷史公司禮券／匯款、平台贈品及公司贈品可分欄查看；它們是原始記載，不表示已發放。原空白顯示「原始未填寫」、缺欄顯示「原始欄位未提供」，不拿零值代替；新訂單顯示「非歷史匯入」，請回訂單確認實際獎勵。</p>
-      <p>「原報表車行／平台名稱」會依舊表規則移除一般空白並轉大寫，以便比對同名群組，不會修改合作車行資料或合併訂單。查看時選擇的油車／電車與固定條件取交集。既有明細欄位的順序在預覽與儲存時會保留，新勾選的欄位接在最後。</p>
+      <p>「原報表車行／平台名稱」會依舊表規則移除一般空白並轉大寫，以便比對同名群組，不會修改車行資料或合併訂單。查看時選擇的油車／電車與固定條件取交集。既有明細欄位的順序在預覽與儲存時會保留，新勾選的欄位接在最後。</p>
       <p>查看報表時，先選期間、月份與車行；品牌、能源、日期圖表層級及原報表比對條件收在「進階篩選」。進階條件套用後會自動展開並提示已使用幾項，避免忘記仍有篩選。「清除我的篩選」不會解除 admin 設定的固定範圍。</p>
       <p>資料表可增加第二分類與附加指標，例如同表列出月份、歸屬車行及台數。點分類仍可查同一組來源訂單，CSV 保留多欄。DMIS 已分配台數獎金只統計已有分配紀錄的金額，不是待結算試算；車行傭金支出可能已含獎金，兩欄不可再相加，亦不代表已付款。</p>
       <p>目前不支援自由畫布、樞紐分析、同期比較、排程寄送或連接 Google 試算表。各頁與原報表的資料差異，請看該頁「資料口徑與說明」。</p>
@@ -438,7 +436,7 @@
 
     {% help_visible 'glossary' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="glossary" data-guide-topic>
       <div class="guide-topic-heading"><span>詞</span><div><p class="eyebrow">白話名詞</p><h2>畫面上的用語是什麼意思</h2></div></div>
-      <dl class="guide-glossary"><div><dt>草稿</dt><dd>尚未正式建立，系統先幫你保存的訂單。</dd></div><div><dt>待配車</dt><dd>訂單成立，但還沒指定實際引擎／車身號碼。</dd></div><div><dt>鎖定</dt><dd>重要工作完成後，避免其他人誤改。</dd></div><div><dt>系統試算</dt><dd>依目前規則先算的參考金額，仍要和正式單據核對。</dd></div><div><dt>應收／實收</dt><dd>應該收到的金額／實際已收到的金額。</dd></div><div><dt>工作日</dt><dd>排除週六、週日及系統設定國定假日。</dd></div><div><dt>保存當時資料</dt><dd>訂單不會因日後修改主檔而改掉當時價格、成本或獎勵。</dd></div><div><dt>單筆淨利</dt><dd>這台新車銷售最後認列的利潤，不含中古車與配件的獨立獲利。</dd></div><div><dt>待接單</dt><dd>已下單，店內還沒有人接單。</dd></div><div><dt>取消待退款</dt><dd>已登記取消，還要完成沒收／退款結算。</dd></div><div><dt>例外結案</dt><dd>已領牌但客人不交車，依已收款結算，車輛以領牌車釋回庫存。</dd></div><div><dt>已確認實收</dt><dd>已確認入帳的收款，不能直接修改，錯了要整筆沖銷再重新登記。</dd></div><div><dt>優先配車</dt><dd>配車時排在最前面的車；出廠超過 3 個月自動優先，也可人工開啟。</dd></div></dl>
+      <dl class="guide-glossary"><div><dt>草稿</dt><dd>尚未正式建立，系統先幫你保存的訂單。</dd></div><div><dt>待配車</dt><dd>訂單成立，但還沒指定實際引擎／車身號碼。</dd></div><div><dt>鎖定</dt><dd>重要工作完成後，避免其他人誤改。</dd></div><div><dt>系統試算</dt><dd>依目前規則先算的參考金額，仍要和正式單據核對。</dd></div><div><dt>應收／實收</dt><dd>應該收到的金額／實際已收到的金額。</dd></div><div><dt>工作日</dt><dd>排除週六、週日及系統設定國定假日。</dd></div><div><dt>保存當時資料</dt><dd>訂單不會因日後修改主檔而改掉當時價格、成本或獎勵。</dd></div><div><dt>單筆淨利</dt><dd>這台新車銷售最後認列的利潤，不含中古車與配件的獨立獲利。</dd></div><div><dt>取消待退款</dt><dd>已登記取消，還要完成沒收／退款結算。</dd></div><div><dt>例外結案</dt><dd>已領牌但客人不交車，依已收款結算，車輛以領牌車釋回庫存。</dd></div><div><dt>已確認實收</dt><dd>已確認入帳的收款，不能直接修改，錯了要整筆沖銷再重新登記。</dd></div><div><dt>優先配車</dt><dd>配車時排在最前面的車；出廠超過 3 個月自動優先，也可人工開啟。</dd></div></dl>
     </article>{% endif %}
   </div>
 </div>

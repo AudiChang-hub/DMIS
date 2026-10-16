@@ -1205,14 +1205,6 @@ def user_management(request):
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all")
     users = get_user_model().objects.select_related("security_profile", "order_account__source")
-    kind = request.GET.get("kind", "")
-    source_id = request.GET.get("source", "")
-    if kind == "dealer":
-        users = users.filter(order_account__kind="dealer")
-    elif kind == "internal":
-        users = users.exclude(order_account__kind="dealer")
-    if source_id.isascii() and source_id.isdigit() and len(source_id) < 12:
-        users = users.filter(order_account__source_id=int(source_id))
     if query:
         users = users.filter(
             Q(username__icontains=query)
@@ -1241,9 +1233,6 @@ def user_management(request):
         "sales/user_management.html",
         {
             "accounts": users,
-            "account_kind": kind,
-            "account_source": source_id,
-            "dealer_sources": SalesSource.objects.filter(source_type="dealer").order_by("name"),
             "query": query,
             "status": status,
             "counts": {
@@ -1310,9 +1299,6 @@ def user_account_edit(request, pk):
         destination = workspace_redirect(request, pk, "account")
         if destination:
             return destination
-    from sales.models import OrderAccountProfile
-    if OrderAccountProfile.objects.filter(user_id=pk, kind="dealer").exists():
-        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     form = AdminUserEditForm(request.POST or None, instance=account)
     from .access.services import policy_for
@@ -1373,10 +1359,6 @@ def user_account_edit(request, pk):
 @superuser_required
 @require_http_methods(["POST"])
 def user_account_status(request, pk):
-    from sales.models import OrderAccountProfile
-    if OrderAccountProfile.objects.filter(user_id=pk, kind="dealer").exists():
-        messages.info(request, "請在車行帳號設定確認狀態與功能後儲存。")
-        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
     requested_state = request.POST.get("active", "")
@@ -1453,10 +1435,6 @@ def user_account_reset_password(request, pk):
                 metadata={"must_change_password": profile.must_change_password},
             )
         messages.success(request, f"已重設 {account.get_username()} 的密碼，既有裝置已登出。")
-        from sales.services.order_intake import dealer_source
-        source = dealer_source(account)
-        if source:
-            return redirect("dealer_accounts", source_pk=source.pk)
         return redirect("user_management")
     return render(request, "sales/user_password_reset.html", {"form": form, "account": account})
 
@@ -1993,8 +1971,8 @@ def sales_source_list(request):
         )
         if status == "inactive"
         else (
-            ("with_group", "有 LINE 群組", "已建立日常聯繫群組的合作車行"),
-            ("without_group", "無 LINE 群組", "目前沒有 LINE 群組的合作車行"),
+            ("with_group", "有 LINE 群組", "已建立日常聯繫群組的車行"),
+            ("without_group", "無 LINE 群組", "目前沒有 LINE 群組的車行"),
         )
     )
     dealer_buckets = {key: {} for key, _, _ in section_configs}
@@ -2426,7 +2404,7 @@ def sales_source_staff_list(request):
         request,
         SalesSource.SourceType.STORE,
         title="本店人員",
-        description="管理本店銷售與作業人員、所在店及每筆傭金；不混入合作車行或網路平台。",
+        description="管理本店銷售與作業人員、所在店及每筆傭金；不混入車行或網路平台。",
         route_name="sales_source_staff_list",
     )
 
@@ -2437,7 +2415,7 @@ def sales_source_platform_list(request):
         request,
         SalesSource.SourceType.PLATFORM,
         title="網路平台",
-        description="管理網路銷售平台與聯絡資料；不混入合作車行或本店人員。",
+        description="管理網路銷售平台與聯絡資料；不混入車行或本店人員。",
         route_name="sales_source_platform_list",
     )
 
@@ -2677,7 +2655,7 @@ def sales_source_form(request, pk=None):
         )
     form_context = {
         SalesSource.SourceType.DEALER: {
-            "label": "合作車行",
+            "label": "車行",
             "list_route": "sales_source_list",
         },
         SalesSource.SourceType.STORE: {
@@ -4303,12 +4281,6 @@ def app_version(request):
 def dashboard(request):
     from sales.announcement_views import home_news_context
     from sales.access.services import policy_for
-    from sales.services.order_intake import scoped_orders
-    from sales.services.order_intake import is_dealer, dealer_source
-    if is_dealer(request.user):
-        return render(request, "sales/dealer_home.html", {"dealer_source": dealer_source(request.user),
-            **home_news_context(request),
-            "pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count()})
     from config.release_notes import RELEASE
     from sales.services.home_favorites import favorite_context
     if request.GET.get("q", "").strip():
@@ -4317,7 +4289,6 @@ def dashboard(request):
         return redirect(f"{reverse('order_list')}?{request.GET.urlencode()}")
     return render(request, "sales/dashboard.html", {
         "release": RELEASE,
-        "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
         "deletion_pending_count": SalesOrder.objects.filter(deletion_requested_at__isnull=False).count() if policy_for(request).root else 0,
         "unread_notification_count": request.user.dmis_notifications.filter(channel="in_app", read_at__isnull=True).count(),
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
@@ -4373,17 +4344,7 @@ def registration_fee_variance_confirm(request, pk):
 
 @login_required
 def order_list(request):
-    from sales.services.order_intake import is_dealer, scoped_orders, scoped_drafts
-    from sales.services.order_customer_access import customer_orders
-    if is_dealer(request.user):
-        orders = customer_orders(request.user).select_related("vehicle_model", "color").order_by("-created_at", "-pk")
-        query = request.GET.get("q", "").strip()
-        if query:
-            orders = orders.filter(Q(number__icontains=query) | Q(owner_name__icontains=query) | Q(vehicle_model__name__icontains=query))
-        if request.GET.get("status") in SalesOrder.Status.values:
-            orders = orders.filter(status=request.GET["status"])
-        page = Paginator(orders, 25).get_page(request.GET.get("page"))
-        return render(request, "sales/dealer_order_list.html", {"page_obj": page, "orders": page, "query": query, "statuses": SalesOrder.Status.choices, "own_drafts": Paginator(scoped_drafts(request.user), 10).get_page(request.GET.get("draft_page"))})
+    from sales.services.order_intake import scoped_orders, scoped_drafts
     from sales.access.services import policy_for
     from sales.services.profit_access import profit_is_unlocked
     profit_visible = profit_is_unlocked(request)
@@ -4607,7 +4568,7 @@ def _decorate_reconciliation_record(record):
         )
     else:
         record.reconciliation_channel = "dealer"
-        record.reconciliation_channel_label = "合作車行"
+        record.reconciliation_channel_label = "車行"
         record.reconciliation_party = (
             record.order.source.name if record.order.source_id else "未填車行"
         )
@@ -4853,7 +4814,7 @@ def order_create(request, reception=False):
     from sales.access.services import policy_for
     from django.contrib.auth import get_user_model
     from sales.intake_forms import IntakeOrderForm, validated_intake_uploads
-    from sales.services.order_intake import intake_context, receive_order, save_intake_uploads, prepare_intake_uploads, scoped_drafts
+    from sales.services.order_intake import intake_context, save_intake_uploads, prepare_intake_uploads, scoped_drafts
     submission_key = None
     if request.method == "POST":
         get_user_model().objects.select_for_update().get(pk=request.user.pk)
@@ -4870,6 +4831,11 @@ def order_create(request, reception=False):
             messages.info(request, "這次送出已建立訂單，沒有重複新增。")
             return redirect("order_submitted" if reception else "order_detail", pk=submitted.pk)
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
+    if draft_id:
+        try:
+            uuid.UUID(str(draft_id))
+        except ValueError:
+            raise Http404 from None  # 草稿編號格式錯誤視同找不到，不回 500
     draft = (
         get_object_or_404(scoped_drafts(request.user, reception=reception).select_for_update(), pk=draft_id)
         if draft_id
@@ -4947,7 +4913,7 @@ def _apply_submitted_subsidy_programs(order, form, post_data):
 def _create_intake_order(request, post_data, files, draft, reception, submission_key):
     """驗證並建立訂單；成功回傳導向回應，失敗回傳含錯誤的表單供重新顯示。"""
     from sales.intake_forms import validated_intake_uploads
-    from sales.services.order_intake import auto_accepts, receive_order, save_intake_uploads, prepare_intake_uploads
+    from sales.services.order_intake import mark_accepted, save_intake_uploads, prepare_intake_uploads
     form, formset, fee_formset = _bound_intake_forms(request, post_data, files, draft, reception)
     uploads = []
     form.is_valid()
@@ -4972,12 +4938,12 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         if not form.cleaned_data.get("id_back") and draft.id_back:
             order.id_back = draft.id_back.name
             draft.id_back = ""
-    order.status = SalesOrder.Status.INTAKE_PENDING
+    mark_accepted(order, request.user)
     order.cash_receivable_v2 = True
     order.submission_key = submission_key
     order.submitted_by = request.user
     from sales.services.print_company import initialize_company
-    initialize_company(order, request.user, assisted_company=form.assisted_company)
+    initialize_company(order, request.user)
     order.save()
     apply_order_price_snapshot(order)
     apply_order_installment_snapshot(order)
@@ -4987,7 +4953,7 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     fee_formset.instance = order
     fee_formset.save()
     if form.pricing_editable:
-        # 只有可訂價的人輸入的「其他」配件才加入主檔，避免車行帳號的價格成為主檔售價。
+        # 只有可訂價的人輸入的「其他」配件才加入主檔，避免接待模式的價格成為主檔售價。
         from sales.services.accessory_catalog import learn_custom_accessories
         learn_custom_accessories(order, request.user.get_username())
     _apply_submitted_subsidy_programs(order, form, post_data)
@@ -5007,7 +4973,7 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     OrderEvent.objects.create(
         order=order,
         event_type="created",
-        description="建立訂單，等待店內人員接單。",
+        description=f"建立訂單，由 {order.accepted_name} 接單。",
         actor_name=request.user.get_username(),
     )
     if order.discount_status:
@@ -5022,12 +4988,9 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
-    accepted = auto_accepts(request.user) or (not reception and form.cleaned_data.get("accept_by_me"))
-    if accepted:
-        receive_order(request.user, order.pk)
     if draft:
         draft.delete_with_files()
-    messages.success(request, "訂單已建立並由你接單。" if accepted else "訂單已建立，等待店內人員接單。")
+    messages.success(request, "訂單已建立並由你接單。")
     if reception:
         return redirect("order_submitted", pk=order.pk), form, formset, fee_formset
     return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1"), form, formset, fee_formset
@@ -5110,7 +5073,7 @@ def _initial_intake_forms(request, draft, reception):
 def _intake_form_context(request, form, formset, fee_formset, draft, reception, submission_key):
     import uuid
     from sales.access.services import policy_for
-    from sales.services.order_intake import auto_accepts, intake_context
+    from sales.services.order_intake import intake_context
     return {
         "form": form,
         "formset": formset,
@@ -5125,8 +5088,6 @@ def _intake_form_context(request, form, formset, fee_formset, draft, reception, 
         "reception_mode": reception,
         "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
         "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
-        "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
-        "intake_auto_accept": auto_accepts(request.user),
         "intake_finance_editable": form.finance_editable,
         "intake_pricing_editable": form.pricing_editable,
         "draft_save_route": "intake_draft_save" if reception else "draft_save",
@@ -5307,7 +5268,7 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
     }
     from sales.intake_forms import FINANCE_FIELDS, PRICING_FIELDS
     from sales.access.services import policy_for
-    from sales.services.order_intake import account_profile, can_edit_finance, can_receive
+    from sales.services.order_intake import can_edit_finance
     pricing_editable = policy_for(request).screen("order_pricing", "operate") or (not reception and can_edit_finance(request.user))
     if reception or not can_edit_finance(request.user):
         blocked_fields = set(FINANCE_FIELDS) - (PRICING_FIELDS if pricing_editable else set())
@@ -5319,11 +5280,7 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
                 draft.data.pop(key)
     if reception:
         draft.data["_reception"] = True
-    if reception or not can_receive(request.user):
-        draft.data.pop("accept_by_me", None)
-    profile = account_profile(request.user)
-    if profile and profile.kind == "dealer":
-        draft.data.update(source_type="dealer", source=str(profile.source_id))
+    draft.data.pop("accept_by_me", None)  # 舊草稿可能留著「由我接單」勾選
     for field_name in ("id_front", "id_back"):
         if request.POST.get(f"_remove_{field_name}") == "1":
             current = getattr(draft, field_name)
@@ -5446,11 +5403,7 @@ def draft_presence(request, pk):
 def order_detail(request, pk, *, commission_form=None, workspace_context_only=False):
     from sales.services import historical_delivery
     from sales.services.profit_access import profit_is_unlocked
-    from sales.services.order_intake import is_dealer, scoped_orders
-    if is_dealer(request.user):
-        from sales.services.order_customer_access import customer_orders
-        order = get_object_or_404(customer_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
-        return render(request, "sales/dealer_order_detail.html", {"order": order, "customer_attachments": order.intake_attachments.filter(kind__in=["installment", "supplement"])})
+    from sales.services.order_intake import scoped_orders
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source",
@@ -7140,7 +7093,7 @@ def delivery_complete(request, pk):
         actor_name=_editing_name(request.user),
     )
     if order.status == SalesOrder.Status.DELIVERED_DOCS_PENDING:
-        messages.success(request, "車輛已交付；合作車行領牌文件與尾款將持續提醒。")
+        messages.success(request, "車輛已交付；車行領牌文件與尾款將持續提醒。")
     else:
         messages.success(request, "車輛交付完成，訂單已結案。")
     return redirect(detail_url)
@@ -10363,10 +10316,6 @@ def vehicle_colors(request):
 
 @login_required
 def sales_sources(request):
-    from sales.services.order_intake import dealer_source
-    source = dealer_source(request.user)
-    if source:
-        return JsonResponse({"results": [{"id": source.pk, "name": source.name}]})
     source_type = request.GET.get("type")
     sources = SalesSource.objects.filter(
         source_type=source_type, active=True

@@ -33,10 +33,8 @@ class SystemAnnouncement(TimeStampedModel):
     ends_at = models.DateTimeField("結束顯示時間", null=True, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
     updated_by = models.CharField("修改人", max_length=150, blank=True)
-    audience = models.CharField("顯示對象", max_length=20, default="all", choices=[
-        ("all", "所有人員"), ("internal", "店內人員"), ("dealer", "合作車行人員"), ("selected", "指定人員"), ("dealers", "指定合作車行")])
+    audience = models.CharField("顯示對象", max_length=20, default="all", choices=[("all", "所有人員"), ("internal", "店內人員"), ("selected", "指定人員")])
     recipients = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="targeted_announcements", verbose_name="指定人員")
-    dealers = models.ManyToManyField("SalesSource", blank=True, related_name="announcements", verbose_name="指定合作車行")
     archived_at = models.DateTimeField("封存時間", null=True, blank=True)
     deleted_at = models.DateTimeField("刪除時間", null=True, blank=True)
 
@@ -57,12 +55,7 @@ class SystemAnnouncement(TimeStampedModel):
         rows = cls.objects.filter(published=True, starts_at__lte=now, archived_at__isnull=True, deleted_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
         if user is None:
             return rows.filter(audience="all")
-        from sales.services.order_intake import dealer_source, is_dealer
-        group = "dealer" if is_dealer(user) else "internal"
-        audience = Q(audience__in=["all", group]) | Q(audience="selected", recipients=user)
-        source = dealer_source(user)
-        if source and source.active:
-            audience |= Q(audience="dealers", dealers=source)
+        audience = Q(audience__in=["all", "internal"]) | Q(audience="selected", recipients=user)
         return rows.filter(audience).distinct()
 
     @property
@@ -279,9 +272,8 @@ class TaiwanCounty(models.TextChoices):
 
 
 class PrintCompany(TimeStampedModel):
-    """開單公司；來源與佣金歸屬不代表文件上的銷售方。"""
+    """開單公司；新訂單一律用本店（key="home"）。來源與佣金歸屬不代表文件上的銷售方。"""
     key = models.CharField(max_length=64, unique=True)
-    source = models.OneToOneField("SalesSource", null=True, blank=True, on_delete=models.PROTECT, related_name="print_company")
     legal_name = models.CharField("公司／商號全名", max_length=60)
     tax_id = models.CharField("統一編號", max_length=8, validators=[RegexValidator(r"^[0-9]{8}$", "統一編號須為 8 碼數字。")])
     address = models.CharField("列印地址", max_length=120)
@@ -334,7 +326,7 @@ class InstallmentCompany(TimeStampedModel):
 class SalesSourceCategory(TimeStampedModel):
     class SystemBehavior(models.TextChoices):
         STORE = "store", "本店來源"
-        DEALER = "dealer", "合作車行"
+        DEALER = "dealer", "車行"
         PLATFORM = "platform", "網路平台"
 
     name = models.CharField("分類名稱", max_length=80, unique=True)
@@ -435,7 +427,7 @@ class VehicleBrand(TimeStampedModel):
 class SalesSource(TimeStampedModel):
     class SourceType(models.TextChoices):
         STORE = "store", "本店來源"
-        DEALER = "dealer", "合作車行"
+        DEALER = "dealer", "車行"
         PLATFORM = "platform", "網路平台"
 
     class StaffStore(models.TextChoices):
@@ -1148,7 +1140,7 @@ class SalesSourceCooperationProfile(TimeStampedModel):
         SalesSource,
         on_delete=models.CASCADE,
         related_name="cooperation_profiles",
-        verbose_name="合作車行",
+        verbose_name="車行",
     )
     cooperation_scope = models.CharField(
         "合作類別",
@@ -1205,7 +1197,7 @@ class PriceListDistributionItem(TimeStampedModel):
         SalesSource,
         on_delete=models.SET_NULL,
         related_name="price_list_distribution_items",
-        verbose_name="合作車行",
+        verbose_name="車行",
         blank=True,
         null=True,
     )
@@ -1271,7 +1263,7 @@ class DealerVolumeBonusRule(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="volume_bonus_rules",
         limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
-        verbose_name="合作車行",
+        verbose_name="車行",
         null=True, blank=True,
     )
     brand = models.CharField("品牌", max_length=80, blank=True)
@@ -1301,7 +1293,7 @@ class DealerVolumeBonusRule(TimeStampedModel):
             if (self.starts_on, self.ends_on) != expected:
                 raise ValidationError({"ends_on": "按月／按季須涵蓋完整月份／季度；其他日期請選自訂。"})
         if self.dealer_id and self.dealer.source_type != SalesSource.SourceType.DEALER:
-            raise ValidationError({"dealer": "台數獎金只能設定合作車行。"})
+            raise ValidationError({"dealer": "台數獎金只能設定車行。"})
         if self.pk and DealerVolumeBonusSettlement.objects.filter(rule_id=self.pk).exists():
             fields = ("name", "dealer_id", "brand", "energy_type", "starts_on", "ends_on", "period_type")
             previous = type(self).objects.filter(pk=self.pk).values(*fields).get()
@@ -2603,7 +2595,7 @@ def annotate_allocation_priority(queryset, today=None):
 
 class VehicleInventory(TimeStampedModel):
     class Status(models.TextChoices):
-        # 放到合作車行仍是本店庫存，只改實際位置（current_dealer）；
+        # 放到車行仍是本店庫存，只改實際位置（current_dealer）；
         # 調給其他車行（調出）不算庫存也不算售出，記為「已調出」並保留進車紀錄（使用者 2026-10-10 確認）。
         AVAILABLE = "available", "可銷售"
         RESERVED = "reserved", "已預留"
@@ -3059,7 +3051,7 @@ class SalesOrder(TimeStampedModel):
 
     class SourceType(models.TextChoices):
         STORE = "store", "本店"
-        DEALER = "dealer", "合作車行"
+        DEALER = "dealer", "車行"
         PLATFORM = "platform", "網路平台"
 
     class OwnerType(models.TextChoices):
@@ -3099,13 +3091,12 @@ class SalesOrder(TimeStampedModel):
 
     class DeliveryMethod(models.TextChoices):
         STORE_PICKUP = "store_pickup", "客人來店取車"
-        DEALER_PICKUP = "dealer_pickup", "合作車行領車"
+        DEALER_PICKUP = "dealer_pickup", "車行領車"
         DIRECT_DELIVERY = "direct_delivery", "送至指定地點"
         CARRIER = "carrier", "委託託運公司"
 
     class Status(models.TextChoices):
         DRAFT = "draft", "草稿"
-        INTAKE_PENDING = "intake_pending", "待接單"
         ALLOCATION_PENDING = "allocation_pending", "待配車"
         ALLOCATED = "allocated", "已配車"
         DELIVERY_PENDING = "delivery_pending", "待交車"
@@ -3117,8 +3108,7 @@ class SalesOrder(TimeStampedModel):
 
     # 各流程方法（接單、配車、領牌、交車、取消、結案）的合法狀態轉移；集中一處供稽核與測試。
     STATUS_TRANSITIONS = {
-        Status.DRAFT: {Status.INTAKE_PENDING, Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
-        Status.INTAKE_PENDING: {Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
+        Status.DRAFT: {Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATION_PENDING: {Status.ALLOCATED, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATED: {
             Status.ALLOCATED, Status.DELIVERY_PENDING, Status.DELIVERED_DOCS_PENDING, Status.COMPLETED,
@@ -3126,7 +3116,7 @@ class SalesOrder(TimeStampedModel):
         },
         Status.DELIVERY_PENDING: {Status.DELIVERED_DOCS_PENDING, Status.COMPLETED, Status.EXCEPTION_CLOSED},
         Status.DELIVERED_DOCS_PENDING: {Status.COMPLETED},
-        Status.CANCEL_REFUND_PENDING: {Status.CANCELLED, Status.ALLOCATION_PENDING, Status.INTAKE_PENDING},
+        Status.CANCEL_REFUND_PENDING: {Status.CANCELLED, Status.ALLOCATION_PENDING},
         Status.COMPLETED: set(),
         Status.CANCELLED: set(),
         Status.EXCEPTION_CLOSED: set(),
@@ -3592,7 +3582,7 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def needs_customer_signatures(self):
-        """只有本店來源的訂單需要客人簽車輛訂購單與個資同意書；合作車行、網路平台略過這一步（使用者 2026-10-13）。"""
+        """只有本店來源的訂單需要客人簽車輛訂購單與個資同意書；車行、網路平台略過這一步（使用者 2026-10-13）。"""
         return self.source_type == self.SourceType.STORE
 
     @property
@@ -4015,7 +4005,7 @@ class SalesOrder(TimeStampedModel):
         reason = (reason or "").strip()
         if not reason:
             raise ValidationError("請填寫撤銷原因。")
-        new_status = self.Status.ALLOCATION_PENDING if self.accepted_at else self.Status.INTAKE_PENDING
+        new_status = self.Status.ALLOCATION_PENDING
         self.ensure_transition(new_status)
         previous_reason = self.cancellation_reason
         self.status = new_status
@@ -4113,7 +4103,7 @@ class SalesOrder(TimeStampedModel):
     @property
     def commission_attribution_block_reason(self):
         if self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}:
-            return "目前僅本店與合作車行訂單可以調整台數歸屬。"
+            return "目前僅本店與車行訂單可以調整台數歸屬。"
         if self.source_type == self.SourceType.DEALER and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
             return "原銷售車行資料不完整，請先確認訂單來源。"
         if self.status == self.Status.CANCELLED:
@@ -4127,7 +4117,7 @@ class SalesOrder(TimeStampedModel):
             self.clear_installment_details()
         errors = {}
         if self.source_type != self.SourceType.STORE and not self.source_id:
-            errors["source"] = "合作車行或網路平台訂單必須選擇來源名稱。"
+            errors["source"] = "車行或網路平台訂單必須選擇來源名稱。"
         if self.source_id and self.source.source_type != self.source_type:
             errors["source"] = "來源名稱與訂單來源類型不一致。"
         previous = type(self).objects.filter(pk=self.pk).values(
@@ -4137,11 +4127,11 @@ class SalesOrder(TimeStampedModel):
         if self.commission_recipient_id:
             if (self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}
                     or self.commission_recipient.source_type != SalesSource.SourceType.DEALER):
-                errors["commission_recipient"] = "本店與合作車行訂單只能指定合作車行作為歸屬。"
+                errors["commission_recipient"] = "本店與車行訂單只能指定車行作為歸屬。"
             elif (not self.commission_recipient.active and (
                 not previous or previous["commission_recipient_id"] != self.commission_recipient_id
             )):
-                errors["commission_recipient"] = "請選擇啟用中的合作車行。"
+                errors["commission_recipient"] = "請選擇啟用中的車行。"
             if self.commission_recipient_id == self.source_id:
                 self.commission_recipient = None
         if previous:
@@ -4237,8 +4227,6 @@ class SalesOrder(TimeStampedModel):
     @transaction.atomic
     def allocate(self, vehicle, actor_name="", skip_reason=""):
         locked_order = type(self).objects.select_for_update().get(pk=self.pk)
-        if locked_order.status == self.Status.INTAKE_PENDING:
-            raise ValidationError("請先接單，再進行配車。")
         if not locked_order.is_editable:
             raise ValidationError("此訂單已交付、完成或進入取消流程，不能配車。")
         locked = VehicleInventory.objects.select_for_update().get(pk=vehicle.pk)
@@ -5459,17 +5447,13 @@ class OfficialCatalogModel(TimeStampedModel):
 
 
 class OrderAccountProfile(TimeStampedModel):
-    """所屬通路與外部資料範圍；不以 is_staff 或車行名稱推測角色。"""
+    """店內帳號的預設店別與訂單資料範圍（系統只有店內人員使用，使用者 2026-10-16）。"""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="order_account")
-    kind = models.CharField("下單身分", max_length=12, choices=(("internal", "店內人員"), ("dealer", "合作車行")), default="internal")
-    source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
+    source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別")
     revision = models.PositiveIntegerField(default=0)
     identity_epoch = models.PositiveIntegerField(default=0, editable=False)
-    can_submit_orders = models.BooleanField("可建立訂單與使用草稿", default=True)
-    can_view_orders = models.BooleanField("可查詢訂單", default=True)
-    can_browse_catalog = models.BooleanField("可使用選車入口", default=True)
     order_scope = models.CharField("訂單資料範圍", max_length=12,
-        choices=(("own", "本人建立的訂單"), ("dealer", "所屬車行的訂單"), ("all", "全公司訂單（僅店內）")), default="own")
+        choices=(("own", "本人建立的訂單"), ("all", "全公司訂單")), default="own")
 
     @transaction.atomic
     def save(self, *args, **kwargs):
@@ -5478,23 +5462,12 @@ class OrderAccountProfile(TimeStampedModel):
         if self.pk:
             previous = type(self).objects.select_for_update().get(pk=self.pk)
             fields = kwargs.get("update_fields")
-            kind = self.kind if fields is None or "kind" in fields else previous.kind
             source_id = self.source_id if fields is None or {"source", "source_id"}.intersection(fields) else previous.source_id
-            self.identity_epoch = previous.identity_epoch + int((kind, source_id) != (previous.kind, previous.source_id))
+            self.identity_epoch = previous.identity_epoch + int(source_id != previous.source_id)
             if fields is not None:
                 kwargs["update_fields"] = set(fields) | {"identity_epoch"}
         super().save(*args, **kwargs)
 
-    def clean(self):
-        super().clean()
-        if self.kind == "dealer" and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
-            raise ValidationError({"source": "合作車行帳號必須綁定合作車行。"})
-        if self.kind == "dealer" and self.user.get_username() == "admin":
-            raise ValidationError("admin 為馭盛店內管理帳號，不可改為外部車行。")
-        if self.kind == "dealer" and self.order_scope == "all":
-            raise ValidationError({"order_scope": "合作車行最多只能查看所屬車行的訂單。"})
-        if self.order_scope == "dealer" and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
-            raise ValidationError({"source": "所屬車行範圍必須指定合作車行。"})
 
 
 class OrderCustomerAccessGrant(TimeStampedModel):

@@ -1,4 +1,4 @@
-"""車行結算：合作車行賣出的訂單，本店與車行之間要收或要付的金額。
+"""車行結算：車行賣出的訂單，本店與車行之間要收或要付的金額。
 
 只計算、不儲存，也不影響車行掛帳（dealer_credit）與收款帳本。
 - 現金購車（含刷卡等非分期）：原現金價（不扣已核准優惠）－ 傭金 ＋ 牌險費 ＋ 配件費
@@ -15,7 +15,7 @@ def _money(value):
 
 
 def dealer_settlement(order, profile=None):
-    """回傳結算明細；非合作車行訂單或已取消／結案訂單回傳 None。"""
+    """回傳結算明細；非車行訂單或已取消／結案訂單回傳 None。"""
     from sales.models import OrderOperationsProfile, SalesOrder
 
     if order.source_type != SalesOrder.SourceType.DEALER or order.is_cancelled_sale:

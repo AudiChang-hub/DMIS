@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.models import (
-    AccessoryLine, OrderOperationsProfile, PrintCompany, SalesOrder, SalesSource, SalesSourceBrandPolicy,
+    AccessoryLine, OrderOperationsProfile, SalesOrder, SalesSource, SalesSourceBrandPolicy,
     VehicleColor, VehicleModel,
 )
 from sales.services.dealer_commission import apply_order_dealer_commission
@@ -58,10 +58,6 @@ class CommissionPrefillTests(FinanceLedgerTestBase):
         self.assertEqual((profile.dealer_commission_base, profile.dealer_commission_adjustment), (2000, 300))
 
     def test_order_create_view_prefills_commission(self):
-        company = PrintCompany.objects.create(
-            key=f"dealer:{self.dealer.pk}", source=self.dealer, legal_name="結算車行有限公司",
-            tax_id="12345678", address="測試地址", phone="02-12345678",
-        )
         self.client.force_login(self.admin)
         data = dict(
             source_type="dealer", source=str(self.dealer.pk), owner_type="company", owner_name="測試公司",
@@ -69,14 +65,16 @@ class CommissionPrefillTests(FinanceLedgerTestBase):
             vehicle_model=str(self.model.pk), color=str(self.color.pk), payment_type="cash", vehicle_price="70000",
             vehicle_category="new", transaction_type="regular_new", plate_choice="none", delivery_method="store_pickup",
             deposit_amount="0", plate_insurance_fee="0", installment_opening_fee="0",
-            assisted_company_confirmed="on", assisted_company_revision=str(company.revision),
             **{"accessories-TOTAL_FORMS": "0", "accessories-INITIAL_FORMS": "0", "accessories-MIN_NUM_FORMS": "0",
                "accessories-MAX_NUM_FORMS": "1000", "other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0",
                "other_fees-MIN_NUM_FORMS": "0", "other_fees-MAX_NUM_FORMS": "1000"},
         )
         response = self.client.post(reverse("order_create"), data)
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
-        self.assertEqual(self.profile(SalesOrder.objects.get()).dealer_commission_expense, 2300)
+        order = SalesOrder.objects.get()
+        self.assertEqual(self.profile(order).dealer_commission_expense, 2300)
+        # 車行來源的訂單也一律以本店開單（2026-10-16）。
+        self.assertEqual(order.print_company_snapshot["legal_name"], "馭盛國際有限公司")
 
     def test_manual_override_survives_later_saves(self):
         order = self.make_order()

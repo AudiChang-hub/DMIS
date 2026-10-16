@@ -215,7 +215,7 @@ def resolve_bonus_period(rule, period=None):
 
 def eligible_volume_bonus_orders(rule, dealer=None, *, period=None):
     period = resolve_bonus_period(rule, period)
-    # 收款對象必須是合作車行；本店單僅在明確指定車行後列入。
+    # 收款對象必須是車行；本店單僅在明確指定車行後列入。
     dealer = dealer or rule.dealer
     if dealer and (dealer.source_type != SalesSource.SourceType.DEALER or (rule.dealer_id and dealer.pk != rule.dealer_id)):
         return SalesOrder.objects.none()

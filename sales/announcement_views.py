@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .access.services import is_root
-from .models import SystemAnnouncement, SystemAnnouncementRevision, SalesSource, AnnouncementImage, AnnouncementAttachment
+from .models import SystemAnnouncement, SystemAnnouncementRevision, AnnouncementImage, AnnouncementAttachment
 from sales.services.upload_validation import validate_image_upload, validate_subsidy_upload
 import uuid
 from pathlib import Path
@@ -44,19 +44,16 @@ class AnnouncementForm(forms.ModelForm):
 
     class Meta:
         model = SystemAnnouncement
-        fields = ("title", "body", "pinned", "starts_at", "ends_at", "audience", "recipients", "dealers")
+        fields = ("title", "body", "pinned", "starts_at", "ends_at", "audience", "recipients")
         widgets = {
             "body": forms.Textarea(attrs={"class": "form-control", "rows": 8}),
             "starts_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "ends_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "recipients": forms.CheckboxSelectMultiple,
-            "dealers": forms.CheckboxSelectMultiple,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["dealers"].queryset = SalesSource.objects.filter(source_type="dealer", active=True).select_related("category").order_by("city", "name")
-        self.fields["dealers"].label_from_instance = lambda source: " · ".join(str(value) for value in (source.name, source.code, f"{source.city}{source.district}", source.category) if value)
         self.fields["remove_images"].queryset = self.instance.images.filter(removed=False) if self.instance.pk else AnnouncementImage.objects.none()
         self.fields["remove_attachments"].queryset = self.instance.attachments.filter(removed=False) if self.instance.pk else AnnouncementAttachment.objects.none()
         self.initial["image_order"] = ",".join(str(pk) for pk in self.fields["remove_images"].queryset.values_list("pk", flat=True))
@@ -81,8 +78,6 @@ class AnnouncementForm(forms.ModelForm):
                 self.add_error("image_order", "圖片清單已改變，請重新載入後排序。")
         if data.get("audience") == "selected" and not data.get("recipients"):
             self.add_error("recipients", "請至少勾選一位人員，或改選其他顯示對象。")
-        if data.get("audience") == "dealers" and not data.get("dealers"):
-            self.add_error("dealers", "請至少勾選一家合作車行。")
         retained = self.fields["remove_images"].queryset.count() - len(data.get("remove_images") or [])
         if retained + len(data.get("uploads") or []) > 8:
             self.add_error("uploads", "每則公告最多保留 8 張圖片，請先移除不需要的圖片。")
@@ -101,8 +96,7 @@ def manage(request, pk=None, *, inline=False):
         for name in ("pinned", "starts_at", "ends_at", "audience"):
             value = getattr(item, name)
             data[name] = value.isoformat() if name.endswith("_at") and value else value or ""
-        for name in ("recipients", "dealers"):
-            data.setlist(name, list(getattr(item, name).values_list("pk", flat=True)))
+        data.setlist("recipients", list(item.recipients.values_list("pk", flat=True)))
         data["action"] = "save"
     form = AnnouncementForm(data, request.FILES or None, instance=item, initial={"expected_version": item.version if pk else 0})
     status = 200
@@ -143,7 +137,6 @@ def manage(request, pk=None, *, inline=False):
                             "pinned": saved.pinned, "starts_at": saved.starts_at.isoformat(),
                             "ends_at": saved.ends_at.isoformat() if saved.ends_at else None,
                             "audience": saved.audience, "recipients": list(saved.recipients.values_list("pk", flat=True)),
-                            "dealers": list(saved.dealers.values_list("pk", flat=True)),
                             "images": list(saved.images.filter(removed=False).values_list("pk", flat=True)),
                             "attachments": list(saved.attachments.filter(removed=False).values_list("pk", flat=True)),
                         })

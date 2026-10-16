@@ -26,18 +26,6 @@ def workspace_redirect(request, pk, tab):
         return redirect(workspace_url(pk, tab))
 
 
-@root_required
-@require_http_methods(["GET"])
-def create_dealer_entry(request):
-    from sales.models import SalesSource
-    source = request.GET.get("source", "")
-    if not source.isascii() or not source.isdigit() or len(source) > 18:
-        messages.error(request, "請先選擇合作車行。")
-        return redirect("user_management")
-    source = get_object_or_404(SalesSource, pk=source, source_type="dealer", active=True)
-    return redirect("dealer_account_create", source_pk=source.pk)
-
-
 class OrderPermissionForm(forms.Form):
     mode = forms.ChoiceField(label="設定方式", choices=(("inherit", "沿用一般設定"), ("custom", "本筆自訂")), widget=forms.RadioSelect)
     can_view = forms.BooleanField(label="可以查看這筆訂單", required=False)
@@ -65,9 +53,6 @@ def workspace(request, pk):
     if tab == "scope":
         from sales.intake_views import order_account_scope
         response = order_account_scope(request, pk)
-    elif profile and profile.kind == "dealer":
-        from sales.dealer_account_views import dealer_account_edit
-        response = dealer_account_edit(request, pk)
     elif tab == "features":
         from sales.access.views import edit
         response = edit(request, pk)

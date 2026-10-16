@@ -37,7 +37,7 @@
   {% csrf_token %}
   {% if data.pending %}<input type="hidden" name="pending" value="{{ data.pending.pk }}"><div class="callout"><span class="callout__icon" aria-hidden="true">i</span><div><p>正在修改預備調車（調往 {{ data.pending.dealer_name }}）。儲存會更新這筆預備；也可以直接交給領車人簽名。</p></div></div>{% endif %}
   <section class="section-block">
-    <div class="section-title"><div><h2><span class="transfer-step">1</span>調往哪裡</h2><small>車行調走選車行；原廠或總公司把車調回去選「原廠／總公司」。放到合作車行展示的車仍是本店庫存，請改用車輛的「實際位置」，不要在這裡簽收。</small></div></div>
+    <div class="section-title"><div><h2><span class="transfer-step">1</span>調往哪裡</h2><small>車行調走選車行；原廠或總公司把車調回去選「原廠／總公司」。放到車行展示的車仍是本店庫存，請改用車輛的「實際位置」，不要在這裡簽收。</small></div></div>
     <div class="section-body form-grid">
       <div class="field">
         <label for="transfer-dealer">車行或原廠</label>

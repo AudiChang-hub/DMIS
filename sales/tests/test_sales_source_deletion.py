@@ -22,7 +22,7 @@ class SalesSourceDeletionTests(TestCase):
         )
         self.client.force_login(self.user)
         self.category = SalesSourceCategory.objects.create(
-            name="測試合作車行",
+            name="測試車行",
             system_behavior=SalesSource.SourceType.DEALER,
         )
         self.dealer = SalesSource.objects.create(

@@ -46,7 +46,7 @@ def financial_reference(order, day):
     reference = {
         "車輛成本": f"版本 #{cost.pk}：{cost.amount} 元" if cost else "無適用版本（不代表實際成本為零）",
         "原廠獎勵與補助": (f"版本 #{incentive.pk}：實銷 {incentive.sales_bonus}／促銷 {incentive.promotion_subsidy}（僅網路平台）／分期 {incentive.installment_interest_subsidy}" if incentive else "無適用版本"),
-        "車行傭金": (f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；加減版本 #{policy.pk}：{policy.commission_adjustment} 元" if policy else f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；無車行加減版本") if order.source_type == SalesOrder.SourceType.DEALER else "非合作車行來源，不套用車行基礎傭金",
+        "車行傭金": (f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；加減版本 #{policy.pk}：{policy.commission_adjustment} 元" if policy else f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；無車行加減版本") if order.source_type == SalesOrder.SourceType.DEALER else "非車行來源，不套用車行基礎傭金",
         "實物／紅包／禮券／點數": "；".join(f"版本 #{plan['plan_id']}：{reward_plan_summary(plan)}" for plan in plans) or "無適用方案",
     }
     candidate = copy(order)

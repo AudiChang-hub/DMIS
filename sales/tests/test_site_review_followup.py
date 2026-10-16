@@ -27,20 +27,19 @@ class SiteReviewFollowupTests(TestCase):
         data.update(changes)
         return self.client.post(reverse("order_start"), data)
 
-    def test_pricing_is_explicit_and_dealer_does_not_gain_finance(self):
+    def test_pricing_is_explicit_and_restricted_staff_does_not_gain_finance(self):
         self.assertFalse(AccessPolicy(self.user).screen("order_pricing", "operate"))
-        self.grant_pricing(self.dealer_user)
-        policy = AccessPolicy(self.dealer_user)
+        self.grant_pricing(self.clerk)
+        policy = AccessPolicy(self.clerk)
         self.assertTrue(policy.screen("order_pricing", "operate"))
         self.assertFalse(policy.screen("order_finance", "operate"))
         self.assertFalse(policy.screen("profit"))
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         response = self.submit(vehicle_price="76000", vehicle_price_adjustment_reason="經授權議價")
         self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
         order = SalesOrder.objects.get()
         self.assertEqual(order.vehicle_price, 76000)
-        self.assertEqual(order.source, self.dealer)
-        self.grant_pricing(self.dealer_user, False)
+        self.grant_pricing(self.clerk, False)
         response = self.submit(vehicle_price="1", vehicle_price_adjustment_reason="不得改價")
         self.assertEqual(response.status_code, 302)
         self.assertEqual(SalesOrder.objects.latest('pk').vehicle_price, 79800)
@@ -50,8 +49,8 @@ class SiteReviewFollowupTests(TestCase):
         company = InstallmentCompany.objects.create(name="其他融資")
         plan = InstallmentPlanVersion.objects.create(vehicle_model=self.model, effective_from=timezone.localdate())
         InstallmentPlanOption.objects.create(version=plan, company=company, periods=17, monthly_amount=9999, opening_fee=999)
-        self.grant_pricing(self.dealer_user)
-        self.client.force_login(self.dealer_user)
+        self.grant_pricing(self.clerk)
+        self.client.force_login(self.clerk)
         response = self.submit(payment_type="installment", installment_custom="on", installment_company="其他融資", installment_periods=17, installment_monthly=5100, installment_opening_fee=350)
         self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
         order = SalesOrder.objects.get()
@@ -60,33 +59,34 @@ class SiteReviewFollowupTests(TestCase):
         self.assertIsNone(order.installment_plan_option_id)
         self.assertIsNone(order.installment_plan_snapshot['expected_disbursement_amount'])
 
-    def test_admin_can_grant_pricing_to_legacy_dealer_and_revoke_it(self):
+    def test_admin_can_grant_pricing_to_restricted_staff_and_revoke_it(self):
         self.client.force_login(self.root)
-        UserAccessState.objects.filter(user=self.dealer_user).delete()
-        url = reverse("dealer_account_edit", args=[self.dealer_user.pk])
-        data = {"display_name": "甲車行人員", "username": self.dealer_user.username,
-                "is_active": "on", "can_submit_orders": "on", "can_view_orders": "on",
-                "can_browse_catalog": "on", "expected_revision": self.profile.revision,
-                "can_adjust_pricing": "on", "order_scope": "own"}
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
-        self.assertTrue(AccessPolicy(self.dealer_user).screen("order_pricing", "operate"))
-        self.assertFalse(AccessPolicy(self.dealer_user).screen("order_finance", "operate"))
-        self.profile.refresh_from_db()
-        data.update(expected_revision=self.profile.revision, can_adjust_pricing="")
-        self.assertEqual(self.client.post(url, data).status_code, 302)
-        self.assertFalse(AccessPolicy(self.dealer_user).screen("order_pricing", "operate"))
+        url = reverse("access_edit", args=[self.clerk.pk])
+        base = {"screens.orders.view": "on", "screens.orders.operate": "on",
+                "screens.order_intake.view": "on", "screens.order_intake.operate": "on"}
+
+        def apply(**data):
+            version = self.client.get(url, follow=True).context["before"]["version"]
+            preview = self.client.post(url, {"action": "preview", "version": str(version), **base, **data})
+            self.assertEqual(preview.status_code, 200)
+            self.client.post(url, {"action": "apply", "preview_token": preview.context["preview_token"]})
+
+        apply(**{"screens.order_pricing.view": "on", "screens.order_pricing.operate": "on"})
+        self.assertTrue(AccessPolicy(self.clerk).screen("order_pricing", "operate"))
+        self.assertFalse(AccessPolicy(self.clerk).screen("order_finance", "operate"))
+        apply()
+        self.assertFalse(AccessPolicy(self.clerk).screen("order_pricing", "operate"))
 
     def test_ungranted_custom_installment_is_rejected(self):
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         response = self.submit(payment_type="installment", installment_custom="on", installment_company="任意公司", installment_periods=17, installment_monthly=1, installment_opening_fee=0)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(SalesOrder.objects.exists())
 
     def test_pricing_draft_retains_authorized_values_but_not_financial_fields(self):
         from sales.models import OrderDraft
-        self.grant_pricing(self.dealer_user)
-        self.client.force_login(self.dealer_user)
+        self.grant_pricing(self.clerk)
+        self.client.force_login(self.clerk)
         data = self.complete_data()
         data.update(vehicle_price="76000", vehicle_price_adjustment_reason="核准調價", installment_custom="on",
                     payment_type="installment", installment_company="其他融資", installment_periods="17",
@@ -104,7 +104,7 @@ class SiteReviewFollowupTests(TestCase):
         page = self.client.get(reverse("order_start"), {"draft":draft.pk})
         self.assertEqual(page.context['form']['installment_monthly'].value(), "5100")
         self.assertEqual(page.context['form']['installment_opening_fee'].value(), "350")
-        self.grant_pricing(self.dealer_user, False)
+        self.grant_pricing(self.clerk, False)
         self.client.post(reverse("intake_draft_save"), {**data, "_draft_id":draft.pk, "_draft_revision":draft.revision})
         draft.refresh_from_db()
         for key in ("vehicle_price", "installment_monthly", "installment_opening_fee", "installment_custom", "accessories-0-amount"):
@@ -126,18 +126,18 @@ class SiteReviewFollowupTests(TestCase):
         self.assertContains(response, 'id="news-announcements"')
         self.assertContains(response, 'id="news-releases"')
 
-    def test_announcement_dealers_and_image_are_scoped(self):
-        item = SystemAnnouncement.objects.create(title='甲專屬', body='圖文', published=True, audience='dealers')
-        item.dealers.add(self.dealer)
+    def test_announcement_recipients_and_image_are_scoped(self):
+        item = SystemAnnouncement.objects.create(title='甲專屬', body='圖文', published=True, audience='selected')
+        item.recipients.add(self.clerk)
         picture = AnnouncementImage.objects.create(announcement=item, image=self.image('news.png'))
         image_url = reverse('announcement_image', args=[picture.pk])
         self.assertEqual(self.client.get(image_url).status_code, 404)
-        self.client.force_login(self.dealer_user)
+        self.client.force_login(self.clerk)
         self.assertContains(self.client.get(reverse('announcement_detail', args=[item.pk])), image_url)
         response = self.client.get(image_url)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(b"".join(response.streaming_content).startswith(b"\x89PNG"))
-        item.dealers.clear(); item.dealers.add(self.other_dealer)
+        item.recipients.set([self.user])
         self.assertEqual(self.client.get(image_url).status_code, 404)
         self.client.force_login(self.root)
         response = self.client.get(image_url)
@@ -147,13 +147,13 @@ class SiteReviewFollowupTests(TestCase):
         self.assertEqual(self.client.get(image_url).status_code, 404)
 
     def test_announcement_upload_validation_and_revision(self):
-        data = {'title':'圖片公告', 'body':'內容', 'audience':'dealers', 'dealers':[self.dealer.pk], 'starts_at':timezone.localtime().strftime('%Y-%m-%dT%H:%M'), 'expected_version':0, 'action':'publish'}
+        data = {'title':'圖片公告', 'body':'內容', 'audience':'selected', 'recipients':[self.clerk.pk], 'starts_at':timezone.localtime().strftime('%Y-%m-%dT%H:%M'), 'expected_version':0, 'action':'publish'}
         self.client.force_login(self.root)
         response = self.client.post(reverse('announcement_manage'), {**data, 'uploads':self.image('news.png')})
         self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
         item = SystemAnnouncement.objects.get()
         self.assertEqual(item.images.count(), 1)
-        self.assertEqual(item.revisions.get().content['dealers'], [self.dealer.pk])
+        self.assertEqual(item.revisions.get().content['recipients'], [self.clerk.pk])
         invalid = SimpleUploadedFile('fake.png', b'<script>bad</script>', content_type='image/png')
         form = AnnouncementForm(data, {'uploads':[invalid]})
         self.assertFalse(form.is_valid())

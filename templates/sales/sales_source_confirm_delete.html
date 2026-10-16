@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}
-{% block title %}刪除合作車行｜車輛銷售管理{% endblock %}
+{% block title %}刪除車行｜車輛銷售管理{% endblock %}
 {% block content %}
 {% url 'sales_source_edit' source.pk as edit_url %}
 {% include "sales/_page_back.html" with fallback_url=edit_url label="返回編輯車行" %}
@@ -7,7 +7,7 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">誤建資料處理</p>
-    <h1>永久刪除合作車行</h1>
+    <h1>永久刪除車行</h1>
     <p class="muted">{% site_text 'sales_source_confirm_delete.46c3937cdeec' %}</p>
   </div>
 </section>

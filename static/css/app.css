@@ -2642,6 +2642,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .highlight-data { padding: var(--space-3); background: var(--mint); border-radius: var(--radius-md); }
 .document-links { display: flex; margin-top: var(--stack-gap); gap: var(--space-3); }
 .document-links a { padding: var(--space-2) var(--space-3); color: var(--blue); background: var(--blue-soft); border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 800; }
+.money-list__payments dd span { display: block; font-variant-numeric: tabular-nums; }
 .money-list .total { grid-column: 1 / -1; display: flex; padding-top: var(--space-3); align-items: end; justify-content: space-between; border-top: 1px solid var(--line); }
 .money-list .total dd { font-size: var(--text-xl); color: var(--action-text); }
 .money-list .price-snapshot-summary {

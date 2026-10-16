@@ -138,6 +138,9 @@ class PaymentSplitTests(TestCase):
             rendered = json.loads(html.unescape(value.group(1) or value.group(2)))
             self.assertEqual(rendered, json.loads(two_rows), step)
             extra["payment_splits"] = json.dumps(rendered)  # 瀏覽器下一步送回的是畫面上的值
+        # 確認頁與訂購單 PDF 一致：每筆各占一行（1.85.2）。
+        confirm = self.client.get(f"{reverse('order_create')}?draft={draft.pk}&step=confirm")
+        self.assertContains(confirm, "<dd>現金 $20,000<br>分期 $55,000</dd>", html=False)
         data = {**self.complete_data(), **extra, "_wizard_step": "confirm", "_wizard_action": "submit",
                 "_submission_key": key, "_draft_id": str(draft.pk), "_draft_revision": str(draft.revision)}
         response = self.client.post(reverse("order_create"), data)
@@ -145,6 +148,8 @@ class PaymentSplitTests(TestCase):
         order = SalesOrder.objects.get()
         self.assertEqual(order.payment_splits, json.loads(two_rows))
         self.assertEqual((order.installment_split_amount, order.customer_vehicle_split_amount), (55000, 20000))
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "<dt>付款方式</dt><dd><span>現金 $20,000</span><span>分期 $55,000</span></dd>", html=False)
 
     def test_form_initial_from_draft_string_is_not_double_encoded(self):
         from sales.forms import SalesOrderForm

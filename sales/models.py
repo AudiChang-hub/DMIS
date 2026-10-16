@@ -4124,6 +4124,14 @@ class SalesOrder(TimeStampedModel):
         return "＋".join(f"{row['label']} ${int(row['amount']):,}" for row in rows)
 
     @property
+    def payment_split_lines(self):
+        """每筆付款各占一行的文字（訂購單 PDF、建立訂單確認頁、訂單頁共用）；單筆只列方式。"""
+        rows = self.payment_split_rows
+        if len(rows) <= 1:
+            return [rows[0]["label"] if rows else self.get_payment_type_display()]
+        return [f"{row['label']} ${int(row['amount']):,}" for row in rows]
+
+    @property
     def payment_method_labels(self):
         """去重後的付款方式名稱（列表標籤用），例如「現金＋分期」。"""
         labels = []

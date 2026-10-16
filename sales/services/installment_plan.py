@@ -146,7 +146,8 @@ def apply_order_installment_snapshot(order):
         )
         return None
 
-    payload = installment_option_payload(option, order.vehicle_price)
+    # 撥款比例只算分期那筆車款；全額分期時等於車價（使用者 2026-10-16 付款方式可多筆）。
+    payload = installment_option_payload(option, order.installment_split_amount)
     company_matches = order.installment_company == option.company.name
     if not company_matches and payload["extra_disbursement_bonus"]:
         payload["configured_extra_disbursement_bonus"] = payload[

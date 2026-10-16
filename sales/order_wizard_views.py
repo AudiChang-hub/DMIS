@@ -9,7 +9,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.datastructures import MultiValueDict
 
-from sales.models import OrderEvent
+from sales.models import OrderEvent, SalesOrder
 from sales.services import order_wizard as wizard
 
 
@@ -197,6 +197,19 @@ def _rows(form, names):
     return rows
 
 
+def _payment_split_rows(form):
+    """確認頁的付款方式：單筆只列方式，多筆逐筆列出金額。"""
+    splits = form.cleaned_data.get("payment_splits") or []
+    if not splits:
+        return _rows(form, ("payment_type",))
+    labels = dict(SalesOrder.PaymentSplitMethod.choices)
+    if len(splits) == 1:
+        return [("付款方式", labels.get(splits[0]["method"], splits[0]["method"]))]
+    return [("付款方式", "＋".join(
+        f"{labels.get(row['method'], row['method'])} {Decimal(row['amount'] or 0):,.0f} 元" for row in splits
+    ))]
+
+
 def _discount_rows(form, formset, fee_formset):
     from sales.services.order_discount import intake_discount_preview
     preview = intake_discount_preview(form, formset, fee_formset)
@@ -234,7 +247,7 @@ def build_summary(form, formset, fee_formset, draft):
                              bool(getattr(form, "cleaned_data", {}).get("id_verified")))
     if status:
         owner_rows.append(("證件檢查", status))
-    payment_rows = _rows(form, ("payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
+    payment_rows = _payment_split_rows(form) + _rows(form, ("vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
     if form.finance_editable:
         payment_rows += _rows(form, ("plate_insurance_fee",))

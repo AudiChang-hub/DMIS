@@ -1,8 +1,9 @@
 {% load sales_format site_copy screen_access %}
   <section class="card">
-    <div class="section-title"><h2>金額</h2><span>{{ order.get_payment_type_display }}</span></div>
+    <div class="section-title"><h2>金額</h2><span>{{ order.payment_method_labels }}</span></div>
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
+      {% with split_rows=order.payment_split_rows %}{% if split_rows|length > 1 %}{% for row in split_rows %}<div class="money-list__split"><dt>・{{ row.label }}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>{% endfor %}{% endif %}{% endwith %}
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
       {% if order.plate_selection_fee %}<div><dt>選號</dt><dd>${{ order.plate_selection_fee|number_with_commas }}</dd></div>{% endif %}
       {% if order.price_snapshot %}
@@ -57,7 +58,7 @@
       {% endif %}
       <div class="balance-equation">
         {% if order.payment_type == 'installment' %}
-        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金。</span></div>
+        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金{% if order.customer_vehicle_split_amount %}；含客人自付車款 ${{ order.customer_vehicle_split_amount|number_with_commas }}{% endif %}。</span></div>
         <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
         {% else %}
         <div class="balance-equation__header">

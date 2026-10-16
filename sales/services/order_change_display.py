@@ -44,6 +44,8 @@ GROUPS = (
         "付款資料",
         {
             "主要付款方式",
+            "計價基準",
+            "付款方式",
             "車價",
             "牌險",
             "強制險期間",
@@ -138,6 +140,8 @@ def _choice_maps():
 
 
 CHOICE_MAPS = _choice_maps()
+# 2026-10-16 前的異動紀錄以「主要付款方式」記錄計價基準。
+CHOICE_MAPS["主要付款方式"] = CHOICE_MAPS["計價基準"]
 
 
 def _money(value):

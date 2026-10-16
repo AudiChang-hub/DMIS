@@ -198,16 +198,12 @@ def _rows(form, names):
 
 
 def _payment_split_rows(form):
-    """確認頁的付款方式：單筆只列方式，多筆逐筆列出金額。"""
+    """確認頁的付款方式：單筆只列方式，多筆每筆一行並列出金額。"""
     splits = form.cleaned_data.get("payment_splits") or []
     if not splits:
         return _rows(form, ("payment_type",))
-    labels = dict(SalesOrder.PaymentSplitMethod.choices)
-    if len(splits) == 1:
-        return [("付款方式", labels.get(splits[0]["method"], splits[0]["method"]))]
-    return [("付款方式", "＋".join(
-        f"{labels.get(row['method'], row['method'])} {Decimal(row['amount'] or 0):,.0f} 元" for row in splits
-    ))]
+    # 與訂購單 PDF 一致：多筆時每筆各占一行（範本以 linebreaksbr 顯示）。
+    return [("付款方式", "\n".join(SalesOrder(payment_splits=splits).payment_split_lines))]
 
 
 def _discount_rows(form, formset, fee_formset):

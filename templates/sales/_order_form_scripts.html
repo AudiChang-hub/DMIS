@@ -607,7 +607,10 @@
     const labelOf = value => methods.find(method => method.value === value)?.label || value;
     const priceLocked = root.hasAttribute("data-price-locked");
     let rows = [];
-    try { rows = JSON.parse(store.value || "[]"); } catch (error) { rows = []; }
+    try {
+      rows = JSON.parse(store.value || "[]");
+      if (typeof rows === "string") rows = JSON.parse(rows);  // 舊草稿可能被多編碼一次
+    } catch (error) { rows = []; }
     rows = (Array.isArray(rows) ? rows : [])
       .filter(row => row && methods.some(method => method.value === row.method))
       .map(row => ({method: row.method, amount: row.amount === null || row.amount === undefined ? "" : String(row.amount)}));
@@ -668,6 +671,7 @@
           if (!confirmDropInstallment(nextRows)) { select.value = row.method; return; }
           row.method = select.value;
           item.dataset.method = row.method;
+          amount.setAttribute("aria-label", `第 ${index + 1} 筆金額（${labelOf(row.method)}）`);
           write();
         });
         const money = document.createElement("label");

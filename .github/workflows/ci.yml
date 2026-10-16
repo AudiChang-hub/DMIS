@@ -64,7 +64,9 @@ jobs:
           python -m pip install --disable-pip-version-check pip-audit bandit tblib
 
       - name: Audit Python dependencies
-        run: python -m pip_audit -r requirements-django.txt
+        # GHSA-8pqf-f4m5-798g（CVE-2026-106454）只影響 twisted.mail 的 IMAP 伺服器，本系統未使用 IMAP；
+        # 2026-10-16 尚無修正版，twisted 出修正版後升級並移除此豁免。
+        run: python -m pip_audit -r requirements-django.txt --ignore-vuln GHSA-8pqf-f4m5-798g
 
       - name: Reject high-severity Python findings in tracked code
         shell: bash

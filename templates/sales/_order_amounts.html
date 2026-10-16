@@ -3,7 +3,8 @@
     <div class="section-title"><h2>金額</h2><span>{{ order.payment_method_labels }}</span></div>
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
-      {% with split_rows=order.payment_split_rows %}{% if split_rows|length > 1 %}{% for row in split_rows %}<div class="money-list__split"><dt>・{{ row.label }}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>{% endfor %}{% endif %}{% endwith %}
+      {% comment %}付款方式與訂購單 PDF 一致：多筆時每筆各占一行（2026-10-16）。{% endcomment %}
+      <div class="money-list__payments"><dt>付款方式</dt><dd>{% for line in order.payment_split_lines %}<span>{{ line }}</span>{% endfor %}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
       {% if order.plate_selection_fee %}<div><dt>選號</dt><dd>${{ order.plate_selection_fee|number_with_commas }}</dd></div>{% endif %}
       {% if order.price_snapshot %}

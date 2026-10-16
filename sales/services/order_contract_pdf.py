@@ -89,10 +89,7 @@ def p(text, style=body_style):
 
 def payment_lines(order):
     """付款方式：多筆時每筆各占一行（例如「現金 $20,000」換行「分期 $25,000」），不在金額中間斷行。"""
-    rows = order.payment_split_rows
-    if len(rows) <= 1:
-        return p(escape(order.payment_split_display))
-    return p("<br/>".join(escape(f"{row['label']} ${int(row['amount']):,}") for row in rows))
+    return p("<br/>".join(escape(line) for line in order.payment_split_lines))
 
 
 def safe(value, default="—"):

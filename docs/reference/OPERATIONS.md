@@ -59,6 +59,8 @@ docker compose -f docker-compose.django.yml \
 只經 `https://dmis.moto-core.com/` 與 Cloudflare Tunnel 進入；
 `docker-compose.django.prod.yml` 的 `tunnel-proxy` 保留舊來源名稱 `odoo:8069`，但實際
 轉送到 Django `web:8000`。Tunnel connector 固定使用 HTTP/2。
+`deployment/nginx/tunnel-proxy.conf` 必須轉送 `Upgrade`／`Connection`，訂單草稿即時共編
+（`/ws/orders/drafts/…`）才能建立 WebSocket；少了會回 404，畫面一直顯示重新連線。
 
 Tunnel token 只存於 `secrets/cloudflare-tunnel.token`，檔案權限設為 `600`；不得提交
 至 Git，也不得放進 `.env.django`。Google Vision 金鑰同樣只能以唯讀 secret mount

@@ -1,7 +1,7 @@
 """店內行動裝置電子簽署：內容指紋、簽名驗證、簽署存檔與選擇列印。
 
 指紋只涵蓋客戶同意的合約內容，不含收款進度與領牌結果；
-內容改變後原簽署即失效，必須重新簽署（紙本上傳亦同）。
+簽署後再改內容不會讓已簽文件失效（使用者 2026-10-15），指紋只留作日後核對。
 """
 import base64
 import binascii
@@ -82,8 +82,6 @@ def current_fingerprint(order, document):
 
 def document_state(order, document):
     field = DOCUMENTS[document]["field"]
-    if getattr(order, f"{field}_stale"):
-        return "stale"
     if getattr(order, f"{field}_is_electronic"):
         return "electronic"
     if order.has_signed_contract if document == "contract" else order.has_privacy_consent:

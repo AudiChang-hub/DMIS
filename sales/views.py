@@ -6473,7 +6473,7 @@ def _signing_documents_context(order):
             "label": meta["label"],
             "state": state,
             "fingerprint": order.document_fingerprint(key),
-            "checked": state in {"missing", "stale"},
+            "checked": state == "missing",
             "preview": "data:image/png;base64," + base64.b64encode(render_preview_png(pdf)).decode("ascii"),
         })
     if not any(item["checked"] for item in documents):

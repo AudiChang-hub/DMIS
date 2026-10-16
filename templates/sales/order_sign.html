@@ -17,7 +17,7 @@
   <section class="section-block signing-document">
     <div class="section-title">
       <div><h2>{{ doc.label }}</h2>
-        <small>{% if doc.state == "electronic" %}已電子簽署；勾選即重新簽署{% elif doc.state == "paper" %}已上傳紙本；勾選即改為電子簽署{% elif doc.state == "stale" %}訂單內容已變更，原簽署失效，需要重新簽署{% else %}尚未簽署{% endif %}</small>
+        <small>{% if doc.state == "electronic" %}已電子簽署；勾選可換上新的簽名{% elif doc.state == "paper" %}已上傳紙本；勾選即改為電子簽署{% else %}尚未簽署{% endif %}</small>
       </div>
       <label class="signing-document__pick"><input type="checkbox" name="documents" value="{{ doc.key }}"{% if doc.checked %} checked{% endif %}> 簽署這份文件</label>
     </div>

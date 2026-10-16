@@ -185,9 +185,9 @@ def _document_archive_action(order):
         return None
     missing = []
     if not order.has_signed_contract:
-        missing.append("訂購合約" + ("（內容已變更，需重簽）" if order.signed_contract_stale else ""))
+        missing.append("訂購合約")
     if not order.has_privacy_consent:
-        missing.append("個資同意書" + ("（內容已變更，需重簽）" if order.privacy_consent_stale else ""))
+        missing.append("個資同意書")
     if not missing:
         return None
     return NextAction(

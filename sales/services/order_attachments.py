@@ -210,8 +210,6 @@ def _signing_slot(order, policy, key, label, field_name, route):
         status, done = "已電子簽署", True
     elif getattr(order, f"has_{field_name}"):
         status, done = "已上傳", True
-    elif getattr(order, f"{field_name}_stale"):
-        status, done = "內容已變更，需重簽", False
     else:
         status, done = "缺少", False
     view_url = None

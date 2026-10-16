@@ -39,17 +39,16 @@ test('更換方案清除舊確認與期款，保留車主／備註並要求重�
   assert.deepEqual(events,['payment:change','input']);
 });
 
-test('選車已定現金時只開放現金／刷卡，更換方案後恢復全部付款方式', () => {
+test('選車的付款方案只是第一筆預設，不鎖定付款方式（2026-10-16 付款方式可多筆）', () => {
   const options=['','cash','installment','card'].map(value=>({value,disabled:false}));
   const nodes={id_catalog_selection:{value:'token',dispatchEvent(){}},
-    id_payment_type:{value:'cash',dataset:{catalogPayment:'cash card'},options,dispatchEvent(){}},
-    id_payment_type_help:{hidden:false}};
+    id_payment_type:{value:'cash',dataset:{},options,dispatchEvent(){}}};
   for(const id of ['vehicle','payment']) nodes[id]={open:false,querySelector:()=>({focus(){}})};
   let change;
   vm.runInNewContext(script('catalog-intake.js'), {Event:class {constructor(type){this.type=type;}},document:{
     getElementById:id=>nodes[id],querySelector:selector=>selector==='[data-catalog-change]'?{addEventListener(type,fn){change=fn;}}:{hidden:false}}});
-  assert.deepEqual(options.map(o=>o.disabled),[false,false,true,false]);
-  change();
   assert.deepEqual(options.map(o=>o.disabled),[false,false,false,false]);
-  assert.equal(nodes.id_payment_type_help.hidden,true);
+  change();
+  assert.equal(nodes.id_catalog_selection.value,'');
+  assert.deepEqual(options.map(o=>o.disabled),[false,false,false,false]);
 });

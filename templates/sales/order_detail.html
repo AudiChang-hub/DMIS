@@ -151,7 +151,7 @@
     <article class="document-archive-card">
       <div class="document-archive-card__heading">
         <div><p class="eyebrow">訂購合約</p><h3>客戶與店家留存聯</h3></div>
-        {% if order.signed_contract_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% elif order.signed_contract_stale %}<span class="archive-status stale">內容已變更，需重簽</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+        {% if order.signed_contract_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
       <p>{% site_text 'order_detail.8f7144ef61f6' %}</p>
       <div class="document-archive-card__actions">
@@ -166,7 +166,7 @@
     <article class="document-archive-card">
       <div class="document-archive-card__heading">
         <div><p class="eyebrow">個資同意書</p><h3>車主簽署文件</h3></div>
-        {% if order.privacy_consent_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% elif order.privacy_consent_stale %}<span class="archive-status stale">內容已變更，需重簽</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+        {% if order.privacy_consent_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
       <p>{% site_text 'order_detail.d97010d7fe91' %}</p>
       <div class="document-archive-card__actions">

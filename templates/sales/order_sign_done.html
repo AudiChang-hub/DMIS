@@ -9,8 +9,8 @@
 </section>
 <section class="section-block"><div class="section-body">
   <ul class="signing-result">
-    <li>車輛訂購單：{% if contract_state == "electronic" %}已電子簽署{% elif contract_state == "paper" %}紙本已上傳{% elif contract_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
-    <li>個資同意書：{% if privacy_state == "electronic" %}已電子簽署{% elif privacy_state == "paper" %}紙本已上傳{% elif privacy_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
+    <li>車輛訂購單：{% if contract_state == "electronic" %}已電子簽署{% elif contract_state == "paper" %}紙本已上傳{% else %}尚未簽署{% endif %}</li>
+    <li>個資同意書：{% if privacy_state == "electronic" %}已電子簽署{% elif privacy_state == "paper" %}紙本已上傳{% else %}尚未簽署{% endif %}</li>
   </ul>
   <div class="sign-choice">
     <p class="sign-choice__title">客人需要紙本副本嗎？</p>

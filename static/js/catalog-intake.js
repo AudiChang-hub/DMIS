@@ -2,28 +2,18 @@
 (() => {
   const payment = document.getElementById('id_payment_type');
   const token = document.getElementById('id_catalog_selection');
-  // 選車已定現金或分期：付款方式只留同一類（現金可改刷卡），互換要先按「更換車款／付款方案」。
-  const allowed = (payment?.dataset?.catalogPayment || '').split(' ').filter(Boolean);
-  const lockPayment = locked => {
-    for (const option of payment.options || []) {
-      option.disabled = locked && !!option.value && !allowed.includes(option.value);
-    }
-  };
-  if (payment && token?.value && allowed.length) lockPayment(true);
+  // 選車的現金／分期只是第一筆付款方式的預設，付款方式可再新增或改選（2026-10-16），不再鎖定。
   const button = document.querySelector('[data-catalog-change]');
   if (!button) return;
   button.addEventListener('click', () => {
     token.value = '';
-    lockPayment(false);
-    const hint = document.getElementById('id_payment_type_help');
-    if (hint) hint.hidden = true;
-    if (payment.value === 'installment') {
+    if (payment?.value === 'installment') {
       // 重新選擇目前方案，避免舊期款留在畫面卻於送出時換價。
       for (const id of ['id_installment_company', 'id_installment_periods', 'id_installment_monthly', 'id_installment_opening_fee']) {
         document.getElementById(id).value = '';
       }
     }
-    payment.dispatchEvent(new Event('change', {bubbles:true}));
+    payment?.dispatchEvent(new Event('change', {bubbles:true}));
     document.querySelector('[data-catalog-intake-summary]').hidden = true;
     for (const id of ['vehicle', 'payment']) document.getElementById(id).open = true;
     document.getElementById('vehicle').querySelector('summary').focus();

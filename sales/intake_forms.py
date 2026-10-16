@@ -100,12 +100,11 @@ class IntakeOrderForm(SalesOrderForm):
         self.catalog_summary = None
         token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
         if token:
-            from sales.services.catalog_selection import read_selection, allowed_payment_types
+            from sales.services.catalog_selection import read_selection
             try:
                 self.catalog_summary = read_selection(token)
-                payment = self.fields["payment_type"]
-                payment.widget.attrs["data-catalog-payment"] = " ".join(allowed_payment_types(self.catalog_summary))
-                payment.help_text = "依選車時的付款方案；改現金／分期請回第 1 步按「更換車款／付款方案」。"
+                # 選車時的方案只當第一筆付款方式的預設，可再新增或改成其他方式（使用者 2026-10-16）。
+                self.fields["payment_splits"].widget.attrs["data-catalog-payment"] = self.catalog_summary["payment_type"]
                 if not self.is_bound:
                     self.initial["installment_monthly"] = self.catalog_summary["monthly"]
                     self.initial["installment_opening_fee"] = self.catalog_summary["opening_fee"]
@@ -148,16 +147,14 @@ class IntakeOrderForm(SalesOrderForm):
                 data["installment_opening_fee"] = option.opening_fee
         if data.get("catalog_selection"):
             from sales.services.catalog_selection import (
-                validate_selection, allowed_payment_types, CHANGE_MESSAGE, PAYMENT_CHANGE_MESSAGE)
+                validate_selection, CHANGE_MESSAGE)
             try:
                 selected = validate_selection(data["catalog_selection"])
                 color = data.get("color")
                 # 網路平台訂單不選付款方式（一律記現金、車價 0），不比對選車時的付款方案。
-                if data.get("source_type") != "platform" and data.get("payment_type") not in allowed_payment_types(selected):
-                    # 有調價權限也一樣：換付款方案要先清掉選車確認，不能留著現金價改成分期。
-                    self.add_error("payment_type", PAYMENT_CHANGE_MESSAGE)
-                elif (not model or not color or model.pk != selected["model"] or color.pk != selected["color"]
-                        or (not self.pricing_editable and selected["payment_type"] == "installment" and
+                if (not model or not color or model.pk != selected["model"] or color.pk != selected["color"]
+                        or (not self.pricing_editable and selected["payment_type"] == "installment"
+                            and data.get("payment_type") == "installment" and
                             (data.get("installment_company") != selected["company"] or data.get("installment_periods") != selected["periods"]))):
                     raise ValidationError(CHANGE_MESSAGE)
             except ValidationError as exc:

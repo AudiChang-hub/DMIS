@@ -6076,6 +6076,9 @@ def _order_snapshot(order):
         if field.name in excluded:
             continue
         value = field.value_from_object(order)
+        if field.name == "payment_splits":
+            # 付款方式明細以「現金 $20,000＋分期 $59,800」記錄，異動歷程才看得懂。
+            value = "＋".join(f"{row['label']} ${int(row['amount']):,}" for row in order.payment_split_rows)
         snapshot[field.verbose_name] = str(value or "")
     if order.source_type in {SalesOrder.SourceType.DEALER, SalesOrder.SourceType.STORE}:
         snapshot["台數與傭金歸屬車行"] = str(order.effective_commission_recipient or "")
@@ -6214,7 +6217,7 @@ def order_edit(request, pk):
         previous_vehicle_model_id = order.vehicle_model_id
         previous_source_type = order.source_type
         installment_before = tuple(getattr(order, name) for name in (
-            "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
+            "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
             "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
         ))
         balance_was_automatic = order.actual_balance == order.calculated_balance
@@ -6255,7 +6258,7 @@ def order_edit(request, pk):
             ):
                 apply_order_dealer_reward_snapshot(order, force=True)
             installment_after = tuple(getattr(order, name) for name in (
-                "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
+                "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
                 "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
             ))
             if installment_after != installment_before or (not completed_correction and not order.installment_plan_snapshot):

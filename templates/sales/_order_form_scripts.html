@@ -405,10 +405,7 @@
         label: data.recommended_label,
         version: data.version,
       };
-      if (force || vehiclePrice.value === "") {
-        vehiclePrice.value = data.recommended_price;
-        vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
-      }
+      paymentSplits.applyRecommended(data.recommended_price, force);
       const registrationText = data.recommended_label === "分期總價"
         ? (data.version.suggested_price_includes_registration ? "，含牌險" : "，不含牌險")
         : "";
@@ -598,26 +595,140 @@
     byId("id_delivery_destination").required = needsDestination;
     refreshOcrEntryState();
   }
-  let previousPaymentType = paymentType.value;
-  paymentType.addEventListener("change", () => {
-    if (
-      previousPaymentType === "installment"
-      && paymentType.value !== "installment"
-      && installmentInputs.some(input => input.value && Number(input.value) !== 0)
-    ) {
-      const confirmed = window.confirm(
-        "切換為非分期付款後，將清除分期公司、期數、開辦費與每期金額。是否繼續？"
+  // 付款方式明細（使用者 2026-10-16）：可逐筆新增，車價＝各筆合計；計價基準：有分期＝分期、全刷卡＝刷卡、其餘＝現金。
+  const paymentSplits = (() => {
+    const root = byId("payment-splits");
+    const store = byId("id_payment_splits");
+    if (!root || !store) return {applyRecommended() {}};
+    const list = root.querySelector("[data-payment-split-list]");
+    const totalOutput = root.querySelector("[data-payment-split-total]");
+    const addButton = root.querySelector("[data-payment-split-add]");
+    const methods = JSON.parse(store.dataset.splitMethods || "[]");
+    const labelOf = value => methods.find(method => method.value === value)?.label || value;
+    const priceLocked = root.hasAttribute("data-price-locked");
+    let rows = [];
+    try { rows = JSON.parse(store.value || "[]"); } catch (error) { rows = []; }
+    rows = (Array.isArray(rows) ? rows : [])
+      .filter(row => row && methods.some(method => method.value === row.method))
+      .map(row => ({method: row.method, amount: row.amount === null || row.amount === undefined ? "" : String(row.amount)}));
+    if (!rows.length) rows = [{method: paymentType.value || "cash", amount: vehiclePrice.value || ""}];
+    const amountOf = row => (row.amount === "" ? null : Number(row.amount));
+    const basisOf = () => rows.some(row => row.method === "installment")
+      ? "installment"
+      : (rows.every(row => row.method === "card") ? "card" : "cash");
+    const installmentFilled = () => installmentInputs.some(input => input.value && Number(input.value) !== 0);
+    const confirmDropInstallment = nextRows => {
+      const dropping = rows.some(row => row.method === "installment") && !nextRows.some(row => row.method === "installment");
+      return !dropping || !installmentFilled() || window.confirm(
+        "移除分期後，將清除分期公司、期數、開辦費與每期金額。是否繼續？"
       );
-      if (!confirmed) {
-        paymentType.value = previousPaymentType;
-        refresh();
-        return;
-      }
+    };
+    function updateRemaining() {
+      const recommended = currentPriceRecommendation ? Number(currentPriceRecommendation.price) : null;
+      list.querySelectorAll("[data-payment-split-amount]").forEach((input, index) => {
+        if (rows.length < 2 || recommended === null) { input.placeholder = "金額"; return; }
+        const others = rows.reduce((sum, row, rowIndex) => sum + (rowIndex === index ? 0 : (amountOf(row) || 0)), 0);
+        input.placeholder = `尚餘 ${formatMoney(Math.max(recommended - others, 0))}`;
+      });
     }
+    function write({notify = true} = {}) {
+      store.value = JSON.stringify(rows.map(row => ({method: row.method, amount: amountOf(row)})));
+      if (isPlatformOrder()) return;
+      const amounts = rows.map(amountOf);
+      const total = amounts.includes(null) ? null : amounts.reduce((sum, value) => sum + value, 0);
+      totalOutput.textContent = total === null ? "—" : formatMoney(total);
+      root.classList.toggle("payment-splits--multiple", rows.length > 1);
+      const nextPrice = total === null ? "" : String(total);
+      if (vehiclePrice.value !== nextPrice) {
+        vehiclePrice.value = nextPrice;
+        if (notify) vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
+      }
+      const basis = basisOf();
+      if (paymentType.value !== basis) {
+        paymentType.value = basis;
+        if (notify) paymentType.dispatchEvent(new Event("change", {bubbles: true}));
+      }
+      updateRemaining();
+    }
+    function render() {
+      list.replaceChildren(...rows.map((row, index) => {
+        const item = document.createElement("li");
+        item.className = "payment-split";
+        item.dataset.method = row.method;
+        const order = document.createElement("span");
+        order.className = "payment-split__index";
+        order.textContent = String(index + 1);
+        order.setAttribute("aria-hidden", "true");
+        const select = document.createElement("select");
+        select.className = "form-control payment-split__method";
+        select.setAttribute("aria-label", `第 ${index + 1} 筆付款方式`);
+        methods.forEach(method => select.add(new Option(method.label, method.value, false, method.value === row.method)));
+        select.addEventListener("change", () => {
+          const nextRows = rows.map((current, rowIndex) => (rowIndex === index ? {...current, method: select.value} : current));
+          if (!confirmDropInstallment(nextRows)) { select.value = row.method; return; }
+          row.method = select.value;
+          item.dataset.method = row.method;
+          write();
+        });
+        const money = document.createElement("label");
+        money.className = "payment-split__amount";
+        const currency = document.createElement("span");
+        currency.textContent = "$";
+        currency.setAttribute("aria-hidden", "true");
+        const amount = document.createElement("input");
+        Object.assign(amount, {type: "number", min: "0", step: "1", inputMode: "numeric", value: row.amount});
+        amount.className = "form-control";
+        amount.dataset.paymentSplitAmount = "";
+        amount.required = rows.length > 1;
+        amount.readOnly = priceLocked && rows.length === 1;
+        amount.setAttribute("aria-label", `第 ${index + 1} 筆金額（${labelOf(row.method)}）`);
+        amount.addEventListener("input", () => { row.amount = amount.value; write(); });
+        money.append(currency, amount);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "payment-split__remove";
+        remove.textContent = "移除";
+        remove.setAttribute("aria-label", `移除第 ${index + 1} 筆付款方式`);
+        remove.hidden = rows.length === 1;
+        remove.addEventListener("click", () => {
+          const nextRows = rows.filter((_row, rowIndex) => rowIndex !== index);
+          if (!confirmDropInstallment(nextRows)) return;
+          rows = nextRows;
+          render();
+          write();
+          list.querySelector(".payment-split:last-child select")?.focus();
+        });
+        item.append(order, select, money, remove);
+        return item;
+      }));
+      updateRemaining();
+    }
+    addButton?.addEventListener("click", () => {
+      const used = new Set(rows.map(row => row.method));
+      const next = methods.find(method => !used.has(method.value))?.value || "cash";
+      rows.push({method: next, amount: ""});
+      render();
+      write();
+      list.querySelector(".payment-split:last-child input")?.focus();
+    });
+    render();
+    write({notify: false});
+    return {
+      applyRecommended(price, force) {
+        // 只有一筆時跟著售價走（預設現金帶現金價、改成分期帶分期價）；多筆由人工分配，不覆蓋。
+        if (rows.length === 1 && (force || rows[0].amount === "")) {
+          rows[0].amount = String(price);
+          render();
+        }
+        write();
+      },
+    };
+  })();
+  // 計價基準（隱藏欄位）由付款明細推導；移除最後一筆分期前已在明細端確認過是否清除分期資料。
+  paymentType.addEventListener("change", () => {
     if (paymentType.value !== "installment") {
       installmentInputs.forEach(input => { input.value = ""; });
     }
-    previousPaymentType = paymentType.value;
     refresh();
     loadVehiclePrice({force: true});
     if (paymentType.value === "installment") loadInstallmentPlanOptions();

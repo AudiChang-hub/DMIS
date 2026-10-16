@@ -3064,6 +3064,12 @@ class SalesOrder(TimeStampedModel):
         INSTALLMENT = "installment", "分期"
         CARD = "card", "刷卡"
 
+    class PaymentSplitMethod(models.TextChoices):
+        CASH = "cash", "現金"
+        CARD = "card", "刷卡"
+        TRANSFER = "transfer", "匯款"
+        INSTALLMENT = "installment", "分期"
+
     class DiscountStatus(models.TextChoices):
         NONE = "", "未申請"
         PENDING = "pending", "待確認"
@@ -3281,12 +3287,15 @@ class SalesOrder(TimeStampedModel):
         editable=False,
     )
 
+    # 計價基準：由付款方式明細推導（有分期＝分期，全刷卡＝刷卡，其餘＝現金），決定帶現金價或分期價與分期撥款。
     payment_type = models.CharField(
-        "主要付款方式",
+        "計價基準",
         max_length=20,
         choices=PaymentType.choices,
         default=PaymentType.CASH,
     )
+    # 付款方式可多筆（使用者 2026-10-16）：[{"method": "cash", "amount": 20000}, ...]，車價＝各筆加總。
+    payment_splits = models.JSONField("付款方式", default=list, blank=True)
     vehicle_price = models.DecimalField(
         "車價", max_digits=12, decimal_places=0, default=0
     )
@@ -4083,6 +4092,65 @@ class SalesOrder(TimeStampedModel):
     @property
     def discounted_total(self):
         return self.pre_discount_total - self.approved_discount_amount
+
+    @staticmethod
+    def payment_type_for_splits(splits):
+        """付款方式明細 → 計價基準：有分期＝分期；全部刷卡＝刷卡；其餘（含匯款）＝現金。"""
+        methods = {row.get("method") for row in splits or ()}
+        if SalesOrder.PaymentSplitMethod.INSTALLMENT in methods:
+            return SalesOrder.PaymentType.INSTALLMENT
+        if methods == {SalesOrder.PaymentSplitMethod.CARD}:
+            return SalesOrder.PaymentType.CARD
+        return SalesOrder.PaymentType.CASH
+
+    @property
+    def payment_split_rows(self):
+        """顯示用付款明細；舊資料沒有明細時以計價基準與車價視為一筆。"""
+        labels = dict(self.PaymentSplitMethod.choices)
+        rows = self.payment_splits or []
+        if not rows and self.vehicle_price:
+            rows = [{"method": self.payment_type, "amount": int(self.vehicle_price)}]
+        return [
+            {"method": row.get("method"), "label": labels.get(row.get("method"), row.get("method")),
+             "amount": Decimal(str(row.get("amount") or 0))}
+            for row in rows
+        ]
+
+    @property
+    def payment_split_display(self):
+        rows = self.payment_split_rows
+        if len(rows) <= 1:
+            return rows[0]["label"] if rows else self.get_payment_type_display()
+        return "＋".join(f"{row['label']} ${int(row['amount']):,}" for row in rows)
+
+    @property
+    def payment_method_labels(self):
+        """去重後的付款方式名稱（列表標籤用），例如「現金＋分期」。"""
+        labels = []
+        for row in self.payment_split_rows:
+            if row["label"] not in labels:
+                labels.append(row["label"])
+        return "＋".join(labels) or self.get_payment_type_display()
+
+    @property
+    def installment_split_amount(self):
+        """分期公司負擔的車款；沒有明細的舊分期單視為整筆車價。"""
+        if self.payment_type != self.PaymentType.INSTALLMENT:
+            return Decimal("0")
+        if not self.payment_splits:
+            return self.vehicle_price or Decimal("0")
+        return sum(
+            (Decimal(str(row.get("amount") or 0)) for row in self.payment_splits
+             if row.get("method") == self.PaymentSplitMethod.INSTALLMENT),
+            Decimal("0"),
+        )
+
+    @property
+    def customer_vehicle_split_amount(self):
+        """分期單裡由客人自付的車款（現金／刷卡／匯款各筆）。"""
+        if self.payment_type != self.PaymentType.INSTALLMENT:
+            return self.vehicle_price or Decimal("0")
+        return max((self.vehicle_price or Decimal("0")) - self.installment_split_amount, Decimal("0"))
 
     def clear_installment_details(self):
         self.installment_company = ""

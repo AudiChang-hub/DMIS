@@ -1848,6 +1848,74 @@ input[type="file"].form-control { padding: var(--space-3); }
   border-radius: var(--radius-md);
 }
 .vehicle-price-adjustment .field { margin: 0; }
+/* 付款方式明細（2026-10-16）：逐筆新增，左側色條區分方式，合計即車價。 */
+.payment-splits { display: grid; gap: var(--space-3); }
+.payment-splits__head.field { display: grid; gap: 2px; margin: 0; }
+.payment-splits__hint { color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
+.payment-splits__list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.payment-split {
+  --split-accent: var(--green);
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--split-accent);
+  border-radius: var(--radius-md);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.payment-split:focus-within { border-color: var(--focus-ring); border-left-color: var(--split-accent); box-shadow: 0 0 0 3px var(--surface-tint); }
+.payment-split[data-method="card"] { --split-accent: var(--blue); }
+.payment-split[data-method="transfer"] { --split-accent: var(--amber); }
+.payment-split[data-method="installment"] { --split-accent: var(--forest); }
+.payment-split__index {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-soft);
+  border-radius: var(--radius-pill);
+}
+.payment-split .form-control { margin: 0; }
+.payment-split__amount { position: relative; display: block; margin: 0; }
+.payment-split__amount span {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.payment-split__amount input { padding-left: var(--space-5); font-variant-numeric: tabular-nums; }
+.payment-split__amount input[readonly] { color: var(--ink-soft); background: var(--mint); }
+.payment-split__remove {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  color: var(--red);
+  font: inherit;
+  font-size: var(--text-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.payment-split__remove:hover { background: var(--red-soft); }
+.payment-split__remove:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.payment-splits__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.payment-splits__total { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
+.payment-splits__total strong { color: var(--ink); font-size: var(--text-lg); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.payment-splits__errors { display: grid; gap: 2px; margin: 0; }
+@media (max-width: 560px) {
+  .payment-split { grid-template-columns: 24px minmax(0, 1fr) auto; }
+  .payment-split__amount { grid-column: 2 / -1; }
+  .payment-split__remove { grid-row: 1; grid-column: 3; }
+}
+@media (prefers-reduced-motion: reduce) { .payment-split { transition: none; } }
 .other-fee-row {
   position: relative;
   display: grid; grid-template-columns: 2fr 1fr; padding: var(--space-4) 0;

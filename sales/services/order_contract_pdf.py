@@ -208,7 +208,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             p("<b>行動電話</b>"),
             p(safe(order.owner_phone)),
             p("<b>付款方式</b>"),
-            p(order.get_payment_type_display()),
+            p(order.payment_split_display),
             p("<b>分期資訊</b>"),
             p(
                 safe(
@@ -474,8 +474,8 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     y = draw_section_title(c, y, "收款資料")
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
     payment_first_row = [
-        p("<b>主要付款</b>"),
-        p(order.get_payment_type_display()),
+        p("<b>付款方式</b>"),
+        p(order.payment_split_display),
     ]
     if is_installment:
         payment_first_row.extend(

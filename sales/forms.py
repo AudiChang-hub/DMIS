@@ -1,6 +1,6 @@
 import json
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import PasswordChangeForm
@@ -295,6 +295,7 @@ class SalesOrderForm(forms.ModelForm):
             "lien_registration_fee",
             "registration_calculated_total",
             "payment_type",
+            "payment_splits",
             "registration_manual",
             "registration_adjustment_reason",
             "vehicle_price",
@@ -318,6 +319,8 @@ class SalesOrderForm(forms.ModelForm):
             "note",
         ]
         widgets = {
+            "payment_type": forms.HiddenInput(),
+            "payment_splits": forms.HiddenInput(),
             "owner_birth_date": DateInput(),
             "residence_expiry": DateInput(),
             "deposit_date": DateInput(),
@@ -464,6 +467,14 @@ class SalesOrderForm(forms.ModelForm):
         # 前端會立即帶入售價；後端仍以同一版本解析補齊，避免網路或 JS
         # 暫時失敗時讓使用者建立出缺少車價的訂單。
         self.fields["vehicle_price"].required = False
+        # 付款方式改為多筆明細（使用者 2026-10-16）：計價基準與車價由明細推導，不再單獨填寫。
+        self.fields["payment_type"].required = False
+        self.fields["payment_splits"].required = False
+        self.fields["vehicle_price"].widget = forms.HiddenInput(attrs=self.fields["vehicle_price"].widget.attrs)
+        self.fields["payment_splits"].widget.attrs["data-split-methods"] = json.dumps(
+            [{"value": value, "label": label} for value, label in SalesOrder.PaymentSplitMethod.choices],
+            ensure_ascii=False,
+        )
         self.fields["vehicle_price_adjustment_reason"].required = False
         for field_name in (
             "installment_company",
@@ -508,6 +519,40 @@ class SalesOrderForm(forms.ModelForm):
         # 相容功能上線前建立的草稿與舊版表單送出；新畫面仍會顯示選項。
         self.fields["transaction_type"].required = False
         self.fields["transaction_type"].initial = SalesOrder.TransactionType.REGULAR_NEW
+
+    def _clean_payment_splits(self, data, is_platform):
+        """整理付款方式明細：[{method, amount}]，金額空白＝待帶入售價（只允許單筆）。"""
+        if is_platform:
+            return []
+        raw = data.get("payment_splits")
+        if raw in (None, "", []):
+            # 未送明細（舊版畫面、草稿與 API）：以單一付款方式與車價視為一筆。
+            price = data.get("vehicle_price")
+            method = data.get("payment_type") or SalesOrder.PaymentType.CASH
+            return [{"method": method, "amount": None if price is None else int(price)}]
+        methods = set(SalesOrder.PaymentSplitMethod.values)
+        rows = []
+        for item in raw if isinstance(raw, list) else [None]:
+            if not isinstance(item, dict) or item.get("method") not in methods:
+                self.add_error("payment_splits", "請為每一筆選擇付款方式（現金、刷卡、匯款或分期）。")
+                return []
+            amount = item.get("amount")
+            if amount in (None, ""):
+                amount = None
+            else:
+                try:
+                    amount = Decimal(str(amount).replace(",", "").strip())
+                except (InvalidOperation, ValueError):
+                    amount = Decimal("-1")
+                if amount < 0 or amount != amount.to_integral_value():
+                    self.add_error("payment_splits", "付款金額須為 0 或正整數。")
+                    return []
+                amount = int(amount)
+            rows.append({"method": item["method"], "amount": amount})
+        if len(rows) > 1 and any(row["amount"] is None for row in rows):
+            self.add_error("payment_splits", "有多種付款方式時，每一筆都要填金額。")
+            return []
+        return rows
 
     def clean_id_front(self):
         return validate_image_upload(self.cleaned_data.get("id_front"))
@@ -600,6 +645,17 @@ class SalesOrderForm(forms.ModelForm):
             data["payment_type"] = SalesOrder.PaymentType.CASH
             self.cleaned_data["payment_type"] = SalesOrder.PaymentType.CASH
             self.errors.pop("payment_type", None)
+        payment_splits = self._clean_payment_splits(data, is_platform)
+        if payment_splits:
+            payment_type = SalesOrder.payment_type_for_splits(payment_splits)
+            data["payment_type"] = self.cleaned_data["payment_type"] = payment_type
+            self.errors.pop("payment_type", None)
+            amounts = [row["amount"] for row in payment_splits]
+            if not self.fields["vehicle_price"].disabled:
+                total = Decimal(sum(amounts)) if None not in amounts else None
+                data["vehicle_price"] = self.cleaned_data["vehicle_price"] = total
+        elif not data.get("payment_type"):
+            data["payment_type"] = self.cleaned_data["payment_type"] = SalesOrder.PaymentType.CASH
         if data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
             option = resolve_installment_plan_option(
                 model.pk if model else None,
@@ -669,6 +725,16 @@ class SalesOrderForm(forms.ModelForm):
                     "vehicle_price",
                     "此車型沒有可帶入的售價版本，請輸入本次成交車價。",
                 )
+        final_price = data.get("vehicle_price")
+        if payment_splits and final_price is not None:
+            if len(payment_splits) == 1:
+                payment_splits[0]["amount"] = int(final_price)
+            elif sum(row["amount"] for row in payment_splits) != final_price:
+                self.add_error(
+                    "payment_splits",
+                    f"沒有調價權限：各筆付款金額加總須等於車價 ${int(final_price):,}。",
+                )
+        data["payment_splits"] = self.cleaned_data["payment_splits"] = payment_splits
         price_context_changed = (
             not self.instance.pk
             or submitted_price != self._initial_vehicle_price

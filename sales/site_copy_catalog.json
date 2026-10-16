@@ -1881,9 +1881,14 @@
     "default": "請在左側建立第一筆，之後訂單才能自動帶入價格。",
     "template": "templates/sales/vehicle_model_price_versions.html"
   },
-  "field_help.c0f6ec1a7eef": {
+  "field_help.4b4638d736e7": {
     "page": "欄位提示說明",
-    "default": "本店訂單可選擇承辦員工；車行與網路平台則必須選擇來源名稱。",
+    "default": "選擇負責這張訂單的本店人員，會帶入本店人員傭金；可不指定。",
+    "template": "sales/forms.py"
+  },
+  "field_help.12d211ae2fe7": {
+    "page": "欄位提示說明",
+    "default": "選擇接到這張訂單的車行或網路平台。",
     "template": "sales/forms.py"
   },
   "field_help.02b52587a168": {

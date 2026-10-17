@@ -43,7 +43,10 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
   gap: var(--totals-gap); margin: var(--space-3) 0 0; padding: var(--inset-pad) var(--space-5);
   background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
+/* 指定號碼有選號費時多一格：前四格等寬＋合計。 */
+.intake-totals__grid:has([data-intake-total-cell="selection"]:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.2fr); }
 .intake-totals__cell { position: relative; display: grid; align-content: center; gap: var(--space-1); min-width: 0; }
+.intake-totals__cell[hidden] { display: none; }
 .intake-totals__cell dt { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
 .intake-totals__cell dd {
   margin: 0; font-family: var(--font-display); font-size: var(--totals-value); font-weight: 700; line-height: 1.15;
@@ -67,13 +70,21 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 @container intake-totals (max-width: 760px) {
   .intake-totals__grid { --totals-gap: var(--space-5); --totals-value: var(--text-lg); padding-inline: var(--space-4); }
 }
-/* 窄卡片（手機）：改成逐行明細，合計以底色隔開，不放運算符號。 */
+/* 窄卡片（手機）：改成逐行明細，合計以底色隔開，不放運算符號。
+   多了選號費（五格）時一行放不下，卡片 760px 以下就改逐行。 */
 @container intake-totals (max-width: 520px) {
   .intake-totals__grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
   .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
   .intake-totals__cell dd { text-align: right; }
   .intake-totals__cell--plus::before, .intake-totals__cell--sum::before { content: none; }
   .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
+}
+@container intake-totals (max-width: 760px) {
+  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
+  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
+  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell dd { text-align: right; }
+  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) :is(.intake-totals__cell--plus, .intake-totals__cell--sum)::before { content: none; }
+  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
 }
 
 @media (max-width: 720px) {

@@ -587,8 +587,8 @@
     installmentPicker.syncRequired();
     showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
-    // 「待確認」還沒決定選號，跟「不選號」一樣不顯示也不計選號費。
-    showConditional("plate-selection", !["none", "pending"].includes(plateChoice.value));
+    // 只有「指定號碼」收選號費；一般領牌偏好、待確認、不選號都不顯示也不計（使用者 2026-10-17）。
+    showConditional("plate-selection", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
     showConditional("delivery-destination", needsDestination);
@@ -1787,16 +1787,22 @@
   }
   paymentType.addEventListener("change", depositGuidance);
   depositGuidance();
-  // 訂金頁的目前金額：車價＋牌險費＋配件（只計加購），與總價試算同一組欄位。
+  // 訂金頁的目前金額：車價＋牌險費＋（指定號碼的選號費）＋配件（只計加購），與總價試算同一組欄位。
   const intakeTotals = orderForm.querySelector("[data-intake-totals]");
   function updateIntakeTotals() {
     if (!intakeTotals) return;
     const amountOf = id => { const node = byId(id); return node && node.value !== "" ? Number(node.value) || 0 : null; };
+    // 選號費只在「指定號碼」且有填金額時列出，與 preDiscountTotal 的計算條件一致（使用者 2026-10-17）。
+    const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;
+    const showSelection = Boolean(selection);
     const values = {vehicle: amountOf("id_vehicle_price"), plate: amountOf("id_plate_insurance_fee"), accessories: accessoryPurchaseTotal()};
+    if (showSelection) values.selection = selection;
     values.sum = Object.values(values).reduce((sum, value) => sum + (value || 0), 0);
+    intakeTotals.querySelector('[data-intake-total-cell="selection"]').hidden = !showSelection;
+    intakeTotals.querySelector("[data-intake-total-label]").textContent = showSelection ? "四項合計" : "三項合計";
     intakeTotals.querySelectorAll("[data-intake-total]").forEach(node => {
       const value = values[node.dataset.intakeTotal];
-      node.textContent = value === null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
+      node.textContent = value == null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
     });
   }
   orderForm.addEventListener("input", updateIntakeTotals);
@@ -1824,7 +1830,7 @@
     }
     function preDiscountTotal() {
       const installment = paymentType.value === "installment";
-      const plateSelection = !["none", "pending"].includes(plateChoice.value) ? numberOf("id_plate_selection_fee") : 0;
+      const plateSelection = plateChoice.value === "watch" ? numberOf("id_plate_selection_fee") : 0;
       return numberOf("id_vehicle_price") + numberOf("id_plate_insurance_fee")
         + plateSelection + numberOf("id_lien_registration_fee")
         + (installment ? numberOf("id_installment_opening_fee") : 0)

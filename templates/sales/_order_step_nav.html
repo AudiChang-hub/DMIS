@@ -12,7 +12,30 @@
         <button type="button" class="order-nav__pin" data-order-nav-pin aria-pressed="false" title="釘選後步驟固定在左側">釘選</button>
         <button type="button" class="order-nav__close" data-order-nav-close aria-label="收合訂單步驟">×</button>
       </div>
+      {% url 'order_overview' order.pk as overview_url %}
+      <a class="order-nav__overview" href="{{ overview_url }}" data-order-overview-open="{{ overview_url }}" aria-haspopup="dialog" title="唯讀檢視整張訂單，方便查找與複製（快捷鍵 O）">
+        <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16"><rect x="3" y="2.5" width="14" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 7h7M6.5 10h7M6.5 13h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>訂單總覽</span><span class="order-nav__overview-hint">查看・複製</span>
+      </a>
     </header>
     <div class="order-nav__body">{% include "sales/_order_step_bar.html" %}</div>
   </aside>
 </div>
+<dialog class="order-overview-dialog" aria-labelledby="order-overview-title" data-order-overview-dialog>
+  <div class="order-overview-dialog__sheet">
+    <header class="order-overview-dialog__head">
+      <div>
+        <p class="order-overview-dialog__eyebrow">訂單總覽・唯讀</p>
+        <h2 id="order-overview-title">{{ order.owner_name }}</h2>
+        <p class="order-overview-dialog__meta">{{ order.number }}</p>
+      </div>
+      <div class="order-overview-dialog__actions">
+        <button type="button" class="button primary small" data-overview-copy-all>複製全部</button>
+        <a class="button ghost small" href="{% url 'order_overview' order.pk %}" target="_blank" rel="noopener">新分頁開啟</a>
+        <button type="button" class="order-overview-dialog__close" data-overview-close aria-label="關閉訂單總覽">×</button>
+      </div>
+    </header>
+    <div class="order-overview-dialog__body" data-overview-body aria-busy="false"></div>
+  </div>
+  <p class="visually-hidden" role="status" aria-live="polite" data-overview-status></p>
+</dialog>

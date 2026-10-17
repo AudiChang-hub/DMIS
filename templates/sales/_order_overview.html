@@ -1,0 +1,53 @@
+{% comment %}訂單總覽內容（唯讀）：訂單頁側邊列的總覽面板以 ?fragment=1 載入，完整頁面也共用。
+每個值可直接選取，或按右側「複製」；金額複製純數字。{% endcomment %}
+<div class="order-overview" data-order-overview>
+  <div class="order-overview__tools">
+    <label class="order-overview__search">
+      <span class="visually-hidden">搜尋欄位</span>
+      <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m13 13 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input type="search" placeholder="搜尋欄位或內容，例如：地址、車身、電話" autocomplete="off" data-overview-search>
+    </label>
+    <nav class="order-overview__jump" aria-label="跳到區塊">
+      {% for section in overview.sections %}{% if section.rows %}<a href="#overview-{{ section.key }}" data-overview-jump>{{ section.title }}</a>{% endif %}{% endfor %}
+      {% for table in overview.tables %}<a href="#overview-{{ table.key }}" data-overview-jump>{{ table.title }}</a>{% endfor %}
+    </nav>
+  </div>
+
+  <div class="order-overview__grid">
+    {% for section in overview.sections %}{% if section.rows %}
+    <section class="order-overview__card" id="overview-{{ section.key }}" data-overview-section aria-labelledby="overview-{{ section.key }}-title">
+      <header class="order-overview__card-head">
+        <h3 id="overview-{{ section.key }}-title">{{ section.title }}</h3>
+        <button type="button" class="order-overview__copy-section" data-overview-copy-section>複製本區</button>
+      </header>
+      <dl class="order-overview__list">
+        {% for row in section.rows %}
+        <div class="order-overview__row{% if row.wide %} is-wide{% endif %}{% if not row.copy %} is-empty{% endif %}" data-overview-row data-label="{{ row.label }}" data-copy="{{ row.copy }}">
+          <dt>{{ row.label }}</dt>
+          <dd><span class="order-overview__value{% if row.mono %} is-mono{% endif %}">{{ row.value|linebreaksbr }}</span>{% if row.copy %}<button type="button" class="order-overview__copy" data-overview-copy aria-label="複製{{ row.label }}"><svg aria-hidden="true" viewBox="0 0 20 20" width="14" height="14"><rect x="6.5" y="6.5" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 4.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="order-overview__copy-text">複製</span></button>{% endif %}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}{% endfor %}
+  </div>
+
+  {% if overview.tables %}<div class="order-overview__tables">
+    {% for table in overview.tables %}
+    <section class="order-overview__card is-table" id="overview-{{ table.key }}" data-overview-section aria-labelledby="overview-{{ table.key }}-title">
+      <header class="order-overview__card-head">
+        <h3 id="overview-{{ table.key }}-title">{{ table.title }}<small>{{ table.rows|length }} 筆</small></h3>
+        <button type="button" class="order-overview__copy-section" data-overview-copy-section>複製表格</button>
+      </header>
+      <div class="inventory-table-wrap order-overview__table-wrap" tabindex="0" aria-label="{{ table.title }}，可水平捲動">
+        <table class="inventory-table inventory-table--fit order-overview__table" data-overview-table>
+          <thead><tr>{% for column in table.columns %}<th scope="col"{% if forloop.counter0 in table.numeric %} class="is-number"{% endif %}>{{ column }}</th>{% endfor %}</tr></thead>
+          <tbody>{% for line in table.lines %}<tr data-overview-row data-label="{{ table.title }}" data-copy="{{ line.copy }}">{% for column, cell, numeric in line.cells %}<td data-label="{{ column }}"{% if numeric %} class="is-number"{% endif %}>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </section>
+    {% endfor %}
+  </div>{% endif %}
+  <p class="order-overview__empty" data-overview-empty hidden>找不到符合的欄位，換個關鍵字試試。</p>
+  {{ overview.plain_text|json_script:"order-overview-text" }}
+</div>

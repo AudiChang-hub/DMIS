@@ -24,6 +24,20 @@ class OptionalFieldTests(TestCase):
         self.assertEqual((form.cleaned_data["old_vehicle_valuation"], form.cleaned_data["old_vehicle_tax"]), (0, 0))
         self.assertEqual(form.cleaned_data["trade_in_plate"], "ABC-1234")
 
+    def test_subsidy_type_not_editable_on_order_page(self):
+        # 補助內容改由補助項目登錄，汰舊區不再提供補助類型欄位。
+        self.order.subsidy_type = "汰舊換新"
+        self.order.save(update_fields=["subsidy_type"])
+        form = SubsidyDataForm({"is_trade_in_subsidy": "on", "trade_in_plate": "abc-1234",
+                                "subsidy_type": "亂填", "old_vehicle_valuation": "", "old_vehicle_tax": ""},
+                               instance=self.order)
+        self.assertNotIn("subsidy_type", form.fields)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.save().subsidy_type, "汰舊換新")
+        self.order.is_trade_in_subsidy = True
+        self.order.subsidy_type = ""
+        self.assertIn("補助項目", self.order.missing_subsidy_requirements())
+
     def test_subsidy_item_amount_can_be_blank(self):
         form = SubsidyItemForm({"item_name": "縣市加碼補助", "expected_amount": "", "category": "",
                                 "status": SubsidyItem.Status.NOT_SUBMITTED})

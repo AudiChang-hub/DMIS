@@ -80,6 +80,7 @@ def finance_context(request, order):
     subsidy_form = OrderOperationsForm(instance=profile, prefix='operations', section='subsidy', auto_id='ops_subsidy_%s')
     for name in ('subsidy_amount', 'subsidy_applied_on'):
         subsidy_form.fields[name].disabled = True
+    old_vehicle_form = OrderOperationsForm(instance=profile, prefix='operations', section='old_vehicle', auto_id='ops_old_vehicle_%s')
     fulfillment_form = OrderOperationsForm(instance=profile, prefix='operations', section='fulfillment', auto_id='ops_fulfillment_%s')
     summary = payment_summary(order)
     return {
@@ -91,6 +92,7 @@ def finance_context(request, order):
         'profile': profile,
         'operations_form': operations_form,
         'operations_subsidy_form': subsidy_form,
+        'operations_old_vehicle_form': old_vehicle_form,
         'operations_fulfillment_form': fulfillment_form,
         'payment_formset': payment_formset_for(order),
         'receipt_summary': summary,

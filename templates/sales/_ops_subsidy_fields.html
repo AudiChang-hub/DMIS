@@ -5,11 +5,3 @@
     {% include "sales/_field.html" with field=form.subsidy_applied_on %}
     {% include "sales/_subsidy_agency_summary.html" %}
   </div></details>
-  <details {% if order_workspace %}data-workspace-section="subsidy"{% endif %} class="operation-section" open><summary><strong>舊車與報廢資料</strong><span>車主姓名、證號與舊車牌沿用補助頁資料</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.old_vehicle_engine_number %}
-    {% include "sales/_field.html" with field=form.old_vehicle_brand %}
-    {% include "sales/_field.html" with field=form.old_vehicle_displacement_cc %}
-    {% include "sales/_field.html" with field=form.old_vehicle_manufactured_on %}
-    {% include "sales/_field.html" with field=form.scrapped_on %}
-    {% include "sales/_field.html" with field=form.recycled_on %}
-  </div></details>

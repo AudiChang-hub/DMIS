@@ -639,7 +639,6 @@
       <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
       <div><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
       <div><label for="{{ subsidy_form.old_owner_household_address.id_for_label }}">舊車主戶籍</label>{{ subsidy_form.old_owner_household_address }}</div>
-      <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
 
@@ -690,10 +689,9 @@
     <div><span>舊車主身分證字號</span><strong>{{ order.old_owner_id_number|default:"尚未填寫" }}</strong></div>
     <div><span>舊車主電話</span><strong>{{ order.old_owner_phone|default:"尚未填寫" }}</strong></div>
     <div><span>舊車主戶籍</span><strong>{{ order.old_owner_household_address|default:"尚未填寫" }}</strong></div>
-    <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
   </div>
   {% endif %}
-  {% include "sales/_old_vehicle_summary.html" with profile=order.operations %}
+  {% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_old_vehicle_form section_key="old_vehicle" fields_template="sales/_ops_old_vehicle_fields.html" %}{% endif %}
 
   {% if payout_summary %}
   <section class="payout-summary" aria-labelledby="payout-summary-title" data-payout-summary>
@@ -814,7 +812,7 @@
       </div>
     </div>
 </section>
-{% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_subsidy_form section_key="subsidy" fields_template="sales/_ops_subsidy_fields.html" submit_label="儲存補助撥款與舊車資料" %}{% endif %}
+{% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_subsidy_form section_key="subsidy" fields_template="sales/_ops_subsidy_fields.html" submit_label="儲存補助撥款資料" %}{% endif %}
 </div></section>{% endwith %}
 {% if not editing_order %}
 {% with step=steps.closing %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-closing" data-step-key="closing" role="tabpanel" aria-labelledby="tab-closing" tabindex="-1">

@@ -3735,7 +3735,7 @@ class SalesOrder(TimeStampedModel):
         if not self.trade_in_plate:
             missing.append("舊車車牌")
         if not self.subsidy_type and not self.subsidy_items.exists():
-            missing.append("補助類型")
+            missing.append("補助項目")
         if not self.old_owner_same_as_owner and not self.old_owner_name:
             missing.append("舊車主姓名")
         if not self.old_owner_same_as_owner and not self.old_owner_id_number:

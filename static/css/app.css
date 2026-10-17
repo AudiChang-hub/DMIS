@@ -2392,11 +2392,6 @@ input[type="file"].form-control { padding: var(--space-3); }
   align-items: end; gap: var(--stack-gap-sm); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
 .subsidy-summary div { display: grid; min-width: 0; gap: var(--space-1); }
-.old-vehicle-summary { display: grid; margin: var(--space-4) var(--space-5) 0; padding-top: var(--space-4); gap: var(--space-3); border-top: 1px dashed var(--line); }
-.old-vehicle-summary__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
-.old-vehicle-summary__head h3 { margin: 0; font-size: var(--text-base); }
-.old-vehicle-summary__head small { color: var(--muted); font-size: var(--text-xs); }
-.old-vehicle-summary__empty { margin: 0; }
 /* 歷史匯入的待交車訂單：admin 補登車牌並完成交車。 */
 .historical-delivery { display: grid; padding: var(--card-pad); gap: var(--space-4); border-left: 4px solid var(--amber-strong); }
 .historical-delivery__intro h2 { margin: var(--space-1) 0; font-size: var(--text-lg); }
@@ -2446,6 +2441,8 @@ input[type="file"].form-control { padding: var(--space-3); }
 .draft-cleanup-delete > summary::-webkit-details-marker { display: none; }
 .draft-cleanup-delete form { display: grid; margin-top: var(--space-2); gap: var(--space-2); min-width: min(280px, 100%); }
 .draft-cleanup-delete textarea { width: 100%; }
+/* 汰舊／補助作業：舊車與報廢資料就地編輯，與上下區塊同寬對齊。 */
+.subsidy-stage > .operations-section-form { margin: var(--space-4) var(--space-5) 0; }
 .payout-summary { margin-bottom: var(--stack-gap-sm); }
 .payout-summary__head { display: grid; gap: var(--space-1); margin-bottom: var(--space-2); }
 .payout-summary__head h3 { margin: 0; }

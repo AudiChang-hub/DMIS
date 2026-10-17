@@ -5759,7 +5759,7 @@ def order_operations(request, pk):
     before = _operations_snapshot(profile)
     # 工作台各步驟只送出自己的區段；未指定時（獨立營運頁）維持整張表單。
     section = request.POST.get("_section") if request.method == "POST" else None
-    if section not in {"finance", "subsidy", "fulfillment"}:
+    if section not in {"finance", "subsidy", "old_vehicle", "fulfillment"}:
         section = None
     form = OrderOperationsForm(
         request.POST or None,

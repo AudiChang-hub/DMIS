@@ -59,6 +59,31 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         self.assertEqual(order.plate_selection_fee, Decimal("0"))
         self.assertEqual(order.calculate_balance(), Decimal("70000"))
 
+    def test_detail_and_contract_pdf_show_plate_selection_fee_only_for_watch(self):
+        # 使用者 2026-10-17：訂單明細頁與訂購單 PDF 只有「指定號碼」才列選號費。
+        from io import BytesIO
+
+        from django.urls import reverse
+        from pypdf import PdfReader
+
+        from sales.services.order_contract_pdf import build_order_contract_pdf
+
+        for choice, shown in (("watch", True), ("preference", False), ("none", False), ("pending", False)):
+            with self.subTest(plate_choice=choice):
+                order = self.pending(plate_choice=choice)
+                response = self.post(order, plate_choice=choice, plate_selection_fee="1200", plate_insurance_fee="0",
+                                     watched_numbers="ABC-1234" if choice == "watch" else "",
+                                     registration_date="", confirm_completed_correction="")
+                self.assert_saved(response, order)
+                page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
+                order.print_company_snapshot = {"legal_name": "測試機車行", "tax_id": "12345678",
+                                                "address": "測試地址", "phone": "02-1234"}
+                pdf = PdfReader(BytesIO(build_order_contract_pdf(order)))
+                pdf_text = "".join(item.extract_text() for item in pdf.pages)
+                self.assertEqual("<dt>選號</dt>" in page, shown)
+                self.assertEqual("＋ 選號" in page, shown)
+                self.assertEqual("選號費" in pdf_text, shown)
+
     def test_plate_selection_fee_counts_before_registration_date(self):
         order = self.pending(plate_choice="watch")
         response = self.post(order, plate_choice="watch", plate_selection_fee="1200", plate_insurance_fee="0",

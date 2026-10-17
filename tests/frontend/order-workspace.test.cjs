@@ -29,3 +29,13 @@ test('radio 只看選中的選項', () => {
   assert.equal(snapshot([radio('a', true), radio('b', false)]).get('plate'), snapshot([radio('a', true), radio('b', false)]).get('plate'));
   assert.notEqual(snapshot([radio('a', true), radio('b', false)]).get('plate'), snapshot([radio('a', false), radio('b', true)]).get('plate'));
 });
+test('儲存後重編明細：應收設定列一起編號、儲存中新增的列保留在最後、只移除送出時已刪除的列', () => {
+  const {rowPlan} = require('../../static/js/order-workspace.js');
+  const deposit = {name:'訂金', saved:true}, added = {name:'新增尾款', saved:true};
+  const expectation = {name:'應收設定尾款', saved:true}, typing = {name:'儲存中新增', saved:false};
+  const removed = {name:'已刪除', saved:true, deletedWhenSent:true};
+  const plan = rowPlan([deposit, added, typing, removed, expectation]);
+  assert.deepEqual(plan.order.map(row => row.name), ['訂金', '新增尾款', '應收設定尾款', '儲存中新增']);
+  assert.deepEqual(plan.removed, [removed]);
+  assert.equal(plan.initial, 3);
+});

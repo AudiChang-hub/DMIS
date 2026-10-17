@@ -3664,7 +3664,30 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .vehicle-brand-group__chevron { margin-top: calc(-1 * var(--space-1)); }
 .vehicle-brand-group[open] .vehicle-brand-group__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
 .vehicle-model-overview-table { border: 0; border-radius: 0; box-shadow: none; }
-.vehicle-model-overview-table > .master-model-table { min-width: 1260px; }
+/* 機種總表依容器寬度自適應：不設最小寬度；容器變窄時縮小欄距、操作鈕改直排，操作欄固定在右側，任何寬度都看得到「編輯」。 */
+.vehicle-model-overview-table { container: vm-overview / inline-size; }
+.vehicle-model-overview-table > .master-model-table { min-width: 0; }
+.vehicle-model-row-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+.vehicle-model-row-actions .vehicle-model-copy-link { margin-right: 0; }
+@media (min-width: 860.02px) {
+  .vehicle-model-overview-table .master-model-table thead th:last-child,
+  .vehicle-model-overview-table .vehicle-model-row-action { position: sticky; right: 0; z-index: 1; }
+  .vehicle-model-overview-table .vehicle-model-row-action { background: var(--surface); }
+  .vehicle-model-family-group.is-inactive > .vehicle-model-row-action { background: var(--surface-soft); }
+  @container vm-overview (max-width: 1320px) {
+    .master-model-table :is(th, td) { padding-inline: var(--space-3); }
+    .master-model-table .vehicle-model-machine-cell { min-width: 130px; }
+    .master-model-table :is(td[data-label="型號"], td[data-label="能源別"]),
+    .master-model-table .vehicle-model-inventory-link strong { white-space: nowrap; }
+    .vehicle-model-row-actions { display: flex; flex-direction: column; align-items: stretch; }
+    .master-model-table thead th:last-child,
+    .vehicle-model-row-action { box-shadow: inset 1px 0 0 var(--line); }
+  }
+  @container vm-overview (max-width: 1080px) {
+    .master-model-table :is(th, td) { padding-inline: var(--space-2); }
+    .master-model-table .vehicle-model-machine-cell { min-width: 110px; }
+  }
+}
 .vehicle-model-family-group > td { background: var(--surface); }
 .vehicle-model-family-group.is-inactive > td { color: var(--muted); background: var(--surface-soft); }
 .vehicle-model-family-group.is-inactive .vehicle-model-machine-cell > strong { color: var(--ink-soft); }
@@ -4681,7 +4704,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .inventory-table tbody th { display: block; grid-column: 1 / -1; padding: var(--space-2) 0; border: 0; }
   .inventory-table tbody th::before { display: none; }
   .inventory-table .is-number { text-align: left; }
-  .vehicle-model-overview-table > .master-model-table { min-width: 0; }
   :is(.report-panel, .command-trends, .order-recycle-panel, .site-management .section-block) .inventory-table tr { padding-inline: 0; }
   .inventory-table td[colspan]::before { display: none; }
   .reconciliation-shell { overflow: visible; background: transparent; border: 0; box-shadow: none; }

@@ -106,7 +106,8 @@
   </details>
 
   <details class="form-section" id="accessories" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="accessories" {% if wizard.current != 'accessories' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">3</span><span><strong>配件</strong><small>加購配件、數量與安裝工資；沒有配件可直接下一步</small></span></summary>
+    <summary><span class="step-number">3</span><span><strong>配件{% if wizard %} <span class="optional-badge">可略過</span>{% endif %}</strong><small>加購配件、數量與安裝工資；沒有配件可直接下一步</small></span></summary>
+    {% if wizard %}<p class="info-banner wizard-skip-note" data-wizard-skip-note>這一步可略過：客人沒有加購配件，直接按「下一步」就好；空白的配件列不會存入訂單，建立後也能在訂單頁「訂車與配件」補上。</p>{% endif %}
     <div class="subsection accessory-section">
       <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
       <div id="accessory-forms">

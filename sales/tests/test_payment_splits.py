@@ -126,7 +126,7 @@ class PaymentSplitTests(TestCase):
                      installment_custom="on", installment_company="分期甲", installment_periods="24",
                      installment_monthly="3000")
         draft = None
-        for step in ("vehicle", "owner", "tradein", "delivery", "deposit", "accessories"):
+        for step in ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit"):
             data = {**self.complete_data(), **extra, "_wizard_step": step, "_wizard_action": "next", "_submission_key": key}
             if draft:
                 data.update(_draft_id=str(draft.pk), _draft_revision=str(draft.revision))

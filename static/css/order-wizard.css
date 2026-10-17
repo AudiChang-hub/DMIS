@@ -34,6 +34,48 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .wizard-summary dd { margin: 0; overflow-wrap: anywhere; }
 .wizard-nav { justify-content: flex-end; }
 
+/* 訂金頁的目前金額：車價＋牌險費＋配件＝三項合計，運算符號放在格與格之間，合計格以品牌色強調。
+   依卡片實際寬度（不是視窗寬度）調整：窄一點縮小數字，再窄改成逐行明細。 */
+.intake-totals { container: intake-totals / inline-size; }
+.intake-totals__grid {
+  --totals-gap: var(--space-6); --totals-value: var(--text-xl);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.2fr); align-items: stretch;
+  gap: var(--totals-gap); margin: var(--space-3) 0 0; padding: var(--inset-pad) var(--space-5);
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
+}
+.intake-totals__cell { position: relative; display: grid; align-content: center; gap: var(--space-1); min-width: 0; }
+.intake-totals__cell dt { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.intake-totals__cell dd {
+  margin: 0; font-family: var(--font-display); font-size: var(--totals-value); font-weight: 700; line-height: 1.15;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap;
+}
+.intake-totals__cell--plus::before,
+.intake-totals__cell--sum::before {
+  /* 與金額那一行垂直置中，不是與整格（標籤＋金額）置中。 */
+  position: absolute; bottom: calc(var(--totals-value) * 1.15 / 2); left: calc(var(--totals-gap) / -2); translate: -50% 50%;
+  color: var(--muted); font-size: var(--text-lg); font-weight: 600; line-height: 1;
+}
+.intake-totals__cell--plus::before { content: "+" / ""; }
+.intake-totals__cell--sum::before { content: "=" / ""; }
+.intake-totals__cell--sum {
+  margin: calc(var(--space-2) * -1) calc(var(--space-3) * -1); padding: var(--space-2) var(--space-3);
+  background: var(--mint); border-radius: var(--radius-md);
+}
+.intake-totals__cell--sum::before { bottom: calc(var(--space-2) + var(--totals-value) * 1.15 / 2); left: calc(var(--space-3) - var(--totals-gap) / 2); }
+.intake-totals__cell--sum dt, .intake-totals__cell--sum dd { color: var(--action-text); }
+.intake-totals__note { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-sm); }
+@container intake-totals (max-width: 760px) {
+  .intake-totals__grid { --totals-gap: var(--space-5); --totals-value: var(--text-lg); padding-inline: var(--space-4); }
+}
+/* 窄卡片（手機）：改成逐行明細，合計以底色隔開，不放運算符號。 */
+@container intake-totals (max-width: 520px) {
+  .intake-totals__grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
+  .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
+  .intake-totals__cell dd { text-align: right; }
+  .intake-totals__cell--plus::before, .intake-totals__cell--sum::before { content: none; }
+  .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
+}
+
 @media (max-width: 720px) {
   /* 手機：只有目前步驟顯示名稱，其他步驟顯示編號，避免名稱被切成兩行。 */
   .wizard-bar ol { display: flex; gap: var(--space-1); }

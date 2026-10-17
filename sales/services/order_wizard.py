@@ -9,14 +9,16 @@ from django.http import QueryDict
 # 一步只處理一件事，一次只問一件事（使用者 2026-10-10 拆步驟）。
 # 使用者 2026-10-15：順序改為車款→付款與車價→車主→汰舊與補助→選號與交車→訂金（2026-10-16 前兩步合併）；
 # 使用者 2026-10-16：車款與來源、付款與車價合併為同一步——跟客人確認車款就接著寫價格。
-# 使用者 2026-10-17：配件加回接單流程，放在訂金之後、確認之前；可略過，不選配件也能直接下一步。
+# 使用者 2026-10-17：配件加回接單流程，可略過，不選配件也能直接下一步；
+# 同日改為配件在前、訂金與費用在後（確認前一步），訂金頁列出車價、牌險費、配件與三項合計；
+# 同日訂單備註從選號與交車移到訂金與費用，談完金額再補充說明。
 STEPS = (
     ("vehicle", "車款與車價", "車型、顏色、來源，接著付款方式、車價與領牌規費"),
     ("owner", "車主與證件", "上傳證件正反面並核對車主資料"),
     ("tradein", "汰舊與補助", "是否汰舊、申請補助與舊車主"),
-    ("delivery", "選號與交車", "選號方式、交車方式與備註"),
-    ("deposit", "訂金與費用", "訂金、其他費用與附件"),
+    ("delivery", "選號與交車", "選號方式與交車方式"),
     ("accessories", "配件（可略過）", "加購配件、數量與安裝工資；沒有配件直接下一步"),
+    ("deposit", "訂金與費用", "目前金額、訂金、其他費用、備註與附件"),
     ("confirm", "確認送出", "核對整張訂單後建立"),
 )
 # 舊版草稿的步驟代號（拆步驟前）：完成「extras」等於完成配件、汰舊與補助、選號與交車；舊的「payment」含訂金。
@@ -42,7 +44,7 @@ STEP_FIELDS = {
     "tradein": {"trade_in_intent", "subsidy_programs", "subsidy_other", "is_trade_in_subsidy", "old_owner_same_as_owner"},
     "delivery": {
         "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note",
-        "delivery_method", "delivery_destination", "note",
+        "delivery_method", "delivery_destination",
     },
     "owner": {
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date",
@@ -51,7 +53,7 @@ STEP_FIELDS = {
     },
     "deposit": {
         "deposit_amount", "deposit_date", "deposit_method", "deposit_received", "intake_discount_mode", "intake_discount_amount",
-        "intake_discount_rate", "intake_discount_reason",
+        "intake_discount_rate", "intake_discount_reason", "note",
     },
 }
 FORMSET_STEPS = {"accessories": "accessories", "other_fees": "deposit"}

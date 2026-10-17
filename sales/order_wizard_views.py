@@ -277,11 +277,11 @@ def build_summary(form, formset, fee_formset, draft):
         {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
         {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (
             "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note", "delivery_method",
-            "delivery_destination", "note"))},
-        {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],
-         "rows": deposit_rows + ([("其他費用", "、".join(fees))] if fees else [])},
+            "delivery_destination"))},
         # 配件可略過：沒選也列出這一段，讓人員確認是真的沒有加購。
         {"step": "accessories", "label": "配件",
          "rows": [("配件", "\n".join(accessories) or "未選配件")]
          + ([("配件合計", f"{accessory_total:,.0f} 元")] if accessories else [])},
+        {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],
+         "rows": deposit_rows + ([("其他費用", "、".join(fees))] if fees else []) + _rows(form, ("note",))},
     ]

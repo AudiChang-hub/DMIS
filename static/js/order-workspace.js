@@ -6,7 +6,12 @@
     return value == null ? '' : String(value);
   };
   const decision = (before, local, remote) => local === before ? 'update' : remote === before || remote === local ? 'keep' : 'conflict';
-  if (typeof module !== 'undefined') module.exports = {canonical, decision};
+  // radio 只看選中的那個；同名欄位（例如補助方案勾選組）合併成一個值，避免互相覆蓋而永遠判定未儲存。
+  const value = field => field.type === 'file' ? [...field.files].map(f => f.name + f.size + f.lastModified).join('|')
+    : field.type === 'radio' ? (field.checked ? field.value : '')
+    : canonical(field, field.type === 'checkbox' ? field.checked : field.value);
+  const snapshot = list => list.reduce((map, f) => map.set(f.name, map.has(f.name) ? `${map.get(f.name)}|${value(f)}` : value(f)), new Map());
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -26,18 +31,19 @@
   const message = root.querySelector('[data-workspace-message]');
   let busy = false;
   let allowLeave = false;
-  const value = field => field.type === 'file' ? [...field.files].map(f => f.name + f.size + f.lastModified).join('|') : canonical(field, field.type === 'checkbox' ? field.checked : field.value);
   const fields = form => [...form.elements].filter(f => f.name && !['submit', 'button'].includes(f.type));
-  const capture = form => new Map(fields(form).map(f => [f.name, value(f)]));
-  const dirty = form => fields(form).some(f => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(f.name) && value(f) !== bases.get(form)?.get(f.name));
+  const capture = form => snapshot(fields(form));
+  const changedNames = (form, base = bases.get(form)) => [...capture(form)].filter(([name, current]) => current !== base?.get(name)).map(([name]) => name);
+  const dirty = form => changedNames(form).some(name => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(name));
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
   const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
   const behavior = () => reduceMotion.matches ? 'instant' : 'smooth';
   function indicators() {
     const changed = new Set();
-    forms.forEach(form => fields(form).forEach(f => {
-      if (!f.name.endsWith('revision') && value(f) !== bases.get(form)?.get(f.name)) changed.add(stepOf(f));
-    }));
+    forms.forEach(form => {
+      const names = new Set(changedNames(form).filter(name => !name.endsWith('revision')));
+      fields(form).forEach(f => { if (names.has(f.name)) changed.add(stepOf(f)); });
+    });
     root.querySelectorAll('[data-step-key]').forEach(step => {
       const marker = step.querySelector(':scope > .order-step__header [data-dirty-indicator]');
       if (marker) marker.hidden = !changed.has(step.dataset.stepKey);
@@ -438,7 +444,7 @@
           if (first) reveal(first);
           return;
         }
-        const typed = new Set(fields(form).filter(f => value(f) !== sent.get(f.name)).map(f => f.name));
+        const typed = new Set(changedNames(form, sent));
         acceptRows(form, payload);
         merge(payload, form, typed);
         form.querySelectorAll('input[type=file]').forEach(field => { field.value = ''; });

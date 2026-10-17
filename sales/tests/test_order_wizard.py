@@ -35,7 +35,7 @@ class OrderWizardTests(TestCase):
     def walk_to(self, last, files=True, **owner_extra):
         self.key = getattr(self, "key", str(uuid.uuid4()))
         draft = None
-        for step in ("vehicle", "owner", "tradein", "delivery", "deposit", "accessories", "confirm"):
+        for step in ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit", "confirm"):
             if step == last:
                 return draft
             # 每一步都會送出整張表單，證件檢查結果在車主步驟之後持續帶著。
@@ -139,29 +139,40 @@ class OrderWizardTests(TestCase):
         event = OrderEvent.objects.get(order=order, event_type="identity_manual_check")
         self.assertIn("反面照片看不出是身分證反面", event.description)
 
+    def test_note_belongs_to_deposit_step(self):
+        # 使用者 2026-10-17：訂單備註從選號與交車移到訂金與費用。
+        self.assertEqual(wizard.field_step("note"), "deposit")
+        page = self.client.get(reverse("order_create")).content.decode()
+        delivery_panel = page.split('id="delivery"', 1)[1].split("</details>", 1)[0]
+        deposit_panel = page.split('id="deposit"', 1)[1].split('name="installment_document"', 1)[0]
+        self.assertNotIn('name="note"', delivery_panel)
+        self.assertIn('name="note"', deposit_panel)
+        self.assertEqual(page.count('name="note"'), 1)
+
     def test_steps_follow_counter_conversation_order(self):
         # 使用者 2026-10-15：車款→付款與車價→車主→汰舊與補助→選號與交車→訂金→確認；2026-10-16 前兩步合併；
-        # 2026-10-17 配件加回，放在訂金與確認之間。
-        self.assertEqual(wizard.STEP_KEYS, ("vehicle", "owner", "tradein", "delivery", "deposit", "accessories", "confirm"))
+        # 2026-10-17 配件加回；同日改為配件在前、訂金與費用在後，接著確認送出。
+        self.assertEqual(wizard.STEP_KEYS, ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit", "confirm"))
         page = self.client.get(reverse("order_create")).content.decode()
         bar = page.split("wizard-bar", 1)[1].split("</nav>", 1)[0]
-        labels = [bar.index(label) for label in ("車款與車價", "車主與證件", "汰舊與補助", "選號與交車", "訂金與費用", "配件（可略過）", "確認送出")]
+        labels = [bar.index(label) for label in ("車款與車價", "車主與證件", "汰舊與補助", "選號與交車", "配件（可略過）", "訂金與費用", "確認送出")]
         self.assertEqual(labels, sorted(labels))
         deposit_panel = page.split('data-wizard-panel="deposit"', 1)[1].split("</form>", 1)[0]
         self.assertIn('id="deposit-subsection"', deposit_panel)
         self.assertNotIn("installment-picker", deposit_panel)
 
     def test_accessories_step_can_be_skipped(self):
-        # 使用者 2026-10-17：配件加回第 6 步並標示可略過；不選配件直接下一步，確認頁列「未選配件」。
+        # 使用者 2026-10-17：配件加回第 5 步並標示可略過；不選配件直接下一步到訂金，確認頁列「未選配件」。
         draft = self.walk_to("accessories")
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "accessories"}).content.decode()
-        self.assertIn("訂單精靈・第 6／7 步", page)
+        self.assertIn("訂單精靈・第 5／7 步", page)
         panel = page.split('id="accessories"', 1)[1].split("</details>", 1)[0]
         self.assertNotIn("hidden", panel.split(">", 1)[0])
         self.assertIn("data-wizard-skip-note", panel)
         self.assertIn('<span class="optional-badge">可略過</span>', panel)
         response = self.post("accessories", draft=draft)
-        self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=confirm", fetch_redirect_response=False)
+        self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=deposit", fetch_redirect_response=False)
+        self.assertEqual(self.post("deposit", draft=self.draft()).status_code, 302)
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
         self.assertIn("<dt>配件</dt><dd>未選配件</dd>", summary)
@@ -177,6 +188,14 @@ class OrderWizardTests(TestCase):
                           f"accessories-{index}-quantity": quantity, f"accessories-{index}-line_type": "purchase",
                           f"accessories-{index}-amount": amount, f"accessories-{index}-labor_fee": labor})
         self.assertEqual(self.post("accessories", draft=draft, **lines).status_code, 302)
+        # 訂金頁（配件之後）列出車價、牌險費、配件與三項合計，由畫面即時加總。
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "deposit"}).content.decode()
+        panel = page.split('id="deposit"', 1)[1].split("</details>", 1)[0]
+        for key in ("vehicle", "plate", "accessories", "sum"):
+            self.assertIn(f'data-intake-total="{key}"', panel)
+        self.assertIn("三項合計", panel)
+        self.assertIn("function updateIntakeTotals", page)
+        self.assertEqual(self.post("deposit", draft=self.draft(), **lines).status_code, 302)
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
         self.assertIn("安全帽 × 2", summary)
@@ -233,8 +252,8 @@ class OrderWizardTests(TestCase):
         self.assertEqual(wizard.done_steps(old), ["vehicle", "owner", "tradein", "delivery", "accessories"])
         self.assertEqual(wizard.first_open_step(old), "deposit")  # 新順序下跳號的舊草稿回到第一個未完成步驟
         old.data["_wizard_done"].append("payment")
-        self.assertEqual(wizard.done_steps(old), ["vehicle", "owner", "tradein", "delivery", "deposit", "accessories"])
-        # 1.84–1.85 的草稿（沒有配件步驟）：訂金完成後回到配件這一步，不能直接送出。
+        self.assertEqual(wizard.done_steps(old), ["vehicle", "owner", "tradein", "delivery", "accessories", "deposit"])
+        # 1.84–1.86.0 完成訂金、還沒選配件的草稿：回到配件這一步，不能直接送出。
         before = SimpleNamespace(data={"_wizard_done": ["vehicle", "owner", "tradein", "delivery", "deposit"]})
         self.assertEqual(wizard.first_open_step(before), "accessories")
         # 1.83 的草稿（付款與車價是獨立一步）：舊步驟代號不再出現在進度裡。
@@ -247,10 +266,10 @@ class OrderWizardTests(TestCase):
         response = self.post("delivery", action="submit", draft=draft)
         self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=delivery", fetch_redirect_response=False)
         self.assertFalse(SalesOrder.objects.exists())
-        response = self.post("delivery", action="goto", draft=draft, note="改完再回第一步", _wizard_goto="vehicle")
+        response = self.post("delivery", action="goto", draft=draft, plate_preference_note="改完再回第一步", _wizard_goto="vehicle")
         self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=vehicle", fetch_redirect_response=False)
         draft.refresh_from_db()
-        self.assertEqual(draft.data["note"], "改完再回第一步")
+        self.assertEqual(draft.data["plate_preference_note"], "改完再回第一步")
 
     def test_three_accessories_and_two_fees_survive_reload(self):
         # 1.72.5：草稿有多筆配件／其他費用時，換步驟重新載入不能只剩第一筆（SO20261010-2AE018 三筆配件只存一筆）。
@@ -294,7 +313,7 @@ class ReceptionWizardTests(TestCase):
         self.grant_intake_only()
         key = str(uuid.uuid4())
         draft = None
-        for step in ("vehicle", "owner", "tradein", "delivery", "deposit", "accessories"):
+        for step in ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit"):
             data = {**self.complete_data(), "_wizard_step": step, "_wizard_action": "next", "_submission_key": key,
                     "_id_check": "passed", "deposit_amount": "3000", "deposit_method": "cash",
                     "registration_plate_fee": "999"}

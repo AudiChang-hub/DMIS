@@ -50,6 +50,15 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         sync_order_operations(order.pk)
         self.assertEqual(OrderOperationsProfile.objects.get(pk=profile.pk).vehicle_cost, Decimal("55555"))
 
+    def test_only_watch_keeps_plate_selection_fee(self):
+        # 使用者 2026-10-17：一般領牌偏好沒有選號費，隱藏欄位送出的殘值要歸零。
+        order = self.pending(plate_choice="preference")
+        response = self.post(order, plate_choice="preference", plate_selection_fee="1200", plate_insurance_fee="0",
+                             plate_preference_note="尾數要大", registration_date="", confirm_completed_correction="")
+        self.assert_saved(response, order)
+        self.assertEqual(order.plate_selection_fee, Decimal("0"))
+        self.assertEqual(order.calculate_balance(), Decimal("70000"))
+
     def test_plate_selection_fee_counts_before_registration_date(self):
         order = self.pending(plate_choice="watch")
         response = self.post(order, plate_choice="watch", plate_selection_fee="1200", plate_insurance_fee="0",

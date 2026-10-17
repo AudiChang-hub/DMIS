@@ -634,6 +634,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
                 form = self.edit_order(
                     order,
                     registration_date=registration_date,
+                    plate_choice="watch",
                     plate_selection_fee="1200",
                     plate_insurance_fee="0",
                 )
@@ -667,7 +668,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
     def test_order_edit_without_micro_rule_keeps_selection_fee_separate(self):
         order = self.micro_electric_order(order_date=date(2026, 10, 14))
         form = self.edit_order(
-            order, plate_selection_fee="1200", plate_insurance_fee="0"
+            order, plate_choice="watch", plate_selection_fee="1200", plate_insurance_fee="0"
         )
 
         self.assertTrue(form.is_valid(), form.errors)

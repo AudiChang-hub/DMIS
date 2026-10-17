@@ -11,7 +11,13 @@
     : field.type === 'radio' ? (field.checked ? field.value : '')
     : canonical(field, field.type === 'checkbox' ? field.checked : field.value);
   const snapshot = list => list.reduce((map, f) => map.set(f.name, map.has(f.name) ? `${map.get(f.name)}|${value(f)}` : value(f)), new Map());
-  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot};
+  // 儲存後重編明細：送出時已標記刪除的列移除；已存列排前面（INITIAL_FORMS），未存列接在後面保留。
+  const rowPlan = rows => {
+    const kept = rows.filter(row => !row.deletedWhenSent);
+    const saved = kept.filter(row => row.saved);
+    return {removed: rows.filter(row => row.deletedWhenSent), order: [...saved, ...kept.filter(row => !row.saved)], initial: saved.length};
+  };
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -227,15 +233,19 @@
     else field.value = remote == null ? '' : String(remote);
   }
   // 已確認收款即入帳；同頁儲存後立即鎖定，與伺服器端防改一致。
-  const LOCKED_PAYMENT_FIELDS = ['confirmed', 'receipt_kind', 'received_amount', 'received_on', 'payment_method', 'receiving_account', 'card_principal', 'card_fee_charged', 'bank_card_fee'];
+  // 「已確認」勾選不鎖：勾錯取消勾選並存好後，該列解鎖可再修改（使用者 2026-10-17）。
+  const LOCKED_PAYMENT_FIELDS = ['receipt_kind', 'received_amount', 'received_on', 'payment_method', 'receiving_account', 'card_principal', 'card_fee_charged', 'bank_card_fee'];
   function lockPayments(ids) {
     root.querySelectorAll('[data-payment-row]').forEach(row => {
       const id = row.querySelector('[name$="-id"]');
-      if (!id || !ids.includes(id.value)) return;
+      if (!id?.value) return;
+      const locked = ids.includes(id.value);
+      if (!locked && !row.hasAttribute('data-payment-locked')) return;
       const prefix = id.name.slice(0, -2);
-      LOCKED_PAYMENT_FIELDS.forEach(name => { const field = row.querySelector(`[name="${prefix}${name}"]`); if (field) field.disabled = true; });
-      row.classList.add('is-locked'); row.dataset.paymentLocked = '';
-      row.querySelector('[data-delete-payment]')?.remove();
+      LOCKED_PAYMENT_FIELDS.forEach(name => { const field = row.querySelector(`[name="${prefix}${name}"]`); if (field) field.disabled = locked; });
+      row.classList.toggle('is-locked', locked); row.toggleAttribute('data-payment-locked', locked);
+      row.querySelectorAll('[data-payment-locked-only], .receipt-amount .help-text').forEach(node => { node.hidden = !locked; });
+      const remove = row.querySelector('[data-delete-payment]'); if (remove) remove.hidden = locked;
     });
   }
   function merge(payload, savedForm, typed = new Set()) {
@@ -294,28 +304,39 @@
       }
     });
   }
-  function acceptRows(form, payload) {
+  function acceptRows(form, payload, sent) {
     for (const [name, savedValue] of Object.entries(payload.values || {})) {
       const field = form.elements.namedItem(name); if (field) field.value = savedValue;
     }
-    // 新增明細轉為既有明細；刪除／空白列移除並重編，避免再次儲存產生重複。
+    // 新增明細轉為既有明細；已刪除列移除並重編，避免再次儲存產生重複。
+    // 應收設定列也屬同一組明細，必須一起重編，否則新列會與它撞號，之後的修改被覆蓋。
+    // 儲存期間才新增、或尚未存入的空白列保留排在最後，使用者正在輸入的內容不會消失。
+    const renamed = new Map();
     [...form.querySelectorAll('[name$="-TOTAL_FORMS"]')].forEach(total => {
       const prefix = total.name.replace(/-TOTAL_FORMS$/, '');
-      const rows = [...form.querySelectorAll('[data-dynamic-row],[data-payment-row],[data-form-row]')].filter(row => [...row.querySelectorAll('input')].some(f => f.name.startsWith(prefix + '-') && f.name.endsWith('-id')));
-      let index = 0;
-      rows.forEach(row => {
-        const id = [...row.querySelectorAll('input')].find(f => f.name.startsWith(prefix + '-') && f.name.endsWith('-id'));
-        const deleted = row.querySelector('[name$="-DELETE"]')?.checked;
-        if (!id.value || deleted) { row.remove(); return; }
-        const old = id.name.slice(0, -2);
+      const idOf = row => [...row.querySelectorAll('input')].find(f => f.name.startsWith(prefix + '-') && f.name.endsWith('-id'));
+      const rows = [...form.querySelectorAll('[data-dynamic-row],[data-payment-row],[data-payment-expectation],[data-form-row]')].filter(idOf);
+      // 送出後才按刪除的列不算已刪除，留到下一次儲存。
+      const plan = rowPlan(rows.map(row => {
+        const del = row.querySelector('[name$="-DELETE"]');
+        return {row, saved: Boolean(idOf(row).value), deletedWhenSent: Boolean(del?.checked && sent.get(del.name) === true)};
+      }));
+      plan.removed.forEach(({row}) => row.remove());
+      plan.order.forEach(({row}, index) => {
+        const old = idOf(row).name.slice(0, -2), next = `${prefix}-${index}-`;
+        if (old === next) return;
         row.querySelectorAll('[name],[id],[for]').forEach(field => {
-          ['name', 'id', 'for'].forEach(attr => { const text = field.getAttribute(attr); if (text) field.setAttribute(attr, text.replace(old, `${prefix}-${index}-`)); });
+          ['name', 'id', 'for'].forEach(attr => {
+            const text = field.getAttribute(attr); if (!text) return;
+            field.setAttribute(attr, text.replace(old, next));
+            if (attr === 'name') renamed.set(text, field.getAttribute(attr));
+          });
         });
-        index++;
       });
-      total.value = index;
-      const initial = form.elements.namedItem(prefix + '-INITIAL_FORMS'); if (initial) initial.value = index;
+      total.value = plan.order.length;
+      const initial = form.elements.namedItem(prefix + '-INITIAL_FORMS'); if (initial) initial.value = plan.initial;
     });
+    return renamed;
   }
   // 自動儲存（使用者 2026-10-15）：停止輸入約 1 秒、改選項或離開欄位就送出，不需要按儲存。
   // 欄位未填完只在該區塊顯示缺什麼，不搶焦點；有後果的勾選（例如確認入帳）先確認。
@@ -444,8 +465,11 @@
           if (first) reveal(first);
           return;
         }
-        const typed = new Set(changedNames(form, sent));
-        acceptRows(form, payload);
+        // 重編後欄位會改名；送出後才打的字改用新名稱保留，基準仍取送出時的值（新名稱 → 送出時名稱）。
+        const typedBefore = changedNames(form, sent);
+        const renamed = acceptRows(form, payload, sent);
+        const typedFrom = new Map(typedBefore.map(old => [renamed.get(old) ?? old, old]));
+        const typed = new Set(typedFrom.keys());
         merge(payload, form, typed);
         form.querySelectorAll('input[type=file]').forEach(field => { field.value = ''; });
         if (payload.summary_html) {
@@ -461,7 +485,7 @@
           if (completion) completion.outerHTML = payload.registration_html;
         }
         const base = capture(form);
-        typed.forEach(name => base.set(name, sent.get(name)));
+        typedFrom.forEach((old, name) => base.set(name, sent.get(old)));
         // 「本次更新說明」只跟著這一次儲存，存好就清空，下一次自動儲存不重複帶入。
         fields(form).filter(f => f.name.endsWith('change_reason') && !typed.has(f.name)).forEach(f => { f.value = ''; base.set(f.name, value(f)); });
         bases.set(form, base);

@@ -50,9 +50,16 @@ class ReceiptListTests(TestCase):
         last.save()
         self.assertTrue(payment_summary(self.order)["settled"])
         self.assertTrue(OrderOperationsProfile.objects.get(order=self.order).payment_confirmed)
+        # 勾錯可直接取消確認，尚欠金額回復；重新確認後再以沖銷更正。
         last.confirmed = False
+        last.save()
+        self.assertEqual(payment_summary(self.order)["customer_due"], 50000)
+        last.confirmed = True
+        last.save()
+        last.received_amount = 40000
         with self.assertRaisesMessage(ValidationError, "沖銷"):
             last.save()
+        last.refresh_from_db()
         reverse_payment(order_id=self.order.pk, payment_id=last.pk, actor_name="測試", reason="金額登記錯誤")
         self.assertFalse(OrderOperationsProfile.objects.get(order=self.order).payment_confirmed)
         self.assertEqual(payment_summary(self.order)["customer_due"], 50000)
@@ -134,18 +141,49 @@ class ReceiptListTests(TestCase):
         self.assertEqual(row.expected_amount, 0)
         self.assertIn("receipt_kind", str(OrderChange.objects.filter(order=self.order).last().changes))
         self.assertIn(str(row.pk), response.json()["locked_payments"])
-        # 已確認即入帳：再次送出的金額與取消確認一律忽略，只能以沖銷更正。
+        # 已確認即入帳：再次送出的金額一律忽略；勾錯可單獨取消確認（2026-10-17），取消後才能改金額。
         payload = self.payload()
         formset = PaymentRecordFormSet(instance=self.order, prefix="payments")
         row_form = next(f for f in formset if f.instance.pk == row.pk)
+        self.assertFalse(row_form.fields["confirmed"].disabled)
         payload[row_form.add_prefix("received_amount")] = "60000"
-        payload.pop(row_form.add_prefix("confirmed"), None)
         response = self.client.post(url, payload, HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content)
         row.refresh_from_db()
         self.assertTrue(row.confirmed)
         self.assertEqual(row.received_amount, 70000)
-        self.assertIsNotNone(row.confirmed_at)
+        unchecked = self.payload()
+        unchecked.pop(row_form.add_prefix("confirmed"), None)
+        response = self.client.post(url, unchecked, HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertFalse(row.confirmed)
+        self.assertEqual(row.received_amount, 70000)
+        self.assertIsNone(row.confirmed_at)
+        self.assertEqual(row.confirmed_by, "")
+        self.assertNotIn(str(row.pk), response.json()["locked_payments"])
+        self.assertEqual(response.json()["receipt_summary"]["customer_due"], "70000")
+        edited = self.payload()
+        edited[row_form.add_prefix("received_amount")] = "60000"
+        response = self.client.post(url, edited, HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertEqual(row.received_amount, 60000)
+
+    def test_reversed_receipt_cannot_be_unconfirmed(self):
+        row = self.receipt(30000, confirmed=True)
+        reverse_payment(order_id=self.order.pk, payment_id=row.pk, actor_name="測試", reason="金額登記錯誤")
+        row_form = next(f for f in PaymentRecordFormSet(instance=self.order, prefix="payments") if f.instance.pk == row.pk)
+        self.assertTrue(row_form.fields["confirmed"].disabled)
+        payload = self.payload()
+        payload.pop(row_form.add_prefix("confirmed"), None)
+        response = self.client.post(reverse("order_operations", args=[self.order.pk]), payload, HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertTrue(row.confirmed)
+        row.confirmed = False
+        with self.assertRaisesMessage(ValidationError, "沖銷"):
+            row.save()
 
     def test_receipt_classification_change_recalculates_both_buckets(self):
         row = self.receipt(70000, confirmed=True)
@@ -181,7 +219,7 @@ class ReceiptListTests(TestCase):
         decorated = _decorate_reconciliation_record(record)
         self.assertEqual(decorated.reconciliation_channel, "installment")
         self.assertTrue(decorated.reconciliation_receipt_only)
-        self.assertEqual(decorated.reconciliation_state, "已登記，待確認")
+        self.assertEqual(decorated.reconciliation_state, "已填金額，按儲存入帳")
 
     def test_unauthorized_post_rejected(self):
         payload = self.payload()

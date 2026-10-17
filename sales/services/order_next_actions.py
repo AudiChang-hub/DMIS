@@ -74,7 +74,7 @@ def _pending_reconciliation_action(order, today):
     if not pending_records:
         return None
 
-    description = f"尚有 {len(pending_records)} 筆實際撥款／收款待確認。"
+    description = f"尚有 {len(pending_records)} 筆實際撥款／收款尚未入帳。"
     tone = "primary"
     badge = "結案前確認"
     delivered_on = _delivered_on(order)
@@ -87,7 +87,7 @@ def _pending_reconciliation_action(order, today):
     query = urlencode({"q": order.number, "status": "pending"})
     return NextAction(
         key="reconciliation",
-        title="確認實際撥款與收款",
+        title="登記實際撥款與收款",
         description=description,
         action_label="前往統一對帳",
         url=f"{reverse('reconciliation_list')}?{query}",

@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from sales.models import DeliveryRecord, PaymentRecord, SalesOrder
+from sales.models import AccessoryLine, DeliveryRecord, PaymentRecord, SalesOrder
 from sales.services.order_next_actions import build_order_next_actions
 from sales.services.order_steps import build_order_steps, order_step_url
 from sales.tests import test_order_lifecycle as lifecycle
@@ -109,6 +109,23 @@ class OrderStepTests(TestCase):
         self.assertIn("贈品與履約", delivery)
         self.assertNotIn("車控與電池合約", delivery)
         self.assertLess(delivery.index("交車前確認"), delivery.index("車輛交付"))
+        self.assertIn("本單沒有配件", delivery)
+
+    def test_delivery_prep_lists_accessories_for_vehicle_check(self):
+        order, _vehicle = self.make_order()
+        AccessoryLine.objects.create(order=order, name="後照鏡", quantity=2, amount=Decimal("800"))
+        AccessoryLine.objects.create(order=order, name="手機架", line_type=AccessoryLine.LineType.GIFT, note="裝右把手")
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
+        delivery = page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0]
+        prep = delivery.split("data-delivery-accessories", 1)[1].split("車輛交付", 1)[0]
+        self.assertIn("共 2 項", prep)
+        self.assertIn("後照鏡", prep)
+        self.assertIn("×2", prep)
+        self.assertIn("手機架", prep)
+        self.assertIn("裝右把手", prep)
+        self.assertIn("贈送", prep)
+        self.assertNotIn("本單沒有配件", prep)
 
     def test_delivery_collects_balance_in_one_submission(self):
         order, vehicle = self.registered_v2()

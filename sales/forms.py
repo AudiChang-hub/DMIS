@@ -3212,25 +3212,28 @@ class OrderOperationsForm(forms.ModelForm):
 
 CONFIRMED_PAYMENT_LOCKED_FIELDS = (
     "receipt_kind", "received_amount", "received_on", "payment_method", "receiving_account",
-    "card_principal", "card_fee_charged", "bank_card_fee", "confirmed",
+    "card_principal", "card_fee_charged", "bank_card_fee",
 )
-CONFIRMED_PAYMENT_HELP = "已確認入帳；如登記有誤，請以沖銷更正後重新登記。"
+CONFIRMED_PAYMENT_HELP = "已確認入帳；勾錯可取消勾選「已確認」後修改。"
 
 
 def lock_confirmed_payment_fields(form, read_only=False):
-    """已確認收款為入帳事實；畫面鎖定欄位，模型另有同樣的防改保護。"""
+    """已確認收款為入帳事實；畫面鎖定欄位，模型另有同樣的防改保護。
+    勾錯可單獨取消「已確認」（使用者 2026-10-17）；已沖銷的收款連勾選也鎖定。"""
     payment = form.instance
     locked = set(form.fields) if read_only else set()
-    if payment.pk and payment.confirmed:
+    form.payment_locked = bool(payment.pk and payment.confirmed)
+    form.payment_reversed = bool(form.payment_locked and payment.reversal_entries.exists())
+    if form.payment_locked:
         locked |= set(CONFIRMED_PAYMENT_LOCKED_FIELDS) & set(form.fields)
+        if form.payment_reversed and "confirmed" in form.fields:
+            locked.add("confirmed")
         if payment.proof and "proof" in form.fields:
             locked.add("proof")
     for name in locked:
         form.fields[name].disabled = True
-    if payment.pk and payment.confirmed and "received_amount" in form.fields:
+    if form.payment_locked and not form.payment_reversed and "received_amount" in form.fields:
         form.fields["received_amount"].help_text = CONFIRMED_PAYMENT_HELP
-    form.payment_locked = bool(payment.pk and payment.confirmed)
-    form.payment_reversed = bool(form.payment_locked and payment.reversal_entries.exists())
     return locked
 
 
@@ -3506,8 +3509,6 @@ class ReconciliationRecordForm(forms.ModelForm):
             "expected_amount_override_reason",
             "received_amount",
             "received_on",
-            "receiving_account",
-            "confirmed",
             "note",
         ]
         widgets = {"received_on": DateInput()}
@@ -3539,6 +3540,8 @@ class ReconciliationRecordForm(forms.ModelForm):
         for name in ("expected_amount", "received_amount"):
             if cleaned.get(name) is not None and cleaned[name] < 0:
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
+        # 對帳頁不另勾確認：填入實際金額即視為已入帳，訂單收支隨即同步。
+        cleaned["confirmed"] = self.was_confirmed or bool(cleaned.get("received_amount"))
         check_duplicate_receipt(self, cleaned, order=self.instance.order, kind=self.instance.effective_receipt_kind)
         expected = cleaned.get("expected_amount")
         if expected is None:
@@ -3557,6 +3560,7 @@ class ReconciliationRecordForm(forms.ModelForm):
 
     def save(self, commit=True):
         payment = super().save(commit=False)
+        payment.confirmed = self.cleaned_data["confirmed"]
         if payment.expected_amount != self.original_expected_amount:
             payment.expected_amount_overridden = True
         if commit:

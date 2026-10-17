@@ -4575,10 +4575,10 @@ def _decorate_reconciliation_record(record):
     record.reconciliation_difference = (
         record.received_amount - record.expected_amount
     )
-    record.reconciliation_state = ("已確認入帳" if record.confirmed else
-        "已登記，待確認" if record.reconciliation_receipt_only else
-        "預計金額待核對" if record.expected_amount == 0 else
-        "尚未登記入帳" if not record.received_on and record.received_amount == 0 else "已登記，待確認")
+    record.reconciliation_state = ("已入帳" if record.confirmed else
+        "已填金額，按儲存入帳" if record.received_amount > 0 else
+        "預計金額待核對" if record.expected_amount == 0 and not record.reconciliation_receipt_only else
+        "尚未入帳")
     return record
 
 
@@ -4595,6 +4595,7 @@ def reconciliation_list(request):
             "records": records,
             "page_obj": page,
             "selected": request.GET,
+            "duplicate_pk": request.session.pop("reconciliation_duplicate_pk", None),
         },
     )
 
@@ -4625,8 +4626,7 @@ def reconciliation_update(request, pk):
         "預計金額調整原因": record.expected_amount_override_reason,
         "實際金額": str(record.received_amount),
         "入帳日期": str(record.received_on or ""),
-        "收款帳戶": record.receiving_account,
-        "確認狀態": "已確認" if record.confirmed else "待確認",
+        "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
     }
     form = ReconciliationRecordForm(request.POST, instance=record)
     if form.is_valid():
@@ -4645,8 +4645,7 @@ def reconciliation_update(request, pk):
             "預計金額調整原因": record.expected_amount_override_reason,
             "實際金額": str(record.received_amount),
             "入帳日期": str(record.received_on or ""),
-            "收款帳戶": record.receiving_account,
-            "確認狀態": "已確認" if record.confirmed else "待確認",
+            "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
         }
         changes = {
             key: {"before": before[key], "after": value}
@@ -4668,8 +4667,15 @@ def reconciliation_update(request, pk):
             ),
             actor_name=_editing_name(request.user),
         )
-        messages.success(request, f"已更新 {record.order.number} 的對帳資料。")
+        messages.success(
+            request,
+            f"已登記 {record.order.number} 實際入帳 {record.received_amount:,.0f} 元，訂單收支已同步。"
+            if record.confirmed and not was_confirmed else f"已更新 {record.order.number} 的對帳資料。",
+        )
     else:
+        if getattr(form, "duplicate_of", None) is not None:
+            # 對帳頁平時不顯示「非重複」勾選，只在被擋下的那一列出現。
+            request.session["reconciliation_duplicate_pk"] = record.pk
         messages.error(
             request,
             "對帳更新失敗：" + " ".join(

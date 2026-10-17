@@ -9,7 +9,6 @@
     const company = byId('installment-company-choice');
     const periods = byId('installment-period-choice');
     const toggle = byId('installment-manual-toggle');
-    const applyButton = byId('installment-apply');
     const custom = byId('id_installment_custom');
     const manualFields = [...doc.querySelectorAll('[data-installment-manual]')];
     const inputs = {
@@ -32,7 +31,6 @@
       const enabled = config.paymentType.value === 'installment';
       company.required = periods.required = enabled && !manual;
       inputs.company.required = inputs.periods.required = enabled && manual;
-      applyButton.disabled = !options.some(option => option.company === company.value && String(option.periods) === periods.value);
     }
     function setManual(value) {
       manual = value;
@@ -93,7 +91,6 @@
       config.hint.textContent = `${versionHint}請選擇這間公司的期數，完成後才會帶入金額。`;
     });
     periods.addEventListener('change', apply);
-    applyButton.addEventListener('click', apply);
     toggle.addEventListener('click', () => {
       if (manual) {
         setManual(false);
@@ -112,7 +109,6 @@
       const model = config.vehicleModel.value;
       options = [];
       company.disabled = periods.disabled = true;
-      applyButton.disabled = true;
       config.hint.textContent = '正在讀取訂單日期適用的分期方案…';
       if (!model) { versionHint = ''; render(!force); return; }
       const params = new URLSearchParams({vehicle_model: model});

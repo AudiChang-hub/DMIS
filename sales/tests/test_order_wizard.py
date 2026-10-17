@@ -155,7 +155,7 @@ class OrderWizardTests(TestCase):
         self.assertEqual(wizard.STEP_KEYS, ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit", "confirm"))
         page = self.client.get(reverse("order_create")).content.decode()
         bar = page.split("wizard-bar", 1)[1].split("</nav>", 1)[0]
-        labels = [bar.index(label) for label in ("車款與車價", "車主與證件", "汰舊與補助", "選號與交車", "配件（可略過）", "訂金與費用", "確認送出")]
+        labels = [bar.index(label) for label in ("車款與車價", "車主與證件", "汰舊與補助", "選號與交車", "加購項目與贈品（可略過）", "訂金與費用", "確認送出")]
         self.assertEqual(labels, sorted(labels))
         deposit_panel = page.split('data-wizard-panel="deposit"', 1)[1].split("</form>", 1)[0]
         self.assertIn('id="deposit-subsection"', deposit_panel)
@@ -176,6 +176,8 @@ class OrderWizardTests(TestCase):
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
         self.assertIn("<dt>配件</dt><dd>未選配件</dd>", summary)
+        # 使用者 2026-10-17：建立訂單的「配件」步驟改名「加購項目與贈品」。
+        self.assertIn("加購項目與贈品", summary)
         self.assertIn('value="accessories"', summary)
         self.post("confirm", action="submit", draft=draft)
         self.assertFalse(SalesOrder.objects.get(owner_name="測試車主").accessories.exists())

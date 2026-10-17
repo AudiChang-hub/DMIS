@@ -222,12 +222,13 @@ class FinancialConsistencyTests(TestCase):
         order = self.order(source_type="platform", source=self.platform)
         payment = order.payment_records.get(system_key="balance")
         self.client.force_login(self.user)
-        data = dict(expected_amount="70000", received_amount="68000", received_on="2026-09-03", confirmed="on")
+        data = dict(expected_amount="70000", received_amount="68000", received_on="2026-09-03")
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
         self.assertEqual(self.profile(order).actual_disbursement, 68000)
-        # 已確認入帳後，對帳頁不能取消確認或改金額；撤回需以沖銷處理。
-        data.pop("confirmed")
-        data["received_amount"] = "60000"
+        # 填實際金額即入帳；入帳後對帳頁不能改金額或歸零，撤回需以沖銷處理。
+        payment.refresh_from_db()
+        self.assertTrue(payment.confirmed)
+        data["received_amount"] = "0"
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
         payment.refresh_from_db()
         self.assertTrue(payment.confirmed)
@@ -235,6 +236,41 @@ class FinancialConsistencyTests(TestCase):
         self.assertEqual(self.profile(order).actual_disbursement, 68000)
         reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="平台撥款退回")
         self.assertEqual(self.profile(order).actual_disbursement, 0)
+
+    def test_reconciliation_zero_amount_stays_pending_and_page_has_no_confirm_or_account(self):
+        order = self.order(source_type="platform", source=self.platform)
+        payment = order.payment_records.get(system_key="balance")
+        self.client.force_login(self.user)
+        self.client.post(reverse("reconciliation_update", args=[payment.pk]),
+                         dict(expected_amount="70000", received_amount="0", received_on=""))
+        payment.refresh_from_db()
+        self.assertFalse(payment.confirmed)
+        page = self.client.get(reverse("reconciliation_list"))
+        self.assertNotContains(page, 'name="confirmed"')
+        self.assertNotContains(page, 'name="receiving_account"')
+        self.assertNotContains(page, "收款帳戶")
+        self.client.post(reverse("reconciliation_update", args=[payment.pk]),
+                         dict(expected_amount="70000", received_amount="70000", received_on="2026-09-03"))
+        page = self.client.get(reverse("reconciliation_list"))
+        self.assertContains(page, "已入帳")
+        self.assertNotContains(page, f'id="reconciliation-{payment.pk}"')
+
+    def test_reconciliation_duplicate_receipt_shows_acknowledgement_only_on_blocked_row(self):
+        order = self.order(source_type="platform", source=self.platform)
+        PaymentRecord.objects.create(order=order, item_name="平台另一筆", received_amount=5000,
+                                     received_on=date(2026, 9, 3), confirmed=True)
+        payment = order.payment_records.get(system_key="balance")
+        self.client.force_login(self.user)
+        data = dict(expected_amount="70000", received_amount="5000", received_on="2026-09-03")
+        self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
+        payment.refresh_from_db()
+        self.assertFalse(payment.confirmed)
+        page = self.client.get(reverse("reconciliation_list"))
+        self.assertContains(page, 'name="duplicate_confirmed"')
+        self.assertNotContains(self.client.get(reverse("reconciliation_list")), 'name="duplicate_confirmed"')
+        self.client.post(reverse("reconciliation_update", args=[payment.pk]), {**data, "duplicate_confirmed": "on"})
+        payment.refresh_from_db()
+        self.assertTrue(payment.confirmed)
 
     def test_audit_flags_missing_disbursement_without_inferring_income(self):
         order = self.order(registration_completed_at=timezone.now())

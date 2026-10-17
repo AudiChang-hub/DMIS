@@ -279,7 +279,7 @@ def build_summary(form, formset, fee_formset, draft):
             "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note", "delivery_method",
             "delivery_destination"))},
         # 配件可略過：沒選也列出這一段，讓人員確認是真的沒有加購。
-        {"step": "accessories", "label": "配件",
+        {"step": "accessories", "label": "加購項目與贈品",
          "rows": [("配件", "\n".join(accessories) or "未選配件")]
          + ([("配件合計", f"{accessory_total:,.0f} 元")] if accessories else [])},
         {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],

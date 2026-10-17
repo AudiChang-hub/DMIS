@@ -255,7 +255,8 @@ class WizardDiscountTests(IntakeFixtures):
         self.assertEqual(self.wizard_post("deposit", draft, **good).status_code, 302)
         draft.refresh_from_db()
         self.assertEqual(draft.data["intake_discount_amount"], "2800")
-        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
+        self.assertEqual(self.wizard_post("accessories", draft, **good).status_code, 302)
+        page =self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
         self.assertIn("<dt>優惠前總價</dt><dd>80,500 元</dd>", summary)
         self.assertIn("<dt>總價優惠</dt><dd>−2,800 元，送出即生效</dd>", summary)

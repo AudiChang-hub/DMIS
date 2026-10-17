@@ -5039,6 +5039,12 @@ def _initial_intake_forms(request, draft, reception):
             if request.GET.get("color", "").isdigit() and VehicleColor.objects.filter(pk=request.GET["color"], vehicle_model=selected_model, active=True).exists():
                 initial["color"] = request.GET["color"]
     form = IntakeOrderForm(initial=initial, user=request.user, reception=reception)
+    # 多選欄位（申請補助）要還原整份清單；_draft_form_initial 只取最後一個值，
+    # 否則換步驟重新載入只剩最後勾的一項，下一步送出就把其他項目覆蓋掉。
+    for name, field in form.fields.items():
+        stored = draft.data.get(name) if draft else None
+        if getattr(field.widget, "allow_multiple_selected", False) and stored not in (None, ""):
+            form.initial[name] = stored if isinstance(stored, list) else [stored]
     formset = AccessoryFormSet(
         initial=_draft_lines(
             draft.data,
@@ -5070,6 +5076,9 @@ def _initial_intake_forms(request, draft, reception):
     return form, formset, fee_formset
 
 
+TRADEIN_ATTACHMENT_KINDS = ("owner_bankbook", "old_id_front", "old_id_back", "old_bankbook")
+
+
 def _intake_form_context(request, form, formset, fee_formset, draft, reception, submission_key):
     import uuid
     from sales.access.services import policy_for
@@ -5083,7 +5092,9 @@ def _intake_form_context(request, form, formset, fee_formset, draft, reception, 
         "document_model": "draft",
         "intake_mode": True,
         "submission_key": submission_key or (draft.data.get("_submission_key") if draft else None) or uuid.uuid4(),
-        "intake_attachments": draft.intake_attachments.all() if draft else [],
+        # 證件與存摺在「汰舊與補助」上傳，已存的檔案也列在那一步；分期表、補充檔案留在訂金步驟。
+        "intake_attachments": draft.intake_attachments.exclude(kind__in=TRADEIN_ATTACHMENT_KINDS) if draft else [],
+        "tradein_attachments": draft.intake_attachments.filter(kind__in=TRADEIN_ATTACHMENT_KINDS) if draft else [],
         **intake_context(request.user),
         "reception_mode": reception,
         "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
@@ -5245,7 +5256,12 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
     """把表單送出的內容存進草稿；自動儲存與訂單精靈共用。錯誤以 ValidationError 回報並回復交易。"""
     from sales.services.order_intake import save_intake_uploads, prepare_intake_uploads
     from sales.services.order_wizard import SERVER_KEYS
-    prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+    remove_ids = request.POST.getlist("_remove_intake_attachments")
+    if draft.pk:
+        # 證件與存摺每類一份：重新選檔就取代已存的那份，不必先勾移除。
+        replaced = {kind for kind, _upload in uploads if kind in TRADEIN_ATTACHMENT_KINDS}
+        remove_ids += [str(pk) for pk in draft.intake_attachments.filter(kind__in=replaced).values_list("pk", flat=True)]
+    prepare_intake_uploads(uploads, draft=draft, remove_ids=remove_ids)
     preserved = {key: draft.data[key] for key in SERVER_KEYS if key in (draft.data or {})}
     excluded = {
         "csrfmiddlewaretoken",
@@ -5300,7 +5316,7 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
     draft.updated_by = request.user.get_username()
     draft.save()
     try:
-        save_intake_uploads(request.user, uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+        save_intake_uploads(request.user, uploads, draft=draft, remove_ids=remove_ids)
     except ValidationError:
         transaction.set_rollback(True)
         raise

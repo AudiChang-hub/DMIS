@@ -31,6 +31,7 @@
       {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax|number_with_commas }}</dd></div>{% endif %}
       {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount|number_with_commas }}</dd></div>{% endif %}
       {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation|number_with_commas }}</dd></div>{% endif %}
+      {% if order.approved_discount_amount %}<div><dt>已核准折扣{% if order.discount_reason %}（{{ order.discount_reason }}）{% endif %}</dt><dd>− ${{ order.approved_discount_amount|number_with_commas }}</dd></div>{% endif %}
       {% if order.registration_calculated_total %}
       <div class="registration-breakdown">
         <div class="registration-breakdown__header">
@@ -59,7 +60,7 @@
       {% endif %}
       <div class="balance-equation">
         {% if order.payment_type == 'installment' %}
-        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金{% if order.customer_vehicle_split_amount %}；含客人自付車款 ${{ order.customer_vehicle_split_amount|number_with_commas }}{% endif %}。</span></div>
+        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金{% if order.approved_discount_amount %}與折扣{% endif %}{% if order.customer_vehicle_split_amount %}；含客人自付車款 ${{ order.customer_vehicle_split_amount|number_with_commas }}{% endif %}。</span></div>
         <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
         {% else %}
         <div class="balance-equation__header">
@@ -77,6 +78,7 @@
           {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax|number_with_commas }}</strong></div>{% endif %}
           {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount|number_with_commas }}</strong></div>{% endif %}
           {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
+          {% if order.approved_discount_amount %}<div class="deduction"><span>− 已核准折扣</span><strong>${{ order.approved_discount_amount|number_with_commas }}</strong></div>{% endif %}
           {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
         </div>
         <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>

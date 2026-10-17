@@ -8,10 +8,12 @@ def default_customer_balance(order):
         if order.cash_receivable_v2:
             # 分期公司只分車款（開辦費由撥款處理）；牌險、選號、其他費用、舊車稅與配件由客人付（使用者 2026-10-10）。
             # 付款方式可多筆（使用者 2026-10-16）：分期以外的現金／刷卡／匯款車款也由客人付。
+            # 已核准折扣與舊車估價：分期撥款不跟著折扣，從客人自付的部分扣（使用者 2026-10-17）。
             customer_part = (
                 order.customer_vehicle_split_amount
                 + plate_insurance_charged(order) + order.other_fee_total
                 + (order.old_vehicle_tax or zero) + order.accessory_total
+                - (order.approved_discount_amount or zero) - (order.old_vehicle_valuation or zero)
             )
             return max(customer_part - (order.deposit_amount or zero), zero)
         return max((order.actual_balance or zero) - (order.installment_amount or zero), zero)

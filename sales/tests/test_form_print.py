@@ -1,4 +1,6 @@
 """套表列印：取代 Excel 合併列印的信封、減徵貨物稅聲明書、簽收單。"""
+import re
+import zipfile
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -16,6 +18,15 @@ from sales.tests import test_order_lifecycle as lifecycle
 def pdf_pages(response):
     content = b"".join(response.streaming_content)
     return PdfReader(BytesIO(content)).pages
+
+
+def docx_document(content):
+    with zipfile.ZipFile(BytesIO(content)) as package:
+        return package.read("word/document.xml").decode("utf-8")
+
+
+def docx_text(document):
+    return "".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", document))
 
 
 class FormPrintServiceTests(TestCase):
@@ -93,19 +104,47 @@ class FormPrintServiceTests(TestCase):
         self.assertEqual(form_print.roc_chinese_date(date(2027, 1, 20)), "中華民國一一六年一月二十日")
         self.assertEqual(form_print.roc_chinese_date(date(2026, 12, 31)), "中華民國一一五年十二月三十一日")
 
-    def test_pdf_groups_same_paper_and_uses_form_sizes(self):
+    def test_pdf_groups_a4_forms(self):
         jobs = [
             form_print.PrintJob(self.order, "receipt", note="■期望送達時間：週一", address="新北市三重區"),
-            form_print.PrintJob(self.order, "envelope"),
             form_print.PrintJob(self.order, "tax_declaration"),
         ]
 
         pages = PdfReader(BytesIO(form_print.build_forms_pdf(jobs, today=date(2026, 10, 14)))).pages
 
         sizes = [(round(float(page.mediabox.width) / 72 * 25.4), round(float(page.mediabox.height) / 72 * 25.4)) for page in pages]
-        self.assertEqual(sizes, [(210, 170), (210, 297), (210, 297)])
+        self.assertEqual(sizes, [(210, 297), (210, 297)])
         self.assertIn("王小明", pages[0].extract_text())
-        self.assertIn("期望送達時間", pages[2].extract_text())
+        self.assertIn("期望送達時間", pages[1].extract_text())
+        with self.assertRaises(ValueError):
+            form_print.build_forms_pdf([form_print.PrintJob(self.order, "envelope")])
+
+    def test_envelope_docx_keeps_word_page_setup(self):
+        # 2026-10-17：信封紙張固定 21×17 cm 橫向，邊界左 5、右 2 cm；油車上 4、下 2 cm，電車上 3.7、下 1.5 cm。
+        electric, _vehicle = self.make_order(deposit=Decimal("5000"))
+        electric.vehicle_model = VehicleModel.objects.create(
+            brand="SUZUKI", name="e-ADDRESS", model_number="EV076SZV", energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+        SalesOrder.objects.filter(pk=electric.pk).update(vehicle_model=electric.vehicle_model)
+        SalesOrder.objects.filter(pk=self.order.pk).update(owner_name="王<小明>")
+        orders = list(SalesOrder.objects.select_related("vehicle_model", "source").filter(pk__in=[self.order.pk, electric.pk]).order_by("pk"))
+
+        document = docx_document(form_print.build_envelopes_docx(orders))
+
+        sections = re.findall(r"<w:sectPr>.*?</w:sectPr>", document)
+        self.assertEqual(len(sections), 2)
+        for section in sections:
+            self.assertIn('<w:pgSz w:w="11907" w:h="9639" w:orient="landscape"', section)
+            self.assertIn('w:right="1134"', section)
+            self.assertIn('w:left="2835"', section)
+        self.assertIn('w:top="2268" w:right="1134" w:bottom="1134"', sections[0])
+        self.assertIn('w:top="2098" w:right="1134" w:bottom="851"', sections[1])
+        text = docx_text(document)
+        self.assertIn("PC 王&lt;小明&gt;", text)
+        self.assertIn("車型：UQ125DA", text)
+        self.assertIn("車型：EV076SZV", text)
+        self.assertIn("車控密碼：0912345678", text)
+        self.assertNotIn("{{", document)
 
 
 class FormPrintViewTests(TestCase):
@@ -125,6 +164,7 @@ class FormPrintViewTests(TestCase):
         self.assertContains(response, 'data-form="envelope"', count=2)
         self.assertContains(response, "信封・油車")
         self.assertContains(response, reverse("form_print_pdf"))
+        self.assertContains(response, reverse("form_print_envelopes"))
 
     def test_search_narrows_orders(self):
         response = self.client.get(reverse("form_print"), {"q": self.other.number})
@@ -132,7 +172,7 @@ class FormPrintViewTests(TestCase):
         self.assertContains(response, self.other.number)
         self.assertNotContains(response, f'data-number="{self.order.number}"')
 
-    def test_pdf_contains_each_picked_form(self):
+    def test_pdf_contains_picked_a4_forms_only(self):
         response = self.client.post(reverse("form_print_pdf"), {
             "job": [f"{self.order.pk}:envelope", f"{self.order.pk}:receipt", f"{self.other.pk}:envelope", "bad", f"{self.order.pk}:nope"],
             f"note_{self.order.pk}": "■期望送達時間：週一",
@@ -142,7 +182,24 @@ class FormPrintViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertIn("no-store", response["Cache-Control"])
-        self.assertEqual(len(pdf_pages(response)), 3)
+        self.assertEqual(len(pdf_pages(response)), 1)
+
+    def test_envelopes_download_as_word_file(self):
+        response = self.client.post(reverse("form_print_envelopes"), {
+            "job": [f"{self.order.pk}:envelope", f"{self.order.pk}:receipt", f"{self.other.pk}:envelope"],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
+        self.assertIn("no-store", response["Cache-Control"])
+        document = docx_document(b"".join(response.streaming_content))
+        self.assertEqual(document.count("<w:sectPr>"), 2)
+
+    def test_envelopes_without_envelope_returns_to_page(self):
+        response = self.client.post(reverse("form_print_envelopes"), {"job": [f"{self.order.pk}:receipt"]})
+
+        self.assertRedirects(response, reverse("form_print"), fetch_redirect_response=False)
 
     def test_nothing_picked_returns_to_page(self):
         response = self.client.post(reverse("form_print_pdf"), {"job": []})
@@ -152,7 +209,7 @@ class FormPrintViewTests(TestCase):
     def test_deleted_orders_are_skipped(self):
         SalesOrder.objects.filter(pk=self.other.pk).update(deleted_at="2026-10-14T00:00:00+08:00")
 
-        response = self.client.post(reverse("form_print_pdf"), {"job": [f"{self.other.pk}:envelope"]})
+        response = self.client.post(reverse("form_print_envelopes"), {"job": [f"{self.other.pk}:envelope"]})
 
         self.assertRedirects(response, reverse("form_print"), fetch_redirect_response=False)
 
@@ -169,19 +226,21 @@ class FormPrintViewTests(TestCase):
         page = self.client.get(reverse("form_print"))
         self.assertNotContains(page, "data-secret-panel")
 
-        response = self.client.post(reverse("form_print_pdf"), {"job": jobs})
+        response = self.client.post(reverse("form_print_envelopes"), {"job": jobs})
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Pw-9527", pdf_pages(response)[0].extract_text())
+        self.assertIn("車控密碼：Pw-9527", docx_text(docx_document(b"".join(response.streaming_content))))
         self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed", description__contains="套表列印").exists())
 
     def test_electric_envelope_without_saved_password_prints_phone(self):
         VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
 
-        response = self.client.post(reverse("form_print_pdf"), {"job": [f"{self.order.pk}:envelope"]})
+        response = self.client.post(reverse("form_print_envelopes"), {"job": [f"{self.order.pk}:envelope"]})
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("車控密碼：0912345678", pdf_pages(response)[0].extract_text().replace(" ", ""))
+        self.assertIn("車控密碼：0912345678", docx_text(docx_document(b"".join(response.streaming_content))))
+        self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed").exists())
 
     def test_get_is_not_allowed_for_pdf(self):
         self.assertEqual(self.client.get(reverse("form_print_pdf")).status_code, 405)
+        self.assertEqual(self.client.get(reverse("form_print_envelopes")).status_code, 405)

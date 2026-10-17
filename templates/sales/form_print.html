@@ -5,7 +5,7 @@
 {% block content %}
 {% url 'order_list' as orders_url %}{% include "sales/_page_back.html" with fallback_url=orders_url label="返回全部訂單" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表，一次產生 PDF。換頁或重新搜尋都會保留已勾選的項目；同一種紙張的套表會排在一起，中途只要換一次紙。</p></div>
+  <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表：信封下載成 Word 檔、用 Word 列印，聲明書與簽收單產生 A4 PDF。換頁或重新搜尋都會保留已勾選的項目。</p></div>
   <div class="hero-actions"><a class="button ghost" href="#form-print-fields">欄位對照</a></div>
 </section>
 
@@ -109,14 +109,15 @@
       <ol class="form-print__list" data-list></ol>
       <fieldset class="form-print__order-by">
         <legend>排列方式</legend>
-        <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>信封一批、A4 一批，換紙最方便</small></span></label>
+        <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>聲明書一批、簽收單一批</small></span></label>
         <label><input type="radio" name="group" value="order"><span><strong>依訂單</strong><small>同一張訂單的文件放在一起</small></span></label>
       </fieldset>
       <div class="form-actions form-print__actions">
         <button class="button ghost" type="button" data-clear disabled>清空</button>
-        <button class="button primary" type="submit" data-submit disabled>產生 PDF</button>
+        <button class="button primary" type="submit" formaction="{% url 'form_print_envelopes' %}" formtarget="_self" data-submit-envelope disabled>下載信封 Word 檔</button>
+        <button class="button primary" type="submit" data-submit disabled>產生 A4 PDF</button>
       </div>
-      <p class="form-print__hint">PDF 會在新分頁開啟，用瀏覽器列印即可。信封請在列印設定選擇信封紙張或自訂 21×17 公分，並關閉「縮放至紙張大小」。</p>
+      <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。</p>
     </form>
   </aside>
 </div>

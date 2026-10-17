@@ -28,6 +28,7 @@ urlpatterns = [
     path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
     path("orders/forms-print/", form_print_views.form_print_page, name="form_print"),
     path("orders/forms-print/pdf/", form_print_views.form_print_pdf, name="form_print_pdf"),
+    path("orders/forms-print/envelopes/", form_print_views.form_print_envelopes, name="form_print_envelopes"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),

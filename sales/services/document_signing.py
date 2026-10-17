@@ -19,8 +19,9 @@ from PIL import Image, UnidentifiedImageError
 from sales.services.pdf_signature import DocumentSignature
 
 DOCUMENTS = {
-    "contract": {"label": "車輛訂購單", "field": "signed_contract"},
-    "privacy": {"label": "個人資料使用同意書", "field": "privacy_consent"},
+    # copies：檔案依序由幾聯組成；配件多時一聯可能跨多頁，各聯頁數相同。
+    "contract": {"label": "車輛訂購單", "field": "signed_contract", "copies": 2},
+    "privacy": {"label": "個人資料使用同意書", "field": "privacy_consent", "copies": 1},
 }
 PRINT_PARTS = {
     "contract_store": ("contract", 0, "訂購單・店家留存聯"),
@@ -130,19 +131,32 @@ def build_document_pdf(order, document, signature=None):
     return builder(order, signature=signature)
 
 
-def render_preview_png(pdf_bytes, page_index=0, scale=1.6):
+def render_preview_pngs(pdf_bytes, page_indexes, scale=1.6):
     import pypdfium2 as pdfium
 
+    images = []
     document = pdfium.PdfDocument(pdf_bytes)
     try:
-        page = document[page_index]
-        image = page.render(scale=scale).to_pil()
-        page.close()
+        for page_index in page_indexes:
+            page = document[page_index]
+            images.append(page.render(scale=scale).to_pil())
+            page.close()
     finally:
         document.close()
-    output = BytesIO()
-    image.convert("RGB").save(output, format="PNG", optimize=True)
-    return output.getvalue()
+    pngs = []
+    for image in images:
+        output = BytesIO()
+        image.convert("RGB").save(output, format="PNG", optimize=True)
+        pngs.append(output.getvalue())
+    return pngs
+
+
+def render_first_copy_previews(pdf_bytes, document):
+    """簽署前預覽第一聯的每一頁；配件多時一聯會跨頁，客人要看得到全部內容。"""
+    from pypdf import PdfReader
+
+    per_copy = max(1, len(PdfReader(BytesIO(pdf_bytes)).pages) // DOCUMENTS[document]["copies"])
+    return render_preview_pngs(pdf_bytes, range(per_copy))
 
 
 @transaction.atomic
@@ -211,7 +225,7 @@ def build_selected_pdf(order, parts):
     writer.add_metadata({"/Author": _company_name(order), "/Title": f"{order.number} 簽署文件"})
     readers = {}
     for part in parts:
-        document, page_index, _ = PRINT_PARTS[part]
+        document, copy_index, _ = PRINT_PARTS[part]
         if document not in readers:
             field = DOCUMENTS[document]["field"]
             if getattr(order, f"{field}_is_electronic"):
@@ -221,8 +235,9 @@ def build_selected_pdf(order, parts):
                 content = build_document_pdf(order, document)
             readers[document] = PdfReader(BytesIO(content))
         pages = readers[document].pages
-        if page_index < len(pages):
-            writer.add_page(pages[page_index])
+        per_copy = max(1, len(pages) // DOCUMENTS[document]["copies"])
+        for page in pages[copy_index * per_copy:(copy_index + 1) * per_copy]:
+            writer.add_page(page)
     output = BytesIO()
     writer.write(output)
     return output.getvalue()

@@ -54,7 +54,7 @@ from .services.document_signing import (
     decode_signature,
     document_state,
     record_paper_upload,
-    render_preview_png,
+    render_first_copy_previews,
     sign_documents,
 )
 from .services.dealer_workbook_sync import next_dealer_code
@@ -6477,7 +6477,10 @@ def _signing_documents_context(order):
             "state": state,
             "fingerprint": order.document_fingerprint(key),
             "checked": state == "missing",
-            "preview": "data:image/png;base64," + base64.b64encode(render_preview_png(pdf)).decode("ascii"),
+            "previews": [
+                "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+                for png in render_first_copy_previews(pdf, key)
+            ],
         })
     if not any(item["checked"] for item in documents):
         for item in documents:

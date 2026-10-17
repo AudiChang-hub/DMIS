@@ -22,7 +22,7 @@
       <label class="signing-document__pick"><input type="checkbox" name="documents" value="{{ doc.key }}"{% if doc.checked %} checked{% endif %}> 簽署這份文件</label>
     </div>
     <input type="hidden" name="fingerprint_{{ doc.key }}" value="{{ doc.fingerprint }}">
-    <div class="section-body"><img class="signing-document__preview" src="{{ doc.preview }}" alt="{{ doc.label }} 內容預覽"></div>
+    <div class="section-body signing-document__pages">{% for preview in doc.previews %}<img class="signing-document__preview" src="{{ preview }}" alt="{{ doc.label }} 內容預覽{% if doc.previews|length > 1 %}（第 {{ forloop.counter }} 頁）{% endif %}">{% endfor %}</div>
   </section>
   {% endfor %}
 

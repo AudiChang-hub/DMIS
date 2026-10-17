@@ -3099,9 +3099,9 @@ class OrderOperationsForm(forms.ModelForm):
             "installment_info": forms.Textarea(attrs={"rows": 2}),
         }
 
-    # 訂單工作台把營運資料拆到各步驟：補助追蹤在補助步驟、車控與贈品在交車步驟，其餘在收支步驟。
-    SUBSIDY_SECTION_FIELDS = {
-        "subsidy_amount", "bank_name", "remittance_account", "subsidy_applied_on",
+    # 訂單工作台把營運資料拆到各步驟：舊車與報廢、補助追蹤在補助步驟，車控與贈品在交車步驟，其餘在收支步驟。
+    SUBSIDY_SECTION_FIELDS = {"subsidy_amount", "bank_name", "remittance_account", "subsidy_applied_on"}
+    OLD_VEHICLE_SECTION_FIELDS = {
         "old_vehicle_engine_number", "old_vehicle_brand",
         "old_vehicle_displacement_cc", "old_vehicle_manufactured_on", "scrapped_on", "recycled_on",
     }
@@ -3122,10 +3122,13 @@ class OrderOperationsForm(forms.ModelForm):
             label="贈品與履約已確認（沒有贈品也請勾選）", required=False, initial=bool(self.instance.fulfillment_confirmed_at))
         if section == "subsidy":
             keep = self.SUBSIDY_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
+        elif section == "old_vehicle":
+            keep = self.OLD_VEHICLE_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
         elif section == "fulfillment":
             keep = self.FULFILLMENT_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
         elif section == "finance":
-            keep = set(self.fields) - self.SUBSIDY_SECTION_FIELDS - self.FULFILLMENT_SECTION_FIELDS
+            keep = (set(self.fields) - self.SUBSIDY_SECTION_FIELDS - self.OLD_VEHICLE_SECTION_FIELDS
+                    - self.FULFILLMENT_SECTION_FIELDS)
         else:
             keep = set(self.fields)
         for name in list(self.fields):
@@ -4973,7 +4976,6 @@ class SubsidyDataForm(forms.ModelForm):
             "old_owner_id_number",
             "old_owner_phone",
             "old_owner_household_address",
-            "subsidy_type",
             "old_vehicle_valuation",
             "old_vehicle_tax",
         ]

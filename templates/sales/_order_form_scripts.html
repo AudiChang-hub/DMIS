@@ -1781,16 +1781,27 @@
   function depositGuidance() {
     if (!depositHint || !depositAmount || depositAmount.disabled || editingOrderId) return;
     const total = accessoryPurchaseTotal();
-    // 精靈的配件在訂金之後（2026-10-17）；還沒選配件時提示可回來調整，不顯示 0 元。
-    const accessoryNote = total || !orderForm.querySelector('[name="_wizard_step"]')
-      ? `配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考`
-      : "配件在下一步選，選好後可回這一步調整";
     depositHint.textContent = paymentType.value === "installment"
-      ? `分期：依實際收款填寫；${accessoryNote}。沒有收訂金請留空。`
+      ? `分期：依實際收款填寫；配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考。沒有收訂金請留空。`
       : "現金：請依客人這次實際要付的金額填寫；沒有收訂金請留空。";
   }
   paymentType.addEventListener("change", depositGuidance);
   depositGuidance();
+  // 訂金頁的目前金額：車價＋牌險費＋配件（只計加購），與總價試算同一組欄位。
+  const intakeTotals = orderForm.querySelector("[data-intake-totals]");
+  function updateIntakeTotals() {
+    if (!intakeTotals) return;
+    const amountOf = id => { const node = byId(id); return node && node.value !== "" ? Number(node.value) || 0 : null; };
+    const values = {vehicle: amountOf("id_vehicle_price"), plate: amountOf("id_plate_insurance_fee"), accessories: accessoryPurchaseTotal()};
+    values.sum = Object.values(values).reduce((sum, value) => sum + (value || 0), 0);
+    intakeTotals.querySelectorAll("[data-intake-total]").forEach(node => {
+      const value = values[node.dataset.intakeTotal];
+      node.textContent = value === null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
+    });
+  }
+  orderForm.addEventListener("input", updateIntakeTotals);
+  orderForm.addEventListener("change", updateIntakeTotals);
+  updateIntakeTotals();
   // 總價優惠：即時試算優惠前／後總價（與後端 pre_discount_total 同一組項目），送出時由伺服器依實際明細重算。
   const discountBox = orderForm.querySelector("[data-intake-discount]");
   if (discountBox) {

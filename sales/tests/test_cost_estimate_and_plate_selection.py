@@ -50,17 +50,20 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         sync_order_operations(order.pk)
         self.assertEqual(OrderOperationsProfile.objects.get(pk=profile.pk).vehicle_cost, Decimal("55555"))
 
-    def test_only_watch_keeps_plate_selection_fee(self):
-        # 使用者 2026-10-17：一般領牌偏好沒有選號費，隱藏欄位送出的殘值要歸零。
-        order = self.pending(plate_choice="preference")
-        response = self.post(order, plate_choice="preference", plate_selection_fee="1200", plate_insurance_fee="0",
-                             plate_preference_note="尾數要大", registration_date="", confirm_completed_correction="")
+    def test_switching_from_watch_clears_plate_selection_fee(self):
+        # 使用者 2026-10-17：只有指定號碼有選號費。原本指定號碼已填 1,200，改成一般領牌偏好後
+        # 欄位隱藏但表單仍帶著舊值，送出要歸零。
+        order = self.pending(plate_choice="watch", plate_selection_fee=1200, watched_numbers="ABC-1234", actual_balance=71200)
+        response = self.post(order, plate_choice="preference", watched_numbers="", plate_preference_note="尾數要大",
+                             plate_insurance_fee="0", registration_date="", confirm_completed_correction="")
         self.assert_saved(response, order)
+        self.assertEqual(order.plate_choice, "preference")
         self.assertEqual(order.plate_selection_fee, Decimal("0"))
         self.assertEqual(order.calculate_balance(), Decimal("70000"))
 
     def test_detail_and_contract_pdf_show_plate_selection_fee_only_for_watch(self):
-        # 使用者 2026-10-17：訂單明細頁與訂購單 PDF 只有「指定號碼」才列選號費。
+        # 使用者 2026-10-17：訂單明細頁與訂購單 PDF 只有「指定號碼」才列選號費；
+        # 其他選號方式沒有選號費欄位可填，照實際畫面不填選號費送出。
         from io import BytesIO
 
         from django.urls import reverse
@@ -68,13 +71,19 @@ class CostEstimateAndPlateSelectionTests(TestCase):
 
         from sales.services.order_contract_pdf import build_order_contract_pdf
 
-        for choice, shown in (("watch", True), ("preference", False), ("none", False), ("pending", False)):
+        cases = (
+            ("watch", {"watched_numbers": "ABC-1234", "plate_selection_fee": "1200"}, True),
+            ("preference", {"plate_preference_note": "尾數要大", "plate_selection_fee": ""}, False),
+            ("none", {"plate_selection_fee": ""}, False),
+            ("pending", {"plate_selection_fee": ""}, False),
+        )
+        for choice, fields, shown in cases:
             with self.subTest(plate_choice=choice):
                 order = self.pending(plate_choice=choice)
-                response = self.post(order, plate_choice=choice, plate_selection_fee="1200", plate_insurance_fee="0",
-                                     watched_numbers="ABC-1234" if choice == "watch" else "",
-                                     registration_date="", confirm_completed_correction="")
+                response = self.post(order, plate_choice=choice, plate_insurance_fee="0", registration_date="",
+                                     confirm_completed_correction="", **fields)
                 self.assert_saved(response, order)
+                self.assertEqual(order.plate_selection_fee, Decimal("1200" if shown else "0"))
                 page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
                 order.print_company_snapshot = {"legal_name": "測試機車行", "tax_id": "12345678",
                                                 "address": "測試地址", "phone": "02-1234"}

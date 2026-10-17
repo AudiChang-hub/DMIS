@@ -308,6 +308,38 @@ class OrderWizardTests(TestCase):
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "owner"}).content.decode()
         self.assertIn('value="測試安全帽"', page)
 
+    def test_tradein_step_keeps_every_subsidy_and_shows_saved_documents(self):
+        from sales.models import OrderIntakeAttachment, SubsidyProgram
+        first = SubsidyProgram.objects.create(name="測試補助甲")
+        second = SubsidyProgram.objects.create(name="測試補助乙")
+        draft = self.walk_to("tradein")
+        tradein = {"trade_in_intent": "yes", "subsidy_programs_present": "1",
+                   "subsidy_programs": [str(first.pk), str(second.pk)]}
+        response = self.client.post(reverse("order_create"), {
+            **self.complete_data(), **tradein, "_wizard_step": "tradein", "_wizard_action": "next",
+            "_submission_key": self.key, "_draft_id": str(draft.pk), "_draft_revision": str(draft.revision),
+            "old_id_front": self.image("old-front.png"),
+        })
+        self.assertEqual(response.status_code, 302)
+        # 回到第三步與之後每一步（隱藏的汰舊區塊會跟著送出）都要勾著兩個補助，不能只剩最後一個（2026-10-17）。
+        for step in ("tradein", "delivery"):
+            page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": step}).content.decode()
+            for program in (first, second):
+                self.assertRegex(page, rf'name="subsidy_programs" value="{program.pk}"[^>]*checked')
+        # 已存的證件列在第三步，不再像沒上傳過。
+        self.assertIn("已存的證件與存摺", page)
+        self.assertIn("old-front.png", page)
+        # 同一類重新選檔直接取代原檔，不必先勾移除。
+        draft.refresh_from_db()
+        response = self.client.post(reverse("order_create"), {
+            **self.complete_data(), **tradein, "_wizard_step": "tradein", "_wizard_action": "next",
+            "_submission_key": self.key, "_draft_id": str(draft.pk), "_draft_revision": str(draft.revision),
+            "old_id_front": self.image("old-front-new.png"),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(list(OrderIntakeAttachment.objects.filter(draft=draft, kind="old_id_front").values_list("name", flat=True)),
+                         ["old-front-new.png"])
+
 @override_settings(MEDIA_ROOT=MEDIA)
 class ReceptionWizardTests(TestCase):
     setUp = test_reception_entry.ReceptionEntryTests.setUp

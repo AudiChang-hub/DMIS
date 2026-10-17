@@ -1,6 +1,6 @@
 {% if intake_attachments %}
-<section class="order-attachments" aria-label="訂單附件">
-  <h3>訂單附件</h3><p class="muted">點選縮圖放大，或下載原始檔案。</p>
+<section class="order-attachments" aria-label="{{ attachments_title|default:'訂單附件' }}">
+  <h3>{{ attachments_title|default:"訂單附件" }}</h3><p class="muted">{{ attachments_hint|default:"點選縮圖放大，或下載原始檔案。" }}</p>
   <div class="document-card-list">
     {% for attachment in intake_attachments %}
     <div class="attachment-item">

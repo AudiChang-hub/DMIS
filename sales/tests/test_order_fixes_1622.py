@@ -47,6 +47,21 @@ class OrderFixes1622Tests(TestCase):
         order.deposit_amount = 200
         self.assertEqual(default_customer_balance(order), Decimal("1000"))
 
+    def test_installment_customer_balance_deducts_discount_and_trade_in(self):
+        # 分期撥款不跟著折扣：選號 1,200－折扣 1,000＝200，再扣舊車估價 200＝0。
+        order = self.installment_order(approved_discount_amount=1000)
+        self.assertEqual(default_customer_balance(order), Decimal("200"))
+        order.old_vehicle_valuation = 200
+        self.assertEqual(default_customer_balance(order), Decimal("0"))
+
+    def test_order_amounts_show_discount_in_installment_balance(self):
+        from sales.services.operations_sync import sync_order_operations
+        order = self.installment_order(approved_discount_amount=1000, discount_reason="配件金1000")
+        sync_order_operations(order.pk)
+        page = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(page, "已核准折扣（配件金1000）")
+        self.assertContains(page, 'data-customer-balance>$200<')
+
     def test_no_deposit_clears_deposit_date(self):
         order = self.installment_order()
         self.assertIsNone(order.deposit_date, "訂金 0 時不留預設的今天日期")

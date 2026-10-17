@@ -20,9 +20,9 @@ docs/context/CURRENT_STATE.md、docs/context/HANDOFF.md、docs/archive/2026-10-0
 
 ## 尚未完成
 
-- 正式站登入後畫面未實機驗收：1.30.0 操作中提示、含簽名 PDF 列印（pypdf 升版）、1.25 電子簽署、1.26 訂單精靈。
+- 正式站登入後畫面（含簽名 PDF 列印）：使用者 2026-10-17 決定不另做實測。
 - 官網檢查排程首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
-- Email 通道未設定：需要時設定 SMTP 與 `DMIS_NOTIFICATION_EMAIL_ENABLED=true`，再用 `send_pending_notifications` 補發。
+- Email 通知：使用者 2026-10-17 決定不使用，通道維持未設定。
 - 客戶端簡訊／LINE 通知需使用者提供服務商帳號。
 - 舊交接的五組訂單合併：狀態待核對，未執行也不得自動執行。
 - 交接分支上的 AI 工具／政策文件是否合併 main，待使用者指定。

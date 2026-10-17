@@ -1,11 +1,15 @@
 """套表列印：取代 Excel 合併列印 Word 套表（信封、減徵貨物稅聲明書、簽收單）。
 
-版面座標取自使用者提供的 Word 套表（2026-10-14），單位 mm、原點左上；
+信封輸出 Word 檔：沿用使用者 Word 原稿（2026-10-14）的版面與 21×17 cm 自訂紙張，
+瀏覽器無法把自訂紙張交給印表機，用 Word 列印才會和原本一樣（2026-10-17 使用者確認）。
+聲明書、簽收單輸出 A4 PDF，版面座標取自 Word 套表，單位 mm、原點左上。
 資料欄位與原合併欄位一一對應，見 FORM_FIELD_SOURCES。只讀訂單，不寫入任何資料。
 """
+import zipfile
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 from django.utils import timezone
 from reportlab.lib.pagesizes import A4
@@ -29,8 +33,6 @@ if _kai_path:
 else:  # 沒有標楷體時退回黑體，內容不缺字。
     KAI = SANS
 
-ENVELOPE_SIZE = (210 * mm, 170 * mm)
-
 
 @dataclass(frozen=True)
 class FormSpec:
@@ -41,7 +43,7 @@ class FormSpec:
 
 
 FORMS = (
-    FormSpec("envelope", "信封", "信封 21×17 cm", "依車種自動套用油車或電車版"),
+    FormSpec("envelope", "信封", "Word 檔・21×17 cm", "依車種自動套用油車或電車版"),
     FormSpec("tax_declaration", "減徵貨物稅聲明書", "A4", "汰舊換新、新舊車主不同人時使用"),
     FormSpec("receipt", "簽收單", "A4", "送車時給客人簽收"),
 )
@@ -356,40 +358,6 @@ def roc_chinese_date(day):
 # ── 各套表 ─────────────────────────────────────────────────────────────
 
 
-def _draw_envelope(pdf, order, values):
-    page = _Page(pdf, ENVELOPE_SIZE[1])
-    # 原稿為「«車行» «車主名稱»」：沒有車行時仍保留那個空格的位移。
-    name = " ".join(part for part in (values["dealer"], values["owner_name"]) if part)
-    shift = 0 if values["dealer"] else 1
-    if order.is_electric_vehicle:
-        size = _fit(name, KAI, 22, 150)
-        page.text(31.9 + shift * page.width(" ", KAI, size), 45.7, name, KAI, size)
-        rows = (
-            ("車型", values["model_number"]),
-            ("車色", values["color"]),
-            ("車身號碼", values["identifier"]),
-            ("大牌號碼", values["plate"]),
-            ("車控帳號", values["vehicle_control_account"]),
-            ("車控密碼", values["vehicle_control_password"]),
-        )
-        size, first, step, notes_y = 14, 57.6, 12.7, 136.0
-    else:
-        size = _fit(name, KAI, 24, 150)
-        page.text(29.4 + shift * page.width(" ", KAI, size), 48.9, name, KAI, size)
-        rows = (
-            ("車型", values["model_number"]),
-            ("車色", values["color"]),
-            ("引擎號碼", values["identifier"]),
-            ("大牌號碼", values["plate"]),
-        )
-        size, first, step, notes_y = 16, 60.8, 12.7, 127.1
-    for index, (label, value) in enumerate(rows):
-        line = f"{label}：{value}"
-        page.text(51.9, first + step * index, line, KAI, _fit(line, KAI, size, 140))
-    page.text(29.2, notes_y, values["installment_info"], KAI, _fit(values["installment_info"], KAI, 12, 165))
-    page.text(29.2, notes_y + 6.3, values["customer_service_phone"], KAI, 12)
-
-
 def _underlined(page, x, y, value, font, size, min_width):
     """「＿值＿」：值置中、底線至少 min_width mm，回傳下一個字的 x。"""
     width = max(min_width, page.width(value, font, size) + 6)
@@ -551,10 +519,10 @@ class PrintJob:
     address: str = ""
 
 
-def build_forms_pdf(jobs, *, group_by_form=True, today=None, reveal_secrets=False):
-    """依序輸出多張訂單的多份套表為單一 PDF。
+def build_forms_pdf(jobs, *, group_by_form=True, today=None):
+    """依序輸出多張訂單的 A4 套表（聲明書、簽收單）為單一 PDF；信封另出 Word 檔。
 
-    group_by_form：同一種套表排在一起（信封一批、A4 一批），換紙最方便；否則依訂單順序。
+    group_by_form：同一種套表排在一起；否則依訂單順序。
     """
     today = today or timezone.localdate()
     if group_by_form:
@@ -564,18 +532,110 @@ def build_forms_pdf(jobs, *, group_by_form=True, today=None, reveal_secrets=Fals
     pdf.setTitle("套表列印")
     pdf.setCreator("DMIS")
     for job in jobs:
-        values = form_values(job.order, reveal_secrets=reveal_secrets and job.form == "envelope")
-        if job.form == "envelope":
-            pdf.setPageSize(ENVELOPE_SIZE)
-            _draw_envelope(pdf, job.order, values)
-        elif job.form == "tax_declaration":
-            pdf.setPageSize(A4)
+        values = form_values(job.order)
+        if job.form == "tax_declaration":
             _draw_tax_declaration(pdf, job.order, values, today)
         elif job.form == "receipt":
-            pdf.setPageSize(A4)
             _draw_receipt(pdf, job.order, values, today, job.note, job.address)
         else:
-            raise ValueError(f"未知的套表：{job.form}")
+            raise ValueError(f"PDF 不含這種套表：{job.form}")
         pdf.showPage()
     pdf.save()
+    return output.getvalue()
+
+
+# ── 信封 Word 檔 ───────────────────────────────────────────────────────
+# oil.xml／ev.xml 是 Word 原稿內文（合併欄位換成 {{form_values 鍵}}，不含範例資料），
+# 其餘檔案為原稿樣式、主題與相容性設定，表格縮排與行距才會和原稿一致。
+ENVELOPE_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "form_templates" / "envelope"
+ENVELOPE_FIELDS = (
+    "dealer", "owner_name", "model_number", "color", "identifier", "plate",
+    "vehicle_control_account", "vehicle_control_password", "installment_info", "customer_service_phone",
+)
+# 原稿紙張 21×17 cm 橫向（twip）；邊界左 5、右 2 cm，上／下油車 4／2 cm、電車 3.7／1.5 cm。
+_ENVELOPE_MARGINS = {False: (2268, 1134), True: (2098, 851)}
+_W_NS = (
+    'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+)
+_ENVELOPE_PARTS = {
+    "[Content_Types].xml": (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+        '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
+        '<Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>'
+        '<Override PartName="/word/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'
+        '</Types>'
+    ),
+    "_rels/.rels": (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        '</Relationships>'
+    ),
+    "word/_rels/document.xml.rels": (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>'
+        '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>'
+        '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>'
+        '</Relationships>'
+    ),
+}
+_ENVELOPE_FILES = {
+    "word/styles.xml": "styles.xml",
+    "word/settings.xml": "settings.xml",
+    "word/fontTable.xml": "fontTable.xml",
+    "word/theme/theme1.xml": "theme1.xml",
+}
+
+
+def _envelope_section(electric):
+    top, bottom = _ENVELOPE_MARGINS[electric]
+    return (
+        '<w:sectPr><w:pgSz w:w="11907" w:h="9639" w:orient="landscape" w:code="9"/>'
+        f'<w:pgMar w:top="{top}" w:right="1134" w:bottom="{bottom}" w:left="2835" w:header="851" w:footer="992" w:gutter="0"/>'
+        '<w:cols w:space="425"/><w:docGrid w:type="lines" w:linePitch="360"/></w:sectPr>'
+    )
+
+
+def _envelope_body(order, values):
+    body = (ENVELOPE_TEMPLATE_DIR / ("ev.xml" if order.is_electric_vehicle else "oil.xml")).read_text(encoding="utf-8").strip()
+    for key in ENVELOPE_FIELDS:
+        body = body.replace("{{%s}}" % key, escape(" ".join(values[key].splitlines())))
+    return body
+
+
+def build_envelopes_docx(orders):
+    """每張訂單一頁信封（各自一節，油／電邊界不同），等同 Word 合併列印的結果。"""
+    pages = [(order, form_values(order, reveal_secrets=True)) for order in orders]
+    if not pages:
+        raise ValueError("沒有要印的信封")
+    parts = []
+    for index, (order, values) in enumerate(pages):
+        body = _envelope_body(order, values)
+        section = _envelope_section(order.is_electric_vehicle)
+        if index < len(pages) - 1:
+            # 分節符號放在原稿最後一個空白段落，不多佔一行。
+            cut = body.rindex("</w:pPr></w:p>")
+            body = body[:cut] + section + body[cut:]
+        else:
+            body += section
+        parts.append(body)
+    document = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document {_W_NS}><w:body>'
+        + "".join(parts) + "</w:body></w:document>"
+    )
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as package:
+        for name, content in _ENVELOPE_PARTS.items():
+            package.writestr(name, content)
+        package.writestr("word/document.xml", document)
+        for name, source in _ENVELOPE_FILES.items():
+            package.write(ENVELOPE_TEMPLATE_DIR / source, name)
     return output.getvalue()

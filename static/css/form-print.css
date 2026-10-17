@@ -142,6 +142,12 @@
 .form-print__order-by span { display: grid; gap: 2px; }
 .form-print__order-by small { color: var(--muted); font-size: var(--text-xs); }
 .form-print__actions { justify-content: flex-end; margin: 0; }
+/* 窄螢幕：信封 Word 檔、A4 PDF 兩個主要按鈕滿寬疊放，清空放最後。 */
+@media (max-width: 560px) {
+  .form-print__actions { display: grid; grid-template-columns: 1fr; }
+  .form-print__actions .button { width: 100%; }
+  .form-print__actions [data-clear] { order: 1; }
+}
 .form-print__hint { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.7; }
 
 .form-print__dock { display: none; }

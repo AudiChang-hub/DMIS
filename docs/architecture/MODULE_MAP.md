@@ -10,7 +10,7 @@
 | 車色／分期帶入填單 | `sales/services/catalog_selection.py` | `test_catalog_selection.py`；`tests/frontend/catalog-payment.test.cjs` |
 | Excel 匯入 | `sales/services/legacy_import.py`、`legacy_finance.py` | `test_legacy_import.py`、`test_legacy_finance.py` |
 | 訂單三頁籤／收支 | 在 `sales/`、`templates/sales/` 搜尋 `workspace`；規格 `specs/043-order-workspace/` | `tests/frontend/order-workspace.test.cjs`；以 `rg --files sales/tests -g '*workspace*'` 定位 |
-| 套表列印（信封、減徵貨物稅聲明書、簽收單，取代 Excel＋Word 合併列印） | `sales/form_print_views.py`、`sales/services/form_print.py`（版面座標與欄位對照 `FORM_FIELD_SOURCES`）、`templates/sales/form_print.html`、`static/js/form-print.js` | `test_form_print.py` |
+| 套表列印（信封、減徵貨物稅聲明書、簽收單，取代 Excel＋Word 合併列印） | `sales/form_print_views.py`、`sales/services/form_print.py`（A4 版面座標、信封 Word 檔、欄位對照 `FORM_FIELD_SOURCES`）、`sales/form_templates/envelope/`（信封 Word 原稿內文與樣式）、`templates/sales/form_print.html`、`static/js/form-print.js` | `test_form_print.py` |
 | 訂單修正／刪除 | 在 `sales/` 搜尋 `completed_order`、`deletion`；不先載入整個 models | `test_completed_order_corrections.py`、`test_order_deletion.py` |
 | 畫面授權／帳號與訂單範圍 | `sales/access/`、`sales/permission_workspace.py`；搜尋 `screen_access` | `test_screen_access.py`、`test_catalog_accounts.py`、`test_customer_order_access.py` |
 | 報表／機種分類 | 在 `sales/` 搜尋 `report_classification`、`reporting` | `test_reporting.py`、`test_report_classification.py` |

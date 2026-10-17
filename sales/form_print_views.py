@@ -1,5 +1,6 @@
-"""套表列印：一次勾選多張訂單、每張各自要印的套表，輸出成一份 PDF。"""
+"""套表列印：一次勾選多張訂單、每張各自要印的套表；信封出 Word 檔，聲明書與簽收單出 A4 PDF。"""
 from io import BytesIO
+from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -83,44 +84,74 @@ def _parse_jobs(request):
     return picked
 
 
-@login_required
-@require_POST
-def form_print_pdf(request):
+def _picked_orders(request, forms):
+    """勾選且仍在權限範圍內的 (訂單, 套表)，依勾選順序；錯誤時回傳要導回的 response。"""
     picked = _parse_jobs(request)
     if not picked:
         messages.error(request, "請至少勾選一張訂單的一份套表。")
-        return redirect("form_print")
+        return None, redirect("form_print")
     if len(picked) > MAX_JOBS:
         messages.error(request, f"一次最多列印 {MAX_JOBS} 份，請分批列印。")
-        return redirect("form_print")
+        return None, redirect("form_print")
+    picked = [(pk, form) for pk, form in picked if form in forms]
+    if not picked:
+        kind = "信封" if forms == ("envelope",) else "聲明書或簽收單"
+        messages.error(request, f"勾選的項目裡沒有{kind}。")
+        return None, redirect("form_print")
     orders = _orders(request.user).in_bulk({pk for pk, _form in picked})
-    jobs = []
-    for pk, form in picked:
-        order = orders.get(pk)
-        if order is None:  # 不在權限範圍或已刪除：略過，不透露是否存在。
-            continue
-        note = address = ""
-        if form == "receipt":
-            note = request.POST.get(f"note_{pk}", "").strip()[: form_print.NOTE_MAX_CHARS]
-            address = request.POST.get(f"address_{pk}", "").strip()[: form_print.ADDRESS_MAX_CHARS]
-        jobs.append(form_print.PrintJob(order, form, note=note, address=address))
-    if not jobs:
+    # 不在權限範圍或已刪除：略過，不透露是否存在。
+    found = [(orders[pk], form) for pk, form in picked if pk in orders]
+    if not found:
         messages.error(request, "勾選的訂單已不存在或沒有權限列印。")
-        return redirect("form_print")
-    # 電車信封印出已存的車控密碼，每張訂單留處理紀錄。
-    secret_orders = {job.order.pk: job.order for job in jobs if job.form == "envelope" and form_print.has_control_password(job.order)}
-    if secret_orders:
-        actor = request.user.get_full_name() or request.user.get_username()
-        for order in secret_orders.values():
-            OrderEvent.objects.create(order=order, event_type="secret_viewed", description="套表列印電車信封（含車控密碼）", actor_name=actor)
-    pdf = form_print.build_forms_pdf(
-        jobs, group_by_form=request.POST.get("group") != "order", reveal_secrets=bool(secret_orders),
-    )
-    response = FileResponse(BytesIO(pdf), content_type="application/pdf")
-    response["Content-Disposition"] = (
-        "inline; filename=\"forms.pdf\"; filename*=UTF-8''%E5%A5%97%E8%A1%A8%E5%88%97%E5%8D%B0.pdf"
-    )
+        return None, redirect("form_print")
+    return found, None
+
+
+def _file_response(content, *, content_type, ascii_name, quoted_name, inline):
+    response = FileResponse(BytesIO(content), content_type=content_type)
+    disposition = "inline" if inline else "attachment"
+    response["Content-Disposition"] = f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{quoted_name}"
     response["Cache-Control"] = "private, no-store, max-age=0"
     response["Pragma"] = "no-cache"
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@login_required
+@require_POST
+def form_print_pdf(request):
+    found, error = _picked_orders(request, ("tax_declaration", "receipt"))
+    if error:
+        return error
+    jobs = []
+    for order, form in found:
+        note = address = ""
+        if form == "receipt":
+            note = request.POST.get(f"note_{order.pk}", "").strip()[: form_print.NOTE_MAX_CHARS]
+            address = request.POST.get(f"address_{order.pk}", "").strip()[: form_print.ADDRESS_MAX_CHARS]
+        jobs.append(form_print.PrintJob(order, form, note=note, address=address))
+    pdf = form_print.build_forms_pdf(jobs, group_by_form=request.POST.get("group") != "order")
+    return _file_response(
+        pdf, content_type="application/pdf", ascii_name="forms.pdf",
+        quoted_name=quote("套表列印.pdf"), inline=True,
+    )
+
+
+@login_required
+@require_POST
+def form_print_envelopes(request):
+    """信封 Word 檔：沿用原稿 21×17 cm 自訂紙張，用 Word 列印才不會被瀏覽器縮放。"""
+    found, error = _picked_orders(request, ("envelope",))
+    if error:
+        return error
+    orders = [order for order, _form in found]
+    # 電車信封印出已存的車控密碼，每張訂單留處理紀錄。
+    actor = request.user.get_full_name() or request.user.get_username()
+    for order in orders:
+        if form_print.has_control_password(order):
+            OrderEvent.objects.create(order=order, event_type="secret_viewed", description="套表列印電車信封（含車控密碼）", actor_name=actor)
+    return _file_response(
+        form_print.build_envelopes_docx(orders),
+        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ascii_name="envelopes.docx", quoted_name=quote("信封.docx"), inline=False,
+    )

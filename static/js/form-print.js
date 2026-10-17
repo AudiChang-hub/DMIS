@@ -94,8 +94,14 @@
       paper.classList.toggle("is-active", counts[key] > 0);
     });
     root.querySelector("[data-empty]").hidden = total > 0;
-    trayForm.querySelector("[data-submit]").disabled = total === 0;
-    trayForm.querySelector("[data-submit]").textContent = total ? `產生 PDF（${total} 頁）` : "產生 PDF";
+    // 信封出 Word 檔（原稿自訂紙張），聲明書與簽收單出 A4 PDF。
+    const envelopes = counts.envelope;
+    const a4 = total - envelopes;
+    const envelopeButton = trayForm.querySelector("[data-submit-envelope]");
+    envelopeButton.disabled = envelopes === 0;
+    envelopeButton.textContent = envelopes ? `下載信封 Word 檔（${envelopes} 張）` : "下載信封 Word 檔";
+    trayForm.querySelector("[data-submit]").disabled = a4 === 0;
+    trayForm.querySelector("[data-submit]").textContent = a4 ? `產生 A4 PDF（${a4} 頁）` : "產生 A4 PDF";
     trayForm.querySelector("[data-clear]").disabled = total === 0;
     if (dock) {
       dock.hidden = total === 0;

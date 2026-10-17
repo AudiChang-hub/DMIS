@@ -158,3 +158,17 @@ class PaymentSplitTests(TestCase):
                                     else json.dumps(form["payment_splits"].value())),
                          [{"method": "cash", "amount": 20000}, {"method": "card", "amount": 5000}])
         self.assertIn("&quot;method&quot;: &quot;cash&quot;", str(form["payment_splits"]))
+
+    def test_user_guide_explains_multi_payment_like_manual(self):
+        # 線上使用說明與使用手冊第 1 步一致（1.85.4）。
+        from pathlib import Path
+        self.client.force_login(self.root)
+        guide = self.client.get(reverse("user_guide"))
+        self.assertContains(guide, 'id="multi-payment-current"')
+        self.assertContains(guide, 'href="#multi-payment-current"')
+        manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")
+        for phrase in ("＋ 新增付款方式", "尚餘 $60,000", "車價合計", "套用選取方案", "現金 $50,000", "刷卡 $22,000",
+                       "現金 $20,000＋分期 $60,000", "只剩一筆時不能移除"):
+            self.assertContains(guide, phrase)
+            self.assertIn(phrase, manual)
+        self.assertContains(guide, "第一筆付款方式的預設")

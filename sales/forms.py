@@ -773,6 +773,11 @@ class SalesOrderForm(forms.ModelForm):
             if data.get(field_name) is None:
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
+        # 只有「指定號碼」收選號費；其他選號方式欄位隱藏，送出的殘值一律歸零（使用者 2026-10-17）。
+        plate_choice = data.get("plate_choice")
+        if plate_choice and plate_choice != SalesOrder.PlateChoice.WATCH:
+            data["plate_selection_fee"] = 0
+            self.cleaned_data["plate_selection_fee"] = 0
         # 牌險費不含選號與動保設定（使用者 2026-10-15）；油車牌險費一律由人員依實收輸入，不用試算覆蓋。
         is_gas = bool(model and model.energy_type == VehicleModel.EnergyType.GAS)
         if (

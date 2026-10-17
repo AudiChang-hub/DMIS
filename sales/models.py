@@ -3092,7 +3092,7 @@ class SalesOrder(TimeStampedModel):
         # 待確認：接單時客人還沒決定要不要選號（使用者 2026-10-15）。
         PENDING = "pending", "待確認"
         NONE = "none", "不選號"
-        WATCH = "watch", "指定號碼監控"
+        WATCH = "watch", "指定號碼"
         PREFERENCE = "preference", "一般領牌偏好"
 
     class DeliveryMethod(models.TextChoices):

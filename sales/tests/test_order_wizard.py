@@ -191,10 +191,14 @@ class OrderWizardTests(TestCase):
         # 訂金頁（配件之後）列出車價、牌險費、配件與三項合計，由畫面即時加總。
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "deposit"}).content.decode()
         panel = page.split('id="deposit"', 1)[1].split("</details>", 1)[0]
-        for key in ("vehicle", "plate", "accessories", "sum"):
+        for key in ("vehicle", "plate", "selection", "accessories", "sum"):
             self.assertIn(f'data-intake-total="{key}"', panel)
         self.assertIn("三項合計", panel)
         self.assertIn("function updateIntakeTotals", page)
+        # 使用者 2026-10-17：指定號碼有選號費時列出選號費並改稱四項合計。
+        self.assertIn('data-intake-total-cell="selection" hidden', panel)
+        self.assertIn('const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;', page)
+        self.assertIn('showSelection ? "四項合計" : "三項合計"', page)
         self.assertEqual(self.post("deposit", draft=self.draft(), **lines).status_code, 302)
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
@@ -244,7 +248,9 @@ class OrderWizardTests(TestCase):
         # 使用者 2026-10-15：選號方式多「待確認」，跟不選號一樣不顯示也不計選號費。
         page = self.client.get(reverse("order_create")).content.decode()
         self.assertIn('<option value="pending">待確認</option>', page)
-        self.assertIn('showConditional("plate-selection", !["none", "pending"].includes(plateChoice.value));', page)
+        # 使用者 2026-10-17：只有「指定號碼」才有選號費。
+        self.assertIn('<option value="watch">指定號碼</option>', page)
+        self.assertIn('showConditional("plate-selection", plateChoice.value === "watch");', page)
 
     def test_legacy_draft_done_keys_map_to_split_steps(self):
         from types import SimpleNamespace

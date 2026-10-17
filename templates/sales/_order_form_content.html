@@ -339,16 +339,17 @@
   <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">8</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用{% if wizard %}、備註{% endif %}與附件</small></span></summary>
     {% if wizard %}
-    {# 精靈的配件在訂金之前（使用者 2026-10-17）：收訂金前先讓客人看到車價、牌險費、配件與三項合計。 #}
+    {# 精靈的配件在訂金之前（使用者 2026-10-17）：收訂金前先讓客人看到車價、牌險費、配件與合計；有選號費（指定號碼）時多列一格。 #}
     <section class="subsection intake-totals" data-intake-totals aria-labelledby="intake-totals-title">
       <div class="section-title"><div><h3 id="intake-totals-title">目前金額</h3></div></div>
       <dl class="intake-totals__grid" aria-live="polite">
         <div class="intake-totals__cell"><dt>車價</dt><dd data-intake-total="vehicle">—</dd></div>
         <div class="intake-totals__cell intake-totals__cell--plus"><dt>牌險費</dt><dd data-intake-total="plate">—</dd></div>
+        <div class="intake-totals__cell intake-totals__cell--plus" data-intake-total-cell="selection" hidden><dt>選號費</dt><dd data-intake-total="selection">—</dd></div>
         <div class="intake-totals__cell intake-totals__cell--plus"><dt>配件</dt><dd data-intake-total="accessories">—</dd></div>
-        <div class="intake-totals__cell intake-totals__cell--sum"><dt>三項合計</dt><dd data-intake-total="sum">—</dd></div>
+        <div class="intake-totals__cell intake-totals__cell--sum"><dt data-intake-total-label>三項合計</dt><dd data-intake-total="sum">—</dd></div>
       </dl>
-      <p class="intake-totals__note">配件只計加購（不含贈品）；選號費、其他費用與優惠另計，送出時依實際明細重新計算。</p>
+      <p class="intake-totals__note" data-intake-total-note>配件只計加購（不含贈品）；其他費用與優惠另計，送出時依實際明細重新計算。</p>
     </section>
     {% endif %}
     <div class="subsection deposit-subsection" id="deposit-subsection">

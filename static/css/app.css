@@ -6800,6 +6800,10 @@ select:not([multiple]):not([size]):not(.searchable-select__native):disabled { --
 :is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message):last-child { margin-bottom: var(--card-pad); }
 :is(.internal-discount-panel, .operation-section) > p { margin: var(--stack-gap-sm) var(--card-pad); }
 .form-section > details.card { margin: var(--stack-gap-sm) var(--card-pad); }
+/* 表單區塊內的摺疊卡：標題不沿用區塊標題的分隔線與內距，內卡與標題左右對齊並留出間距（2026-10-17）。 */
+.form-section > details.card > summary { min-height: 44px; padding: 0; border-bottom: 0; }
+.form-section > details.card[open] > summary { margin-bottom: var(--space-4); }
+.form-section > details.card > .subsection { margin: 0; }
 /* 草稿清單：車主與車款／最後編輯時間／操作固定三欄，時間不再漂在中間。 */
 #drafts .draft-row { display: grid; grid-template-columns: minmax(0, 1fr) 11rem 11rem; align-items: center; gap: var(--stack-gap-sm); padding: var(--space-4) var(--card-pad); }
 #drafts .draft-row > time { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }

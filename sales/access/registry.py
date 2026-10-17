@@ -73,7 +73,7 @@ def register(key, names, action="auto"):
         ROUTES[name] = (key, action)
 
 
-register("orders", "order_list order_detail")
+register("orders", "order_list order_detail order_overview")
 register("order_intake", "order_start intake_draft_save", "operate")
 register("order_intake", "order_submitted intake_installment_options intake_price_options", "view")
 register("order_delete", "order_recycle_bin", "view")

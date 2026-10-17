@@ -13,6 +13,7 @@ from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
 from . import form_print_views
+from . import order_overview_views
 from . import site_copy_views
 from . import system_settings_views
 from .historical_replacement import historical_buyer_replacement
@@ -337,6 +338,7 @@ urlpatterns = [
     path("orders/drafts/<uuid:pk>/delete/", views.draft_delete, name="draft_delete"),
     path("orders/<int:pk>/", views.order_detail, name="order_detail"),
     path("orders/<int:pk>/edit/", views.order_edit, name="order_edit"),
+    path("orders/<int:pk>/overview/", order_overview_views.order_overview, name="order_overview"),
     path("orders/<int:pk>/commission-attribution/", views.order_commission_attribution_update,
          name="order_commission_attribution_update"),
     path(

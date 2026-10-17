@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -1004,6 +1004,7 @@
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>

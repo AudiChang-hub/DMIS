@@ -46,6 +46,7 @@
     if (!pinned && event.target.closest(".order-step-tab")) setOpen(false, { focus: false });
   });
   document.addEventListener("keydown", (event) => {
+    if (document.querySelector("dialog[open]")) return;  // 對話框（如訂單總覽）開著時，Esc 只關對話框。
     if (event.key === "Escape" && root.classList.contains("is-open") && !pinned) { setOpen(false); return; }
     const typing = event.target.closest && event.target.closest("input, textarea, select, [contenteditable='true']");
     if (event.key === "[" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {

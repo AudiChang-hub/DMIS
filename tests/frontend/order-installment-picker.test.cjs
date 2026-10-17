@@ -16,7 +16,7 @@ class Control {
 }
 function setup(fetcher, values={}) {
   const elements={};
-  for (const id of ['installment-company-choice','installment-period-choice','installment-manual-toggle','installment-apply',
+  for (const id of ['installment-company-choice','installment-period-choice','installment-manual-toggle',
     'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee']) elements[id]=new Control(values[id] || '');
   const manualFields=[{},{}];
   const doc={getElementById:id=>elements[id],querySelectorAll:()=>manualFields,createElement:()=>new Control()};
@@ -40,11 +40,13 @@ test('載入舊訂單方案帶 order_id，保留人工金額及零開辦費',asy
   assert.match(config.hint.textContent,/2025-09-01/);
   assert.match(config.hint.textContent,/保留原訂單/);
 });
-test('明確選取公司和期數才帶入，且可重新套用同一期方案',async()=>{
+test('明確選取公司和期數就直接帶入，不需另按套用',async()=>{
   const {picker,elements}=setup(async()=>response(),original);
   await picker.load();
-  elements['installment-apply'].dispatchEvent(new Event('click'));
-  assert.equal(elements.id_installment_opening_fee.value,'500');
+  const sameCompany=elements['installment-period-choice'];
+  sameCompany.value='24'; sameCompany.dispatchEvent(new Event('change'));
+  assert.equal(elements.id_installment_monthly.value,'3200');
+  assert.equal(elements.id_installment_opening_fee.value,'600');
   const company=elements['installment-company-choice'];
   company.value='乙公司'; company.dispatchEvent(new Event('change'));
   assert.equal(elements.id_installment_periods.value,'');

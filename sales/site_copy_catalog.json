@@ -1293,7 +1293,7 @@
   },
   "reconciliation_list.699f0b9879fe": {
     "page": "統一撥款對帳",
-    "default": "只核對分期公司、網路平台與車行的預計金額、實際金額及差額；不需逐張進入訂單。",
+    "default": "只核對分期公司、網路平台與車行的預計金額、實際金額及差額；填實際金額按入帳即同步訂單收支，不需逐張進入訂單。",
     "template": "templates/sales/reconciliation_list.html"
   },
   "card_form.b5d978c86009": {

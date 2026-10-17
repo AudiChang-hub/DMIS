@@ -4759,7 +4759,7 @@ class PaymentRecord(TimeStampedModel):
         REVERSAL = "reversal", "沖銷"
         REFUND = "refund", "退款"
 
-    # 已確認的收款即為入帳事實，只能以沖銷／退款列更正，不可直接改寫。
+    # 已確認的收款即為入帳事實，只能以沖銷／退款列更正，不可直接改寫；勾錯可單獨取消確認。
     LOCKED_FIELDS = (
         "order_id", "entry_type", "reverses_id", "received_amount", "received_on",
         "payment_method", "receiving_account", "card_principal", "card_fee_charged", "bank_card_fee",
@@ -4783,7 +4783,8 @@ class PaymentRecord(TimeStampedModel):
             previous_kind = self.ReceiptKind.LENDER if previous["system_key"] == "installment_disbursement" else previous["receipt_kind"]
             if (written("receipt_kind") or written("system_key")) and self.effective_receipt_kind != previous_kind:
                 changed.append("receipt_kind")
-            if written("confirmed") and not self.confirmed:
+            # 勾錯可取消確認（使用者 2026-10-17）：只改勾選、其他入帳欄位不變時允許；已沖銷的收款不可取消。
+            if written("confirmed") and not self.confirmed and self.reversal_entries.exists():
                 changed.append("confirmed")
         if written("proof") and previous["proof"] and getattr(self.proof, "name", "") != previous["proof"]:
             changed.append("proof")

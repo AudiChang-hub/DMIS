@@ -167,7 +167,7 @@ class PaymentSplitTests(TestCase):
         self.assertContains(guide, 'id="multi-payment-current"')
         self.assertContains(guide, 'href="#multi-payment-current"')
         manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")
-        for phrase in ("＋ 新增付款方式", "尚餘 $60,000", "車價合計", "套用選取方案", "現金 $50,000", "刷卡 $22,000",
+        for phrase in ("＋ 新增付款方式", "尚餘 $60,000", "車價合計", "每期金額與開辦費會直接帶入", "現金 $50,000", "刷卡 $22,000",
                        "現金 $20,000＋分期 $60,000", "只剩一筆時不能移除"):
             self.assertContains(guide, phrase)
             self.assertIn(phrase, manual)

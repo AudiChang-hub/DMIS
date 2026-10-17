@@ -4215,18 +4215,23 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .reconciliation-shell { min-width: 0; max-width: 100%; overflow: hidden; }
 .reconciliation-shell .table-scroll { max-width: 100%; overflow-x: auto; }
-.reconciliation-table { width: 100%; min-width: 1220px; }
+.reconciliation-table { width: 100%; min-width: 980px; }
 .reconciliation-table input.form-control { min-width: 130px; }
 .reconciliation-table .reconciliation-money { min-width: 110px; text-align: right; }
 .reconciliation-table .difference-warning { color: var(--red); font-weight: 900; }
 .reconciliation-expected-adjustment { margin-top: var(--space-2); text-align: left; }
+.reconciliation-table .reconciliation-posted { display: grid; justify-items: end; gap: var(--space-1); }
+.reconciliation-posted .status-pill { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, var(--surface)); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
+.reconciliation-posted small { color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
+.reconciliation-posted small a { color: var(--action-text); font-weight: 700; }
+.reconciliation-duplicate { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); color: var(--red); font-size: var(--text-sm); font-weight: 700; }
 .reconciliation-expected-adjustment summary {
   width: max-content; max-width: 100%; color: var(--blue); font-size: var(--text-sm);
   font-weight: 800; cursor: pointer;
 }
 .reconciliation-expected-adjustment label { display: grid; gap: var(--space-1); margin-top: var(--space-2); color: var(--muted); font-size: var(--text-xs); }
 .manual-value-badge { display: inline-flex; margin-left: var(--space-2); padding: 3px var(--space-2); color: var(--amber); border-radius: var(--radius-pill); background: var(--amber-soft); font-size: var(--text-2xs); font-weight: 800; }
-.mobile-field-label { display: none; }
+.mobile-field-label, .reconciliation-table td span.mobile-field-label { display: none; }
 .compact-check { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
 .system-status-summary {
   display: flex; min-height: 86px; margin-bottom: var(--stack-gap-sm); padding: var(--space-4) var(--space-5);
@@ -4724,9 +4729,8 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .reconciliation-table td::before { display: block; margin-bottom: var(--space-1); font-size: var(--text-sm); }
   .reconciliation-table td:nth-child(1),
   .reconciliation-table td:nth-child(2),
-  .reconciliation-table td:nth-child(7),
-  .reconciliation-table td:nth-child(8),
   .reconciliation-table .inventory-row-action { grid-column: 1 / -1; }
+  .reconciliation-table .reconciliation-posted { justify-items: start; }
   .reconciliation-table td:nth-child(1) {
     padding-bottom: var(--space-3); border-bottom: 1px solid var(--line);
   }
@@ -4742,7 +4746,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .reconciliation-table td:nth-child(2) span { color: var(--muted); font-size: var(--text-sm); }
   .reconciliation-table input.form-control { width: 100%; min-width: 0; min-height: 48px; }
   .reconciliation-table .number-cell { text-align: left; }
-  .reconciliation-table .mobile-field-label {
+  .reconciliation-table td span.mobile-field-label {
     display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800;
   }
   .reconciliation-table .number-cell strong { font-size: var(--text-base); font-variant-numeric: tabular-nums; }
@@ -7156,6 +7160,17 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 /* 交車前確認：車控與電池合約（電動車）、贈品與履約，勾選即完成並記錄確認人。 */
 .delivery-prep { margin-bottom: var(--stack-gap); }
 .delivery-prep .operation-section + .operation-section { margin-top: var(--space-3); }
+/* 交車前確認的配件清單：給承辦人拿著對照實車，數量放最前面方便點數。 */
+.delivery-accessories { margin-bottom: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+.delivery-accessories__head { display: flex; padding: var(--space-3) var(--space-4); align-items: baseline; justify-content: space-between; gap: var(--space-3); background: var(--surface-soft); }
+.delivery-accessories__head span { color: var(--muted); font-size: var(--text-sm); }
+.delivery-accessories__list { margin: 0; padding: 0; list-style: none; }
+.delivery-accessories__list li { display: grid; padding: var(--space-3) var(--space-4); grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); border-top: 1px solid var(--line); }
+.delivery-accessories__qty { min-width: 2.75rem; padding: var(--space-1) var(--space-2); text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--surface-soft); border-radius: var(--radius-sm); }
+.delivery-accessories__name { font-weight: 600; overflow-wrap: anywhere; }
+.delivery-accessories__name small { display: block; color: var(--muted); font-size: var(--text-xs); font-weight: 400; }
+.delivery-accessories__type { padding: 2px var(--space-2); color: var(--muted); font-size: var(--text-xs); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.delivery-accessories__type.is-gift { color: var(--green-ink); background: color-mix(in srgb, var(--green) 9%, var(--surface)); border-color: var(--green-border); }
 .delivery-confirm-check {
   display: flex; margin: var(--space-3) var(--space-4) var(--space-4); padding: var(--space-3) var(--space-4); align-items: center; gap: var(--space-3);
   background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer;

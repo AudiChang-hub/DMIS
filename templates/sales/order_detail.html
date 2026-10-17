@@ -472,7 +472,13 @@
 <div class="order-step__body">
 {% if workspace_finance %}<section class="section-block delivery-prep" aria-labelledby="delivery-prep-title">
   <div class="section-title"><div><p class="eyebrow">交車資料</p><h2 id="delivery-prep-title">交車前確認</h2></div>{% if order.operations.fulfillment_confirmed_at and not order.is_electric_vehicle or order.operations.fulfillment_confirmed_at and order.operations.vehicle_control_confirmed_at %}<span class="archive-status done">✓ 已確認</span>{% else %}<span class="archive-status">交車時確認</span>{% endif %}</div>
-  <p class="muted">在這裡記錄{% if order.is_electric_vehicle %}車控、電池與{% endif %}贈品內容。確認不必先存：完成交車時在下方「交付核對」一起勾選即可{% if order.is_electric_vehicle %}（含車控與電池合約）{% endif %}。</p>
+  <p class="muted">拿這份清單對照實車，逐項確認配件已安裝、{% if order.is_electric_vehicle %}車控、電池與{% endif %}贈品已備齊。確認不必先存：完成交車時在下方「交付核對」一起勾選即可{% if order.is_electric_vehicle %}（含車控與電池合約）{% endif %}。</p>
+  {% with lines=order.accessories.all %}<div class="delivery-accessories" data-delivery-accessories>
+    <div class="delivery-accessories__head"><strong>配件清單</strong><span>{% if lines %}共 {{ lines|length }} 項{% else %}本單沒有配件{% endif %}</span></div>
+    {% if lines %}<ul class="delivery-accessories__list">{% for line in lines %}
+      <li><span class="delivery-accessories__qty" aria-label="數量 {{ line.quantity }}">×{{ line.quantity }}</span><span class="delivery-accessories__name">{{ line.name }}{% if line.note %}<small>{{ line.note }}</small>{% endif %}</span><span class="delivery-accessories__type{% if line.line_type == 'gift' %} is-gift{% endif %}">{{ line.get_line_type_display }}</span></li>
+    {% endfor %}</ul>{% endif %}
+  </div>{% endwith %}
   {% include "sales/_ops_section_form.html" with section_form=operations_fulfillment_form section_key="fulfillment" fields_template="sales/_ops_fulfillment_fields.html" submit_label="儲存交車前確認" %}
 </section>{% endif %}
 <section class="section-block delivery-stage">

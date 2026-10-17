@@ -6048,8 +6048,6 @@ class OrderOperationsTests(TestCase):
             {
                 "received_amount": "69800",
                 "received_on": "2026-08-05",
-                "receiving_account": "公司帳戶",
-                "confirmed": "on",
                 "note": "人工核對帳本",
             },
         )

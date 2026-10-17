@@ -1,6 +1,6 @@
 <div class="payment-record-row receipt-row{% if payment.payment_locked %} is-locked{% endif %}" data-payment-row{% if payment.payment_locked %} data-payment-locked{% endif %}>
   {{ payment.id }}{{ payment.non_field_errors }}
-  <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill">已入帳</span>{% endif %}</div>
+  <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill" data-payment-locked-only>已入帳</span>{% endif %}</div>
   <div class="receipt-name">
     {% include "sales/_field.html" with field=payment.item_name %}
     {% include "sales/_field.html" with field=payment.receipt_kind %}
@@ -25,7 +25,7 @@
       {% if not payment.payment_locked %}{% include "sales/_field.html" with field=payment.duplicate_confirmed %}{% endif %}
       {% if payment.instance.confirmed_at %}<small>確認：{{ payment.instance.confirmed_by }} · {{ payment.instance.confirmed_at|date:"Y/m/d H:i" }}</small>{% endif %}
       <span hidden>{{ payment.DELETE }}</span>
-      {% if not payment.instance.system_key and not payment.payment_locked %}<button type="button" class="button danger-outline small" data-delete-payment>移除此筆收款</button>{% endif %}
+      {% if not payment.instance.system_key and not payment.payment_reversed %}<button type="button" class="button danger-outline small" data-delete-payment{% if payment.payment_locked %} hidden{% endif %}>移除此筆收款</button>{% endif %}
     </div>
   </details>
 </div>

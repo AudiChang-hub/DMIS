@@ -93,7 +93,7 @@
       <ol class="guide-steps">
         <li><strong>登入後先看首頁。</strong><span>先看未讀通知等待處理工作，再看公告與版本更新；經營數據請進營運總表。</span></li>
         <li><strong>要找資料就直接搜尋。</strong><span>在「全部訂單」的全欄位搜尋輸入任何片段，像 Excel 的尋找，不必先選姓名、電話或車牌欄位。</span></li>
-        <li><strong>客人在面前就按「建立訂單」。</strong><span>先選車選色，再依「車款與車價、車主與證件、汰舊與補助、選號與交車、配件（可略過）、訂金與費用、確認送出」七步填寫；每按一次下一步就存成草稿，建立後由你接單、直接進入待配車。</span></li>
+        <li><strong>客人在面前就按「建立訂單」。</strong><span>先選車選色，再依「車款與車價、車主與證件、汰舊與補助、選號與交車、加購項目與贈品（可略過）、訂金與費用、確認送出」七步填寫；每按一次下一步就存成草稿，建立後由你接單、直接進入待配車。</span></li>
         <li><strong>依訂單步驟處理。</strong><span>訂單分訂車與配件、訂金、列印與簽署文件、配車、領牌、收入與支出、交車與收尾款七步，只展開現在該做的一步；完成交付後訂單與車輛會鎖定。</span></li>
       </ol>
       <div class="guide-tip"><strong>手機加到主畫面後看不到新版？</strong><span>先確認草稿或修改已儲存，再點右上角自己的名字 →「檢查更新」；有新版時按「重新載入」。舊捷徑若仍開成瀏覽器分頁，刪除後重新加入主畫面。</span></div>
@@ -129,13 +129,13 @@
     {% help_visible 'create-order' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="create-order" data-guide-topic>
       <div class="guide-topic-heading"><span>04</span><div><p class="eyebrow">客人在面前</p><h2>建立訂單與自動草稿</h2></div></div>
       <div class="guide-flow" role="region" aria-label="建立訂單七個步驟" tabindex="0">
-        <span><b>1</b>車款與車價</span><i>→</i><span><b>2</b>車主與證件</span><i>→</i><span><b>3</b>汰舊與補助</span><i>→</i><span><b>4</b>選號與交車</span><i>→</i><span><b>5</b>配件（可略過）</span><i>→</i><span><b>6</b>訂金與費用</span><i>→</i><span><b>7</b>確認送出</span>
+        <span><b>1</b>車款與車價</span><i>→</i><span><b>2</b>車主與證件</span><i>→</i><span><b>3</b>汰舊與補助</span><i>→</i><span><b>4</b>選號與交車</span><i>→</i><span><b>5</b>加購項目與贈品（可略過）</span><i>→</i><span><b>6</b>訂金與費用</span><i>→</i><span><b>7</b>確認送出</span>
       </div>
       <ol class="guide-steps">
-        <li><strong>車款與車價。</strong><span>從選車頁帶入車型與車色，不選引擎／車身號碼；建立後才配車。來源選本店、車行或網路平台，找不到來源時先請管理者新增，不要亂選。同一步接著選現金、分期或刷卡；分期選公司與期數後按「套用選取方案」。訂金在第 6 步「訂金與費用」填客人這次實付金額，沒收就留空。</span></li>
+        <li><strong>車款與車價。</strong><span>從選車頁帶入車型與車色，不選引擎／車身號碼；建立後才配車。來源選本店、車行或網路平台，找不到來源時先請管理者新增，不要亂選。同一步接著選現金、分期或刷卡；分期選公司與期數，每期金額與開辦費會直接帶入。訂金在第 6 步「訂金與費用」填客人這次實付金額，沒收就留空。</span></li>
         <li><strong>車主與證件。</strong><span>自然人上傳證件正反面，辨識完成並核對後才能按下一步；法人自行填公司資料。</span></li>
         <li><strong>汰舊、選號與交車。</strong><span>汰舊與補助可先選待確認；選號方式可選待確認、不選號、指定號碼或一般領牌偏好，只有指定號碼要填選號費；送至指定地點或託運要填目的地。</span></li>
-        <li><strong>配件（可略過）。</strong><span>客人沒有加購配件就直接按「下一步」，空白配件列不會存入訂單；有配件時選名稱與數量，系統帶入售價與工資並算進總價。建立後也能到訂單頁「訂車與配件」修改。</span></li>
+        <li><strong>加購項目與贈品（可略過）。</strong><span>客人沒有加購項目或贈品就直接按「下一步」，空白配件列不會存入訂單；有配件時選名稱與數量，系統帶入售價與工資並算進總價。建立後也能到訂單頁「訂車與配件」修改。</span></li>
         <li><strong>訂金與費用。</strong><span>最上方「目前金額」列出車價、牌險費、配件（只計加購）與合計，指定號碼有選號費時也會列出，可直接給客人看；再填這次實收的訂金，沒收就留空；其他要交代的事寫在同一步的「備註」。其他費用與優惠另計。</span></li>
         <li><strong>確認送出。</strong><span>逐段核對摘要（配件段沒選時顯示「未選配件」），需要時按「修改」；按「確認並建立訂單」。每按「下一步」都會存草稿並檢查該步。</span></li>
       </ol>
@@ -328,7 +328,7 @@
         <div class="guide-screen-body"><b>② 預計金額</b><span>③ 填實際金額</span><span>④ 差額會立即辨識</span></div>
         <div class="guide-screen-footer"><span>⑤ 入帳日與帳戶</span><b>確認後儲存</b></div>
       </div>
-      <ol class="guide-steps"><li><strong>從「營運總表 → 統一撥款對帳」進入，選對帳對象與「待確認」。</strong></li><li><strong>方案是「本單另填」或有特殊撥款時，展開「本單特殊撥款」。</strong><span>填調整後預計金額與調整原因。</span></li><li><strong>依對方帳本填實際金額與入帳日。</strong><span>可補收款帳戶。</span></li><li><strong>看預計、實際與差額。</strong></li><li><strong>差額正確才勾確認並儲存。</strong></li></ol>
+      <ol class="guide-steps"><li><strong>從「營運總表 → 統一撥款對帳」進入，選對帳對象與「尚未入帳」。</strong></li><li><strong>方案是「本單另填」或有特殊撥款時，展開「本單特殊撥款」。</strong><span>填調整後預計金額與調整原因。</span></li><li><strong>依對方帳本填實際金額與入帳日，按「入帳」。</strong><span>不必另外勾確認，訂單收支的實際撥款與淨利立即同步。</span></li><li><strong>看預計、實際與差額。</strong><span>入帳後鎖定；登記錯了到訂單收款明細取消「已確認」後修改。</span></li></ol>
       <div class="guide-exception"><strong>差額不是 0</strong><p>先不要確認。回訂單核對付款方式、分期期數、平台／車行與預計金額；本頁只核對實際有沒有撥款與金額是否正確，不需處理批次總額。</p></div>
     </article>{% endif %}
 
@@ -438,7 +438,7 @@
 
     {% help_visible 'glossary' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="glossary" data-guide-topic>
       <div class="guide-topic-heading"><span>詞</span><div><p class="eyebrow">白話名詞</p><h2>畫面上的用語是什麼意思</h2></div></div>
-      <dl class="guide-glossary"><div><dt>草稿</dt><dd>尚未正式建立，系統先幫你保存的訂單。</dd></div><div><dt>待配車</dt><dd>訂單成立，但還沒指定實際引擎／車身號碼。</dd></div><div><dt>鎖定</dt><dd>重要工作完成後，避免其他人誤改。</dd></div><div><dt>系統試算</dt><dd>依目前規則先算的參考金額，仍要和正式單據核對。</dd></div><div><dt>應收／實收</dt><dd>應該收到的金額／實際已收到的金額。</dd></div><div><dt>工作日</dt><dd>排除週六、週日及系統設定國定假日。</dd></div><div><dt>保存當時資料</dt><dd>訂單不會因日後修改主檔而改掉當時價格、成本或獎勵。</dd></div><div><dt>單筆淨利</dt><dd>這台新車銷售最後認列的利潤，不含中古車與配件的獨立獲利。</dd></div><div><dt>取消待退款</dt><dd>已登記取消，還要完成沒收／退款結算。</dd></div><div><dt>例外結案</dt><dd>已領牌但客人不交車，依已收款結算，車輛以領牌車釋回庫存。</dd></div><div><dt>已確認實收</dt><dd>已確認入帳的收款，不能直接修改，錯了要整筆沖銷再重新登記。</dd></div><div><dt>優先配車</dt><dd>配車時排在最前面的車；出廠超過 3 個月自動優先，也可人工開啟。</dd></div></dl>
+      <dl class="guide-glossary"><div><dt>草稿</dt><dd>尚未正式建立，系統先幫你保存的訂單。</dd></div><div><dt>待配車</dt><dd>訂單成立，但還沒指定實際引擎／車身號碼。</dd></div><div><dt>鎖定</dt><dd>重要工作完成後，避免其他人誤改。</dd></div><div><dt>系統試算</dt><dd>依目前規則先算的參考金額，仍要和正式單據核對。</dd></div><div><dt>應收／實收</dt><dd>應該收到的金額／實際已收到的金額。</dd></div><div><dt>工作日</dt><dd>排除週六、週日及系統設定國定假日。</dd></div><div><dt>保存當時資料</dt><dd>訂單不會因日後修改主檔而改掉當時價格、成本或獎勵。</dd></div><div><dt>單筆淨利</dt><dd>這台新車銷售最後認列的利潤，不含中古車與配件的獨立獲利。</dd></div><div><dt>取消待退款</dt><dd>已登記取消，還要完成沒收／退款結算。</dd></div><div><dt>例外結案</dt><dd>已領牌但客人不交車，依已收款結算，車輛以領牌車釋回庫存。</dd></div><div><dt>已確認實收</dt><dd>已確認入帳的收款，金額與日期不能直接修改；勾錯可取消勾選「已確認」再修改，已沖銷的收款則要重新登記。</dd></div><div><dt>優先配車</dt><dd>配車時排在最前面的車；出廠超過 3 個月自動優先，也可人工開啟。</dd></div></dl>
     </article>{% endif %}
   </div>
 </div>

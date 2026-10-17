@@ -100,7 +100,7 @@
       <p>總應付 ${{ imported.total|floatformat:0 }}（Excel 收款價 ${{ imported.price|floatformat:0 }} ＋ 強制險 ${{ imported.insurance|floatformat:0 }}）{% if not imported.paid_in_excel %}－ 已確認客戶收款 ${{ imported.received|floatformat:0 }}{% endif %}。匯入訂單的尾款依 Excel 計算，下方「應收設定」的尾款不影響。</p>
     </aside>
     {% endif %}{% endwith %}
-    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款即為入帳，不能直接修改或刪除；登記錯誤請到下方「沖銷與退款」處理後重新登記。</p>{% endif %}
+    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款即為入帳，金額與日期會鎖定；勾錯直接取消勾選「已確認」即可再修改。已沖銷的收款不能取消，請重新登記。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
       <h3>收款明細</h3>
       <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span>其他資料</span></div>

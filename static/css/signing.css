@@ -7,6 +7,7 @@ body:has(.signing-page) :is(.app-header, .mobile-nav) { display: none; }
 .signing-document .section-title { align-items: center; }
 .signing-document__pick { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; }
 .signing-document__pick input, .signing-agree input { width: 22px; height: 22px; }
+.signing-document__pages { display: grid; gap: var(--stack-gap-sm); }
 .signing-document__preview {
   display: block; width: 100%; max-width: 820px; margin: 0 auto;
   border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--paper);

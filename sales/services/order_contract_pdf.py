@@ -43,6 +43,9 @@ pdfmetrics.registerFont(TTFont("MSJH-Bold", str(FONT_BOLD), subfontIndex=0))
 PAGE_W, PAGE_H = A4
 MARGIN_X = 12 * mm
 CONTENT_W = PAGE_W - 2 * MARGIN_X
+CONTENT_BOTTOM = 15 * mm  # 續頁前的內容下緣，下方留給聯別頁尾
+SIGNATURE_TOP = 38 * mm  # 簽名區（含電子簽名圖）上緣，確認事項須排在此線之上
+SECTION_GAP = 3 * mm
 GREEN = HexColor("#174A39")
 GREEN_2 = HexColor("#2D765B")
 GREEN_LIGHT = HexColor("#EAF4EF")
@@ -108,8 +111,8 @@ def draw_section_title(c, y, title):
     return y - 7.2 * mm
 
 
-def draw_table(c, data, col_widths, y_top, row_heights=None, styles=None):
-    table = Table(data, colWidths=col_widths, rowHeights=row_heights)
+def make_table(data, col_widths, row_heights=None, styles=None, repeat_rows=0):
+    table = Table(data, colWidths=col_widths, rowHeights=row_heights, repeatRows=repeat_rows)
     commands = [
         ("FONTNAME", (0, 0), (-1, -1), "MSJH"),
         ("FONTSIZE", (0, 0), (-1, -1), 7.4),
@@ -125,9 +128,18 @@ def draw_table(c, data, col_widths, y_top, row_heights=None, styles=None):
     # SPAN 必須先套用，格線才不會殘留在合併儲存格內。
     commands.append(("GRID", (0, 0), (-1, -1), 0.35, LINE))
     table.setStyle(TableStyle(commands))
+    return table
+
+
+def draw_table(c, data, col_widths, y_top, row_heights=None, styles=None):
+    table = make_table(data, col_widths, row_heights, styles)
     width, height = table.wrapOn(c, CONTENT_W, PAGE_H)
     table.drawOn(c, MARGIN_X, y_top - height)
     return y_top - height
+
+
+def table_height(c, table):
+    return table.wrapOn(c, CONTENT_W, PAGE_H)[1]
 
 
 def fitted_row_height(row, col_widths, minimum=7 * mm):
@@ -165,7 +177,85 @@ def draw_company_header(c, data, y):
         top -= actual_height + 1 * mm
 
 
-def draw_order_page(c, order, copy_label, page_number, printed_at, signature=None):
+def page_label(page_number, total_pages):
+    return f"頁次：{page_number} / {total_pages or '—'}"
+
+
+def draw_continued_header(c, order, copy_label, page_number, total_pages):
+    """續頁只放辨識用的精簡頁首，把版面留給明細。"""
+    y = PAGE_H - 11 * mm
+    c.setFillColor(GREEN)
+    c.setFont("MSJH-Bold", 10)
+    c.drawString(MARGIN_X, y - 5 * mm, validate_header(order.print_company_snapshot)["legal_name"])
+    c.setFillColor(INK)
+    c.setFont("MSJH-Bold", 13)
+    c.drawCentredString(PAGE_W / 2, y - 5.3 * mm, "車 輛 訂 購 單（續）")
+    c.setFont("MSJH", 7.5)
+    c.drawRightString(PAGE_W - MARGIN_X, y - 3 * mm, f"訂單編號：{order.number}")
+    c.drawRightString(PAGE_W - MARGIN_X, y - 7.5 * mm, f"{copy_label}　{page_label(page_number, total_pages)}")
+    c.setStrokeColor(LINE)
+    c.setLineWidth(.5)
+    c.line(MARGIN_X, y - 10 * mm, MARGIN_X + CONTENT_W, y - 10 * mm)
+    return y - 14 * mm
+
+
+class CopyLayout:
+    """單聯由上往下排；放不下就續頁，確認事項與簽名一定在該聯最後一頁（配件多時不再壓到簽名）。"""
+
+    def __init__(self, c, order, copy_label, first_page, total_pages):
+        self.c = c
+        self.order = order
+        self.copy_label = copy_label
+        self.page = first_page
+        self.total_pages = total_pages
+        self.y = self.page_top = 0
+
+    def footer(self):
+        self.c.setFont("MSJH", 6.5)
+        self.c.setFillColor(MUTED)
+        self.c.drawRightString(PAGE_W - MARGIN_X, 8 * mm, self.copy_label)
+
+    def new_page(self):
+        self.footer()
+        self.c.showPage()
+        self.page += 1
+        self.y = self.page_top = draw_continued_header(
+            self.c, self.order, self.copy_label, self.page, self.total_pages
+        )
+
+    def ensure(self, height, bottom=CONTENT_BOTTOM):
+        if self.y - height < bottom:
+            self.new_page()
+
+    def draw_section(self, title, table, keep_with=0, bottom=CONTENT_BOTTOM):
+        """小表與標題不拆開；keep_with 是後面須同頁的高度，整段放不下就移到下一頁。"""
+        self.y -= SECTION_GAP
+        self.ensure(7.2 * mm + table_height(self.c, table) + keep_with, bottom)
+        self.y = draw_section_title(self.c, self.y, title)
+        self.draw_table(table)
+
+    def draw_table(self, table):
+        """依剩餘高度拆表格（表頭重複），續頁接著畫。"""
+        while True:
+            height = table_height(self.c, table)
+            if self.y - height >= CONTENT_BOTTOM:
+                break
+            parts = table.split(CONTENT_W, self.y - CONTENT_BOTTOM)
+            if len(parts) < 2:
+                if self.y == self.page_top:
+                    break  # 整頁放不下一列時照畫，避免無限換頁
+                self.new_page()
+                continue
+            head, table = parts
+            head.drawOn(self.c, MARGIN_X, self.y - table_height(self.c, head))
+            self.new_page()
+        table.drawOn(self.c, MARGIN_X, self.y - height)
+        self.y -= height
+
+
+def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, signature=None):
+    """畫一聯（可能多頁），回傳實際頁數。"""
+    layout = CopyLayout(c, order, copy_label, first_page, total_pages)
     y = PAGE_H - 11 * mm
 
     # Header
@@ -187,7 +277,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     c.drawString(meta_x, y - 5 * mm, f"訂單日期：{order.order_date:%Y-%m-%d}")
     c.drawString(meta_x, y - 10 * mm, f"訂單編號：{order.number}")
     c.drawString(meta_x, y - 15 * mm, f"列印時間：{printed_at:%Y-%m-%d %H:%M}")
-    c.drawString(meta_x, y - 20 * mm, f"頁次：{page_number} / 2")
+    c.drawString(meta_x, y - 20 * mm, page_label(first_page, total_pages))
     c.setStrokeColor(GREEN_2)
     c.setLineWidth(.7)
     c.roundRect(meta_x, y - 26 * mm, 49 * mm, 5 * mm, 1 * mm, fill=0, stroke=1)
@@ -196,7 +286,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     c.drawCentredString(meta_x + 24.5 * mm, y - 24.3 * mm, copy_label)
     c.setStrokeColor(LINE)
     c.line(MARGIN_X, y - 29 * mm, MARGIN_X + CONTENT_W, y - 29 * mm)
-    y -= 33 * mm
+    y = layout.page_top = y - 33 * mm
 
     # Customer / vehicle overview
     y = draw_section_title(c, y, "訂單與車主資料")
@@ -296,8 +386,6 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     )
 
     # Price details
-    y -= 3 * mm
-    y = draw_section_title(c, y, "車價與費用明細")
     price_header = [
         p("<b>類別</b>", center_style),
         p("<b>項目</b>", center_style),
@@ -427,23 +515,27 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
         )
     price_widths = [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm]
     price_data = [[cell for index, cell in enumerate(row) if index != 2] for row in [price_header] + rows]
-    y = draw_table(
-        c,
+    price_heights = [7 * mm] + [fitted_row_height(row, price_widths) for row in price_data[1:]]
+    price_table = make_table(
         price_data,
         price_widths,
-        y,
-        row_heights=[7 * mm] + [fitted_row_height(row, price_widths) for row in price_data[1:]],
+        row_heights=price_heights,
         styles=[
             ("BACKGROUND", (0, 0), (-1, 0), GREEN_LIGHT),
             ("TEXTCOLOR", (0, 0), (-1, 0), GREEN),
             ("FONTNAME", (0, 0), (-1, 0), "MSJH-Bold"),
             ("ROWBACKGROUNDS", (0, 1), (-1, len(rows)), [white, HexColor("#F6F9F7")]),
         ],
+        # 配件多時明細跨頁，續頁重複表頭。
+        repeat_rows=1,
     )
+    layout.y = y - SECTION_GAP
+    # 標題至少要跟表頭與第一列同頁。
+    layout.ensure(7.2 * mm + price_heights[0] + price_heights[1])
+    layout.y = draw_section_title(c, layout.y, "車價與費用明細")
+    layout.draw_table(price_table)
 
     # Subsidy
-    y -= 3 * mm
-    y = draw_section_title(c, y, "汰舊／補助資料")
     subsidy_data = [
         [
             p("<b>補助類型</b>"),
@@ -464,21 +556,17 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
                 p(safe(order.trade_in_plate)),
             ]
         )
-    y = draw_table(
-        c,
+    layout.draw_section("汰舊／補助資料", make_table(
         subsidy_data,
         [25 * mm, 68 * mm, 25 * mm, 68 * mm],
-        y,
         row_heights=[7 * mm] * len(subsidy_data),
         styles=[
             ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
             ("BACKGROUND", (2, 0), (2, -1), GREEN_LIGHT),
         ],
-    )
+    ))
 
     # Payment
-    y -= 3 * mm
-    y = draw_section_title(c, y, "收款資料")
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
     payment_first_row = [
         p("<b>付款方式</b>"),
@@ -534,18 +622,14 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     else:
         payment_styles.append(("SPAN", (3, 0), (5, 0)))
     payment_widths = [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm]
-    y = draw_table(
-        c,
+    payment_table = make_table(
         payment_data,
         payment_widths,
-        y,
         row_heights=[fitted_row_height(payment_data[0], payment_widths), 7 * mm, 8 * mm],
         styles=payment_styles,
     )
 
     # Terms
-    y -= 3 * mm
-    y = draw_section_title(c, y, "確認事項")
     terms = [
         [
             p(
@@ -572,20 +656,25 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             )
         ],
     ]
-    y = draw_table(
-        c,
+    terms_table = make_table(
         terms,
         [CONTENT_W],
-        y,
         row_heights=[7 * mm, 7 * mm, 7 * mm, 7 * mm],
         styles=[("BACKGROUND", (0, 0), (-1, -1), HexColor("#FBFCFB"))],
     )
+    # 收款資料、確認事項與附註整段排在簽名區之上，放不下就一起移到下一頁，客人簽名的那頁一定看得到金額。
+    note_height = 5 * mm
+    layout.draw_section(
+        "收款資料", payment_table,
+        keep_with=SECTION_GAP + 7.2 * mm + table_height(c, terms_table) + note_height, bottom=SIGNATURE_TOP,
+    )
+    layout.draw_section("確認事項", terms_table, keep_with=note_height, bottom=SIGNATURE_TOP)
 
     c.setFillColor(MUTED)
     c.setFont("MSJH", 6.6)
     c.drawString(
         MARGIN_X,
-        y - 4 * mm,
+        layout.y - 4 * mm,
         "本訂購單為交易內容確認文件；實際配車、領牌、交車及補助辦理進度依系統紀錄為準。",
     )
 
@@ -606,20 +695,23 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             PAGE_W - MARGIN_X - (MARGIN_X + 110 * mm), 12 * mm,
         )
         draw_signature_note(c, signature, "MSJH", MARGIN_X, 8 * mm)
-    c.setFont("MSJH", 6.5)
-    c.setFillColor(MUTED)
-    c.drawRightString(PAGE_W - MARGIN_X, 8 * mm, copy_label)
-
+    layout.footer()
     c.showPage()
+    return layout.page - first_page + 1
 
 
 def build_order_contract_pdf(order, signature=None):
     output = BytesIO()
     printed_at = timezone.localtime(signature.signed_at) if signature else timezone.localtime()
+    # 先試排一次取得每聯頁數，頁次才能印總頁數；兩聯內容相同、頁數一致。
+    pages_per_copy = draw_order_copy(
+        canvas.Canvas(BytesIO(), pagesize=A4), order, "店家留存聯", 1, None, printed_at, signature
+    )
+    total_pages = pages_per_copy * 2
     c = canvas.Canvas(output, pagesize=A4)
     c.setTitle(f"{order.number} 車輛訂購單")
     c.setAuthor(validate_header(order.print_company_snapshot)["legal_name"])
-    draw_order_page(c, order, "店家留存聯", 1, printed_at, signature)
-    draw_order_page(c, order, "客戶留存聯", 2, printed_at, signature)
+    draw_order_copy(c, order, "店家留存聯", 1, total_pages, printed_at, signature)
+    draw_order_copy(c, order, "客戶留存聯", pages_per_copy + 1, total_pages, printed_at, signature)
     c.save()
     return output.getvalue()

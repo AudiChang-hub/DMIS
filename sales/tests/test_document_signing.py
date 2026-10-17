@@ -190,6 +190,40 @@ class DocumentSigningTests(TestCase):
         self.assertIn("電子簽署", reader.pages[0].extract_text())
         self.assertNotIn("電子簽署", reader.pages[1].extract_text())
 
+    def test_many_accessories_continue_on_next_page_with_signature_last(self):
+        # 配件多時明細續頁，確認事項與簽名移到該聯最後一頁，不再被明細壓住（使用者 2026-10-17）。
+        order = self.make_order()
+        AccessoryLine.objects.bulk_create(
+            AccessoryLine(order=order, name=f"多買配件{index:02d}", amount=Decimal("500")) for index in range(40)
+        )
+        order = self.reprice(order, order.vehicle_price)
+        self.client.force_login(self.user)
+        sign_page = self.client.get(reverse("order_sign", args=[order.pk]))
+        # 訂購單第一聯兩頁都給客人看，加上個資同意書一頁。
+        self.assertContains(sign_page, "data:image/png;base64,", count=3)
+        self.assertContains(sign_page, "內容預覽（第 2 頁）")
+
+        self.sign(order, documents=("contract",))
+        order.refresh_from_db()
+        with order.signed_contract.open("rb") as handle:
+            texts = [page.extract_text() for page in PdfReader(BytesIO(handle.read())).pages]
+        self.assertEqual(len(texts), 4)
+        for index, text in enumerate(texts):
+            with self.subTest(page=index + 1):
+                self.assertIn(f"頁次：{index + 1} / 4", text)
+                self.assertIn("客戶留存聯" if index >= 2 else "店家留存聯", text)
+                last_of_copy = index in (1, 3)
+                self.assertEqual("客戶簽名" in text, last_of_copy)
+                self.assertEqual("確認事項" in text, last_of_copy)
+                self.assertEqual("電子簽署" in text, last_of_copy)
+        self.assertIn("車 輛 訂 購 單（續）", texts[1])
+        self.assertIn("多買配件39", texts[1])
+
+        response = self.client.get(reverse("order_documents_print", args=[order.pk]), {"part": ["contract_customer"]})
+        customer = [page.extract_text() for page in PdfReader(BytesIO(b"".join(response.streaming_content))).pages]
+        self.assertEqual(len(customer), 2)
+        self.assertTrue(all("客戶留存聯" in text for text in customer))
+
     def test_created_dialog_lets_staff_choose_device_or_paper_signing(self):
         order = self.make_order()
         self.client.force_login(self.user)

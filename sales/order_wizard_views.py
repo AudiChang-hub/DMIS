@@ -222,6 +222,7 @@ def _discount_rows(form, formset, fee_formset):
 
 def build_summary(form, formset, fee_formset, draft):
     accessories = []
+    accessory_total = Decimal("0")
     for row in formset.forms:
         data = getattr(row, "cleaned_data", None) or {}
         if data.get("DELETE") or not (data.get("accessory_product") or data.get("custom_name")):
@@ -231,6 +232,7 @@ def build_summary(form, formset, fee_formset, draft):
         amount = (data.get("amount") or Decimal("0")) + (data.get("labor_fee") or Decimal("0"))
         line_type = dict(row.fields["line_type"].choices).get(data.get("line_type"), "") if "line_type" in row.fields else ""
         accessories.append(f"{name} × {quantity}（{line_type}）{amount * quantity:,.0f} 元" if line_type else f"{name} × {quantity}　{amount * quantity:,.0f} 元")
+        accessory_total += amount * quantity
     fees = []
     for row in fee_formset.forms:
         data = getattr(row, "cleaned_data", None) or {}
@@ -270,8 +272,7 @@ def build_summary(form, formset, fee_formset, draft):
         vehicle_rows.append((form.fields["color"].label, color.name))
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
-         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))
-         + ([("配件", "、".join(accessories))] if accessories else []) + payment_rows},
+         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source")) + payment_rows},
         {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
         {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
         {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (
@@ -279,4 +280,8 @@ def build_summary(form, formset, fee_formset, draft):
             "delivery_destination", "note"))},
         {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],
          "rows": deposit_rows + ([("其他費用", "、".join(fees))] if fees else [])},
+        # 配件可略過：沒選也列出這一段，讓人員確認是真的沒有加購。
+        {"step": "accessories", "label": "配件",
+         "rows": [("配件", "\n".join(accessories) or "未選配件")]
+         + ([("配件合計", f"{accessory_total:,.0f} 元")] if accessories else [])},
     ]

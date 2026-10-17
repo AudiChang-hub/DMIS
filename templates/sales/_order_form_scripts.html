@@ -1781,8 +1781,12 @@
   function depositGuidance() {
     if (!depositHint || !depositAmount || depositAmount.disabled || editingOrderId) return;
     const total = accessoryPurchaseTotal();
+    // 精靈的配件在訂金之後（2026-10-17）；還沒選配件時提示可回來調整，不顯示 0 元。
+    const accessoryNote = total || !orderForm.querySelector('[name="_wizard_step"]')
+      ? `配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考`
+      : "配件在下一步選，選好後可回這一步調整";
     depositHint.textContent = paymentType.value === "installment"
-      ? `分期：依實際收款填寫；配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考。沒有收訂金請留空。`
+      ? `分期：依實際收款填寫；${accessoryNote}。沒有收訂金請留空。`
       : "現金：請依客人這次實際要付的金額填寫；沒有收訂金請留空。";
   }
   paymentType.addEventListener("change", depositGuidance);

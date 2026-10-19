@@ -80,25 +80,25 @@
     </summary>
     <div class="inventory-table-wrap vehicle-model-overview-table">
       <table class="inventory-table master-model-table">
-        <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>動力規格</th><th>目前分期總價</th><th>傭金與附加獎勵</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+        <thead><tr><th scope="col">機種／型號</th><th scope="col">年式</th><th scope="col">動力</th><th scope="col">分期總價</th><th scope="col">傭金／附加獎勵</th><th scope="col">啟用顏色</th><th scope="col">庫存</th><th scope="col">狀態</th><th scope="col"><span class="visually-hidden">操作</span></th></tr></thead>
         <tbody>
           {% for family in group.families %}
           {% if family.is_first_inactive %}
           <tr class="vehicle-model-inactive-divider">
-            <td colspan="11"><span aria-hidden="true">Ⅱ</span><strong>以下為已停用機種</strong><small>{% site_text 'vehicle_model_list.8255ed2730af' %}</small></td>
+            <td colspan="9"><span aria-hidden="true">Ⅱ</span><strong>以下為已停用機種</strong><small>{% site_text 'vehicle_model_list.8255ed2730af' %}</small></td>
           </tr>
           {% endif %}
           {% with item=family.display_model %}
           <tr class="vehicle-model-family-group{% if not family.is_active %} is-inactive{% endif %}" id="vm-family-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" tabindex="-1" data-family-group="{{ group.name }}::{{ family.key }}">
             <td data-label="機種" class="vehicle-model-machine-cell">
-              <strong>{{ family.name }}</strong>
-              {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}
+              <strong>{{ family.name }}{% if family.child_brand_label %} <span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}</strong>
+              <small>{{ item.model_number|default:"型號待補" }}</small>
             </td>
             {% include "sales/_vehicle_model_year_cells.html" with item=item family=family show_year_action=True group_index=forloop.parentloop.counter family_index=forloop.counter %}
           </tr>
           {% endwith %}
           {% empty %}
-          <tr><td colspan="11"><div class="empty-state"><strong>此品牌尚無符合條件的機種</strong></div></td></tr>
+          <tr><td colspan="9"><div class="empty-state"><strong>此品牌尚無符合條件的機種</strong></div></td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -118,4 +118,5 @@
 <script src="{% static 'js/vehicle-model-year-panels.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/vehicle-brand-groups.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/vehicle-model-list-nav.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/vehicle-model-color-peek.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

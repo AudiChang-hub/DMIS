@@ -14,7 +14,7 @@
   let baseline = new Map(inputs().map(input => [input.name, toAmount(input.value)]));
   const sum = scope => [...scope.querySelectorAll('[data-ledger-input]')].reduce((total, input) => total + toAmount(input.value), 0);
   const setText = (nodes, value) => nodes.forEach(node => { node.textContent = format(value); });
-  // 收支小計可能為負（例如代辦費收入少收），保留負號；車行結算以方向文字表示正負，仍用絕對值。
+  // 收支小計可能為負（例如牌險手續費收入少收），保留負號；車行結算以方向文字表示正負，仍用絕對值。
   const setSigned = (nodes, value) => nodes.forEach(node => { node.textContent = `${value < 0 ? '-' : ''}${format(value)}`; });
 
   function settlement(commission) {

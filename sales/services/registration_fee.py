@@ -242,10 +242,15 @@ def registration_period_for(vehicle_model, on_date, period_years):
 
 
 def registration_fee_date(vehicle_model, registration_date, reference_date, period_years):
-    """試算用日期；None 表示先不試算。油車公式依領牌日計算，要等排領牌日；電動類固定牌險不隨日期變動，有規則就先依訂單日帶入（使用者 2026-10-15）。"""
+    """試算用日期；None 表示先不試算。電動類固定牌險不隨日期變動，有規則就先依訂單日帶入（使用者 2026-10-15）；
+    油車沒有領牌日時先依訂單日預估，領牌時依領牌日重算（使用者 2026-10-19）。"""
     if registration_date:
         return registration_date
-    if vehicle_model.energy_type not in ELECTRIC_ENERGY_TYPES or not reference_date:
+    if not reference_date:
+        return None
+    if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
+        return reference_date
+    if vehicle_model.energy_type not in ELECTRIC_ENERGY_TYPES:
         return None
     rule = resolve_brand_registration_rule(vehicle_model, reference_date, period_years)
     if rule and rule.calculation_type in FIXED_CALCULATION_TYPES:

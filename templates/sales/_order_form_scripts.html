@@ -77,6 +77,22 @@
   const lienRegistrationFee = byId("id_lien_registration_fee");
   const calculatedRegistrationTotal = byId("id_registration_calculated_total");
   const actualPlateInsuranceFee = byId("id_plate_insurance_fee");
+  // 牌險費留空＝照系統試算（使用者 2026-10-19）：試算值只以淡色提示顯示，不填進欄位，送出時仍是空白。
+  const serverPlatePlaceholder = actualPlateInsuranceFee.placeholder;
+  function setPlateEstimate(value) {
+    actualPlateInsuranceFee.dataset.estimate = value == null ? "" : String(value);
+    actualPlateInsuranceFee.placeholder = value == null
+      ? serverPlatePlaceholder || "留空依系統試算"
+      : `系統預估 ${Math.round(value).toLocaleString("zh-TW")} 元`;
+  }
+  function plateEstimate() {
+    const value = actualPlateInsuranceFee.dataset.estimate;
+    return value ? Number(value) : null;
+  }
+  // 總價與訂金頁合計用：有填照填的，留空用系統預估。
+  function plateAmountForTotals() {
+    return actualPlateInsuranceFee.value !== "" ? Number(actualPlateInsuranceFee.value) || 0 : plateEstimate() || 0;
+  }
   const gasCalculator = byId("gas-registration-calculator");
   const nonGasMessage = byId("non-gas-registration-message");
   const rateSummary = byId("registration-rate-summary");
@@ -460,10 +476,8 @@
     const manualFields = ["registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"];
     manualFields.forEach(name => { if (byId(`id_${name}`)) byId(`id_${name}`).readOnly = !manual; });
     if (manual) {
-      // 牌險不含選號與動保設定；油車已輸入的實收不覆蓋。
-      if (vehicleEnergyType.value !== "gas" || actualPlateInsuranceFee.value === "") {
-        actualPlateInsuranceFee.value = manualFields.reduce((sum, name) => sum + (Number(byId(`id_${name}`)?.value) || 0), 0);
-      }
+      // 牌險不含選號與動保設定；留空的牌險費照自行調整的明細合計，已填的金額不覆蓋。
+      setPlateEstimate(manualFields.reduce((sum, name) => sum + (Number(byId(`id_${name}`)?.value) || 0), 0));
       rateSummary.textContent = "自行調整：牌險明細可修改，儲存時需填寫原因";
       return;
     }
@@ -482,8 +496,8 @@
     const isSupported = isGas || isElectric || isMicroElectric;
     gasCalculator.hidden = !isSupported;
     nonGasMessage.hidden = isSupported;
-    // 油車牌險費一律由人員依實收輸入（使用者 2026-10-15）。
-    actualPlateInsuranceFee.required = isGas;
+    // 牌險費可留空＝照系統試算（使用者 2026-10-19）。
+    actualPlateInsuranceFee.required = false;
     // 三年強制險只給電動類固定規則；油車公式只有一、兩年；微電車一定保三年（使用者 2026-10-15）。
     [...insurancePeriod.options].forEach(option => {
       const blocked = (isGas && option.value === "3") || (isMicroElectric && option.value !== "3");
@@ -511,9 +525,9 @@
     }
     const cc = Number(modelData?.displacement_cc || 0);
     const rate = registrationRate(cc);
-    const selectedDate = registrationDate.value
-      ? new Date(`${registrationDate.value}T00:00:00`)
-      : null;
+    // 還沒有領牌日時依訂單日預估（使用者 2026-10-19），領牌時再依領牌日重算。
+    const estimateDate = registrationDate.value || actualPlateInsuranceFee.dataset.estimateDate;
+    const selectedDate = estimateDate ? new Date(`${estimateDate}T00:00:00`) : null;
     const period = Number(insurancePeriod.value || 1);
     const insuranceFee = cc <= 250
       ? (period === 2 ? 1200 : 658)
@@ -521,11 +535,10 @@
     // 油車強制險只看排氣量與年期，未排領牌日也先帶入。
     if (rate && byId("id_compulsory_insurance_fee")) setCalculatedField("id_compulsory_insurance_fee", insuranceFee);
     if (!modelData || !rate || !selectedDate) {
+      setPlateEstimate(null);
       rateSummary.textContent = modelData && !cc
         ? "此油車尚未設定排氣量，請先至資料維護區的車型資料設定"
-        : editingOrderId
-          ? "請選擇已設定排氣量的油車與預計領牌日期"
-          : "油車牌險費請依實收輸入（不含選號），領牌日期於後續編輯時填寫";
+        : "選擇已設定排氣量的油車後自動試算";
       return;
     }
 
@@ -549,11 +562,13 @@
     setCalculatedField("id_road_maintenance_fee", roadFee);
     setCalculatedField("id_license_tax_fee", taxFee);
     setCalculatedField("id_compulsory_insurance_fee", insuranceFee);
-    // 試算只供對照規費與強制險（不含選號）；油車牌險費是人員輸入的實收，不自動帶入。
+    // 試算合計不含選號；牌險費留空就照這個金額收，有填金額照填的收。
     const total = (cc >= 550 ? 400 : 300)
       + 150 + 200 + roadFee + taxFee + insuranceFee;
     calculatedRegistrationTotal.value = total;
-    rateSummary.textContent = `${rate.label}｜實際排氣量 ${cc} c.c.｜養管費計費 ${standardDays} 天｜牌照稅計費 ${calendarDays} 天｜牌險費請依實收輸入`;
+    setPlateEstimate(total);
+    const basis = registrationDate.value ? "" : "｜依訂單日預估，領牌時重算";
+    rateSummary.textContent = `${rate.label}｜實際排氣量 ${cc} c.c.｜養管費計費 ${standardDays} 天｜牌照稅計費 ${calendarDays} 天${basis}`;
   }
 
   function refresh() {
@@ -1795,7 +1810,13 @@
     // 選號費只在「指定號碼」且有填金額時列出，與 preDiscountTotal 的計算條件一致（使用者 2026-10-17）。
     const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;
     const showSelection = Boolean(selection);
-    const values = {vehicle: amountOf("id_vehicle_price"), plate: amountOf("id_plate_insurance_fee"), accessories: accessoryPurchaseTotal()};
+    // 牌險費留空時以淡色列出系統預估（使用者 2026-10-19）；填 0 就照實顯示 0。
+    const typedPlate = amountOf("id_plate_insurance_fee");
+    const estimatedPlate = typedPlate == null ? plateEstimate() : null;
+    const values = {vehicle: amountOf("id_vehicle_price"), plate: typedPlate ?? estimatedPlate, accessories: accessoryPurchaseTotal()};
+    const plateCell = intakeTotals.querySelector('[data-intake-total="plate"]');
+    plateCell.classList.toggle("is-estimate", estimatedPlate != null);
+    intakeTotals.querySelector("[data-intake-plate-estimate]").hidden = estimatedPlate == null;
     if (showSelection) values.selection = selection;
     values.sum = Object.values(values).reduce((sum, value) => sum + (value || 0), 0);
     intakeTotals.querySelector('[data-intake-total-cell="selection"]').hidden = !showSelection;
@@ -1831,7 +1852,7 @@
     function preDiscountTotal() {
       const installment = paymentType.value === "installment";
       const plateSelection = plateChoice.value === "watch" ? numberOf("id_plate_selection_fee") : 0;
-      return numberOf("id_vehicle_price") + numberOf("id_plate_insurance_fee")
+      return numberOf("id_vehicle_price") + plateAmountForTotals()
         + plateSelection + numberOf("id_lien_registration_fee")
         + (installment ? numberOf("id_installment_opening_fee") : 0)
         + accessoryPurchaseTotal() + otherFeeTotal();

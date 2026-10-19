@@ -3341,6 +3341,9 @@ class SalesOrder(TimeStampedModel):
     plate_insurance_fee = models.DecimalField(
         "實際牌險合計", max_digits=12, decimal_places=0, default=0
     )
+    # 牌險費三種狀態由輸入推導、不讓人員選（使用者 2026-10-19）：空白＝照系統試算（本欄 True，牌險費存試算值、領牌時重算）；
+    # 填 0＝不向客人收；填正數＝照填的金額收。既有訂單預設 False，依金額判斷，不重算。
+    plate_insurance_auto = models.BooleanField("牌險費照系統試算", default=False, editable=False)
     installment_opening_fee = models.DecimalField(
         "分期開辦費", max_digits=12, decimal_places=0, default=0
     )

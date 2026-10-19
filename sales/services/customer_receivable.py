@@ -30,7 +30,7 @@ def plate_insurance_charged(order):
 
     預設就是訂單牌險＋選號；在收支頁人工調整過「領牌相關」收入（例如分期吸收規費與強制險、只收選號）時，
     改以領牌稅金＋強制險＋選號＋代辦費收入合計，應收跟著改（使用者 2026-10-14；
-    2026-10-15 起牌險與選號的溢收記在代辦費收入）。
+    2026-10-15 起牌險溢收記在牌險手續費收入，欄位 agency_fee_income）。
     """
     zero = Decimal("0")
     from sales.models import OrderOperationsProfile

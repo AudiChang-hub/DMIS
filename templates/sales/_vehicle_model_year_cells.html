@@ -1,51 +1,35 @@
-{% load sales_format %}<td data-label="型號">{{ item.model_number|default:"待補" }}</td>
-<td data-label="年份／型式">
-  <strong>{{ item.model_year|default:"待補" }}</strong>
-  <span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span>
-  {% if show_year_action and family.version_count > 1 %}
+{% load sales_format %}{# 機種總表：每格「主值＋一行小字」，桌面一列固定兩行高；手機由 CSS 排成精簡卡片。 #}
+<td class="vm-year-cell" data-label="年式">
+  <strong>{{ item.model_year|default:"待補" }}{% if show_year_action and family.version_count > 1 %}
   <button
     class="vehicle-model-year-trigger{% if family.display_is_search_match %} is-search-match{% endif %}"
     type="button"
     data-open-year-panel="vehicle-year-panel-{{ group_index }}-{{ family_index }}"
     aria-haspopup="dialog"
-  >
-    {% if family.active_year_count > 1 %}
-      <span>{{ family.active_year_count }} 個年式</span>
-    {% elif family.active_count < family.version_count %}
-      <span>查看歷史資料</span>
-    {% else %}
-      <span>查看年式資料</span>
-    {% endif %}
-    <span aria-hidden="true">›</span>
-  </button>
-  {% if family.display_is_search_match %}<small class="vehicle-model-search-match">符合搜尋</small>{% endif %}
-  {% endif %}
+  ><span>{% if family.active_year_count > 1 %}{{ family.active_year_count }} 個年式{% elif family.active_count < family.version_count %}查看歷史資料{% else %}查看年式資料{% endif %}</span><i aria-hidden="true">›</i></button>{% endif %}</strong>
+  <small>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}型式待補{% endif %}{% if show_year_action and family.version_count > 1 and family.display_is_search_match %}<b class="vehicle-model-search-match">符合搜尋</b>{% endif %}</small>
 </td>
-<td data-label="能源別">{{ item.get_energy_type_display }}</td>
-<td data-label="動力規格">
-  {% if item.energy_type == "gas" %}
-    <strong>{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}待補{% endif %}</strong><span>排氣量</span>
-  {% else %}
-    <strong>{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}待補{% endif %}</strong><span>馬達功率</span>
-  {% endif %}
+<td class="vm-power-cell" data-label="動力規格">
+  <strong>{% if item.energy_type == "gas" %}{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}排氣量待補{% endif %}{% else %}{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}功率待補{% endif %}{% endif %}</strong>
+  <small>{{ item.get_energy_type_display }}</small>
 </td>
-<td data-label="目前分期總價">{% if item.current_suggested_price %}<strong>${{ item.current_suggested_price|floatformat:0 }}</strong><span class="price-scope {% if item.current_suggested_includes_registration %}price-scope--included{% else %}price-scope--excluded{% endif %}">{% if item.current_suggested_includes_registration %}含牌險{% else %}不含牌險{% endif %}</span>{% else %}尚未設定{% endif %}</td>
-<td data-label="傭金與附加獎勵">
+<td class="vm-price-cell" data-label="目前分期總價">{% if item.current_suggested_price %}<strong>${{ item.current_suggested_price|number_with_commas }}</strong><span class="price-scope {% if item.current_suggested_includes_registration %}price-scope--included{% else %}price-scope--excluded{% endif %}">{% if item.current_suggested_includes_registration %}含牌險{% else %}不含牌險{% endif %}</span>{% else %}<strong class="is-unset">尚未設定</strong>{% endif %}</td>
+<td class="vm-reward-cell" data-label="傭金與附加獎勵">
   <strong>傭金 ${{ item.base_dealer_commission|number_with_commas }}</strong>
-  {% if item.current_reward_items %}<span class="vehicle-model-rewards">{{ item.current_reward_items|join:"、" }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:"m/d" }}）{% endif %}</span>{% else %}<span>無附加獎勵</span>{% endif %}
+  {% if item.current_reward_items %}<small class="vehicle-model-rewards is-on" title="{{ item.current_reward_items|join:'、' }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:'m/d' }}）{% endif %}">＋{{ item.current_reward_items|join:"、" }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:"m/d" }}）{% endif %}</small>{% else %}<small>無附加獎勵</small>{% endif %}
 </td>
-<td data-label="啟用顏色">{% include 'sales/_enabled_colors.html' with item=item %}</td>
-<td data-label="庫存">
+<td class="vm-color-cell" data-label="啟用顏色">{% include 'sales/_enabled_color_swatches.html' with item=item %}</td>
+<td class="vm-stock-cell" data-label="庫存">
   <a
-    class="vehicle-model-inventory-link"
+    class="vehicle-model-inventory-link{% if not item.available_count %} is-empty{% endif %}"
     href="{% url 'inventory_list' %}?status=available&amp;vehicle_model={{ item.pk }}"
     aria-label="查看 {{ family.name }} {{ item.model_year|default:'未填年份' }} 年式的可售庫存"
   >
     <strong>{{ item.available_count }} 台可售</strong>
-    <span>查看庫存</span>
+    <small>查看庫存<i aria-hidden="true">›</i></small>
   </a>
 </td>
-<td data-label="狀態">
+<td class="vm-status-cell" data-label="狀態">
   {% include "sales/_active_quick_toggle.html" with resource="vehicle-model" pk=item.pk is_active=item.active item_name=item.name %}
 </td>
-<td class="inventory-row-action vehicle-model-row-action"><div class="vehicle-model-row-actions">{% if can_model_tools %}<a class="button secondary small vehicle-model-copy-link" href="{% url 'vehicle_model_copy' %}?mode=year&amp;ids={{ item.pk }}" title="以 {{ item.model_year|default:'此' }} 年式為底建立下一年式" aria-label="以 {{ family.name }} {{ item.model_year|default:'' }} 年式沿用到新年式">沿用</a>{% endif %}<a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></div></td>
+<td class="inventory-row-action vehicle-model-row-action"><div class="vehicle-model-row-actions">{% if can_model_tools %}<a class="button secondary small vehicle-model-copy-link" href="{% url 'vehicle_model_copy' %}?mode=year&amp;ids={{ item.pk }}" title="以 {{ item.model_year|default:'此' }} 年式為底建立下一年式" aria-label="以 {{ family.name }} {{ item.model_year|default:'' }} 年式沿用到新年式">沿用</a>{% endif %}<a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}" aria-label="編輯 {{ family.name }} {{ item.model_year|default:'' }} 年式">編輯</a></div></td>

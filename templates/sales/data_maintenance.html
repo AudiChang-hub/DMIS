@@ -25,6 +25,11 @@
     <div><h2>機種與售價</h2><p>{% site_text 'data_maintenance.439b5cacbee0' %}</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
+  {% if_access 'catalog_photo_board' %}<a class="maintenance-card" href="{% url 'catalog_photo_board' %}{% if catalog_photo_missing_count %}?missing=1{% endif %}">
+    <span class="maintenance-card__icon">圖</span>
+    <div><h2>車色圖片</h2><p>{% site_text 'data_maintenance.catalog_photo_board' %}</p><strong>{% if catalog_photo_missing_count %}缺圖 {{ catalog_photo_missing_count }} 張{% else %}啟用車色都有圖{% endif %}</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>{% endif_access %}
   {% if_access 'inventory_list' %}<a class="maintenance-card" href="{% url 'inventory_list' %}">
     <span class="maintenance-card__icon">庫</span>
     <div><h2>車輛庫存</h2><p>{% site_text 'data_maintenance.0cc25e25c532' %}</p><strong>{{ inventory_count }} 台車輛</strong></div>

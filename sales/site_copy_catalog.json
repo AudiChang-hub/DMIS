@@ -21,6 +21,11 @@
     "default": "選檔或貼上連結後可先預覽；按「套用展示設定」才會存入。",
     "template": "templates/sales/_catalog_image_preview.html"
   },
+  "data_maintenance.catalog_photo_board": {
+    "page": "資料維護區",
+    "default": "一頁看出哪些車色缺圖，直接拖入圖片或貼上連結補齊。",
+    "template": "templates/sales/data_maintenance.html"
+  },
   "_catalog_image_preview.url_help": {
     "page": "展示圖片",
     "default": "貼上圖片本身的網址（在圖片上按右鍵 →「複製圖片位址」）。套用時系統會下載一份存在這裡，之後不依賴原網站。",

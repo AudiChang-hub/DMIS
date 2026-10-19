@@ -1,0 +1,95 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}車色圖片｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as maintenance_url %}{% include "sales/_page_back.html" with fallback_url=maintenance_url label="資料維護區" %}
+<div class="photo-board" data-photo-board{% if missing_only %} data-missing-only{% endif %}>
+  {% csrf_token %}
+  <header class="hero-row compact-hero photo-board__hero">
+    <div>
+      <p class="eyebrow">機種與售價</p>
+      <h1>車色圖片</h1>
+      <p class="muted">所有啟用機種的車色一次看完。缺圖的格子直接拖入圖片、選檔或貼上圖片連結，放上去就儲存；已有圖的格子也能直接換圖。</p>
+    </div>
+    <div class="photo-board__meter">
+      <svg class="photo-board__ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19" pathLength="100"/><circle class="photo-board__ring-value" cx="22" cy="22" r="19" pathLength="100" data-photo-ring style="stroke-dasharray: {{ done_percent }} 100"/></svg>
+      <div aria-live="polite">
+        <p class="photo-board__meter-label">缺圖 <b data-photo-missing>{{ missing_count }}</b> 張／共 <b data-photo-total>{{ total_count }}</b> 張</p>
+        <p class="photo-board__meter-sub">已完成 <span data-photo-percent>{{ done_percent }}</span>%</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="photo-board__toolbar">
+    <form method="get" class="photo-board__search" role="search">
+      <label class="visually-hidden" for="photo-board-q">搜尋機種或車色</label>
+      <input id="photo-board-q" type="search" name="q" value="{{ keyword }}" placeholder="搜尋品牌、機種、型號或車色" autocomplete="off">
+      {% if missing_only %}<input type="hidden" name="missing" value="1">{% endif %}
+      <button class="button secondary small">搜尋</button>
+      {% if keyword %}<a class="button ghost small" href="{% url 'catalog_photo_board' %}{% if missing_only %}?missing=1{% endif %}">清除</a>{% endif %}
+    </form>
+    <label class="photo-board__filter">
+      <input type="checkbox" role="switch" data-photo-missing-only{% if missing_only %} checked{% endif %}>
+      <span class="photo-board__switch" aria-hidden="true"></span>只看缺圖
+    </label>
+  </div>
+
+  {% if groups %}
+  <nav class="photo-board__brands" aria-label="跳到品牌">
+    {% for group in groups %}<a href="#brand-{{ forloop.counter }}" data-photo-brand-link="{{ forloop.counter }}">{{ group.name }}<span data-photo-brand-missing>{{ group.missing }}</span></a>{% endfor %}
+  </nav>
+  {% endif %}
+
+  <p class="photo-board__done" data-photo-done hidden>全部車色都有圖了。關掉「只看缺圖」可以檢查或更換既有圖片。</p>
+
+  {% for group in groups %}
+  <section class="photo-board__brand" id="brand-{{ forloop.counter }}" aria-labelledby="brand-{{ forloop.counter }}-title" data-photo-group data-missing="{{ group.missing }}">
+    <h2 id="brand-{{ forloop.counter }}-title">{{ group.name }} <small>缺 <span data-photo-group-missing>{{ group.missing }}</span>／{{ group.total }}</small></h2>
+    {% for row in group.rows %}{% with model=row.model %}
+    <article class="photo-board__model" id="model-{{ model.pk }}" data-photo-model data-missing="{{ row.missing }}" aria-labelledby="model-{{ model.pk }}-title">
+      <header>
+        <h3 id="model-{{ model.pk }}-title">{{ model.name }}{% if model.model_year %} <span>{{ model.model_year }}</span>{% endif %}</h3>
+        <p>{{ model.model_number }}{% if model.brand|lower != group.name|lower %} · {{ model.brand }}{% endif %}</p>
+        <span class="photo-board__count" data-photo-model-count>{% if row.missing %}缺 {{ row.missing }}／{{ row.cells|length }}{% else %}已齊全{% endif %}</span>
+        <a class="photo-board__edit" href="{% url 'catalog_edit' model.pk %}">介紹與主圖 <span aria-hidden="true">›</span></a>
+      </header>
+      <ul class="photo-board__cells" role="list">
+        {% for item in row.cells %}{% with color=item.color %}
+        <li class="photo-cell" data-photo-cell data-has-photo="{{ item.has_photo|yesno:'1,0' }}" data-state="idle"
+            data-save-url="{% url 'catalog_photo_save' color.pk %}" data-expected="{{ color.catalog_image.name }}" data-name="{{ model.name }} · {{ color.name }}">
+          <div class="photo-cell__media" tabindex="0" data-photo-drop aria-label="{{ color.name }}：{% if item.has_photo %}已有圖片，拖入或貼上可換圖{% else %}缺圖，拖入圖片或貼上連結即可儲存{% endif %}">
+            {% if item.has_photo %}<img src="{{ item.thumb }}" alt="{{ model.name }} · {{ color.name }}" loading="lazy" decoding="async" data-photo-img>{% else %}<img alt="{{ model.name }} · {{ color.name }}" decoding="async" data-photo-img hidden>{% endif %}
+            <span class="photo-cell__empty" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="photo-cell__hint-pointer">拖入或點此選圖</span><span class="photo-cell__hint-touch">點此選圖</span></span>
+            <span class="photo-cell__progress" aria-hidden="true"></span>
+          </div>
+          <div class="photo-cell__meta">
+            <strong>{{ color.name }}</strong>
+            <span class="photo-cell__badge" data-photo-badge>{% if item.has_photo %}已有圖{% else %}缺圖{% endif %}</span>
+          </div>
+          <div class="photo-cell__actions">
+            <label class="photo-cell__action"><input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file aria-label="{{ color.name }}：選擇圖片檔"><span data-photo-file-label>{% if item.has_photo %}換圖{% else %}選檔{% endif %}</span></label>
+            <button class="photo-cell__action" type="button" data-photo-link-toggle aria-expanded="false">貼連結</button>
+          </div>
+          <form class="photo-cell__link" data-photo-link-form hidden>
+            <label class="visually-hidden" for="photo-url-{{ color.pk }}">{{ color.name }} 圖片連結</label>
+            <input id="photo-url-{{ color.pk }}" type="url" inputmode="url" placeholder="https://…/圖片.jpg" autocomplete="off" spellcheck="false" required data-photo-url>
+            <button class="button primary small" type="submit">儲存</button>
+          </form>
+          <div class="photo-cell__confirm" data-photo-confirm hidden>
+            <span>取代目前的圖片？</span>
+            <button class="button primary small" type="button" data-photo-confirm-yes>取代</button>
+            <button class="button ghost small" type="button" data-photo-confirm-no>取消</button>
+          </div>
+          <p class="photo-cell__message" role="status" aria-live="polite" data-photo-message></p>
+        </li>
+        {% endwith %}{% endfor %}
+      </ul>
+    </article>
+    {% endwith %}{% endfor %}
+  </section>
+  {% empty %}
+  <p class="empty-state">{% if keyword %}找不到符合「{{ keyword }}」的啟用機種或車色。{% else %}目前沒有啟用中的機種車色。{% endif %}</p>
+  {% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/catalog-photo-board.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views
 from . import order_deletion_views
+from . import catalog_photo_views
 from . import draft_cleanup_views
 from . import import_review_views
 from . import historical_delivery_views
@@ -60,6 +61,9 @@ urlpatterns = [
     path("data/catalog/<int:pk>/", catalog_views.catalog_edit, name="catalog_edit"),
     path("data/catalog/<int:pk>/image/", catalog_views.catalog_preview_image, name="catalog_preview_image"),
     path("data/catalog/<int:pk>/colors/<int:color_pk>/image/", catalog_views.catalog_preview_image, name="catalog_preview_color_image"),
+    path("data/catalog/photos/", catalog_photo_views.catalog_photo_board, name="catalog_photo_board"),
+    path("data/catalog/photos/<int:color_pk>/", catalog_photo_views.catalog_photo_save, name="catalog_photo_save"),
+    path("data/catalog/photos/<int:color_pk>/thumb/", catalog_photo_views.catalog_photo_thumb, name="catalog_photo_thumb"),
     path("data/catalog/official/", official_catalog_views.official_catalog, name="official_catalog"),
     path("data/catalog/official/check/", official_catalog_views.official_catalog_check_start, name="official_catalog_check_start"),
     path("data/catalog/official/<int:pk>/link/", official_catalog_views.official_catalog_link, name="official_catalog_link"),

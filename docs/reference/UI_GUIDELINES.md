@@ -157,6 +157,11 @@
 - 不在模板寫 `onsubmit`／`onclick` 呼叫 `confirm()`。
   只有不經表單送出的腳本互動（例如刪除表單列）可以在 JS 內呼叫 `window.confirm`。
 - 伺服器訊息走 Django messages，由 `message-toasts.js` 顯示；不在頁面另做提示框。
+- 上傳、刪除、歸類檔案與留在原頁的整張表單儲存，不重新整理、不捲動（1.86.19）：會變動的區塊加 `id` 與 `data-inplace-region`，
+  表單加 `data-inplace-form`，由 `inplace-regions.js` 送出並把導回頁面的同 id 區塊換進畫面（錨點區塊維持螢幕位置、焦點留在原處）。
+  伺服器照舊驗證後導回並帶 messages；錯誤訊息或同網址重新顯示時，原表單與已選檔案保留。
+  會改動多個步驟的動作（訂金入帳、完成交車等）加 `data-inplace-success="reload"`：失敗原地顯示，成功後重新載入回到原分頁與位置。
+  換入區塊內的元素若有腳本綁定，監聽 `inplace:updated` 重新綁定。
 
 ## 空狀態與表格
 

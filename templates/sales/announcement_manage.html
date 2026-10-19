@@ -1,15 +1,15 @@
 {% extends "base.html" %}{% load site_copy %}{% load pagination_tags static %}
-{% block head %}<script src="{% static 'js/recipient-picker.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/recipient-picker.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block title %}系統公告管理｜車輛銷售管理{% endblock %}
 {% block page_class %}system-home{% endblock %}
 {% block content %}
 {% site_navigation %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">{% site_text 'announcement_manage.8763e02b6fcf' %}</p><h1>系統公告管理</h1><p class="muted">{% site_text 'announcement_manage.932bc63d878c' %}</p></div><a class="button ghost" href="{% url 'announcement_manage' %}{% if not history %}?history=1{% endif %}">{% if history %}返回目前公告{% else %}查看歷史公告{% endif %}</a></section>
 <div class="system-home-grid">
-<section class="section-block">
+<section class="section-block" id="announcement-editor" data-inplace-region>
   <h2>{% if announcement %}編輯公告{% else %}新增公告{% endif %}</h2>
   {% if announcement %}<p>目前：{{ announcement.display_status }} · 第 {{ announcement.version }} 版</p>{% endif %}
-  <form method="post" enctype="multipart/form-data" class="announcement-form">{% csrf_token %}
+  <form method="post" enctype="multipart/form-data" class="announcement-form" data-inplace-form>{% csrf_token %}
     {{ form.expected_version }}{{ form.expected_version.errors }}{{ form.non_field_errors }}
     <label>標題{{ form.title }}{{ form.title.errors }}</label>
     <label>公告內容（純文字）{{ form.body }}{{ form.body.errors }}</label>
@@ -30,6 +30,6 @@
   </form>
   {% if revisions %}<details><summary>最近十次修訂紀錄</summary>{% for revision in revisions %}<details class="announcement-card"><summary>第 {{ revision.version }} 版 · {{ revision.created_at|date:"Y/m/d H:i" }} · {{ revision.actor_name }}</summary><h3>{{ revision.content.title }}</h3><p>發布：{{ revision.content.published|yesno:"是,否" }} · 置頂：{{ revision.content.pinned|yesno:"是,否" }} · {{ revision.content.starts_at }}～{{ revision.content.ends_at|default:"無結束時間" }}</p><p class="announcement-body">{{ revision.content.body }}</p></details>{% endfor %}</details>{% endif %}
 </section>
-<section class="section-block"><h2>{% if history %}歷史公告{% else %}目前公告{% endif %}</h2><form method="get"><input type="hidden" name="history" value="{% if history %}1{% else %}0{% endif %}"><label>搜尋公告<input type="search" name="q" value="{{ request.GET.q }}"></label><button class="button ghost">搜尋</button></form>{% for item in page_obj %}<article class="announcement-card"><small>{{ item.display_status }}{% if item.pinned %} · 📌 置頂{% endif %} · {{ item.get_audience_display }}</small><h3><a href="{% url 'announcement_edit' item.pk %}">{{ item.title }}</a></h3><p class="muted">{{ item.starts_at|date:"Y/m/d H:i" }}～{{ item.ends_at|date:"Y/m/d H:i"|default:"無結束時間" }}</p><a href="{% url 'announcement_action' item.pk %}">封存／刪除</a></article>{% empty %}<p>目前沒有此類公告。</p>{% endfor %}{% pagination page_obj aria_label="公告管理分頁" %}</section>
+<section class="section-block" id="announcement-list" data-inplace-region><h2>{% if history %}歷史公告{% else %}目前公告{% endif %}</h2><form method="get"><input type="hidden" name="history" value="{% if history %}1{% else %}0{% endif %}"><label>搜尋公告<input type="search" name="q" value="{{ request.GET.q }}"></label><button class="button ghost">搜尋</button></form>{% for item in page_obj %}<article class="announcement-card"><small>{{ item.display_status }}{% if item.pinned %} · 📌 置頂{% endif %} · {{ item.get_audience_display }}</small><h3><a href="{% url 'announcement_edit' item.pk %}">{{ item.title }}</a></h3><p class="muted">{{ item.starts_at|date:"Y/m/d H:i" }}～{{ item.ends_at|date:"Y/m/d H:i"|default:"無結束時間" }}</p><a href="{% url 'announcement_action' item.pk %}">封存／刪除</a></article>{% empty %}<p>目前沒有此類公告。</p>{% endfor %}{% pagination page_obj aria_label="公告管理分頁" %}</section>
 </div>
 {% endblock %}

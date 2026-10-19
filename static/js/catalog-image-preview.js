@@ -170,12 +170,25 @@
 
   if (typeof module !== 'undefined') module.exports = {validateFile, attach, MAX_BYTES};
   if (typeof document === 'undefined') return;
-  const controllers = [...document.querySelectorAll('[data-catalog-image-preview]')]
-    .map(root => ({root, controller: attach(root, window)}));
-  const forms = new Set(controllers.map(({root}) => root.closest('form')));
-  forms.forEach(form => form?.addEventListener('reset', () => window.setTimeout(() => {
-    controllers.filter(item => item.root.closest('form') === form).forEach(item => item.controller.reset());
-  }, 0)));
+  // 儲存後表單會原地換成伺服器新版（inplace-regions.js）：舊預覽釋放，新卡片重新綁定。
+  let controllers = [];
+  function bindAll() {
+    controllers.filter(item => !item.root.isConnected).forEach(item => item.controller.dispose());
+    controllers = controllers.filter(item => item.root.isConnected);
+    const fresh = [...document.querySelectorAll('[data-catalog-image-preview]')]
+      .filter(root => !controllers.some(item => item.root === root))
+      .map(root => ({root, controller: attach(root, window)}));
+    controllers.push(...fresh);
+    new Set(fresh.map(({root}) => root.closest('form'))).forEach(form => {
+      if (!form || form.dataset.previewResetBound) return;
+      form.dataset.previewResetBound = '1';
+      form.addEventListener('reset', () => window.setTimeout(() => {
+        controllers.filter(item => item.root.closest('form') === form).forEach(item => item.controller.reset());
+      }, 0));
+    });
+  }
+  bindAll();
+  document.addEventListener('inplace:updated', bindAll);
   window.addEventListener('pagehide', event => {
     if (!event.persisted) controllers.forEach(item => item.controller.dispose());
   });

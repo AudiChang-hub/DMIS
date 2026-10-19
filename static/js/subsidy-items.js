@@ -12,11 +12,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const subsidyToggle = subsidyForm?.querySelector("[name='is_trade_in_subsidy']");
   const toggleMessage = subsidyForm?.querySelector("[data-subsidy-toggle-message]");
   const revisionInput = subsidyForm?.querySelector("[name='_order_revision']");
-  const stageStatus = document.querySelector("[data-subsidy-stage-status]");
-  const completion = document.querySelector("[data-subsidy-completion]");
-  const uploadControls = [...document.querySelectorAll("[data-subsidy-upload-control]")];
+  // 補助文件原地上傳或刪除後，關閉補助前的「已有文件」提醒跟著伺服器狀態。
+  document.addEventListener("inplace:updated", event => {
+    const fresh = event.detail.doc?.querySelector("[data-subsidy-form]");
+    if (subsidyForm && fresh) subsidyForm.dataset.hasDocuments = fresh.dataset.hasDocuments || "";
+  });
+  // 文件區上傳後會原地換新（inplace-regions.js），每次都重新取得目前畫面上的節點。
   function setUploadControls(enabled) {
-    uploadControls.forEach(control => {
+    document.querySelectorAll("[data-subsidy-upload-control]").forEach(control => {
       control.hidden = !enabled;
     });
     document.querySelectorAll("[data-subsidy-document-row]").forEach(row => {
@@ -29,6 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setCompletionState(enabled) {
+    const stageStatus = document.querySelector("[data-subsidy-stage-status]");
+    const completion = document.querySelector("[data-subsidy-completion]");
     if (stageStatus) {
       stageStatus.textContent = enabled ? "辦理中" : "未申請";
       stageStatus.classList.remove("done");

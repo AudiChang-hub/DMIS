@@ -1,4 +1,7 @@
-document.querySelectorAll('[data-announcement-edit]').forEach(button => {
+// 公告存好後內容與表單會原地換新（inplace-regions.js），新節點要重新綁定。
+function bindAnnouncementEditors(root) {
+root.querySelectorAll('[data-announcement-edit]:not([data-announcement-bound])').forEach(button => {
+  button.dataset.announcementBound = '1';
   const article = button.closest('article');
   const toggle = editing => {
     article.querySelector('[data-announcement-reading]').hidden = editing;
@@ -8,7 +11,8 @@ document.querySelectorAll('[data-announcement-edit]').forEach(button => {
   button.addEventListener('click', () => toggle(true));
   article.querySelector('[data-announcement-cancel]').addEventListener('click', () => toggle(false));
 });
-document.querySelectorAll('[data-announcement-image-list]').forEach(list => {
+root.querySelectorAll('[data-announcement-image-list]:not([data-announcement-bound])').forEach(list => {
+  list.dataset.announcementBound = '1';
   list.addEventListener('click', event => {
     const button = event.target.closest('[data-image-move]');
     if (!button) return;
@@ -18,7 +22,8 @@ document.querySelectorAll('[data-announcement-image-list]').forEach(list => {
     list.closest('form').querySelector('[name="image_order"]').value = [...list.children].map(item => item.dataset.announcementImage).join(',');
   });
 });
-document.querySelectorAll('[data-announcement-upload]').forEach(input => {
+root.querySelectorAll('[data-announcement-upload]:not([data-announcement-bound])').forEach(input => {
+  input.dataset.announcementBound = '1';
   const form = input.closest('form');
   const container = form.querySelector('[data-announcement-previews]');
   const status = form.querySelector('[data-announcement-upload-status]');
@@ -54,3 +59,6 @@ document.querySelectorAll('[data-announcement-upload]').forEach(input => {
   });
   window.addEventListener('pagehide', () => { ++generation; clear(); });
 });
+}
+bindAnnouncementEditors(document);
+document.addEventListener('inplace:updated', event => event.detail.regions.forEach(bindAnnouncementEditors));

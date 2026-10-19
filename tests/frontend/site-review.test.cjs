@@ -15,7 +15,7 @@ test('公告受眾只展開相應清單，搜尋後批次勾選不影響其他�
       querySelectorAll:s=>s.includes('checkbox')?boxes:[button],search,boxes,button};
   };
   const dealers=makePicker('dealers'),people=makePicker('selected');
-  vm.runInNewContext(fs.readFileSync('static/js/recipient-picker.js','utf8'),{document:{querySelectorAll:()=>[dealers,people]}});
+  vm.runInNewContext(fs.readFileSync('static/js/recipient-picker.js','utf8'),{document:{querySelectorAll:()=>[dealers,people],addEventListener(){}}});
   assert.equal(dealers.hidden,true);assert.equal(people.hidden,true);
   audience.value='dealers';listeners.forEach(f=>f());
   assert.equal(dealers.hidden,false);assert.equal(people.hidden,true);
@@ -31,10 +31,10 @@ test('公告圖片預覽驗證檔案、撤銷舊預覽，忽略過期解碼錯�
   const container = {children:[],replaceChildren(){this.children=[];},append(x){this.children.push(x);}};
   const status = {textContent:''};
   const form = {querySelector:s=>s==='[data-announcement-previews]'?container:status};
-  const input = {files:[],closest:()=>form,setCustomValidity(message){this.error=message;},addEventListener:(e,f)=>events[e]=f};
+  const input = {files:[],dataset:{},closest:()=>form,setCustomValidity(message){this.error=message;},addEventListener:(e,f)=>events[e]=f};
   let sequence=0;
   vm.runInNewContext(fs.readFileSync('static/js/announcement-images.js','utf8'), {
-    document:{querySelectorAll:s=>s==='[data-announcement-upload]'?[input]:[],createElement:tag=>({tag,dataset:{},children:[],addEventListener(){},append(...children){this.children.push(...children);}})},
+    document:{addEventListener(){},querySelectorAll:s=>s.startsWith('[data-announcement-upload]')?[input]:[],createElement:tag=>({tag,dataset:{},children:[],addEventListener(){},append(...children){this.children.push(...children);}})},
     window:{addEventListener:(e,f)=>windowEvents[e]=f},
     URL:{createObjectURL:()=>`blob:${++sequence}`,revokeObjectURL:u=>revoked.push(u)}
   });

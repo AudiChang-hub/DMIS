@@ -514,6 +514,8 @@
   root.addEventListener('submit', async event => {
     const target = event.target;
     if (target.matches('[data-workspace-save]') || event.defaultPrevented || target.target === '_blank') return;
+    // 原地送出（inplace-regions.js）不離開頁面，不必先存完其他區塊，也不解除離頁提醒。
+    if (target.matches('[data-inplace-form]') && target.dataset.inplaceSuccess !== 'reload') return;
     if (target.dataset.flushed !== '1' && forms.some(dirty)) {
       event.preventDefault();
       await flush();
@@ -542,7 +544,32 @@
   // 初始分頁：網址錨點（#step-<步驟> 或分頁內區塊）優先，其次是含表單錯誤的分頁，
   // 否則沿用伺服器依 ?tab= 或目前步驟選定的分頁（由功能導回時 ?tab= 與錨點一致）。
   // 靜態提示（如 <p class="field-error">沒有可配車輛</p>）不算表單錯誤，不可搶走進頁分頁。
-  if (tabbed) {
+  // 跨步驟動作（完成交車、訂金入帳等）完成後重新載入：回到送出前的分頁與畫面位置，不跳到固定停點。
+  const restore = tabbed ? window.DMISInplace?.takeRestore?.() : null;
+  if (restore) {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    activate(panelOf(restore.tab) ? restore.tab : activeKey, {animate: false, url: false, announce: false});
+    let touched = false;
+    const align = () => {
+      if (touched) return;
+      const anchor = restore.anchor && document.getElementById(restore.anchor);
+      const top = Math.max(0, Math.round(anchor ? window.scrollY + anchor.getBoundingClientRect().top - restore.offset : restore.y));
+      // 完成後內容變短（例如表單換成入帳結果）時，比照 land() 在下方補足空白，才回得到同一個位置。
+      const room = root.querySelector('.order-steps');
+      if (room) room.style.paddingBottom = '';
+      const short = top - (document.documentElement.scrollHeight - window.innerHeight);
+      if (room && short > 0) room.style.paddingBottom = `${Math.ceil(short)}px`;
+      window.scrollTo({top, behavior: 'instant'});
+    };
+    align();
+    const resized = 'ResizeObserver' in window ? new ResizeObserver(align) : null;
+    const stop = () => { touched = true; resized?.disconnect(); };
+    ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(type => window.addEventListener(type, stop, {once: true, passive: true}));
+    resized?.observe(root);
+    window.addEventListener('load', () => { align(); setTimeout(stop, 1500); }, {once: true});
+    document.fonts?.ready.then(align);
+    updateOverflow();
+  } else if (tabbed) {
     let target = resolveHash(location.hash);
     if (!target) {
       const invalid = steps.map(step => step.querySelector('.errorlist, small.field-error, [aria-invalid="true"]')).find(Boolean);

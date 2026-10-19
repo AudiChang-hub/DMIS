@@ -5,7 +5,9 @@
     warning: 8000,
   };
 
-  document.querySelectorAll("[data-message-toast]").forEach((toast) => {
+  function bind(toast) {
+    if (toast.dataset.toastBound) return;
+    toast.dataset.toastBound = "1";
     const closeButton = toast.querySelector("[data-message-close]");
     const duration = Object.entries(durations).find(([type]) =>
       toast.classList.contains(type)
@@ -59,5 +61,9 @@
       toast.classList.add("is-timed");
       resume();
     }
-  });
+  }
+
+  document.querySelectorAll("[data-message-toast]").forEach(bind);
+  // 原地更新（inplace-regions.js）後新增的提示也套用同樣的自動消失與暫停。
+  window.DMISToasts = {bind};
 })();

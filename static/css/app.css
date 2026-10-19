@@ -2572,6 +2572,14 @@ input[type="file"].form-control { padding: var(--space-3); }
 .document-upload-progress.is-error {
   color: var(--red); background: var(--red-soft); border-color: var(--red-border);
 }
+/* 原地更新後，剛上傳或異動的那一列淡淡亮一下，讓眼睛知道結果落在哪裡（inplace-regions.js）。 */
+.is-just-updated { animation: inplace-updated 1.6s var(--ease-out, ease-out) both; }
+@keyframes inplace-updated {
+  0%, 30% { background-color: var(--mint); box-shadow: 0 0 0 3px var(--green-border); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .is-just-updated { animation: none; } }
+[data-inplace-region][tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
 .button.compact { min-height: 44px; padding: 0 var(--space-3); font-size: var(--text-sm); }
 .file-button { cursor: pointer; }
 .file-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }

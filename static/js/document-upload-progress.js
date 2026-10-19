@@ -36,8 +36,9 @@
     panel.classList.toggle("is-error", state === "error");
     const meter = panel.querySelector("[data-upload-progress-meter]");
     const percent = panel.querySelector("[data-upload-progress-percent]");
-    if (value === null) {
-      meter.removeAttribute("value");
+    if (value === null || state === "error") {
+      if (value === null) meter.removeAttribute("value");
+      else meter.value = 0;
       percent.textContent = "";
     } else {
       const normalized = Math.max(0, Math.min(100, Math.round(value)));
@@ -94,17 +95,8 @@
     request.addEventListener("load", () => {
       const payload = request.response || {};
       if (request.status >= 200 && request.status < 300 && payload.ok) {
-        updateProgress(panel, 100, payload.message || "上傳完成", "complete");
-        window.setTimeout(() => {
-          // 導回網址與目前頁面只差錨點時，瀏覽器只會捲動不會重新載入；此時改為更新網址後重新整理。
-          const next = new URL(payload.redirect_url || window.location.href, window.location.href);
-          if (next.href.split("#")[0] === window.location.href.split("#")[0]) {
-            window.history.replaceState(window.history.state, "", next.href);
-            window.location.reload();
-          } else {
-            window.location.assign(next.href);
-          }
-        }, 250);
+        updateProgress(panel, 100, "上傳完成，正在更新清單…", "complete");
+        settle(form, panel, payload.redirect_url, payload.message || "上傳完成");
         return;
       }
       restoreForm(form);
@@ -192,76 +184,103 @@
         fileInput.value = "";
         fileInput.dispatchEvent(new Event("change"));
         const done = index ? `前 ${index} 個已上傳；` : "";
-        updateProgress(panel, 0, `${done}${result.message || "上傳失敗，請確認檔案後再試一次。"}`, "error");
-        if (index) window.setTimeout(() => window.location.reload(), 2500);
+        const reason = `${done}${result.message || "上傳失敗，請確認檔案後再試一次。"}`;
+        updateProgress(panel, 0, reason, "error");
+        // 已上傳的檔案原地補進清單；失敗原因改用提示保留，不重新整理頁面。
+        if (index) settle(form, panel, result.redirect || redirect, reason, "error");
         return;
       }
       redirect = result.redirect || redirect;
     }
-    updateProgress(panel, 100, `已上傳 ${files.length} 個附件`, "complete");
-    window.setTimeout(() => {
-      const next = new URL(redirect || window.location.href, window.location.href);
-      if (next.href.split("#")[0] === window.location.href.split("#")[0]) {
-        window.history.replaceState(window.history.state, "", next.href);
-        window.location.reload();
-      } else {
-        window.location.assign(next.href);
-      }
-    }, 250);
+    updateProgress(panel, 100, `已上傳 ${files.length} 個附件，正在更新清單…`, "complete");
+    settle(form, panel, redirect, `已上傳 ${files.length} 個附件`);
   }
 
-  // 歸類到已有檔案的文件格時先確認，避免不小心替換掉原檔。
-  document.querySelectorAll("[data-classify-form]").forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      const option = form.querySelector("select")?.selectedOptions[0];
-      if (!option?.dataset.replace) return;
-      const name = form.dataset.fileName || "這個檔案";
-      const target = option.textContent.replace("（已有，將替換）", "");
-      if (!window.confirm(`「${target}」已經有檔案，歸類「${name}」後會替換原檔案，確定嗎？`)) event.preventDefault();
-    });
-  });
-
-  // 全部下載：伺服器打包需要幾秒，期間顯示提示並避免重複點擊。
-  document.querySelectorAll("[data-zip-download]").forEach((link) => {
-    const label = link.querySelector("[data-zip-label]");
-    const initial = label ? label.textContent : "";
-    link.addEventListener("click", () => {
-      if (link.classList.contains("is-preparing")) return;
-      link.classList.add("is-preparing");
-      link.setAttribute("aria-busy", "true");
-      if (label) label.textContent = "正在打包，下載即將開始…";
-      window.setTimeout(() => {
-        link.classList.remove("is-preparing");
-        link.removeAttribute("aria-busy");
-        if (label) label.textContent = initial;
-      }, 8000);
-    });
-  });
-
-  document.querySelectorAll("form[data-document-upload]").forEach((form) => {
-    const input = form.querySelector('input[type="file"]');
-    if (!input) return;
-    if (form.hasAttribute("data-auto-upload")) {
-      input.addEventListener("change", () => upload(form));
+  // 上傳成功後不重新整理：取回導回頁面，只換掉有變動的區塊（inplace-regions.js），畫面與焦點留在原處。
+  function settle(form, panel, redirectUrl, message, level = "success") {
+    const inplace = window.DMISInplace;
+    const url = new URL(redirectUrl || window.location.href, window.location.href);
+    if (!inplace || url.pathname !== window.location.pathname) {
+      window.location.assign(url.href);
+      return;
     }
-    // 多檔上傳區：顯示已選的檔案，拖曳進來時加上提示樣式。
-    const summary = form.querySelector("[data-file-summary]");
-    if (summary) {
-      const initial = summary.textContent;
-      const drop = input.closest("label");
-      input.addEventListener("change", () => {
-        const names = Array.from(input.files || []).map((file) => file.name);
-        summary.textContent = names.length
-          ? `已選 ${names.length} 個：${names.slice(0, 3).join("、")}${names.length > 3 ? "…" : ""}`
-          : initial;
+    inplace.refresh(url.href, {source: form})
+      .then(() => {
+        inplace.toast(level, message);
+        if (form.isConnected) {
+          restoreForm(form);
+          form.querySelector('input[type="file"]').value = "";
+          if (level !== "error") window.setTimeout(() => { panel.hidden = true; }, 1600);
+        }
+      })
+      .catch(() => {
+        if (form.isConnected) restoreForm(form);
+        updateProgress(panel, 100, `${message}；清單未能自動更新，請重新整理頁面查看。`, "error");
       });
-      ["dragenter", "dragover"].forEach((type) => input.addEventListener(type, () => drop?.classList.add("is-dragging")));
-      ["dragleave", "drop"].forEach((type) => input.addEventListener(type, () => drop?.classList.remove("is-dragging")));
-    }
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (form.hasAttribute("data-upload-each")) uploadEach(form);
-      else upload(form);
+  }
+
+  function bind(root) {
+    // 歸類到已有檔案的文件格時先確認，避免不小心替換掉原檔。
+    root.querySelectorAll("[data-classify-form]:not([data-upload-bound])").forEach((form) => {
+      form.dataset.uploadBound = "";
+      form.addEventListener("submit", (event) => {
+        const option = form.querySelector("select")?.selectedOptions[0];
+        if (!option?.dataset.replace) return;
+        const name = form.dataset.fileName || "這個檔案";
+        const target = option.textContent.replace("（已有，將替換）", "");
+        if (!window.confirm(`「${target}」已經有檔案，歸類「${name}」後會替換原檔案，確定嗎？`)) event.preventDefault();
+      });
     });
+
+    // 全部下載：伺服器打包需要幾秒，期間顯示提示並避免重複點擊。
+    root.querySelectorAll("[data-zip-download]:not([data-upload-bound])").forEach((link) => {
+      link.dataset.uploadBound = "";
+      const label = link.querySelector("[data-zip-label]");
+      const initial = label ? label.textContent : "";
+      link.addEventListener("click", () => {
+        if (link.classList.contains("is-preparing")) return;
+        link.classList.add("is-preparing");
+        link.setAttribute("aria-busy", "true");
+        if (label) label.textContent = "正在打包，下載即將開始…";
+        window.setTimeout(() => {
+          link.classList.remove("is-preparing");
+          link.removeAttribute("aria-busy");
+          if (label) label.textContent = initial;
+        }, 8000);
+      });
+    });
+
+    root.querySelectorAll("form[data-document-upload]:not([data-upload-bound])").forEach((form) => {
+      const input = form.querySelector('input[type="file"]');
+      if (!input) return;
+      form.dataset.uploadBound = "";
+      if (form.hasAttribute("data-auto-upload")) {
+        input.addEventListener("change", () => upload(form));
+      }
+      // 多檔上傳區：顯示已選的檔案，拖曳進來時加上提示樣式。
+      const summary = form.querySelector("[data-file-summary]");
+      if (summary) {
+        const initial = summary.textContent;
+        const drop = input.closest("label");
+        input.addEventListener("change", () => {
+          const names = Array.from(input.files || []).map((file) => file.name);
+          summary.textContent = names.length
+            ? `已選 ${names.length} 個：${names.slice(0, 3).join("、")}${names.length > 3 ? "…" : ""}`
+            : initial;
+        });
+        ["dragenter", "dragover"].forEach((type) => input.addEventListener(type, () => drop?.classList.add("is-dragging")));
+        ["dragleave", "drop"].forEach((type) => input.addEventListener(type, () => drop?.classList.remove("is-dragging")));
+      }
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (form.hasAttribute("data-upload-each")) uploadEach(form);
+        else upload(form);
+      });
+    });
+  }
+
+  bind(document);
+  document.addEventListener("inplace:updated", (event) => {
+    event.detail.regions.forEach((region) => bind(region));
   });
 })();

@@ -1,10 +1,12 @@
-{# 機種總表的啟用顏色：數量＋色名，色名整個不拆字，最多兩行；放不下時結尾省略，滑過看全部，點開列出完整清單（vehicle-model-color-peek.js 定位）。 #}
+{% load screen_access %}{# 機種總表的啟用顏色：數量＋色名，色名整個不拆字，最多兩行；放不下時結尾省略，滑過看全部，點開列出完整清單（vehicle-model-color-peek.js 定位）。缺展示圖的色名加虛線標示。 #}
 {% with colors=item.enabled_colors count=item.enabled_colors|length %}{% if colors %}
-<button class="color-peek" type="button" popovertarget="vm-colors-{{ item.pk }}" title="{% for color in colors %}{{ color.name }}{% if not forloop.last %}、{% endif %}{% endfor %}" aria-label="查看 {{ item.model_year|default:'未填年式' }} 年式的 {{ count }} 種啟用顏色">
-  <span class="color-peek__names"><strong>{{ count }} 種</strong>{% for color in colors %}<span>{{ color.name }}{% if not forloop.last %}、{% endif %}</span>{% endfor %}</span>
+<button class="color-peek" type="button" popovertarget="vm-colors-{{ item.pk }}" title="{% for color in colors %}{{ color.name }}{% if not color.catalog_image %}（缺圖）{% endif %}{% if not forloop.last %}、{% endif %}{% endfor %}" aria-label="查看 {{ item.model_year|default:'未填年式' }} 年式的 {{ count }} 種啟用顏色{% if item.missing_photo_count %}，{{ item.missing_photo_count }} 種缺圖{% endif %}">
+  <span class="color-peek__names"><strong>{{ count }} 種</strong>{% if item.missing_photo_count %}<em class="color-peek__missing">缺圖 {{ item.missing_photo_count }}</em>{% endif %}{% for color in colors %}<span{% if not color.catalog_image %} class="is-missing-photo"{% endif %}>{{ color.name }}{% if not forloop.last %}、{% endif %}</span>{% endfor %}</span>
 </button>
 <div class="color-peek__panel" id="vm-colors-{{ item.pk }}" popover>
   <p><strong>{{ item.model_year|default:"未填年式" }} 啟用顏色</strong><small>{{ count }} 種</small></p>
   <ul aria-label="{{ item.model_year|default:'未填年式' }} 啟用顏色">{% for color in colors %}<li>{{ color.name }}</li>{% endfor %}</ul>
+  {% if item.missing_photo_count %}<p class="color-peek__missing-list"><strong>缺圖</strong>{% for color in colors %}{% if not color.catalog_image %}<span>{{ color.name }}</span>{% endif %}{% endfor %}</p>{% endif %}
+  {% if item.missing_photo_count and item.active %}{% if_access 'catalog_photo_board' %}<a class="color-peek__fill" href="{% url 'catalog_photo_board' %}?missing=1#model-{{ item.pk }}">到車色圖片補 {{ item.missing_photo_count }} 張圖 <span aria-hidden="true">›</span></a>{% endif_access %}{% endif %}
 </div>
 {% else %}<strong class="is-unset">0 種</strong><small>尚無啟用顏色</small>{% endif %}{% endwith %}

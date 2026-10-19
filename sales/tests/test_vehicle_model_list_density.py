@@ -41,6 +41,8 @@ class VehicleModelListDensityTests(TestCase):
 
     def test_colors_show_count_and_whole_names_without_swatches(self):
         cell = re.search(r'data-label="啟用顏色">(.*?)</td>', self.row, re.S).group(1)
+        # 夾具車色都沒有展示圖；缺圖標示另由 test_catalog_photo_board 驗證，這裡只看色名排版。
+        cell = re.sub(r' class="is-missing-photo"|<em class="color-peek__missing">.*?</em>|（缺圖）|<p class="color-peek__missing-list">.*?</p>|，\d+ 種缺圖', "", cell)
         names = re.search(r'<span class="color-peek__names">(.*?)</span>\s*</button>', cell, re.S).group(1)
         self.assertTrue(names.startswith("<strong>8 種</strong>"))
         # 每個色名（連同頓號）包成一段，換行時不會把「維蘇威黑」拆開。

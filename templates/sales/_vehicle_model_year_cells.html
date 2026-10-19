@@ -18,7 +18,7 @@
   <strong>傭金 ${{ item.base_dealer_commission|number_with_commas }}</strong>
   {% if item.current_reward_items %}<small class="vehicle-model-rewards is-on" title="{{ item.current_reward_items|join:'、' }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:'m/d' }}）{% endif %}">＋{{ item.current_reward_items|join:"、" }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:"m/d" }}）{% endif %}</small>{% else %}<small>無附加獎勵</small>{% endif %}
 </td>
-<td class="vm-color-cell" data-label="啟用顏色">{% include 'sales/_enabled_color_swatches.html' with item=item %}</td>
+<td class="vm-color-cell" data-label="啟用顏色">{% include 'sales/_enabled_color_names.html' with item=item %}</td>
 <td class="vm-stock-cell" data-label="庫存">
   <a
     class="vehicle-model-inventory-link{% if not item.available_count %} is-empty{% endif %}"

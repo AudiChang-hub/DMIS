@@ -305,7 +305,7 @@ class UiConsistencyTests(SimpleTestCase):
         confirm_pages = [
             "order_deletion_confirm", "dealer_volume_bonus_confirm_delete", "sales_source_confirm_delete",
             "announcement_action", "historical_date_change", "historical_buyer_replacement",
-            "print_company_missing",
+            "print_company_missing", "inventory_restore",
         ]
         offenders = []
         for name in confirm_pages:

@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from sales.models import SalesOrder
-from sales.services.order_deletion import change_deletion, deletion_blockers, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
+from sales.services.order_deletion import change_deletion, deletion_blockers, is_order_delivered, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
 from sales.services.order_intake import scoped_orders
 from django.core.exceptions import PermissionDenied
@@ -48,11 +48,9 @@ def order_delete(request, pk, *, restore=False):
     impacts = []
     if not restore:
         if order.allocated_vehicle_id:
-            impacts.append("解除本單配車；已領牌或交付的車輛停用待核對，不視為已退回新車庫存。")
+            impacts.append("解除本單配車：未領牌的車放回可銷售庫存；已領牌的車停用並標「刪單待確認」，由 admin 在車輛頁判斷是否改回現有庫存。")
         if order.registration_date or order.registration_completed_at or order.final_plate_number:
             impacts.append("領牌資料作歷史留存，退出有效訂單統計；不撤銷實際領牌。")
-        if order.status == SalesOrder.Status.COMPLETED or order.delivered_at:
-            impacts.append("已完成／已交付訂單：只有 admin 可確認刪除。")
         if order.payment_records.exists() or order.deposit_amount:
             impacts.append("退出有效收款待辦及營運統計，保留收款證據；不自動標記退款。")
         if order.dealer_volume_bonus_allocations.exists():
@@ -106,14 +104,14 @@ def order_deletion_queue(request):
 def _review_impacts(order):
     """審核列表的關聯影響摘要；完整限制仍在審核頁逐項確認。"""
     impacts = []
-    if permanent_deletion_blockers(order):
+    if order.forfeited_amount:
         impacts.append(("danger", "沒收訂金・不可刪除"))
+    if is_order_delivered(order):
+        impacts.append(("danger", "已交車・不可刪除"))
     if order.allocated_vehicle_id:
         impacts.append(("warn", "已配車"))
     if order.registration_completed_at or order.registration_date or order.final_plate_number:
         impacts.append(("warn", "已有領牌資料"))
-    if order.delivered_at:
-        impacts.append(("warn", "已交車"))
     if order.payment_records.all():
         impacts.append(("warn", "有收款紀錄"))
     return impacts or [("ok", "無關聯影響")]

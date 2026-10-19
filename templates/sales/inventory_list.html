@@ -169,7 +169,7 @@
           <td data-label="品牌">{{ vehicle.vehicle_model.brand|default:"—" }}</td>
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="車行調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
-          <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
+          <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>{% if vehicle.pk in deletion_review_ids %}<small class="inventory-review-flag" title="刪單時已領牌，等 admin 判斷是否改回現有庫存">刪單待確認</small>{% endif %}</td>
           {% if selected.scope == 'sold' %}
           <td data-label="去向" class="inventory-disposition-cell">
             {% if vehicle.disposition %}<span class="inventory-disposition inventory-disposition--{{ vehicle.disposition }}">{{ vehicle.get_disposition_display }}</span>{% if vehicle.disposition_target_label %}<strong>{{ vehicle.disposition_target_label }}</strong>{% endif %}{% if vehicle.disposition_on %}<small>{{ vehicle.disposition_on|date:"Y/m/d" }}</small>{% endif %}
@@ -186,7 +186,7 @@
               <span class="inventory-condition has-note">有備註</span><small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>
             {% else %}<span class="inventory-condition is-normal">正常</span>{% endif %}
           </td>
-          <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
+          <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}{% if can_restore_stock %}<a class="button secondary small" href="{% url 'inventory_restore' vehicle.pk %}">改回庫存</a>{% endif %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="{% if selected.scope == 'current' %}10{% else %}9{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>

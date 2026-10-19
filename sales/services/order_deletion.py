@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.access.services import AccessPolicy, is_root
+from sales.services.inventory_history import status_change
 from sales.models import (OrderEvent, SalesOrder, DealerVolumeBonusAllocation,
     DealerVolumeBonusSettlement, DealerVolumeBonusRule, DealerVolumeBonusAdjustment,
     VehicleInventory, VehicleInventoryHistory)
@@ -36,11 +37,27 @@ def require_access(user, action="operate"):
 
 
 FORFEIT_BLOCKER = "已沒收的訂金屬實際收入，不可刪除訂單。"
+DELIVERED_BLOCKER = ("已交車的訂單不能刪除：車已交給客人，放回庫存不合理。"
+                     "要退車請先洽 admin，目前系統沒有交車後退車的流程。")
+# 刪單後停用、等 admin 判斷是否改回庫存的車輛，在庫存與稽核紀錄標示這段文字。
+DELETION_REVIEW_LABEL = "刪單待確認"
+
+
+def is_order_delivered(order):
+    return bool(order.delivered_at or order.status in {SalesOrder.Status.COMPLETED, SalesOrder.Status.DELIVERED_DOCS_PENDING})
+
+
+def is_order_registered(order):
+    # 只看車牌與領牌完成；Excel 匯入沒車牌的單把預計領牌日存在 registration_date，不能當成已領牌。
+    return bool(order.registration_completed_at or order.final_plate_number)
 
 
 def permanent_deletion_blockers(order):
     """admin 確認作廢也不能略過的限制。"""
-    return [FORFEIT_BLOCKER] if order.forfeited_amount else []
+    blockers = [FORFEIT_BLOCKER] if order.forfeited_amount else []
+    if is_order_delivered(order):
+        blockers.append(DELIVERED_BLOCKER)
+    return blockers
 
 
 def deletion_blockers(order):
@@ -49,8 +66,6 @@ def deletion_blockers(order):
         blockers.append("仍綁定庫存車輛，請先完成取消／解除配車流程。")
     if order.registration_completed_at or order.registration_date or order.final_plate_number:
         blockers.append("已有領牌資料，請先確認並更正領牌紀錄；刪除不會撤銷領牌。")
-    if order.delivered_at or order.status in {SalesOrder.Status.COMPLETED, SalesOrder.Status.DELIVERED_DOCS_PENDING}:
-        blockers.append("已交付或完成的交易不可直接刪除，須先處理交付與帳務更正。")
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         blockers.append("仍有退款待辦，請先完成退款。")
     if order.refund_settled_legacy:
@@ -150,15 +165,19 @@ def _change_effects(order, settlements, user, restore, reason, now):
                 raise ValidationError("庫存車已異動或另行配車，不可直接還原；未覆蓋新交易。")
             after = saved["before"]
         else:
-            physical_evidence = bool(order.delivered_at or order.registration_date or order.registration_completed_at or order.final_plate_number
-                or vehicle.status in {VehicleInventory.Status.DELIVERED, VehicleInventory.Status.SOLD})
-            after = (VehicleInventory.Status.INACTIVE if physical_evidence else
+            # 未領牌、未交車：放回可銷售庫存。已領牌未交車：不能當新車賣，停用並標「刪單待確認」，
+            # 由 admin 在車輛頁「改回現有庫存」判斷（已交車的訂單在 permanent_deletion_blockers 擋下）。
+            registered = is_order_registered(order) or vehicle.status in {VehicleInventory.Status.DELIVERED, VehicleInventory.Status.SOLD}
+            after = (VehicleInventory.Status.INACTIVE if registered else
                      VehicleInventory.Status.AVAILABLE if before == VehicleInventory.Status.RESERVED else before)
             effects["vehicle"] = {"id": vehicle.pk, "before": before, "after": after, "updated_at": now.isoformat()}
         VehicleInventory.objects.filter(pk=vehicle.pk).update(status=after, updated_at=now)
+        changes = {"status": status_change(before, after), "order": {"label": "訂單", "value": order.number}}
+        if not restore and after == VehicleInventory.Status.INACTIVE:
+            changes["review"] = {"label": "後續處理", "value": f"{DELETION_REVIEW_LABEL}：已領牌，由 admin 判斷是否改回現有庫存"}
         VehicleInventoryHistory.objects.create(vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED,
             actor_name=user.get_username(), reason=f"{'還原' if restore else '刪除'}訂單 {order.number}：{reason}",
-            changes={"status": {"before": before, "after": after}, "order": order.number}, status_snapshot=after,
+            changes=changes, status_snapshot=after,
             location_store_snapshot=vehicle.location_store, location_label_snapshot=vehicle.actual_location_label,
             condition_note_snapshot=vehicle.condition_note, condition_resolution_snapshot=vehicle.condition_resolution)
     DealerVolumeBonusAllocation.all_objects.filter(pk__in=effects.get("allocations", [])).update(voided_at=None if restore else now)

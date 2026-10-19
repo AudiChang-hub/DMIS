@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}改回現有庫存｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--compact{% endblock %}
+{% block content %}
+{% url 'inventory_edit' vehicle.pk as vehicle_url %}
+{% url 'inventory_list' as inventory_list_url %}
+{% include "sales/_page_back.html" with fallback_url=vehicle_url label="車輛資料" root_url=inventory_list_url root_label="車輛庫存" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車輛庫存維護 · admin</p>
+    <h1>改回現有庫存</h1>
+    <p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.color.name }} · {{ vehicle.identifier }}</p>
+  </div>
+</section>
+
+<section class="section-block confirm-panel" aria-labelledby="restore-change-title">
+  <div class="section-title"><h2 id="restore-change-title">這台車會怎麼變</h2></div>
+  <div class="section-body confirm-panel__body">
+    <div class="restore-transition{% if blockers %} is-blocked{% endif %}" role="group" aria-label="庫存狀態變更{% if blockers %}（目前不能改回）{% endif %}">
+      <div class="restore-transition__state">
+        <small>目前</small>
+        <span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>
+      </div>
+      <span class="restore-transition__arrow" aria-hidden="true"></span>
+      <div class="restore-transition__state is-target">
+        <small>改回後</small>
+        <span class="status-pill status-available">可銷售</span>
+      </div>
+    </div>
+    <dl class="confirm-facts">
+      <div><dt>車型／車色</dt><dd>{{ vehicle.vehicle_model.name }}／{{ vehicle.color.name }}</dd></div>
+      <div><dt>引擎／車身號碼</dt><dd>{{ vehicle.identifier }}</dd></div>
+      <div><dt>進車日期</dt><dd>{{ vehicle.received_on|date:"Y/m/d" }}</dd></div>
+      <div><dt>實際位置</dt><dd>{{ vehicle.actual_location_label }}</dd></div>
+      {% if vehicle.disposition or vehicle.disposition_target_label %}<div class="is-wide"><dt>目前去向（改回後清除）</dt><dd>{{ vehicle.get_disposition_display|default:"未分類" }} {{ vehicle.disposition_target_label }} {{ vehicle.disposition_on|date:"Y/m/d" }}</dd></div>{% endif %}
+    </dl>
+    {% if review_order %}
+    <div class="callout callout--info" role="note"><span class="callout__icon" aria-hidden="true">i</span><div>
+      <h3>刪單待確認</h3>
+      <p>這台車在刪除訂單 {{ review_order.number }} 時已領牌，所以先停用，等 admin 判斷要不要改回庫存。</p>
+      <dl class="confirm-facts">
+        <div><dt>刪除人員</dt><dd>{{ review_order.deleted_by|default:"未記錄" }}</dd></div>
+        <div><dt>刪除時間</dt><dd>{{ review_order.deleted_at|date:"Y/m/d H:i" }}</dd></div>
+        <div class="is-wide"><dt>刪除原因</dt><dd>{{ review_order.deletion_reason|default:"未填寫" }}</dd></div>
+      </dl>
+    </div></div>
+    {% endif %}
+    {% if trace %}
+    <div class="callout callout--warning" role="note"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>這台車有領牌紀錄</h3>
+      <p>{{ trace.source }}{% if trace.plate %}，車牌 {{ trace.plate }}{% endif %}{% if trace.registered_on %}（{{ trace.registered_on|date:"Y/m/d" }}）{% endif %}。請在下方選擇要當新車還是已領牌車改回。</p>
+    </div></div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section-block confirm-panel" aria-labelledby="restore-impact-title">
+  <div class="section-title"><h2 id="restore-impact-title">{% if blockers %}目前不能改回{% else %}改回後的影響{% endif %}</h2></div>
+  <div class="section-body confirm-panel__body">
+    {% if blockers %}
+    <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>請先處理以下事項</h3>
+      <ul class="restore-blockers">{% for text, url, link_label in blockers %}<li><span>{{ text }}</span>{% if url %}<a class="button ghost small" href="{{ url }}">{{ link_label }}</a>{% endif %}</li>{% endfor %}</ul>
+    </div></div>
+    {% else %}
+    <div class="callout callout--{% if needs_ack %}danger{% else %}warning{% endif %}" role="note"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>{% if needs_ack %}會影響報表與庫存數{% else %}確認前請核對{% endif %}</h3>
+      <ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}<li>原狀態與原因寫入這台車的歷史異動紀錄。</li></ul>
+    </div></div>
+    {% endif %}
+  </div>
+  {% if blockers %}
+  <div class="form-actions confirm-panel__actions confirm-panel__form"><a class="button ghost" href="{{ vehicle_url }}">返回車輛資料</a></div>
+  {% else %}
+  <form method="post" class="confirm-panel__form restore-form" data-confirm="確定把 {{ vehicle.identifier }} 改回現有庫存（可銷售）？">
+    {% csrf_token %}{{ form.expected_updated_at }}
+    {% if form.non_field_errors or form.expected_updated_at.errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>尚未改回</h3>{{ form.non_field_errors }}{{ form.expected_updated_at.errors }}</div></div>{% endif %}
+    {% if form.mode %}
+    <fieldset class="confirm-panel__group restore-mode">
+      <legend>{{ form.mode.label }}<em>必填</em></legend>
+      <div class="check-list">{% for choice in form.mode %}<label class="check-row">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+      {% for error in form.mode.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+    </fieldset>
+    {% if form.resale_price %}<div class="restore-price">{% include "sales/_field.html" with field=form.resale_price required_label="當已領牌車時必填" %}</div>{% endif %}
+    {% endif %}
+    {% include "sales/_field.html" with field=form.reason %}
+    {% if form.confirm_identifier %}<div class="confirm-panel__group restore-second-check">
+      <h3>二次確認</h3>
+      <p class="muted">這台車原本是「{{ vehicle.get_status_display }}」，改回後庫存數與以庫存計算的報表會跟著變。請對照上方號碼 {{ vehicle.identifier }}，輸入末 4 碼。</p>
+      {% include "sales/_field.html" with field=form.confirm_identifier %}
+    </div>{% endif %}
+    <div class="form-actions confirm-panel__actions"><a class="button ghost" href="{{ vehicle_url }}">返回車輛資料</a><button class="button primary" type="submit">確認改回現有庫存</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

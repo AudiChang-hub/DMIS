@@ -3009,6 +3009,77 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .history-snapshot small, .history-snapshot strong { display: block; }
 .history-snapshot small { color: var(--muted); }
+/* 單值列（例如關聯訂單）：沒有前後對照，不畫箭頭。 */
+.history-change-list > div { align-items: center; }
+.history-change-list > div > span:first-of-type:not(.change-after) { color: var(--muted); overflow-wrap: anywhere; }
+.history-change-list > div.is-single { grid-template-columns: 140px 1fr; }
+
+/* ===== 改回現有庫存：停用車的入口、確認頁狀態變化 ===== */
+.restore-entry {
+  position: relative; display: grid; margin: 0 0 var(--stack-gap); padding: var(--card-pad); grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; gap: var(--space-4); overflow: hidden; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+}
+.restore-entry::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--muted); }
+.restore-entry.is-review::before { background: var(--amber); }
+.restore-entry__mark {
+  display: grid; width: 44px; height: 44px; place-items: center; color: var(--muted); background: var(--surface-soft);
+  border-radius: var(--radius-pill);
+}
+.restore-entry__mark::before {
+  content: ""; width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  transform: rotate(-45deg);
+}
+.restore-entry.is-review .restore-entry__mark { color: var(--amber); background: var(--amber-soft); }
+.restore-entry__text { min-width: 0; }
+.restore-entry__text .eyebrow { margin: 0 0 var(--space-1); }
+.restore-entry.is-review .restore-entry__text .eyebrow { color: var(--amber); }
+.restore-entry__text h2 { margin: 0; font-size: var(--text-lg); line-height: 1.4; }
+.restore-entry__text p:last-child { margin: var(--space-1) 0 0; color: var(--muted); line-height: 1.6; }
+.restore-transition {
+  display: grid; padding: var(--space-4); grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  gap: var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md);
+}
+.restore-transition__state { display: grid; justify-items: start; gap: var(--space-1); }
+.restore-transition__state small { color: var(--muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: .06em; }
+.restore-transition__state .status-pill { display: inline-flex; padding: var(--space-1) var(--space-4); font-size: var(--text-md); font-weight: 900; }
+.restore-transition__state.is-target { justify-items: end; }
+.restore-transition.is-blocked :is(.is-target, .restore-transition__arrow) { opacity: .4; }
+.restore-transition__arrow { position: relative; width: 56px; height: 2px; background: var(--line-strong); }
+.restore-transition__arrow::after {
+  content: ""; position: absolute; top: 50%; right: 0; width: 9px; height: 9px; border-top: 2px solid var(--line-strong);
+  border-right: 2px solid var(--line-strong); transform: translate(1px, -50%) rotate(45deg);
+}
+.restore-transition .status-pill.status-available { color: var(--green); background: var(--mint); border-color: var(--green-border); }
+.restore-transition .status-pill.status-reserved { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border-strong); }
+.restore-transition .status-pill.status-transferred_out { color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-border); }
+.restore-transition .status-pill:is(.status-delivered, .status-sold, .status-inactive) { color: var(--muted); background: var(--surface); border-color: var(--line); }
+.restore-blockers { display: grid; margin: 0; padding: 0; gap: var(--space-3); list-style: none; }
+.restore-blockers li { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.restore-blockers .button { flex: 0 0 auto; }
+.restore-mode { margin: 0; padding: 0; border: 0; }
+.restore-mode legend { display: flex; margin-bottom: var(--space-2); padding: 0; align-items: baseline; gap: var(--space-2); color: var(--field-label); font-size: var(--text-sm); font-weight: 800; }
+.restore-mode .check-row input[type=radio] { flex: 0 0 auto; width: 20px; height: 20px; margin: 2px 0 0; }
+.restore-second-check { padding: var(--space-4); background: var(--red-soft); border-radius: var(--radius-md); }
+.restore-second-check > p { margin: 0; line-height: 1.6; }
+.restore-second-check .restore-confirm-input { max-width: 180px; font-family: ui-monospace, monospace; font-size: var(--text-md); font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+/* 選「當新車」時不需要再售價。 */
+.restore-form:has(input[name=mode][value=new]:checked) .restore-price { display: none; }
+.inventory-review-flag {
+  display: inline-block; margin-top: var(--space-1); padding: 2px var(--space-2); color: var(--amber); background: var(--amber-soft);
+  border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 900; white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .restore-entry { grid-template-columns: auto minmax(0, 1fr); }
+  .restore-entry > .button { grid-column: 1 / -1; justify-content: center; }
+  .restore-entry__mark { align-self: start; }
+  .restore-transition { grid-template-columns: 1fr; justify-items: start; }
+  .restore-transition__state.is-target { justify-items: start; }
+  .restore-transition__arrow { width: 2px; height: 28px; margin-left: var(--space-5); }
+  .restore-transition__arrow::after { top: auto; right: 50%; bottom: 0; transform: translate(50%, 1px) rotate(135deg); }
+  .restore-blockers li { flex-direction: column; }
+  .history-change-list > div.is-single { grid-template-columns: 1fr; }
+}
 .empty-state.compact { min-height: 110px; }
 .quick-entry-form { display: grid; gap: var(--stack-gap-sm); }
 .quick-entry-panel {

@@ -4,8 +4,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'positioned_template_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="列印範本設定" root_url=data_url root_label="資料維護區" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">版面與資料定位</p><h1>{% if template_object.pk %}{{ template_object.name }}{% else %}新增列印範本{% endif %}</h1><p class="muted">{% site_text 'positioned_template_form.e12485e70082' %}</p></div>{% if template_object.pk and sample_order %}<a class="button primary" target="_blank" href="{% url 'positioned_template_preview' template_object.pk %}">預覽 PDF</a>{% endif %}</section>
-<form method="post" enctype="multipart/form-data" data-print-template-form>
+<section class="hero-row compact-hero"><div><p class="eyebrow">版面與資料定位</p><h1 id="print-template-title" data-inplace-region>{% if template_object.pk %}{{ template_object.name }}{% else %}新增列印範本{% endif %}</h1><p class="muted">{% site_text 'positioned_template_form.e12485e70082' %}</p></div>{% if template_object.pk and sample_order %}<a class="button primary" target="_blank" href="{% url 'positioned_template_preview' template_object.pk %}">預覽 PDF</a>{% endif %}</section>
+<form method="post" enctype="multipart/form-data" data-print-template-form id="print-template-form" data-inplace-region data-inplace-form>
 {% csrf_token %}
 <section class="section-block"><div class="section-title"><h2>範本設定</h2></div><div class="form-grid compact-grid">
 {% for field in form %}<div class="field{% if field.name == 'note' %} field-span-2{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
@@ -21,5 +21,6 @@
 </section>
 <div class="sticky-form-actions"><a class="button ghost" href="{% url 'positioned_template_list' %}">取消修改</a><button class="button primary" type="submit">套用範本</button></div>
 </form>
+<script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/positioned-template-fields.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

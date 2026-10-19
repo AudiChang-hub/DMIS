@@ -1,8 +1,8 @@
 {% extends 'base.html' %}{% load site_copy static %}
 {% block title %}{{ item.title }}｜系統公告{% endblock %}
-{% block head %}<script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block content %}{% site_navigation %}
-<article class="section-block reading-panel">
+<article class="section-block reading-panel" id="announcement-article" data-inplace-region>
   {% if item.pinned %}<span class="pin-badge">📌 置頂公告</span>{% endif %}
   <div class="form-actions"><time>{{ item.starts_at|date:'Y/m/d H:i' }} 台北時間</time>
   {% if can_manage_announcement %}<button type="button" class="button ghost small" data-announcement-edit>編輯</button>
@@ -14,7 +14,7 @@
     {% if attachments %}<h2>附件下載</h2><ul>{% for attachment in attachments %}<li><a href="{% url 'announcement_attachment' attachment.pk %}">{{ attachment.name }}</a></li>{% endfor %}</ul>{% endif %}
   </div>
   {% if can_manage_announcement %}
-  <form method="post" enctype="multipart/form-data" data-announcement-editor {% if not editing %}hidden{% endif %}>
+  <form method="post" enctype="multipart/form-data" data-inplace-form data-announcement-editor {% if not editing %}hidden{% endif %}>
     {% csrf_token %}{{ inline_form.expected_version }}{{ inline_form.expected_version.errors }}{{ inline_form.non_field_errors }}
     <label>標題{{ inline_form.title }}{{ inline_form.title.errors }}</label>
     {% include 'sales/_announcement_media_editor.html' with form=inline_form %}

@@ -11,7 +11,7 @@
 {# 檢視時固定訂單頁首；編輯時改由表單頁首（取消／儲存／完成編輯）固定，避免兩列重疊。 #}
 <section class="hero-row compact-hero detail-hero{% if not editing_order %} order-sticky-hero{% endif %}"{% if not editing_order %} data-sticky-hero{% endif %}>
   <div>
-    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}">{{ order.display_status }}</span></div>
+    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
     <p class="order-owner-facts">{% if order.owner_phone %}<span>電話 <strong>{{ order.owner_phone }}</strong></span>{% endif %}{% if order.owner_birth_date %}<span>生日 <strong>{{ order.owner_birth_date|roc_date }}</strong>（西元 {{ order.owner_birth_date|date:"Y/m/d" }}）</span>{% endif %}</p>
   </div>
@@ -142,12 +142,12 @@
       <h2>簽署文件留存</h2>
       <small>{% site_text 'order_detail.c8ba076ab19d' %}</small>
     </div>
-    <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已簽署{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已簽署{% else %}尚未簽署{% endif %}</span>
+    <span id="signed-documents-status" data-inplace-region>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已簽署{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已簽署{% else %}尚未簽署{% endif %}</span>
   </div>
   <div class="section-body signing-tools">
   {% include "sales/_order_sign_choice.html" %}
   </div>
-  <div class="document-archive-grid">
+  <div class="document-archive-grid" id="signed-documents-files" data-inplace-region>
     <article class="document-archive-card">
       <div class="document-archive-card__heading">
         <div><p class="eyebrow">訂購合約</p><h3>客戶與店家留存聯</h3></div>
@@ -374,7 +374,7 @@
       {% endif %}
     {% endif %}
 
-    <div class="registration-documents">
+    <div class="registration-documents" id="registration-documents" data-inplace-region>
       <div class="registration-documents__heading content-section-heading">
         <div>
           <h3>領牌文件</h3>
@@ -395,7 +395,7 @@
             {% if row.document %}
               {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
               {% if not order.is_registration_complete %}
-              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
+              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-inplace-form data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
                 {% csrf_token %}
                 <button class="button danger-outline compact" type="submit">刪除</button>
               </form>
@@ -429,7 +429,7 @@
           <div>
             {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
             {% if not order.is_registration_complete %}
-            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
+            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
             </form>
             {% endif %}
@@ -439,7 +439,7 @@
           <p class="muted">目前沒有其他保險單。</p>
         {% endfor %}
         {% if order.status != 'cancelled' %}
-        <form class="other-insurance__form" method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+        <form class="other-insurance__form" data-inplace-form method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
           {% csrf_token %}
           <input type="hidden" name="document_type" value="other_insurance">
           <div>
@@ -552,7 +552,7 @@
     {% else %}
       <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
     {% endif %}
-    <form class="stage-form delivery-completion-form" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
+    <form class="stage-form delivery-completion-form" data-inplace-form data-inplace-success="reload" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
       {% csrf_token %}
       <div class="form-grid compact-grid">
         {% for field in delivery_form %}
@@ -613,11 +613,11 @@
       <h2>汰舊／補助作業</h2>
     </div>
     {% if not order.is_trade_in_subsidy %}
-      <span class="archive-status" data-subsidy-stage-status>未申請</span>
+      <span class="archive-status" id="subsidy-stage-status" data-inplace-region data-subsidy-stage-status>未申請</span>
     {% elif order.is_subsidy_ready %}
-      <span class="archive-status done" data-subsidy-stage-status>✓ 資料齊全</span>
+      <span class="archive-status done" id="subsidy-stage-status" data-inplace-region data-subsidy-stage-status>✓ 資料齊全</span>
     {% else %}
-      <span class="archive-status" data-subsidy-stage-status>{{ order.subsidy_completed_count }}／{{ order.subsidy_required_count }} 已備妥</span>
+      <span class="archive-status" id="subsidy-stage-status" data-inplace-region data-subsidy-stage-status>{{ order.subsidy_completed_count }}／{{ order.subsidy_required_count }} 已備妥</span>
     {% endif %}
   </div>
 
@@ -703,6 +703,7 @@
   </section>
   {% endif %}
 
+  <div id="subsidy-documents" data-inplace-region>
   <div class="subsidy-documents-heading content-section-heading">
     <div>
       <h3>補助文件</h3>
@@ -728,7 +729,7 @@
           {% endif %}
           {% if row.document %}
             {% if order.can_manage_subsidy %}
-            <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
+            <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-inplace-form data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
             </form>
             {% endif %}
@@ -765,7 +766,7 @@
         <div>
           {% if_access 'subsidy_document_file' document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
           {% if order.can_manage_subsidy %}
-          <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
+          <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
             {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
           </form>
           {% endif %}
@@ -776,7 +777,7 @@
       {% endfor %}
 
       {% if order.can_manage_subsidy %}
-      <form class="other-subsidy-documents__form" data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+      <form class="other-subsidy-documents__form" data-inplace-form data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
         {% csrf_token %}
         <input type="hidden" name="document_type" value="other">
         <div>
@@ -797,7 +798,9 @@
       {% endif %}
     </div>
 
-    <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}" data-subsidy-completion>
+  </div>
+
+    <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}" id="subsidy-completion" data-inplace-region data-subsidy-completion>
       <div>
         {% if not order.is_trade_in_subsidy %}
           <strong>目前未啟用補助申請</strong>
@@ -823,7 +826,7 @@
   <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>取消待退款結算</h2></div><span>已收 ${{ refund_form.received|number_with_commas }}</span></div>
   <p>取消原因：{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
   {% if refund_form.unconfirmed_amount %}<p class="note-box">尚有 ${{ refund_form.unconfirmed_amount|number_with_commas }} 已登記但未確認的實收，請先到金額收支確認或清除，才能結算退款。</p>{% endif %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
+  <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid" data-inplace-form data-inplace-success="reload">
     {% csrf_token %}
     {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
     <div class="wide"><button class="button primary" type="submit" data-confirm="確認已依應退金額完成退款，並完成取消訂單嗎？">確認結算並完成取消</button></div>
@@ -900,7 +903,7 @@
   {% if exception_close_blockers %}
   <ul class="delivery-blockers">{% for item in exception_close_blockers %}<li>{{ item }}</li>{% endfor %}</ul>
   {% else %}{% if_access 'order_exception_close' order.pk %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'order_exception_close' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
+  <form method="post" enctype="multipart/form-data" action="{% url 'order_exception_close' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form" data-inplace-form data-inplace-success="reload">
     {% csrf_token %}
     <p class="wide">已確認實收 ${{ exception_close_form.received|number_with_commas }}；應退＝已收－沒收。車輛不會回到新車庫存。</p>
     {% for field in exception_close_form %}<div class="{% if field.name == 'reason' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
@@ -939,7 +942,7 @@
 {% with step=steps.attachments %}<section class="order-step order-step--attachments is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-attachments" data-step-key="attachments" role="tabpanel" aria-labelledby="tab-attachments" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
-{% include "sales/_order_step_attachments.html" %}
+<div id="order-files" data-inplace-region>{% include "sales/_order_step_attachments.html" %}</div>
 </div></section>{% endwith %}
 {% endif %}
 {% with step=steps.history %}<section class="order-step order-step--history is-{{ step.state }}{% if open_step == step.key and not editing_order %} is-active{% endif %}" id="panel-history" data-step-key="history"{% if not editing_order %} role="tabpanel" aria-labelledby="tab-history" tabindex="-1"{% endif %}>
@@ -999,6 +1002,7 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>

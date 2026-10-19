@@ -101,7 +101,7 @@
       {% endif_access %}
       <small class="order-file__meta">{% if attachment.note %}{{ attachment.note }}<br>{% endif %}{{ attachment.uploaded_by|default:"內部人員" }} · {{ attachment.created_at|date:"Y/m/d H:i" }}</small>
       {% if attachment.classify_groups %}{% if_access 'order_attachment_classify' order.pk attachment.pk %}
-      <form class="order-file__classify" method="post" action="{% url 'order_attachment_classify' order.pk attachment.pk %}" data-classify-form data-file-name="{{ attachment.name }}">
+      <form class="order-file__classify" data-inplace-form method="post" action="{% url 'order_attachment_classify' order.pk attachment.pk %}" data-classify-form data-file-name="{{ attachment.name }}">
         {% csrf_token %}
         <label class="visually-hidden" for="classify-{{ attachment.pk }}">把「{{ attachment.name }}」歸類到</label>
         <select id="classify-{{ attachment.pk }}" class="form-control" name="target" required>
@@ -116,7 +116,7 @@
       </form>
       {% endif_access %}{% endif %}
       {% if_access 'order_attachment_delete' order.pk attachment.pk %}
-      <form method="post" action="{% url 'order_attachment_delete' order.pk attachment.pk %}" data-confirm="確定刪除「{{ attachment.name }}」嗎？刪除後無法復原。">
+      <form method="post" action="{% url 'order_attachment_delete' order.pk attachment.pk %}" data-inplace-form data-confirm="確定刪除「{{ attachment.name }}」嗎？刪除後無法復原。">
         {% csrf_token %}<button class="button danger-outline compact block" type="submit">刪除</button>
       </form>
       {% endif_access %}

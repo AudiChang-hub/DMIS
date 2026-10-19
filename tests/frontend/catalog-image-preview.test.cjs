@@ -141,3 +141,78 @@ test('主圖驗證錯誤會展開進階區，避免隱藏錯誤', () => {
   f.input.dispatch('invalid');
   assert.equal(f.details.open, true);
 });
+function urlFixture(original = '') {
+  const input = element(), image = element(), placeholder = element(), status = element(), cancel = element();
+  const remove = element(), url = element(), fileOption = element(), urlOption = element();
+  fileOption.value = 'file'; fileOption.checked = true; urlOption.value = 'url';
+  if (original) image.src = original;
+  image.hidden = !original; placeholder.hidden = !!original;
+  const nodes = {'input[type="file"]': input, '[data-preview-image]': image, '[data-preview-placeholder]': placeholder,
+    '[data-preview-status]': status, '[data-preview-cancel]': cancel, 'input[type="checkbox"]': remove, 'input[type="url"]': url};
+  const root = {dataset: {}, querySelector: key => nodes[key], querySelectorAll: () => [fileOption, urlOption], closest: () => null};
+  const loaders = [];
+  const env = {URL: {createObjectURL: () => 'blob:1', revokeObjectURL() {}}, Image: class {constructor() {loaders.push(this);}}};
+  const controller = attach(root, env);
+  function choose(option) {fileOption.checked = option === 'file'; urlOption.checked = option === 'url'; (option === 'file' ? fileOption : urlOption).dispatch('change');}
+  function paste(value) {url.value = value; url.dispatch('change');}
+  return {input, image, placeholder, status, cancel, remove, url, root, loaders, controller, choose, paste};
+}
+test('貼上連結：切換模式清空另一種來源並聚焦', () => {
+  const f = urlFixture('/saved.png');
+  assert.equal(f.root.dataset.sourceMode, 'file');
+  f.input.value = '舊.png';
+  f.choose('url');
+  assert.equal(f.root.dataset.sourceMode, 'url');
+  assert.equal(f.input.value, '');
+  assert.equal(f.url.focused, true);
+  f.paste('https://www.e-moving.com.tw/emwspublished/C0013/28_20240712163321.jpg');
+  f.choose('file');
+  assert.equal(f.url.value, '');
+  assert.equal(f.input.focused, true);
+  assert.equal(f.image.src, '/saved.png');
+});
+test('貼上連結：載入成功預覽並提示會下載存入，取消可還原', () => {
+  const f = urlFixture('/saved.png');
+  f.choose('url');
+  f.paste(' https://www.e-moving.com.tw/a.jpg ');
+  assert.equal(f.root.dataset.previewState, 'checking');
+  assert.equal(f.loaders[0].referrerPolicy, 'no-referrer');
+  f.loaders[0].onload();
+  assert.equal(f.image.src, 'https://www.e-moving.com.tw/a.jpg');
+  assert.equal(f.placeholder.hidden, true);
+  assert.match(f.status.textContent, /www\.e-moving\.com\.tw 下載/);
+  assert.equal(f.root.dataset.previewState, 'pending');
+  f.cancel.dispatch('click');
+  assert.equal(f.url.value, '');
+  assert.equal(f.image.src, '/saved.png');
+  assert.equal(f.url.focused, true);
+});
+test('貼上連結：非 http(s) 阻擋送出，預覽失敗只警告不阻擋', () => {
+  const f = urlFixture();
+  f.choose('url');
+  f.paste('javascript:alert(1)');
+  assert.equal(f.root.dataset.previewState, 'error');
+  assert.ok(f.url.validationMessage);
+  assert.equal(f.loaders.length, 0);
+  f.paste('not a url');
+  assert.ok(f.url.validationMessage);
+  f.paste('https://example.com/page.html');
+  assert.equal(f.url.validationMessage, '');
+  f.loaders[0].onerror();
+  assert.equal(f.root.dataset.previewState, 'warning');
+  assert.equal(f.image.hidden, true);
+  assert.equal(f.cancel.hidden, false);
+});
+test('貼上連結：舊連結的載入回呼不能覆蓋新連結，勾選移除會清空連結', () => {
+  const f = urlFixture('/saved.png');
+  f.choose('url');
+  f.paste('https://a.example/1.jpg'); const stale = f.loaders[0].onload;
+  f.paste('https://a.example/2.jpg');
+  stale();
+  assert.equal(f.image.src, '/saved.png');
+  f.loaders[1].onload();
+  assert.equal(f.image.src, 'https://a.example/2.jpg');
+  f.remove.checked = true; f.remove.dispatch('change');
+  assert.equal(f.url.value, '');
+  assert.match(f.status.textContent, /儲存後移除/);
+});

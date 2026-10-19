@@ -1,7 +1,20 @@
-{% load site_copy %}<div class="catalog-image-preview" data-catalog-image-preview>
-  <img class="catalog-image {{ preview_class }}" data-preview-image {% if photo %}src="{{ preview_url }}"{% else %}hidden{% endif %} alt="{{ upload.label }}預覽">
+{% load site_copy %}<div class="catalog-image-preview" data-catalog-image-preview{% if url %} data-source-mode="{% if url.value or url.errors or remote_error %}url{% else %}file{% endif %}"{% endif %}>
+  <img class="catalog-image {{ preview_class }}" data-preview-image {% if photo %}src="{{ preview_url }}"{% else %}hidden{% endif %} alt="{{ upload.label }}預覽" referrerpolicy="no-referrer">
   <div class="catalog-placeholder {{ preview_class }}" data-preview-placeholder {% if photo %}hidden{% endif %}>圖片待補</div>
+  {% if url %}
+  <div class="image-source-switch" role="radiogroup" aria-label="{{ upload.label }}的來源">
+    <label class="image-source-switch__option"><input type="radio" name="source_{{ upload.html_name }}" value="file" data-source-option {% if not url.value and not url.errors and not remote_error %}checked{% endif %}><span><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16"><path d="M10 13V3m0 0L6 7m4-4 4 4M3 13v2.5A1.5 1.5 0 0 0 4.5 17h11a1.5 1.5 0 0 0 1.5-1.5V13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>上傳檔案</span></label>
+    <label class="image-source-switch__option"><input type="radio" name="source_{{ upload.html_name }}" value="url" data-source-option {% if url.value or url.errors or remote_error %}checked{% endif %}><span><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5L10 5m1.5 3.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>貼上連結</span></label>
+  </div>
+  <div class="image-source-panel" data-source-panel="file">{% include "sales/_field.html" with field=upload %}</div>
+  <div class="image-source-panel" data-source-panel="url">
+    {% include "sales/_field.html" with field=url %}
+    {% if remote_error %}<p class="catalog-remote-error" role="alert">{{ remote_error }}</p>{% endif %}
+    <small class="help-text">{% site_text '_catalog_image_preview.url_help' %}</small>
+  </div>
+  {% else %}
   {% include "sales/_field.html" with field=upload %}
+  {% endif %}
   {% if photo and remove %}{% include "sales/_field.html" with field=remove %}{% endif %}
   <p class="catalog-preview-status" id="{{ upload.id_for_label }}_preview_status" data-preview-status role="status" aria-live="polite"></p>
   <button class="button ghost small" type="button" data-preview-cancel hidden>取消此次圖片變更</button>

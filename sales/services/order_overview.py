@@ -93,8 +93,8 @@ def build_order_overview(order, *, include_finance=True):
         _section("order", "訂單", [
             _row("訂單編號", order.number, mono=True),
             _row("狀態", order.display_status),
+            # 只列訂單日期：系統建單時兩者相同；匯入單的 established_on 是領牌日，已有「實際領牌日期」。
             _row("訂單日期", _date(order.order_date)),
-            _row("訂單成立日期", _date(order.established_on)),
             _row("接單人", order.accepted_name or (order.accepted_by.get_full_name() or order.accepted_by.get_username()
                                                    if order.accepted_by_id else "")),
             _row("訂單來源", order.source_display),

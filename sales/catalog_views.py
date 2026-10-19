@@ -20,6 +20,7 @@ from sales.services.price_version import (
 )
 from sales.services.installment_plan import resolve_installment_plan_version
 from sales.services.catalog_selection import selection_data, sign_selection
+from sales.services.remote_image import RemoteImageError, fetch_image, validate_url
 
 
 def listed_models():
@@ -200,6 +201,9 @@ class CatalogForm(forms.ModelForm):
         for color in self.catalog_colors:
             self.fields[f"color_image_{color.pk}"] = forms.ImageField(label=f"{color.name} · 車色圖片", required=False,
                 widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}))
+            self.fields[f"color_url_{color.pk}"] = forms.CharField(label=f"{color.name} · 圖片連結", required=False,
+                max_length=2000, widget=forms.URLInput(attrs={"placeholder": "https://…/圖片.jpg", "inputmode": "url",
+                                                             "autocomplete": "off", "spellcheck": "false"}))
             self.fields[f"color_remove_{color.pk}"] = forms.BooleanField(label=f"移除 {color.name} 的展示圖片（保留備份檔）", required=False)
         # 原始媒體 URL 不作為對外預覽；僅經 catalog_image 讀取。
         self.fields["image"].widget = forms.FileInput(
@@ -212,9 +216,13 @@ class CatalogForm(forms.ModelForm):
                 else "form-control"
             )
 
-        self.color_sections = [
-            {"color": color, "upload": self[f"color_image_{color.pk}"],
-             "remove": self[f"color_remove_{color.pk}"]}
+        self.remote_errors = {}
+
+    @property
+    def color_sections(self):
+        return [
+            {"color": color, "upload": self[f"color_image_{color.pk}"], "url": self[f"color_url_{color.pk}"],
+             "remove": self[f"color_remove_{color.pk}"], "remote_error": self.remote_errors.get(color.pk, "")}
             for color in self.catalog_colors
         ]
 
@@ -233,7 +241,7 @@ class CatalogForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        if any(key.startswith(("color_image_", "color_remove_")) and key not in self.fields
+        if any(key.startswith(("color_image_", "color_url_", "color_remove_")) and key not in self.fields
                for key in set(self.data) | set(self.files)):
             self.add_error(None, "車色已停用或不屬於此車款，請重新整理後再編輯。")
         target_color = data.get("main_image_color")
@@ -242,11 +250,24 @@ class CatalogForm(forms.ModelForm):
                 self.add_error("main_image_color", "請先儲存主圖，再確認要對應的車色。")
             elif target_color.catalog_image and target_color.catalog_image.name != self.instance.image.name:
                 self.add_error("main_image_color", "此車色已有不同圖片；若需更換，請使用該色的圖片上傳欄位。")
-            if data.get(f"color_image_{target_color.pk}") or data.get(f"color_remove_{target_color.pk}"):
+            if any(data.get(f"color_{kind}_{target_color.pk}") for kind in ("image", "url", "remove")):
                 self.add_error("main_image_color", "同一車色不可同時對應主圖、上傳或移除圖片。")
         for color in self.catalog_colors:
             key = f"color_image_{color.pk}"
             upload = data.get(key)
+            url_key = f"color_url_{color.pk}"
+            url = (data.get(url_key) or "").strip()
+            data[url_key] = url
+            if url:
+                if upload:
+                    self.add_error(url_key, "請擇一：上傳檔案或貼上圖片連結。")
+                elif data.get(f"color_remove_{color.pk}"):
+                    self.add_error(url_key, "同一車色不可同時貼上連結與移除圖片。")
+                else:
+                    try:
+                        validate_url(url)
+                    except RemoteImageError as error:
+                        self.add_error(url_key, str(error))
             if upload and data.get(f"color_remove_{color.pk}"):
                 self.add_error(key, "同一車色不可同時上傳與移除圖片。")
             if upload:
@@ -256,6 +277,20 @@ class CatalogForm(forms.ModelForm):
                 else:
                     upload.name = f"{uuid.uuid4().hex}.{ {'JPEG':'jpg','PNG':'png','WEBP':'webp'}[fmt]}"
         return data
+
+    def fetch_remote_images(self):
+        """表單通過後才下載連結圖片（不在資料庫鎖內連外）；失敗的車色記在 remote_errors，其他照常儲存。"""
+        fetched = {}
+        for color in self.catalog_colors:
+            url = self.cleaned_data.get(f"color_url_{color.pk}")
+            if not url:
+                continue
+            try:
+                self.cleaned_data[f"color_image_{color.pk}"] = fetch_image(url)
+                fetched[color.pk] = url
+            except RemoteImageError as error:
+                self.remote_errors[color.pk] = str(error)
+        return fetched
 
 
 @root_required
@@ -274,6 +309,7 @@ def catalog_edit(request, pk):
     ).first() or VehicleCatalogEntry(vehicle_model=model)
     form = CatalogForm(request.POST or None, request.FILES or None, instance=entry)
     if request.method == "POST" and form.is_valid():
+        fetched_urls = form.fetch_remote_images()
         with transaction.atomic():
             target_color = form.cleaned_data.get("main_image_color")
             locked_model = VehicleModel.objects.select_for_update().get(pk=pk)
@@ -326,8 +362,18 @@ def catalog_edit(request, pk):
                         "published": changed.published,
                         "revision": changed.revision,
                         "main_image_color_id": target_color.pk if target_color else None,
+                        "color_image_urls": {str(key): url for key, url in fetched_urls.items()},
                     },
                 )
+                if form.remote_errors:
+                    failed = [color for color in form.catalog_colors if color.pk in form.remote_errors]
+                    messages.warning(request, "其他設定已儲存；" + "、".join(color.name for color in failed)
+                                     + " 的圖片連結無法下載，請看該車色的說明後重試。")
+                    retry = CatalogForm(instance=changed, initial={
+                        f"color_url_{color.pk}": form.cleaned_data[f"color_url_{color.pk}"] for color in failed})
+                    retry.remote_errors = form.remote_errors
+                    return render(request, "sales/catalog_edit.html",
+                                  {"form": retry, "model": model, "vehicle_model": model, "entry": changed})
                 messages.success(request, "車款展示已儲存；機種啟用中即會公開。")
                 return redirect("catalog_edit", pk=pk)
     return render(

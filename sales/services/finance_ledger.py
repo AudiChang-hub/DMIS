@@ -11,8 +11,8 @@ ZERO = Decimal("0")
 
 INCOME_GROUPS = (
     ("撥款", "現金單為車價；分期單為分期公司撥款", ("actual_disbursement",)),
-    ("領牌相關", "客戶支付的牌險與選號；牌險溢收記在代辦費收入", ("registration_tax_income", "compulsory_insurance_income", "plate_selection_income")),
-    ("手續費與代辦", "", ("agency_fee_income", "installment_fee_income", "card_fee_income", "other_income")),
+    ("領牌相關", "客戶支付的牌險與選號；牌險多收的部分記在「牌險手續費收入」", ("registration_tax_income", "compulsory_insurance_income", "plate_selection_income")),
+    ("手續費", "", ("agency_fee_income", "installment_fee_income", "card_fee_income", "other_income")),
     ("中古與報廢", "", ("used_vehicle_income", "scrap_agency_income", "scrap_vehicle_income")),
     ("獎勵與補助", "依實際領牌日期套用車型版本", OrderOperationsProfile.INCENTIVE_FIELDS),
     ("歷史匯入欄位", "舊資料合併欄位，新訂單通常為 0", ("card_installment_fee_income", "yamaha_bonus_income", "friendly_dealer_bonus_income")),
@@ -30,6 +30,8 @@ EXPENSE_GROUPS = (
 )
 LABELS = {
     "actual_disbursement": "實際撥款",
+    # 欄位沿用 agency_fee_income；Excel 匯入單仍稱「代辦費收入」（使用者 2026-10-19）。
+    "agency_fee_income": "牌險手續費收入",
     "dealer_commission_expense": "傭金支出（車行／本店人員）",
     "card_fee_expense": "刷卡手續費支出",
     "legacy_card_fee_expense": "匯入信用卡手續費支出",
@@ -41,8 +43,8 @@ HINTS = {
     "compulsory_insurance_expense": "依強制險年期帶入",
     "plate_selection_income": "客人付的選號費；沒有選號時為 0 元",
     "plate_selection_expense": "監理站 1,000 元；請代辦人員領牌時改成實際支出",
-    "agency_fee_income": "牌險溢收（牌險費－規費－強制險），少收為負數",
-    "installment_fee_expense": "預設跟開辦費一樣",
+    "agency_fee_income": "牌險費－規費－強制險；少收為負數",
+    "installment_fee_expense": "開辦費，預設跟分期手續費收入一樣",
 }
 LEGACY_GROUP = "歷史匯入欄位"
 
@@ -68,7 +70,26 @@ def _source_tag(profile, form, name, manual):
     return ("", "")
 
 
-def _block(groups, profile, form, manual):
+def _order_overrides(profile):
+    """依訂單狀況調整個別列的名稱與提示；只影響顯示。"""
+    from sales.services.agency_fee import plate_cost_absorbed_by_lender, plate_fee_waived
+
+    order = profile.order
+    labels, hints = {}, {}
+    if hasattr(order, "legacy_snapshot"):
+        labels["agency_fee_income"] = "代辦費收入"
+        hints["agency_fee_income"] = "Excel 匯入的代辦費"
+    elif plate_cost_absorbed_by_lender(order):
+        for name in ("registration_tax_expense", "compulsory_insurance_expense"):
+            hints[name] = "分期單牌險費 0：由分期公司吸收，不列支出"
+    elif plate_fee_waived(order):
+        for name in ("registration_tax_income", "compulsory_insurance_income"):
+            hints[name] = "牌險費 0：沒有向客人收，支出由店家吸收"
+    return labels, hints
+
+
+def _block(groups, profile, form, manual, overrides=({}, {})):
+    labels, hints = overrides
     rows_total = ZERO
     built = []
     for title, hint, names in groups:
@@ -84,8 +105,8 @@ def _block(groups, profile, form, manual):
             rows.append({
                 "name": name,
                 "field": form[name],
-                "label": LABELS.get(name) or form.fields[name].label,
-                "hint": HINTS.get(name, ""),
+                "label": labels.get(name) or LABELS.get(name) or form.fields[name].label,
+                "hint": hints.get(name, HINTS.get(name, "")),
                 "tag": tag,
                 "tag_label": tag_label,
                 "amount": _amount(profile, name),
@@ -116,7 +137,8 @@ def finance_totals(profile):
 
 def finance_ledger(form, profile):
     manual = set(profile.manual_financial_fields or [])
+    overrides = _order_overrides(profile)
     return {
-        "income": _block(INCOME_GROUPS, profile, form, manual),
-        "expense": _block(EXPENSE_GROUPS, profile, form, manual),
+        "income": _block(INCOME_GROUPS, profile, form, manual, overrides),
+        "expense": _block(EXPENSE_GROUPS, profile, form, manual, overrides),
     }

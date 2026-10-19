@@ -4,7 +4,8 @@ from django.db import transaction
 from django.db.models import Sum
 
 from sales.services.agency_fee import (
-    compulsory_insurance_cost, default_agency_fee, default_plate_selection_expense, registration_fee_cost,
+    compulsory_insurance_cost, default_agency_fee, default_plate_selection_expense, plate_cost_absorbed_by_lender,
+    plate_fee_waived, registration_fee_cost,
 )
 from sales.services.customer_receivable import default_customer_balance
 
@@ -167,12 +168,15 @@ def sync_order_operations(order_id, *, update_receivables=False):
     profile.installment_fee_income = installment_fee
     if order.status != SalesOrder.Status.COMPLETED and not order.is_cancelled_sale:
         # 收支領牌相關（使用者 2026-10-15，已完成與取消的訂單不重算）：規費、強制險收入預設等於支出，
-        # 牌險溢收（可為負數）記代辦費收入；選號收入＝選號費、支出預設 1,000；分期手續費支出預設跟開辦費一樣。
-        _sync_financial_field(profile, "registration_tax_expense", registration_fee_cost(order))
-        _sync_financial_field(profile, "compulsory_insurance_expense", compulsory_insurance_cost(order))
+        # 牌險溢收（可為負數）記牌險手續費收入；選號收入＝選號費、支出預設 1,000；分期手續費支出預設跟開辦費一樣。
+        # 牌險填 0（使用者 2026-10-19）：規費、強制險收入為 0；分期單由分期公司吸收、不列支出，現金單照列支出（店家吸收）。
+        absorbed = plate_cost_absorbed_by_lender(order)
+        waived = plate_fee_waived(order)
+        _sync_financial_field(profile, "registration_tax_expense", Decimal("0") if absorbed else registration_fee_cost(order))
+        _sync_financial_field(profile, "compulsory_insurance_expense", Decimal("0") if absorbed else compulsory_insurance_cost(order))
         _sync_financial_field(profile, "plate_selection_expense", default_plate_selection_expense(order))
-        _sync_financial_field(profile, "registration_tax_income", profile.registration_tax_expense)
-        _sync_financial_field(profile, "compulsory_insurance_income", profile.compulsory_insurance_expense)
+        _sync_financial_field(profile, "registration_tax_income", Decimal("0") if waived else profile.registration_tax_expense)
+        _sync_financial_field(profile, "compulsory_insurance_income", Decimal("0") if waived else profile.compulsory_insurance_expense)
         _sync_financial_field(profile, "plate_selection_income", order.plate_selection_fee)
         _sync_financial_field(profile, "agency_fee_income", default_agency_fee(order, profile))
         _sync_financial_field(profile, "installment_fee_expense", installment_fee)

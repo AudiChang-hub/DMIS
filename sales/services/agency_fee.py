@@ -1,8 +1,10 @@
-"""代辦費收入：牌險與選號溢收（使用者 2026-10-15）。
+"""牌險手續費收入（欄位 agency_fee_income，原稱代辦費收入）：牌險溢收（使用者 2026-10-15、2026-10-19）。
 
-牌險費不含選號；代辦費收入＝牌險溢收（牌險費－領牌規費－強制險），少收時為負數。
-選號另計：選號收入＝客人付的選號費、選號支出預設監理站 1,000，差額留在選號（使用者 2026-10-15 更正）。油車未排領牌日（規費尚未試算）時牌險溢收先不計；
-電動類規費與強制險為固定口徑，建單即可計算。
+牌險費不含選號；牌險手續費＝牌險費－領牌規費－強制險，少收時為負數。
+選號另計：選號收入＝客人付的選號費、選號支出預設監理站 1,000，差額留在選號（使用者 2026-10-15 更正）。
+油車沒有領牌日時規費依訂單日預估（`registration_fee_date`），領牌時依領牌日重算；電動類規費與強制險為固定口徑。
+牌險費填 0（不向客人收，使用者 2026-10-19）：牌險手續費 0、不標少收；分期單視為分期公司吸收、不列規費與強制險支出，
+現金單照列支出（店家吸收）。
 """
 from decimal import Decimal
 
@@ -101,12 +103,32 @@ def default_plate_selection_expense(order):
     return PLATE_SELECTION_STATION_FEE if _money(order.plate_selection_fee) > 0 else ZERO
 
 
+def _is_legacy(order):
+    return bool(order.pk and hasattr(order, "legacy_snapshot"))
+
+
+def plate_fee_waived(order):
+    """牌險費填 0＝不向客人收；空白（照系統試算）的 0 不算。Excel 匯入單的牌險含在收款價裡，不適用。"""
+    return not order.plate_insurance_auto and not _money(order.plate_insurance_fee) and not _is_legacy(order)
+
+
+def plate_cost_absorbed_by_lender(order):
+    """分期單牌險填 0：視為分期公司吸收，收支不列規費與強制險（使用者 2026-10-19 選 b）。"""
+    from sales.models import SalesOrder
+
+    return plate_fee_waived(order) and order.payment_type == SalesOrder.PaymentType.INSTALLMENT
+
+
 def plate_fee_surplus(order, profile=None):
-    """牌險溢收；油車規費尚未試算時回傳 None。收支頁人工改過的規費／強制險支出優先。
+    """牌險溢收；油車規費尚未試算時回傳 None，牌險填 0 時為 0。收支頁人工改過的規費／強制險支出優先。
 
     Excel 匯入單的牌險含在收款價裡、財務以 Excel 為準，不判斷溢收或少收。
     """
-    if not registration_cost_known(order) or (order.pk and hasattr(order, "legacy_snapshot")):
+    if _is_legacy(order):
+        return None
+    if plate_fee_waived(order):
+        return ZERO
+    if not registration_cost_known(order):
         return None
     profile = profile or _profile(order)
     if profile is not None:

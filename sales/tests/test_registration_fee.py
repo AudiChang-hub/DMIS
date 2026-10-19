@@ -396,6 +396,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             vehicle_model=electric_model,
             color=color,
             vehicle_price=50000,
+            plate_insurance_auto=True,
         )
         form = RegistrationStageForm(
             {
@@ -422,6 +423,9 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
         )
         color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        reason = "人工牌險依單據輸入" if extra else ""
+        # 沒有指定牌險費＝建單時留空、照系統試算（使用者 2026-10-19）。
+        extra.setdefault("plate_insurance_auto", "plate_insurance_fee" not in extra)
         return SalesOrder.objects.create(
             owner_name="微電車領牌測試",
             owner_phone="0911222333",
@@ -430,7 +434,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             vehicle_model=model,
             color=color,
             vehicle_price=30000,
-            balance_adjustment_reason="人工牌險依單據輸入" if extra else "",
+            balance_adjustment_reason=reason,
             **extra,
         )
 
@@ -595,23 +599,72 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
 
     def test_gas_plate_fee_is_manual_and_insurance_follows_period(self):
         order = self.gas_order()
-        form = self.edit_order(order, plate_insurance_fee="", compulsory_insurance_period="2")
-        self.assertFalse(form.is_valid())
-        self.assertIn("plate_insurance_fee", form.errors)
         form = self.edit_order(order, plate_insurance_fee="3000", compulsory_insurance_period="2",
                                plate_choice="watch", plate_selection_fee="1500")
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
-        # 未排領牌日：強制險依排氣量與年期先帶入，試算合計為 0，牌險照人員輸入，選號費照人員填寫另收。
+        # 未排領牌日：規費依訂單日預估、強制險依排氣量與年期（使用者 2026-10-19）；牌險照人員輸入，選號費另收。
         self.assertEqual(saved.compulsory_insurance_fee, 1200)
-        self.assertEqual(saved.registration_calculated_total, 0)
+        self.assertGreater(saved.registration_calculated_total, 1200)
         self.assertEqual(saved.plate_insurance_fee, 3000)
+        self.assertFalse(saved.plate_insurance_auto)
         self.assertEqual(saved.plate_selection_fee, 1500)
         form = self.edit_order(order, plate_insurance_fee="3000", registration_date="2026-10-14")
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
         self.assertGreater(saved.registration_calculated_total, 0)
         self.assertEqual(saved.plate_insurance_fee, 3000, "油車試算不覆蓋人員輸入的牌險")
+
+    @staticmethod
+    def save_with_balance(form):
+        # 與訂單編輯頁相同：存檔前依新金額重算尾款。
+        order = form.save(commit=False)
+        order.calculated_balance = order.actual_balance = order.calculate_balance()
+        order.save()
+        return order
+
+    def test_gas_plate_fee_three_states(self):
+        """牌險費空白＝照系統試算、0＝不向客人收、正數＝照填（使用者 2026-10-19）。"""
+        from sales.forms import SalesOrderForm
+
+        order = self.gas_order()
+        form = self.edit_order(order, plate_insurance_fee="")
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = self.save_with_balance(form)
+        # 沒有領牌日：依訂單日 2026-10-14 預估，牌險費＝規費＋強制險。
+        self.assertTrue(saved.plate_insurance_auto)
+        self.assertGreater(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_insurance_fee, saved.registration_calculated_total)
+        estimated = saved.plate_insurance_fee
+        self.assertEqual(saved.calculate_balance(), 70000 + estimated)
+        # 照試算的訂單編輯時欄位留空，試算值只當提示。
+        page_form = SalesOrderForm(instance=saved)
+        self.assertIsNone(page_form.initial["plate_insurance_fee"])
+        self.assertIn(f"{estimated:,.0f}", page_form.fields["plate_insurance_fee"].widget.attrs["placeholder"])
+        # 領牌時依領牌日重算（年底領牌，牌照稅與養管費天數較少）。
+        registered = RegistrationStageForm(
+            {"registration_date": "2026-12-20", "final_plate_number": "abc-1234"}, instance=saved,
+        )
+        self.assertTrue(registered.is_valid(), registered.errors)
+        registered = registered.save()
+        self.assertEqual(registered.plate_insurance_fee, registered.registration_calculated_total)
+        self.assertLess(registered.plate_insurance_fee, estimated)
+        self.assertEqual(registered.actual_balance, 70000 + registered.plate_insurance_fee)
+
+        waived = self.gas_order()
+        form = self.edit_order(waived, plate_insurance_fee="0")
+        self.assertTrue(form.is_valid(), form.errors)
+        waived = self.save_with_balance(form)
+        self.assertFalse(waived.plate_insurance_auto)
+        self.assertEqual(waived.plate_insurance_fee, 0)
+        self.assertEqual(SalesOrderForm(instance=waived).initial["plate_insurance_fee"], 0)
+        registered = RegistrationStageForm(
+            {"registration_date": "2026-10-20", "final_plate_number": "abc-5678"}, instance=waived,
+        )
+        self.assertTrue(registered.is_valid(), registered.errors)
+        registered = registered.save()
+        self.assertGreater(registered.registration_calculated_total, 0)
+        self.assertEqual(registered.plate_insurance_fee, 0, "填 0 不向客人收，領牌時不被試算蓋掉")
 
     def test_micro_electric_insurance_period_is_always_three_years(self):
         order = self.micro_electric_order(order_date=date(2026, 10, 14))
@@ -636,7 +689,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
                     registration_date=registration_date,
                     plate_choice="watch",
                     plate_selection_fee="1200",
-                    plate_insurance_fee="0",
+                    plate_insurance_fee="",
                 )
 
                 self.assertTrue(form.is_valid(), form.errors)
@@ -707,7 +760,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             vehicle_price=50000,
             order_date=date(2026, 10, 14),
         )
-        form = self.edit_order(order, plate_insurance_fee="0")
+        form = self.edit_order(order, plate_insurance_fee="")
 
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)

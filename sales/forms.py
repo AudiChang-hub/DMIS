@@ -358,12 +358,6 @@ class SalesOrderForm(forms.ModelForm):
         self._initial_vehicle_price = self.instance.vehicle_price
         self._initial_payment_type = self.instance.payment_type
         self._initial_vehicle_model_id = self.instance.vehicle_model_id
-        self._previous_plate_insurance_fee = self.instance.plate_insurance_fee
-        self._plate_fee_was_automatic = (
-            not self.instance.pk
-            or self.instance.plate_insurance_fee
-            == self.instance.registration_calculated_total
-        )
         if not self.is_bound:
             blank_numeric_fields = (
                 "vehicle_price",
@@ -461,7 +455,19 @@ class SalesOrderForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
         self.fields["plate_insurance_fee"].label = "牌險費（不含選號）"
-        self.fields["plate_insurance_fee"].help_text = "油車依實收輸入；電動車依年期帶入固定金額，可修改。"
+        # 空白＝照系統試算，畫面不另設選項（使用者 2026-10-19）；照試算的訂單顯示空白，試算值以淡色提示。
+        self.fields["plate_insurance_fee"].help_text = "留空依系統試算，領牌時依領牌日重算；有填金額就照填的收。"
+        auto_plate_fee = self.instance.pk and self.instance.plate_insurance_auto
+        if auto_plate_fee and not self.is_bound:
+            self.initial["plate_insurance_fee"] = None
+        self.fields["plate_insurance_fee"].widget.attrs.update(
+            placeholder=f"系統預估 {self.instance.plate_insurance_fee:,.0f} 元"
+            if auto_plate_fee and self.instance.plate_insurance_fee else "留空依系統試算",
+            min="0",
+            # 前端試算油車規費用：沒有領牌日時依訂單日（新單為今天）預估。
+            **{"data-estimate-date": (self.instance.order_date or timezone.localdate()).isoformat(),
+               "data-estimate": f"{self.instance.plate_insurance_fee:.0f}" if auto_plate_fee else ""},
+        )
         # 動保設定費不再於建單填寫（使用者 2026-10-15），保留舊值不被清空。
         self.fields["lien_registration_fee"].widget = forms.HiddenInput()
         # 前端會立即帶入售價；後端仍以同一版本解析補齊，避免網路或 JS
@@ -778,13 +784,19 @@ class SalesOrderForm(forms.ModelForm):
         if plate_choice and plate_choice != SalesOrder.PlateChoice.WATCH:
             data["plate_selection_fee"] = 0
             self.cleaned_data["plate_selection_fee"] = 0
-        # 牌險費不含選號與動保設定（使用者 2026-10-15）；油車牌險費一律由人員依實收輸入，不用試算覆蓋。
+        # 牌險費不含選號與動保設定（使用者 2026-10-15）。三種狀態由輸入推導（使用者 2026-10-19）：
+        # 空白＝照系統試算（牌險費存試算合計、領牌時重算）；0＝不向客人收；正數＝照填的收，試算不覆蓋。
+        # 接待模式不開放財務欄位：新單照系統試算；沒有送出這個欄位時維持原狀態。
         is_gas = bool(model and model.energy_type == VehicleModel.EnergyType.GAS)
-        if (
-            is_gas and data.get("plate_insurance_fee") is None and not data.get("registration_manual")
-            and not self.fields["plate_insurance_fee"].disabled  # 接待模式不開放財務欄位，由店內補填
-        ):
-            self.add_error("plate_insurance_fee", "油車請輸入要向客人收的牌險費（不含選號）。")
+        plate_field_locked = self.fields["plate_insurance_fee"].disabled
+        if plate_field_locked or self.add_prefix("plate_insurance_fee") not in self.data:
+            plate_auto = self.instance.plate_insurance_auto if self.instance.pk else True
+            if self.instance.pk and not plate_auto:
+                data["plate_insurance_fee"] = self.instance.plate_insurance_fee
+        else:
+            plate_auto = data.get("plate_insurance_fee") is None
+        if data.get("plate_insurance_fee") is not None and data["plate_insurance_fee"] < 0:
+            self.add_error("plate_insurance_fee", "牌險費不可小於零。")
         preserve_completed_registration = bool(
             self.instance.pk and self.instance.is_delivered and model
             and model.pk == self._initial_vehicle_model_id
@@ -860,18 +872,8 @@ class SalesOrderForm(forms.ModelForm):
                     )
                     self.instance.registration_rate_class = result.rate_class
                     self.instance.registration_calculated_total = calculated_total
-                    if not is_gas and (
-                        data.get("plate_insurance_fee") is None
-                        or (
-                            self._plate_fee_was_automatic
-                            and data.get("plate_insurance_fee")
-                            == self._previous_plate_insurance_fee
-                        )
-                    ):
-                        data["plate_insurance_fee"] = calculated_total
-                        self.cleaned_data["plate_insurance_fee"] = calculated_total
             else:
-                # 尚未排領牌日（或微電車沒有固定規則）：規費尚未試算，牌險依人員輸入，代辦費收入暫不計牌險溢收。
+                # 油車沒有排氣量（或微電車沒有固定規則）：規費無法試算，牌險依人員輸入，牌險手續費暫不計。
                 self.instance.registration_rate_class = ""
                 self.instance.registration_calculated_total = 0
                 data["registration_calculated_total"] = Decimal("0")
@@ -900,16 +902,19 @@ class SalesOrderForm(forms.ModelForm):
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
 
-        # 新增訂單時尚未領牌是正常情境。前端會把唯讀試算欄位送成空字串，
-        # DecimalField 會清理為 None，但模型欄位不接受 null；統一以 0 表示
-        # 「尚未產生牌險金額」，後續填入領牌日期時仍會重新試算。
-        for field_name in (
-            "registration_calculated_total",
-            "plate_insurance_fee",
-        ):
-            if data.get(field_name) is None:
-                data[field_name] = Decimal("0")
-                self.cleaned_data[field_name] = Decimal("0")
+        # 前端會把唯讀試算欄位送成空字串，DecimalField 會清理為 None，但模型欄位不接受 null；
+        # 統一以 0 表示「尚未產生試算金額」，後續填入領牌日期時仍會重新試算。
+        if data.get("registration_calculated_total") is None:
+            data["registration_calculated_total"] = self.cleaned_data["registration_calculated_total"] = Decimal("0")
+        if plate_auto:
+            # 照系統試算：牌險費＝試算合計（油車沒有領牌日依訂單日預估；電動類依品牌規則）。
+            data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = data["registration_calculated_total"]
+            if (
+                self.instance.registration_rate_class == "MANUAL" and not data.get("registration_manual")
+                and not plate_field_locked
+            ):
+                self.add_error("plate_insurance_fee", "此車款的牌險要依單據計算，請填寫牌險費。")
+        self.instance.plate_insurance_auto = plate_auto
 
         if data.get("registration_manual"):
             if not (data.get("registration_adjustment_reason") or "").strip():
@@ -922,8 +927,8 @@ class SalesOrderForm(forms.ModelForm):
                 value for name, value in manual_fee_values.items()
                 if name not in ("plate_selection_fee", "lien_registration_fee")
             )
-            if not is_gas or not self.data.get(self.add_prefix("plate_insurance_fee")):
-                data["plate_insurance_fee"] = itemized_total
+            if plate_auto:
+                data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = itemized_total
 
         if data.get("delivery_method") in {
             SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
@@ -4229,10 +4234,6 @@ class RegistrationStageForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._previous_calculated_total = (
-            self.instance.registration_calculated_total
-        )
-        self._previous_actual_total = self.instance.plate_insurance_fee
         self._previous_calculated_balance = self.instance.calculated_balance
         self._previous_actual_balance = self.instance.actual_balance
         self.fields["registration_date"].required = True
@@ -4284,7 +4285,6 @@ class RegistrationStageForm(forms.ModelForm):
 
     def save(self, commit=True):
         order = super().save(commit=False)
-        model = order.vehicle_model
         if order.registration_manual:
             # 人工核定明細不能被領牌作業的重新試算覆寫。
             if order.registration_date and hasattr(self, "_registration_result"):
@@ -4300,13 +4300,11 @@ class RegistrationStageForm(forms.ModelForm):
             order.road_maintenance_fee = result.road_maintenance_fee
             order.license_tax_fee = result.license_tax_fee
             order.compulsory_insurance_fee = result.compulsory_insurance_fee
-            # 試算合計不含選號與動保設定；油車牌險是人員輸入的實收，只有還沒填（0）時才帶入試算。
+            # 試算合計不含選號與動保設定；只有照系統試算（牌險費留空）的訂單依領牌日重算牌險費，
+            # 填 0（不向客人收）與自填金額都不覆蓋（使用者 2026-10-19）。
             calculated_total = result.fixed_and_variable_total
             order.registration_calculated_total = calculated_total
-            if not self._previous_actual_total or (
-                model.energy_type != VehicleModel.EnergyType.GAS
-                and self._previous_actual_total == self._previous_calculated_total
-            ):
+            if order.plate_insurance_auto:
                 order.plate_insurance_fee = calculated_total
             recalculated_balance = order.calculate_balance()
             if (

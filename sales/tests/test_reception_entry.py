@@ -39,6 +39,9 @@ class ReceptionEntryTests(TestCase):
         result = self.submit()
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
         order = SalesOrder.objects.get()
+        # 接待模式不開放牌險費：視同留空，照系統試算，不會被當成填 0（使用者 2026-10-19）。
+        self.assertTrue(order.plate_insurance_auto)
+        self.assertEqual(order.plate_insurance_fee, order.registration_calculated_total)
         self.assertEqual(result.url, reverse("order_submitted", args=[order.pk]))
         receipt = self.client.get(result.url)
         self.assertContains(receipt, order.number)

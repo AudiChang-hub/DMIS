@@ -4741,7 +4741,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "requestPhotoVersion")
         self.assertContains(
             order_response,
-            "油車牌險費請依實收輸入（不含選號），領牌日期於後續編輯時填寫",
+            # 油車沒有領牌日時依訂單日預估牌險（使用者 2026-10-19）。
+            "依訂單日預估，領牌時重算",
         )
         self.assertContains(
             order_response,

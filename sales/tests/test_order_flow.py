@@ -1775,13 +1775,9 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "啟用顏色")
         self.assertContains(response, '<strong>2 種</strong>', html=True)
-        # 主表顯示色點與色名，點開的清單列出每個啟用顏色（色點依色名的基本色字）。
+        # 主表顯示數量與色名，點開的清單列出每個啟用顏色。
         self.assertContains(response, 'popovertarget="vm-colors-', html=False)
-        self.assertContains(
-            response,
-            '<li><i class="color-dot" style="--dot-a: var(--hue-black); --dot-b: var(--hue-black)" aria-hidden="true"></i>黑</li>',
-            html=True,
-        )
+        self.assertContains(response, '<li>黑</li>', html=True)
         self.assertNotContains(response, '停用灰')
 
         self.model.colors.filter(active=True).update(active=False)

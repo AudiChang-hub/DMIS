@@ -1,3 +1,4 @@
+{% load order_origin_tags %}
 {% comment %}訂單步驟側邊列（比照機種清單）：左側滑出、寬螢幕可釘選常駐，手機收在左側把手。
 內容就是原本的步驟分頁（role="tab"），切換邏輯不變；第一次在寬螢幕開啟預設釘選。{% endcomment %}
 <div class="order-nav" data-order-nav>
@@ -7,7 +8,7 @@
   <div class="order-nav__backdrop" data-order-nav-backdrop></div>
   <aside class="order-nav__panel" id="order-nav-panel" aria-label="訂單步驟" data-order-nav-panel inert>
     <header class="order-nav__header">
-      <div><strong>訂單步驟</strong><small>{{ order.owner_name }}・{{ order.number }}</small></div>
+      <div><strong>訂單步驟</strong><small>{{ order.owner_name }}・{{ order.number }}</small>{% order_origin_badge order %}</div>
       <div class="order-nav__header-actions">
         <button type="button" class="order-nav__pin" data-order-nav-pin aria-pressed="false" title="釘選後步驟固定在左側">釘選</button>
         <button type="button" class="order-nav__close" data-order-nav-close aria-label="收合訂單步驟">×</button>
@@ -27,7 +28,7 @@
       <div>
         <p class="order-overview-dialog__eyebrow">訂單總覽・唯讀</p>
         <h2 id="order-overview-title">{{ order.owner_name }}</h2>
-        <p class="order-overview-dialog__meta">{{ order.number }}</p>
+        <p class="order-overview-dialog__meta">{{ order.number }}</p>{% order_origin_badge order %}
       </div>
       <div class="order-overview-dialog__actions">
         <button type="button" class="button primary small" data-overview-copy-all>複製全部</button>

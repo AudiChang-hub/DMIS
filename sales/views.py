@@ -4110,7 +4110,8 @@ def customer_detail(request, pk):
         .select_related("vehicle_model", "color", "source")
         .order_by("-order_date", "-id")
     )
-    page = Paginator(orders, 100).get_page(request.GET.get("page"))
+    from sales.services.order_origin import with_order_origin
+    page = Paginator(with_order_origin(orders), 100).get_page(request.GET.get("page"))
     return render(
         request,
         "sales/customer_detail.html",
@@ -4390,6 +4391,9 @@ def order_list(request):
     if not profit_visible:
         sort_tokens = [token for token in sort_tokens if token.lstrip("-") != "profit"]
     orders = sort_orders(orders, sort_tokens)
+    # 訂單編號下方的來源標記（手動開單／Excel 匯入／已修改）用子查詢一起取出，不逐張查詢。
+    from sales.services.order_origin import with_order_origin
+    orders = with_order_origin(orders)
     try:
         per_page = int(request.GET.get("per_page", ORDER_LIST_DEFAULT_PAGE_SIZE))
     except (TypeError, ValueError):
@@ -4594,6 +4598,8 @@ def reconciliation_list(request):
         request.GET.get("page")
     )
     records = [_decorate_reconciliation_record(record) for record in page.object_list]
+    from sales.services.order_origin import attach_order_origin
+    attach_order_origin(record.order for record in records)
     return render(
         request,
         "sales/reconciliation_list.html",

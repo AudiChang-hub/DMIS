@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% load static %}
+{% load order_origin_tags %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}訂單總覽 {{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -6,7 +7,7 @@
 {% url 'order_detail' order.pk as order_url %}{% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=order_url label=order.owner_name root_url=dashboard_url root_label="首頁" %}
 <section class="hero-row compact-hero order-overview-hero">
-  <div><p class="eyebrow">訂單總覽・唯讀</p><h1>{{ order.owner_name }}</h1><p class="muted">{{ order.number }} · {{ order.display_status }}</p></div>
+  <div><p class="eyebrow">訂單總覽・唯讀</p><h1>{{ order.owner_name }}</h1><p class="muted">{{ order.number }} · {{ order.display_status }}</p><p class="order-origin-line">{% order_origin_badge order detail=True %}</p></div>
   <div class="hero-actions"><button type="button" class="button primary" data-overview-copy-all>複製全部</button></div>
 </section>
 {% include "sales/_order_overview.html" %}

@@ -373,6 +373,8 @@ def detail(request, pk, index):
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient", "operations").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
+    from sales.services.order_origin import attach_order_origin
+    page.object_list = attach_order_origin(page.object_list)
     query = request.GET.copy()
     query.pop("page", None)
     template = "sales/reporting/detail_panel.html" if request.GET.get("inline") == "1" else "sales/reporting/detail.html"

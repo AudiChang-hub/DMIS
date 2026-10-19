@@ -480,6 +480,12 @@
           const agencies = document.getElementById('subsidy-agency-summary');
           if (agencies) agencies.outerHTML = payload.subsidy_summary_html;
         }
+        if (payload.origin_html) {
+          // 訂單編號下方的來源標記（頁首含最後修改人；側欄與總覽對話框為精簡版）。
+          document.querySelectorAll('[data-order-origin]').forEach(mark => {
+            mark.outerHTML = payload.origin_html[mark.hasAttribute('data-order-origin-detail') ? 'detail' : 'compact'];
+          });
+        }
         if (payload.registration_html) {
           const completion = root.querySelector('[data-registration-completion]');
           if (completion) completion.outerHTML = payload.registration_html;

@@ -6,6 +6,7 @@ from sales.access.services import policy_for
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm
 from sales.models import OrderOperationsProfile
 from sales.services.order_intake import can_edit_finance
+from sales.services.order_origin import current_order_origin
 from sales.services.payment_summary import payment_summary
 
 
@@ -202,5 +203,8 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
+        # 匯入單第一次存檔後，訂單編號下方的來源標記即時改為「Excel 匯入已修改」（services/order_origin.py）。
+        'origin_html': {variant: render_to_string('sales/_order_origin.html', {'origin': origin, 'detail': variant == 'detail'})
+                        for origin in (current_order_origin(order),) for variant in ('compact', 'detail')},
         **(extra or {}),
     })

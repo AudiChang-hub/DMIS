@@ -1439,6 +1439,23 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-row-status { display: grid; justify-items: end; gap: var(--space-1); }
 /* 牌險少收（牌險費＜規費＋強制險）：紅色提示，選號有溢收也照樣顯示（使用者 2026-10-15）。 */
 .order-plate-shortfall { display: block; width: fit-content; padding: 0 var(--space-2); color: var(--red-ink); background: var(--red-soft); border: 1px solid var(--red-border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
+/* 訂單來源標記（訂單編號正下方，使用者 2026-10-19）：一行小字不加底色，圓點形狀＋顏色雙重區分，色弱也分得出。
+   實心群青＝手動開單；空心灰＝Excel 匯入（佔大多數，最安靜）；左半實心琥珀＝Excel 匯入已修改。 */
+/* 標記用 inline-flex（不可換成 flex／grid 子項）：整格是連結時，底線才不會延伸到標記上。 */
+.order-number-stack { display: block; min-width: 0; }
+.order-number-stack > :not(.order-origin) { display: block; }
+.order-origin { display: inline-flex; max-width: 100%; margin-top: var(--space-1); vertical-align: top; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--text-2xs); line-height: 1.45; letter-spacing: .02em; white-space: nowrap; }
+.order-origin__mark { flex: none; width: 7px; height: 7px; border: 1.5px solid currentColor; border-radius: 50%; }
+.order-origin__label { font-weight: 750; }
+.order-origin__meta { min-width: 0; overflow: hidden; color: var(--muted); font-weight: 600; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.order-origin__meta::before { content: "·"; margin-right: var(--space-1); }
+.order-origin--manual { color: var(--action-text); }
+.order-origin--manual .order-origin__mark { background: currentColor; }
+.order-origin--imported_edited { color: var(--amber-ink); }
+.order-origin--imported_edited .order-origin__mark { background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+/* 訂單頁與總覽頁首：緊貼在編號那一行下方（上一行的段落間距移到標記之後）。 */
+.muted:has(+ .order-origin-line) { margin-bottom: 0; }
+.order-origin-line { display: flex; margin: 0 0 var(--space-3); }
 /* 畫面與列印說明文字：區域頁籤（可橫向捲動）＋該區頁面捷徑；頁面標題分隔每組文字。 */
 .copy-tabs { display: flex; gap: var(--space-2); margin: var(--stack-gap-sm) 0; padding: var(--space-2); overflow-x: auto; background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius); scrollbar-width: thin; }
 .copy-tab { display: inline-flex; flex: none; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4); color: var(--ink); font-weight: 700; white-space: nowrap; border-radius: var(--radius-md); text-decoration: none; }
@@ -2845,6 +2862,9 @@ input[type="file"].form-control { padding: var(--space-3); }
 /* 寬版／窄版文字由 compact-text 規則切換，不可被表格的區塊顯示覆蓋，否則同一內容會出現兩次。 */
 .inventory-table td strong, .inventory-table td span:not(.compact-text-wide, .compact-text-narrow) { display: block; }
 .inventory-table td strong + span { margin-top: 2px; color: var(--muted); font-size: var(--text-sm); }
+/* 表格內 span 一律 block（上一行）；姓名＋付款標籤維持同一行（原設計），編號群組與來源標記維持自身排版，全部訂單列高不因來源標記增加。 */
+.inventory-table td span.order-owner-line { display: inline-flex; }
+.inventory-table td span.order-origin { display: inline-flex; }
 .inventory-table .status-pill { display: inline-flex; }
 .inventory-table .status-pill.status-available { color: var(--green); background: var(--mint); border-color: var(--green-border); }
 .inventory-table .status-pill.status-reserved,

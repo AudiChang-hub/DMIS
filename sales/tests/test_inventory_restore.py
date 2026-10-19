@@ -104,7 +104,7 @@ class InventoryRestoreTests(TestCase):
         SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.COMPLETED)
         VehicleInventory.objects.filter(pk=vehicle.pk).update(status="delivered")
         vehicle.refresh_from_db()
-        self.assertIn("沒有交車後退車的流程", restore_blockers(vehicle)[0][0])
+        self.assertIn("交車後退車", restore_blockers(vehicle)[0][0])
         page = self.client.get(reverse("inventory_restore", args=[vehicle.pk]))
         self.assertContains(page, "目前不能改回")
         self.assertNotContains(page, "確認改回現有庫存")

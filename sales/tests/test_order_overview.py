@@ -78,6 +78,17 @@ class OrderOverviewTests(TestCase):
         self.assertIn("js/order-overview.js", page)
         self.assertIn("css/order-overview.css", page)
 
+    def test_order_section_lists_one_order_date(self):
+        order, _vehicle = self.overview_order()
+        # 匯入單的 established_on 是領牌日，總覽只列訂單日期（order_date）。
+        type(order).objects.filter(pk=order.pk).update(established_on=date(2026, 3, 9), order_date=date(2026, 3, 2))
+        order.refresh_from_db()
+        overview = build_order_overview(order)
+        rows = {row["label"]: row["value"] for row in overview["sections"][0]["rows"]}
+        self.assertEqual(rows["訂單日期"], "2026/03/02")
+        self.assertNotIn("訂單成立日期", rows)
+        self.assertNotIn("訂單成立日期", overview["plain_text"])
+
     def test_finance_rows_can_be_left_out(self):
         order, _vehicle = self.overview_order()
         order.payment_records.all().delete()

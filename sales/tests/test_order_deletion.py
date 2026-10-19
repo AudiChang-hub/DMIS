@@ -311,7 +311,7 @@ class OrderDeletionTests(TestCase):
                 self.change(force=True, confirmation=confirmation_token(self.order, self.root))
         page = self.client.get(reverse("order_delete", args=[self.order.pk]))
         self.assertContains(page, "此訂單不能刪除")
-        self.assertContains(page, "目前系統沒有交車後退車的流程")
+        self.assertContains(page, "在訂單頁辦理「交車後退車」")
         self.assertNotContains(page, "確認刪除訂單</button>")
         self.permit_staff()
         with self.assertRaises(ValidationError):

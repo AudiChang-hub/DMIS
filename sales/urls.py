@@ -10,6 +10,7 @@ from . import import_review_views
 from . import historical_delivery_views
 from . import transfer_signoff_views
 from . import inventory_restore_views
+from . import order_return_views
 from . import subsidy_program_views
 from . import vehicle_model_tool_views
 from . import gift_views
@@ -53,6 +54,7 @@ urlpatterns = [
     path("orders/deletion-review/", order_deletion_views.order_deletion_queue, name="order_deletion_queue"),
     path("orders/<int:pk>/delete/", order_deletion_views.order_delete, name="order_delete"),
     path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),
+    path("orders/<int:pk>/return-after-delivery/", order_return_views.order_return, name="order_return"),
     path("catalog/", catalog_views.catalog, name="catalog"),
     path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
     path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),

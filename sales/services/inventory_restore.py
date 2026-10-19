@@ -80,7 +80,7 @@ def restore_blockers(vehicle):
     if order:
         if is_order_delivered(order):
             text = (f"仍屬於已交車的訂單 {order.number}（{order.display_status}）。車已交給客人，"
-                    "改回庫存會讓同一台車同時在訂單與庫存；要退車請先洽 admin，目前系統沒有交車後退車的流程。")
+                    "改回庫存會讓同一台車同時在訂單與庫存；要退車請在訂單頁辦理「交車後退車」，車輛會以已領牌車回到庫存。")
         else:
             text = (f"仍配給訂單 {order.number}（{order.display_status}）。請到訂單頁取消、改配或例外結案，"
                     "車輛會自動回到庫存。")

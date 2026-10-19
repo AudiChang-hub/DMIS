@@ -1,31 +1,15 @@
-"""機種總表的資訊密度：每個機種一列、主值＋一行小字，顏色用色點與點開清單，操作鈕橫排。"""
+"""機種總表的資訊密度：每個機種一列、主值＋一行小字，顏色只列數量與色名（可點開看全部），操作鈕橫排。"""
 import re
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import TestCase
 from django.urls import reverse
 
 from sales.models import VehicleColor, VehicleModel
-from sales.templatetags.sales_format import color_swatch_style
 
 APP_CSS = Path(settings.BASE_DIR) / "static" / "css" / "app.css"
-
-
-class ColorSwatchStyleTests(SimpleTestCase):
-    def test_base_color_character_picks_the_dot_hue(self):
-        self.assertEqual(color_swatch_style("維蘇威黑"), "--dot-a: var(--hue-black); --dot-b: var(--hue-black)")
-        self.assertEqual(color_swatch_style("卡拉拉白"), "--dot-a: var(--hue-white); --dot-b: var(--hue-white)")
-
-    def test_two_tone_names_split_the_dot(self):
-        self.assertEqual(color_swatch_style("黑紅"), "--dot-a: var(--hue-black); --dot-b: var(--hue-red)")
-        self.assertEqual(color_swatch_style("白銀藍"), "--dot-a: var(--hue-white); --dot-b: var(--hue-silver)")
-
-    def test_metallic_is_not_read_as_gold_and_unknown_names_stay_neutral(self):
-        self.assertEqual(color_swatch_style("金屬灰"), "--dot-a: var(--hue-gray); --dot-b: var(--hue-gray)")
-        self.assertEqual(color_swatch_style("香榭"), "")
-        self.assertEqual(color_swatch_style(None), "")
 
 
 class VehicleModelListDensityTests(TestCase):
@@ -55,18 +39,25 @@ class VehicleModelListDensityTests(TestCase):
         self.assertIn("<strong>124 c.c.</strong>", self.row)
         self.assertNotIn("<span>排氣量</span>", self.row)
 
-    def test_colors_show_dots_count_and_a_full_list_on_demand(self):
+    def test_colors_show_count_and_whole_names_without_swatches(self):
         cell = re.search(r'data-label="啟用顏色">(.*?)</td>', self.row, re.S).group(1)
-        self.assertIn("<strong>8 種</strong>", cell)
-        dots = re.search(r'class="color-peek__dots"[^>]*>(.*?)</i>\s*<small', cell, re.S).group(1)
-        self.assertEqual(dots.count('class="color-dot"'), 6)
-        self.assertIn("<b>+2</b>", dots)
+        names = re.search(r'<span class="color-peek__names">(.*?)</span>\s*</button>', cell, re.S).group(1)
+        self.assertTrue(names.startswith("<strong>8 種</strong>"))
+        # 每個色名（連同頓號）包成一段，換行時不會把「維蘇威黑」拆開。
+        self.assertIn("<span>維蘇威黑、</span>", names)
+        self.assertIn("<span>黑紅</span>", names)
+        self.assertEqual(names.count("<span>"), 8)
+        self.assertIn('title="卡拉拉白、消光黑、白、科莫藍、維蘇威黑、羅馬灰、蒙地拿紅、黑紅"', cell)
+        self.assertNotIn("color-dot", self.html)
+        self.assertNotIn("--hue-", self.html)
         self.assertIn(f'popovertarget="vm-colors-{self.model.pk}"', cell)
-        self.assertIn(f'id="vm-colors-{self.model.pk}" popover', cell)
         panel = cell.split("popover>", 1)[1]
         self.assertEqual(panel.count("<li>"), 8)
-        self.assertIn("--dot-a: var(--hue-black); --dot-b: var(--hue-red)", panel)
+        self.assertIn("<li>維蘇威黑</li>", panel)
         self.assertIn("vehicle-model-color-peek.js", self.html)
+        css = APP_CSS.read_text(encoding="utf-8")
+        self.assertNotIn(".color-dot", css)
+        self.assertRegex(css, r"span\.color-peek__names \{[^}]*-webkit-line-clamp: 2;")
 
     def test_actions_sit_side_by_side_and_headers_stay_visible(self):
         css = APP_CSS.read_text(encoding="utf-8")

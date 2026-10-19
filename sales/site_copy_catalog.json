@@ -18,7 +18,12 @@
   },
   "_catalog_image_preview.44fb38f63c8b": {
     "page": "展示圖片",
-    "default": "選檔後可先預覽；按「儲存展示設定」才會上傳。",
+    "default": "選檔或貼上連結後可先預覽；按「套用展示設定」才會存入。",
+    "template": "templates/sales/_catalog_image_preview.html"
+  },
+  "_catalog_image_preview.url_help": {
+    "page": "展示圖片",
+    "default": "貼上圖片本身的網址（在圖片上按右鍵 →「複製圖片位址」）。套用時系統會下載一份存在這裡，之後不依賴原網站。",
     "template": "templates/sales/_catalog_image_preview.html"
   },
   "_home_news.a07a43ed9136": {
@@ -218,7 +223,7 @@
   },
   "catalog_edit.c62cb11399a5": {
     "page": "編輯車款展示",
-    "default": "每張最多 8 MB，支援 JPEG、PNG、WebP。不選新檔案就保留原圖；缺圖車色仍會顯示於選車入口。",
+    "default": "每張最多 8 MB，支援 JPEG、PNG、WebP；可上傳檔案或貼上圖片連結。不選新圖就保留原圖；缺圖車色仍會顯示於選車入口。",
     "template": "templates/sales/catalog_edit.html"
   },
   "catalog_edit.1a17c7a726a0": {

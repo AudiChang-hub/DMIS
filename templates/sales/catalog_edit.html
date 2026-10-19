@@ -21,7 +21,7 @@
       <section class="catalog-color-editor" aria-label="{{ section.color.name }} 車色設定">
         <h3>{{ section.color.name }}</h3>
         {% url 'catalog_preview_color_image' model.pk section.color.pk as preview_url %}
-        {% include "sales/_catalog_image_preview.html" with photo=section.color.catalog_image upload=section.upload remove=section.remove preview_url=preview_url %}
+        {% include "sales/_catalog_image_preview.html" with photo=section.color.catalog_image upload=section.upload url=section.url remote_error=section.remote_error remove=section.remove preview_url=preview_url %}
       </section>
       {% empty %}<p>{% site_text 'catalog_edit.1a17c7a726a0' %}</p>{% endfor %}
     </div>

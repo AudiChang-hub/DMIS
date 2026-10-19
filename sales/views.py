@@ -39,6 +39,9 @@ from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
+from .access.services import is_root
+from .services.inventory_history import change_rows
+from .services.inventory_restore import deletion_review_vehicle_ids, inventory_restore_summary
 from .services.order_attachments import (
     classify_route,
     collect_order_file_groups,
@@ -8494,6 +8497,9 @@ def inventory_list(request):
         {
             "vehicles": page.object_list,
             "page_obj": page,
+            # 停用分頁標示「刪單待確認」；admin 在停用與已售出／調出分頁可直接改回現有庫存。
+            "deletion_review_ids": deletion_review_vehicle_ids() if scope == "history" else set(),
+            "can_restore_stock": scope != "current" and is_root(request.user),
             "statuses": status_choices,
             "brands": brand_choices,
             "inventory_counts": inventory_counts,
@@ -10325,6 +10331,12 @@ def inventory_edit(request, pk):
     inventory_history = vehicle.history_entries.select_related(
         "from_location", "to_location", "location_store_snapshot"
     )
+    transfer_history = inventory_history.filter(
+        event_type=VehicleInventoryHistory.EventType.TRANSFERRED
+    )
+    inventory_history = list(inventory_history)
+    for history in inventory_history:
+        history.change_rows = change_rows(history.changes)
     return render(
         request,
         "sales/inventory_form.html",
@@ -10336,9 +10348,8 @@ def inventory_edit(request, pk):
             "core_fields_locked": form.core_fields_locked,
             "final_fields_locked": form.final_fields_locked,
             "inventory_history": inventory_history,
-            "transfer_history": inventory_history.filter(
-                event_type=VehicleInventoryHistory.EventType.TRANSFERRED
-            ),
+            "transfer_history": transfer_history,
+            "restore": inventory_restore_summary(vehicle, request.user),
         },
     )
 

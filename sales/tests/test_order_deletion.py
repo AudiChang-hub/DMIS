@@ -184,10 +184,11 @@ class OrderDeletionTests(TestCase):
 
     def test_request_cancel_reject_and_approve_keep_original_status(self):
         self.permit_staff()
-        SalesOrder.objects.filter(pk=self.order.pk).update(status="completed")
+        SalesOrder.objects.filter(pk=self.order.pk).update(status="delivery_pending", final_plate_number="QA-123")
         self.order.refresh_from_db()
+        original_display = self.order.display_status
         self.review(self.staff, "request")
-        self.assertEqual((self.order.status, self.order.display_status), ("completed", "刪除確認中"))
+        self.assertEqual((self.order.status, self.order.display_status), ("delivery_pending", "刪除確認中"))
         queue = self.client.get(reverse("order_deletion_queue"))
         self.assertContains(queue, "匯入錯誤")
         self.assertContains(queue, "deletion-review-card")
@@ -197,8 +198,7 @@ class OrderDeletionTests(TestCase):
         with self.assertRaises(ValidationError):
             self.review(self.staff, "request")
         self.review(self.staff, "cancel")
-        # 1.80.0：已完成但還沒人工確認結案。
-        self.assertEqual(self.order.display_status, "已交車／待結案")
+        self.assertEqual(self.order.display_status, original_display)
         self.review(self.staff, "request")
         self.review(self.root, "reject", "資料仍需保留")
         self.assertIsNone(self.order.deletion_requested_at)
@@ -257,8 +257,8 @@ class OrderDeletionTests(TestCase):
         self.assertNotContains(self.client.get(reverse("reconciliation_list")), self.order.number)
         self.assertEqual(self.client.get(reverse("order_detail", args=[self.order.pk])).status_code, 404)
 
-    def test_admin_completed_order_confirmation_form_executes_force_delete(self):
-        SalesOrder.objects.filter(pk=self.order.pk).update(status="completed")
+    def test_admin_registered_order_confirmation_form_executes_force_delete(self):
+        SalesOrder.objects.filter(pk=self.order.pk).update(status="delivery_pending", final_plate_number="QA-123")
         self.order.refresh_from_db()
         url = reverse("order_delete", args=[self.order.pk])
         page = self.client.get(url)
@@ -300,6 +300,51 @@ class OrderDeletionTests(TestCase):
             self.change(restore=True)
         self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
 
+    def test_delivered_order_cannot_be_deleted_even_by_admin(self):
+        from sales.services.order_deletion import DELIVERED_BLOCKER, permanent_deletion_blockers
+        for fields in ({"status": SalesOrder.Status.COMPLETED}, {"status": SalesOrder.Status.DELIVERED_DOCS_PENDING},
+                       {"status": SalesOrder.Status.DELIVERY_PENDING, "delivered_at": timezone.now()}):
+            SalesOrder.objects.filter(pk=self.order.pk).update(**fields)
+            self.order.refresh_from_db()
+            self.assertIn(DELIVERED_BLOCKER, permanent_deletion_blockers(self.order))
+            with self.assertRaisesMessage(ValidationError, "已交車的訂單不能刪除"):
+                self.change(force=True, confirmation=confirmation_token(self.order, self.root))
+        page = self.client.get(reverse("order_delete", args=[self.order.pk]))
+        self.assertContains(page, "此訂單不能刪除")
+        self.assertContains(page, "目前系統沒有交車後退車的流程")
+        self.assertNotContains(page, "確認刪除訂單</button>")
+        self.permit_staff()
+        with self.assertRaises(ValidationError):
+            self.review(self.staff, "request")
+        self.assertTrue(SalesOrder.objects.filter(pk=self.order.pk).exists())
+
+    def test_planned_registration_date_alone_returns_vehicle_to_stock(self):
+        # Excel 匯入沒車牌的單把預計領牌日存在 registration_date；沒有領牌，刪單要把車放回庫存。
+        vehicle = self.make_inventory()
+        SalesOrder.objects.filter(pk=self.order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING, registration_date=timezone.localdate())
+        self.order.refresh_from_db()
+        self.force_delete()
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, "available")
+
+    def test_registered_undelivered_order_parks_vehicle_for_admin_review(self):
+        from sales.services.inventory_history import change_rows
+        from sales.services.inventory_restore import deletion_review_order, deletion_review_vehicle_ids
+        vehicle = self.make_inventory()
+        SalesOrder.objects.filter(pk=self.order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING, final_plate_number="QA-777",
+                                                           registration_completed_at=timezone.now())
+        self.order.refresh_from_db()
+        self.force_delete()
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, "inactive")
+        self.assertEqual(deletion_review_order(vehicle).pk, self.order.pk)
+        self.assertEqual(deletion_review_vehicle_ids(), {vehicle.pk})
+        rows = change_rows(vehicle.history_entries.get().changes)
+        self.assertEqual(rows[0], {"label": "庫存狀態", "before": "已預留", "after": "停用", "single": False})
+        self.assertIn({"label": "訂單", "before": "", "after": self.order.number, "single": True}, rows)
+        self.assertTrue(any("刪單待確認" in row["after"] for row in rows))
+        self.assertTrue(all(row["label"] and row["after"] for row in rows))
+
     def test_bonus_allocation_void_and_restore_preserves_other_order_allocation(self):
         from datetime import date
         from sales.models import DealerVolumeBonusRule, DealerVolumeBonusTier, DealerVolumeBonusSettlement, DealerVolumeBonusAllocation
@@ -332,7 +377,7 @@ class OrderDeletionConcurrencyTests(TransactionTestCase):
         ScreenAccessGrant.objects.create(user=staff, screen_key="order_delete", view=True, operate=True)
         model = VehicleModel.objects.create(brand="QA", name="審核鎖定")
         color = VehicleColor.objects.create(vehicle_model=model, name="灰")
-        order = SalesOrder.objects.create(owner_name="合成申請", owner_phone="0", owner_address="合成地址", owner_id_number="A123456789", vehicle_model=model, color=color, status="completed")
+        order = SalesOrder.objects.create(owner_name="合成申請", owner_phone="0", owner_address="合成地址", owner_id_number="A123456789", vehicle_model=model, color=color, status="delivery_pending", final_plate_number="QA-123")
         review_deletion(user=staff, order_id=order.pk, action="request", reason="重複匯入", expected_updated_at=order.updated_at.isoformat())
         order.refresh_from_db()
         version, token = order.updated_at.isoformat(), confirmation_token(order, root)

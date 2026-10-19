@@ -11,7 +11,19 @@
     <h1>{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}</h1>
     {% if is_editing %}<p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.identifier }} · {{ vehicle.get_status_display }}</p>{% endif %}
   </div>
+  {% if restore and not restore.blocked and vehicle.status != "inactive" %}<div class="hero-actions"><a class="button secondary" href="{{ restore.url }}">改回現有庫存</a></div>{% endif %}
 </section>
+{% if restore and vehicle.status == "inactive" %}
+<section class="restore-entry{% if restore.review_order %} is-review{% endif %}" aria-labelledby="restore-entry-title">
+  <span class="restore-entry__mark" aria-hidden="true"></span>
+  <div class="restore-entry__text">
+    <p class="eyebrow">{% if restore.review_order %}{{ restore.review_label }}{% else %}停用車輛{% endif %}</p>
+    <h2 id="restore-entry-title">{% if restore.review_order %}刪除訂單 {{ restore.review_order.number }} 時已領牌，先停用{% else %}這台車目前停用，不會列入現有庫存{% endif %}</h2>
+    <p>{% if restore.blocked %}還掛在訂單或調車單上，開啟後可看到要先處理的項目。{% else %}確認車在店內、可以再賣，就可以改回現有庫存；改回時必填原因，並留下異動紀錄。{% endif %}</p>
+  </div>
+  <a class="button primary" href="{{ restore.url }}">改回現有庫存</a>
+</section>
+{% endif %}
 <form method="post" enctype="multipart/form-data" class="card standalone-form inventory-form{% if is_editing %} is-editing{% endif %}">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
@@ -71,10 +83,11 @@
       </summary>
       <div class="history-entry-body">
         {% if history.reason %}<p class="history-reason"><strong>異動原因</strong>{{ history.reason }}</p>{% endif %}
-        {% if history.changes %}
+        {% if history.change_rows %}
         <div class="history-change-list">
-          {% for field, change in history.changes.items %}
-          <div><strong>{{ change.label }}</strong><span>{{ change.before }}</span><span class="change-arrow">→</span><span class="change-after">{{ change.after }}</span></div>
+          {% for change in history.change_rows %}
+          {% if change.single %}<div class="is-single"><strong>{{ change.label }}</strong><span class="change-after">{{ change.after }}</span></div>
+          {% else %}<div><strong>{{ change.label }}</strong><span>{{ change.before }}</span><span class="change-arrow" aria-label="改為">→</span><span class="change-after">{{ change.after }}</span></div>{% endif %}
           {% endfor %}
         </div>
         {% else %}<p class="muted">本筆為初始庫存快照。</p>{% endif %}

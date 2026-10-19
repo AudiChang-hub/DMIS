@@ -1,6 +1,19 @@
 // 共用側邊把手導覽：依頁面上的 [data-side-nav-section] 產生目錄、捲動時標示目前段落；
 // 左側滑出、寬螢幕可釘選常駐（每種頁面各自記住，第一次預設釘選）；點了段落未釘選就收起。
 (() => {
+  // 目前段落：頂端已越過判定線（固定標頭下方一小段）的最後一個段落；已捲到頁底時改取最後一個看得到的段落，
+  // 頁尾的短段落（如營運總表的庫存概況）頂端永遠到不了判定線，也要能被標示。tops 為各段落相對視窗的頂端，隱藏的段落為 null。
+  function pickCurrent(tops, { line, viewport, atBottom }) {
+    let current = -1;
+    tops.forEach((top, index) => { if (top !== null && top <= line) current = index; });
+    if (atBottom) tops.forEach((top, index) => { if (top !== null && top < viewport) current = index; });
+    return current >= 0 ? current : tops.findIndex((top) => top !== null);
+  }
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    module.exports = { pickCurrent };
+    return;
+  }
+
   const root = document.querySelector("[data-side-nav]");
   if (!root) return;
   const key = root.dataset.sideNavKey || "page";
@@ -48,14 +61,43 @@
       if (current) link.setAttribute("aria-current", "location"); else link.removeAttribute("aria-current");
     });
   };
-  if (sections.length && "IntersectionObserver" in window) {
-    const visible = new Set();
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => (entry.isIntersecting ? visible.add(entry.target) : visible.delete(entry.target)));
-      const first = sections.find((section) => visible.has(section));
-      if (first) setCurrent(first);
-    }, { rootMargin: "-25% 0px -60% 0px" });
-    sections.forEach((section) => observer.observe(section));
+  // 捲動標示：每次捲動依段落位置重算。點目錄後鎖定點選的段落，直到捲動停下、使用者再自己捲動才放開，
+  // 平滑捲動途中經過的段落與頁底捲不上去的短段落都不會把標示搶走。
+  let held = null;
+  let settled = false;
+  let settleTimer = 0;
+  let frame = 0;
+  const refresh = () => {
+    frame = 0;
+    if (held) return;
+    const margin = parseFloat(getComputedStyle(sections[0]).scrollMarginTop) || 0;
+    const viewport = window.innerHeight;
+    const tops = sections.map((section) => (section.getClientRects().length ? section.getBoundingClientRect().top : null));
+    const index = pickCurrent(tops, {
+      line: margin + Math.min(viewport * 0.2, 160),
+      viewport,
+      atBottom: window.scrollY > 0 && Math.ceil(window.scrollY + viewport) >= document.documentElement.scrollHeight - 2,
+    });
+    if (index >= 0) setCurrent(sections[index]);
+  };
+  const schedule = () => { if (!frame) frame = requestAnimationFrame(refresh); };
+  const settle = () => { clearTimeout(settleTimer); settled = true; };
+  const release = () => { held = null; settled = false; clearTimeout(settleTimer); schedule(); };
+  if (sections.length) {
+    window.addEventListener("scroll", () => {
+      if (!held) { schedule(); return; }
+      if (settled) { release(); return; }
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(settle, 160);
+    }, { passive: true });
+    window.addEventListener("scrollend", () => { if (held && !settled) settle(); });
+    // 平滑捲動途中使用者自己滾輪、觸控或按鍵捲動，就交還給捲動標示。
+    ["wheel", "touchstart"].forEach((type) => window.addEventListener(type, () => { if (held) release(); }, { passive: true }));
+    document.addEventListener("keydown", (event) => {
+      if (held && ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) release();
+    });
+    window.addEventListener("resize", schedule);
+    refresh();
   }
   list.addEventListener("click", (event) => {
     const link = event.target.closest(".side-nav__link");
@@ -63,9 +105,14 @@
     event.preventDefault();
     const section = document.getElementById(link.hash.slice(1));
     if (section.tagName === "DETAILS") section.open = true;
-    section.scrollIntoView({ block: "start", behavior: reduceMotion.matches ? "auto" : "smooth" });
-    history.replaceState(history.state, "", link.hash);
+    held = section;
+    settled = false;
     setCurrent(section);
+    // 全站 html 設了 scroll-behavior: smooth，減少動態時要明確用 instant 才會瞬間定位。
+    section.scrollIntoView({ block: "start", behavior: reduceMotion.matches ? "instant" : "smooth" });
+    history.replaceState(history.state, "", link.hash);
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(settle, 160);
     if (!pinned) setOpen(false, { focus: false });
   });
 

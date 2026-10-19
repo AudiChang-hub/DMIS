@@ -98,7 +98,7 @@ class OrderSortingTests(TestCase):
         self.assertNotContains(response, 'Shift')
         self.assertContains(response, '<th scope="col"', count=10)
         self.assertContains(response, 'class="order-table-owner"', count=2)
-        self.assertContains(response, f'<a class="order-owner-link" href="{reverse("order_detail", args=[self.orders[1].pk])}"><span class="order-owner-line"><strong>AlphaSort</strong><span class="payment-chip payment-chip--cash" title="付款方式：現金">現金</span></span><small>{self.orders[1].number}</small></a>', html=True)
+        self.assertContains(response, f'<a class="order-owner-link" href="{reverse("order_detail", args=[self.orders[1].pk])}"><span class="order-owner-line"><strong>AlphaSort</strong><span class="payment-chip payment-chip--cash" title="付款方式：現金">現金</span></span><span class="order-number-stack"><small>{self.orders[1].number}</small><span class="order-origin order-origin--manual" title="在系統裡建立的訂單" data-order-origin="manual"><i class="order-origin__mark" aria-hidden="true"></i><b class="order-origin__label">手動開單</b><span class="visually-hidden">：在系統裡建立的訂單</span></span></span></a>', html=True)
 
     def test_merged_header_retains_number_sort_and_empty_colspan(self):
         self.client.force_login(self.user)

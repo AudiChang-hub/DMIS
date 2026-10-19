@@ -31,6 +31,7 @@
 - 草稿（含接待草稿）一般只有建立人看得到；admin 可在「全部訂單 → 草稿清理」看所有人的草稿（不顯示客戶資料），填原因並確認後刪除，連同暫存證件照，寫入帳號稽核紀錄（動作「刪除草稿」）；90 秒內有他人編輯心跳時不能刪。入口 `sales/services/draft_cleanup.py`、`test_draft_cleanup.py`。
 - 配車：一般從「待配車」配車；Excel 匯入後因無車牌改回「待交車」、從未配車且未完成領牌的訂單也可直接配車，配車後回到「已配車 → 領牌 → 交車」一般流程（2026-10-12）。
 - 全部訂單頁籤（`services/order_tabs.py`，2026-10-12；2026-10-15 改人工結案）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但還沒有人按「確認結案」；已結案＝人員已確認結案（`SalesOrder.closed_at`）。結案不設任何關卡（文件、補助都不檢查），可撤回；都記處理紀錄。Excel 匯入的歷史已完成訂單由 migration 0187 一次標為已結案（補助未完成的 SO20261013-2C394B 依使用者指定留在已交車）。只分類列表，不改訂單狀態與報表口徑。
+- 訂單來源標記（2026-10-19，`sales/services/order_origin.py`，訂單編號下方）：有匯入快照（`LegacySalesSnapshot`）＝Excel 匯入，其餘＝手動開單；匯入單有任一筆使用者的 `OrderEvent` 即為「Excel 匯入已修改」，並顯示最後修改人與時間。不算修改：檢視／列印、結案分類、刪除申請與還原、客戶文件授權；匯入程式與重新匯入（`legacy_import_update`、用 Excel 補車牌完成交車 `legacy_import_delivery_completed`、領牌改期、退訂換買家、改回待交車）、財務核對修復；操作人空白、「系統…」、「歷史資料匯入」、「歷史財務核對修復」或含「（依使用者」（指令碼資料整理）；自動儲存「（0 個項目／欄位）」。只讀既有紀錄、不加欄位；列表用 `with_order_origin` 子查詢或 `attach_order_origin`。測試 `test_order_origin.py`。
 - 入口：`sales/tests/test_order_intake.py`、`test_reception_entry.py`、`test_completed_order_corrections.py`、`test_order_deletion.py`。
 
 ## Excel 匯入與識別

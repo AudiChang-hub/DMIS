@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}
-{% load sales_format pagination_tags %}
+{% load sales_format pagination_tags order_origin_tags %}
 {% block title %}統一撥款對帳｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -30,7 +30,7 @@
       <tbody>
       {% for record in records %}
         <tr>
-          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span><small>{{ record.item_name }} · {{ record.reconciliation_state }}</small></td>
+          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span class="order-number-stack"><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span>{% order_origin_badge record.order %}</span><small>{{ record.item_name }} · {{ record.reconciliation_state }}</small></td>
           <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
           <td data-label="預計金額" class="number-cell reconciliation-expected">
             <span class="mobile-field-label">預計金額</span>

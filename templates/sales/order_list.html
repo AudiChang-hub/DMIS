@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load pagination_tags sales_format static %}
+{% load order_origin_tags %}
 {% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -95,7 +96,7 @@
       <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>
       <td>{{ order.registration_display }}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
-      <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><span class="order-owner-line"><strong>{{ order.owner_name }}</strong>{% include "sales/_payment_chip.html" %}</span><small>{{ order.number }}</small></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
+      <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><span class="order-owner-line"><strong>{{ order.owner_name }}</strong>{% include "sales/_payment_chip.html" %}</span><span class="order-number-stack"><small>{{ order.number }}</small>{% order_origin_badge order %}</span></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
       <td class="order-table-machine">{% include 'sales/_compact_text.html' with value=order.vehicle_model.family.name|default:order.vehicle_model.name limit=10 %}</td>
       <td>{{ order.color.name|default:"—" }}</td>
       <td>{{ order.source_display }}</td>

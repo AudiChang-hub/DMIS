@@ -11,6 +11,7 @@ from sales.models import SalesOrder
 from sales.services.order_deletion import change_deletion, deletion_blockers, is_order_delivered, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
 from sales.services.order_intake import scoped_orders
+from sales.services.order_origin import attach_order_origin
 from django.core.exceptions import PermissionDenied
 
 
@@ -31,6 +32,7 @@ def order_recycle_bin(request):
     if query:
         rows = rows.filter(Q(number__icontains=query) | Q(owner_name__icontains=query))
     page = Paginator(rows, 25).get_page(request.GET.get("page"))
+    page.object_list = attach_order_origin(page.object_list)
     return render(request, "sales/order_recycle_bin.html", {"page_obj": page, "query": query})
 
 
@@ -90,6 +92,7 @@ def order_deletion_queue(request):
             .select_related("deletion_requested_by", "vehicle_model", "color")
             .prefetch_related("payment_records").order_by("deletion_requested_at", "pk"))
     page_obj = Paginator(rows, 25).get_page(request.GET.get("page"))
+    page_obj.object_list = attach_order_origin(page_obj.object_list)
     from django.utils.timesince import timesince
 
     for order in page_obj:

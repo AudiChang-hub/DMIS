@@ -104,6 +104,10 @@ def default_plate_selection_expense(order):
 
 
 def _is_legacy(order):
+    # 列表已用 order_origin.with_order_origin 子查詢取出時直接沿用，不逐張查匯入快照。
+    imported = getattr(order, "origin_imported", None)
+    if imported is not None:
+        return bool(imported)
     return bool(order.pk and hasattr(order, "legacy_snapshot"))
 
 

@@ -424,5 +424,6 @@ def commit_update(row, actor_name):
                 order.pk, plate=order.final_plate_number,
                 delivered_on=_date(row.mapped_data.get("registration_date")) or order.registration_date or timezone.localdate(),
                 actor=actor_name, reason=f"Excel 第 {row.source_row} 列補上車牌",
+                event_type=historical_delivery.EVENT_IMPORT_COMPLETED,
             )
     row.committed_model, row.committed_pk = "SalesOrder", str(order.pk)

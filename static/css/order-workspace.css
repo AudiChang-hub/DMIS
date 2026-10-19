@@ -32,7 +32,8 @@
 .order-sticky-hero.is-stuck h1 { font-size: var(--text-xl); margin-bottom: 0; }
 .order-sticky-hero.is-stuck .muted,
 .order-sticky-hero.is-stuck .eyebrow,
-.order-sticky-hero.is-stuck .order-owner-facts { display: none; }
+.order-sticky-hero.is-stuck .order-owner-facts,
+.order-sticky-hero.is-stuck .order-origin-line { display: none; }
 .order-sticky-hero.is-stuck .hero-actions .button { min-height: 40px; }
 .order-owner-facts { display: flex; flex-wrap: wrap; margin: var(--space-1) 0 0; gap: var(--space-1) var(--space-5); color: var(--ink-soft); font-size: var(--text-sm); }
 .order-owner-facts strong { color: var(--ink); font-variant-numeric: tabular-nums; }

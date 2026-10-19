@@ -12,6 +12,8 @@ from sales.models import OrderChange, OrderEvent, SalesOrder
 
 EVENT_COMPLETED = "historical_delivery_completed"
 EVENT_REOPENED = "historical_delivery_reopened"
+# 重新匯入時用 Excel 補上車牌而完成：屬重新匯入，訂單來源標記不算使用者修改（order_origin）。
+EVENT_IMPORT_COMPLETED = "legacy_import_delivery_completed"
 
 
 def is_imported(order):
@@ -27,7 +29,7 @@ def _noon(day):
 
 
 @transaction.atomic
-def complete_imported_order(order_id, *, plate, delivered_on, actor, reason):
+def complete_imported_order(order_id, *, plate, delivered_on, actor, reason, event_type=EVENT_COMPLETED):
     """補登車牌並完成交車；沒有領牌日期時以交車日期補上。"""
     order = SalesOrder.objects.select_for_update(of=("self",)).get(pk=order_id)
     plate = (plate or "").strip().upper()
@@ -62,7 +64,7 @@ def complete_imported_order(order_id, *, plate, delivered_on, actor, reason):
     }
     changes = {label: {"before": before[label], "after": after[label]} for label in before if before[label] != after[label]}
     OrderChange.objects.create(order=order, reason=f"歷史匯入單補登車牌並完成交車；{reason}", changes=changes, actor_name=actor)
-    OrderEvent.objects.create(order=order, event_type=EVENT_COMPLETED, actor_name=actor,
+    OrderEvent.objects.create(order=order, event_type=event_type, actor_name=actor,
                               description=f"補登車牌 {plate}，{delivered_on:%Y/%m/%d} 完成交車（歷史匯入單，無配車）；{reason}")
     from sales.services.order_search import rebuild_order_search_index
     rebuild_order_search_index(order.pk)

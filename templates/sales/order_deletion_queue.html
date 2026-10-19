@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% load site_copy %}{% load pagination_tags %}
+{% extends 'base.html' %}{% load site_copy %}{% load pagination_tags order_origin_tags %}
 {% block title %}刪除審核｜車輛銷售管理{% endblock %}
 {% block content %}
 {% site_navigation %}
@@ -14,7 +14,7 @@
   {% for order in page_obj %}
   <li class="deletion-review-card">
     <div class="deletion-review-card__order">
-      <p class="deletion-review-card__number">{{ order.number }}</p>
+      <p class="deletion-review-card__number">{{ order.number }}</p>{% order_origin_badge order %}
       <h2>{{ order.owner_name|default:"未填車主" }}</h2>
       <p class="deletion-review-card__vehicle">{{ order.vehicle_model|default:"未選車型" }}{% if order.color %}<span aria-hidden="true">・</span>{{ order.color.name }}{% endif %}</p>
       <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>

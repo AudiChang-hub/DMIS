@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
+{% load order_origin_tags %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -13,6 +14,7 @@
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
+    <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
     <p class="order-owner-facts">{% if order.owner_phone %}<span>電話 <strong>{{ order.owner_phone }}</strong></span>{% endif %}{% if order.owner_birth_date %}<span>生日 <strong>{{ order.owner_birth_date|roc_date }}</strong>（西元 {{ order.owner_birth_date|date:"Y/m/d" }}）</span>{% endif %}</p>
   </div>
   <div class="hero-actions">

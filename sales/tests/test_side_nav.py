@@ -51,3 +51,9 @@ class SideNavTests(TestCase):
     def test_vehicle_model_list_hides_index_when_empty(self):
         page = self.client.get(reverse("vehicle_model_list") + "?q=不存在的車")
         self.assertNotContains(page, 'data-side-nav-key="vehicle-models"')
+
+    def test_operations_inventory_section_matches_workload_style(self):
+        # 1.86.14：庫存概況是頁尾段落，和即時工作量同樣用 dashboard-section，目錄標示由 side-nav.js 的頁底規則處理。
+        content = self.client.get(reverse("operations_report")).content.decode()
+        self.assertIn('<section class="dashboard-section" data-side-nav-section="庫存概況">', content)
+        self.assertIn('<section class="dashboard-section" data-side-nav-section="即時工作量">', content)

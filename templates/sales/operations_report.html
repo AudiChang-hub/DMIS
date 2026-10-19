@@ -76,6 +76,6 @@
 <article class="performance-card"><span>車行到期提醒</span><strong>{{ dealer_due_count }}</strong><em>以訂單去重；可能同時缺文件及待確認尾款</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?attention=dealer">查看到期待辦</a>{% endif_access %}</article>
 <article class="performance-card"><span>牌險金額差異待確認</span><strong>{{ fee_variance_count }}</strong>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?attention=fees">查看差異訂單</a>{% endif_access %}</article>
 </div></section>
-<section class="section-block operations-model-summary" data-side-nav-section="庫存概況"><h2>庫存概況</h2><div class="command-risk-grid">{% for item in inventory_cards %}<article class="performance-card"><span>{{ item.label }}</span><strong>{{ item.count }}</strong>{% if_access 'inventory_list' %}<a href="{% url 'inventory_list' %}{% if item.status %}?status={{ item.status }}{% endif %}">查看庫存</a>{% endif_access %}</article>{% endfor %}</div></section>
+<section class="dashboard-section" data-side-nav-section="庫存概況"><h2>庫存概況</h2><div class="command-risk-grid">{% for item in inventory_cards %}<article class="performance-card"><span>{{ item.label }}</span><strong>{{ item.count }}</strong>{% if_access 'inventory_list' %}<a href="{% url 'inventory_list' %}{% if item.status %}?status={{ item.status }}{% endif %}">查看庫存</a>{% endif_access %}</article>{% endfor %}</div></section>
 {% endif %}
 {% endblock %}

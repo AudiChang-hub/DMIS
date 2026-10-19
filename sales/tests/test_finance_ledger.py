@@ -267,16 +267,83 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         profile = self.synced(micro)
         self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (450, 1358))
         self.assertEqual(profile.agency_fee_income, 2300 - 450 - 1358)
-        # 微電車沒收牌險：建單就看得出牌險少收。
-        unpaid = self.electric_order("micro_electric", plate_insurance_fee=0, plate_selection_fee=1200, plate_choice="watch")
-        profile = self.synced(unpaid)
-        self.assertEqual(profile.agency_fee_income, -450 - 1358)
-        self.assertTrue(unpaid.plate_fee_shortfall)
+        # 微電車少收牌險：建單就看得出牌險少收。
+        short = self.electric_order("micro_electric", plate_insurance_fee=1000, plate_selection_fee=1200, plate_choice="watch")
+        profile = self.synced(short)
+        self.assertEqual(profile.agency_fee_income, 1000 - 450 - 1358)
+        self.assertTrue(short.plate_fee_shortfall)
+
+    # PM 與使用者對過的例子（2026-10-19）：規費 1,100＋強制險 1,000＝2,100。
+    COST_2100 = dict(
+        registration_date=date(2026, 9, 10), compulsory_insurance_period=1,
+        registration_plate_fee=300, registration_license_fee=150, registration_inspection_fee=200,
+        road_maintenance_fee=450, license_tax_fee=0, compulsory_insurance_fee=1000, registration_calculated_total=2100,
+    )
+    INSTALLMENT = dict(
+        payment_type="installment", installment_amount=Decimal("75000"), installment_company="測試分期",
+        installment_periods=24, payment_splits=[{"method": "installment", "amount": 75000}],
+    )
+
+    def plate_case(self, **kwargs):
+        from sales.services.customer_receivable import customer_balance
+
+        fields = dict(source_type="store", source=self.staff, vehicle_price=Decimal("75000"), cash_receivable_v2=True,
+                      **self.COST_2100)
+        fields.update(kwargs)
+        order = self.make_order(**fields)
+        profile = self.synced(order)
+        order.refresh_from_db()
+        return order, profile, customer_balance(order)
+
+    def test_plate_fee_three_states_on_cash_orders(self):
+        """牌險費空白＝照成本收、0＝不向客人收（現金單店家吸收）、正數＝照填（使用者 2026-10-19）。"""
+        order, profile, balance = self.plate_case(plate_insurance_fee=3500, deposit_amount=5000)
+        self.assertEqual((profile.agency_fee_income, balance), (1400, 73500))
+        order, profile, balance = self.plate_case(plate_insurance_fee=3500)
+        self.assertEqual((profile.agency_fee_income, balance), (1400, 78500))
+        order, profile, balance = self.plate_case(plate_insurance_fee=2100, plate_insurance_auto=True, deposit_amount=5000)
+        self.assertEqual((profile.agency_fee_income, balance), (0, 72100))
+        self.assertEqual((profile.registration_tax_income, profile.compulsory_insurance_income), (1100, 1000))
+        # 現金單填 0：規費與強制險照列支出、收入 0，店家吸收；牌險手續費 0，不標少收。
+        order, profile, balance = self.plate_case(plate_insurance_fee=0, deposit_amount=5000)
+        self.assertEqual(balance, 70000)
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (1100, 1000))
+        self.assertEqual((profile.registration_tax_income, profile.compulsory_insurance_income), (0, 0))
+        self.assertEqual(profile.agency_fee_income, 0)
+        self.assertFalse(order.plate_fee_shortfall)
+
+    def test_plate_fee_three_states_on_installment_orders(self):
+        order, profile, balance = self.plate_case(plate_insurance_fee=3500, deposit_amount=2000, **self.INSTALLMENT)
+        self.assertEqual((profile.agency_fee_income, balance), (1400, 1500))
+        order, profile, balance = self.plate_case(plate_insurance_fee=2100, plate_insurance_auto=True, **self.INSTALLMENT)
+        self.assertEqual((profile.agency_fee_income, balance), (0, 2100))
+        # 分期單填 0：分期公司吸收，不列規費與強制險，牌險手續費 0、不標少收，客人尾款 0。
+        order, profile, balance = self.plate_case(plate_insurance_fee=0, **self.INSTALLMENT)
+        self.assertEqual(balance, 0)
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (0, 0))
+        self.assertEqual((profile.registration_tax_income, profile.compulsory_insurance_income), (0, 0))
+        self.assertEqual(profile.agency_fee_income, 0)
+        self.assertFalse(order.plate_fee_shortfall)
+        # 分期＋現金多筆付款同樣適用；人工改過的支出不被覆蓋。
+        mixed = dict(self.INSTALLMENT, installment_amount=Decimal("45000"),
+                     payment_splits=[{"method": "cash", "amount": 30000}, {"method": "installment", "amount": 45000}])
+        order, profile, balance = self.plate_case(plate_insurance_fee=0, deposit_amount=2000, **mixed)
+        self.assertEqual((profile.registration_tax_expense, balance), (0, 28000))
+        profile.registration_tax_expense = 900
+        profile.manual_financial_fields = ["registration_tax_expense"]
+        profile.save()
+        self.assertEqual(self.synced(order).registration_tax_expense, 900)
+
+    def test_completed_orders_keep_their_plate_ledger(self):
+        order, profile, _balance = self.plate_case(plate_insurance_fee=3500, **self.INSTALLMENT)
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.COMPLETED, plate_insurance_fee=0)
+        profile = self.synced(order)
+        self.assertEqual((profile.registration_tax_expense, profile.agency_fee_income), (1100, 1400), "已完成訂單不重算")
 
     def test_imported_orders_are_never_flagged_as_plate_shortfall(self):
         from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
 
-        order = self.electric_order("micro_electric", plate_insurance_fee=0)
+        order = self.electric_order("micro_electric", plate_insurance_fee=1000)
         self.assertTrue(order.plate_fee_shortfall)
         batch = LegacyImportBatch.objects.create(import_type="operations", original_filename="synthetic.xlsx", file_size=0)
         row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷貨", source_row=1, fingerprint="plate-shortfall")

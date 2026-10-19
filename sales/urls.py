@@ -9,6 +9,7 @@ from . import draft_cleanup_views
 from . import import_review_views
 from . import historical_delivery_views
 from . import transfer_signoff_views
+from . import inventory_restore_views
 from . import subsidy_program_views
 from . import vehicle_model_tool_views
 from . import gift_views
@@ -678,6 +679,7 @@ urlpatterns = [
         views.inventory_allocation_priority,
         name="inventory_allocation_priority",
     ),
+    path("data/inventory/<int:pk>/restore-to-stock/", inventory_restore_views.inventory_restore, name="inventory_restore"),
     path(
         "inventory/",
         RedirectView.as_view(pattern_name="inventory_list", permanent=False),

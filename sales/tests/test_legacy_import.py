@@ -161,6 +161,9 @@ class LegacyImportTests(TestCase):
         confirm_import(batch, "tester")
         order = SalesOrder.objects.get()
         root = get_user_model().objects.create_superuser("admin", password="Synthetic-test-only-89!")
+        # 已交車的訂單不能刪除（1.86.21）；本測試只驗證刪除後不被舊列重建，先改成尚未交車。
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING, delivered_at=None)
+        order.refresh_from_db()
         change_deletion(user=root, order_id=order.pk, restore=False, force=True, reason="匯入錯誤",
             expected_updated_at=order.updated_at.isoformat(), confirmation=confirmation_token(order, root))
         repeated = self.make_batch("operations")
@@ -171,6 +174,25 @@ class LegacyImportTests(TestCase):
         self.assertEqual(row.action, LegacyImportRow.Action.SKIP)
         self.assertEqual(SalesOrder.objects.count(), 0)
         self.assertEqual(SalesOrder.all_objects.count(), 1)
+
+    def test_reimport_does_not_mark_restored_vehicle_sold_again(self):
+        # 1.86.21：admin 把匯入時「數量 0＝已售出」的車改回現有庫存後，重匯同一份進貨不能又標回已售出。
+        from sales.services.inventory_restore import identifier_tail, restore_to_stock
+        batch = self.make_batch("operations")
+        build_import_preview(batch, sheets=["進貨"])
+        confirm_import(batch, "tester")
+        vehicle = VehicleInventory.objects.get()
+        self.assertEqual(vehicle.status, VehicleInventory.Status.SOLD)
+        root = get_user_model().objects.create_superuser("admin", password="Synthetic-test-only-89!")
+        restore_to_stock(user=root, vehicle_id=vehicle.pk, reason="匯入誤標已售出", expected_updated_at=vehicle.updated_at.isoformat(),
+                         confirm_identifier=identifier_tail(vehicle))
+        repeated = self.make_batch("operations")
+        build_import_preview(repeated, sheets=["進貨"])
+        confirm_import(repeated, "tester")
+        vehicle.refresh_from_db()
+        self.assertEqual(VehicleInventory.objects.count(), 1)
+        self.assertEqual(vehicle.status, VehicleInventory.Status.AVAILABLE)
+        self.assertEqual(repeated.rows.get(sheet_name="進貨").action, LegacyImportRow.Action.SKIP)
 
     def test_import_formation_date_and_full_finance_mapping(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)

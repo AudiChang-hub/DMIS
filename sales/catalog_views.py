@@ -180,6 +180,18 @@ def catalog_preview_image(request, pk, color_pk=None):
     return response
 
 
+IMAGE_EXT = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
+
+
+def checked_upload(upload):
+    """已由 ImageField 解碼的上傳檔：限 8 MB 的 JPEG／PNG／WebP，通過後改成隨機檔名。"""
+    fmt = getattr(getattr(upload, "image", None), "format", "")
+    if upload.size > 8 * 1024 * 1024 or fmt not in IMAGE_EXT:
+        raise forms.ValidationError("請使用 8 MB 以內 JPEG、PNG 或 WebP 圖片。")
+    upload.name = f"{uuid.uuid4().hex}.{IMAGE_EXT[fmt]}"
+    return upload
+
+
 class CatalogForm(forms.ModelForm):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
     main_image_color = forms.ModelChoiceField(
@@ -271,11 +283,10 @@ class CatalogForm(forms.ModelForm):
             if upload and data.get(f"color_remove_{color.pk}"):
                 self.add_error(key, "同一車色不可同時上傳與移除圖片。")
             if upload:
-                fmt = getattr(getattr(upload, "image", None), "format", "")
-                if upload.size > 8 * 1024 * 1024 or fmt not in {"JPEG", "PNG", "WEBP"}:
-                    self.add_error(key, "請使用 8 MB 以內 JPEG、PNG 或 WebP 圖片。")
-                else:
-                    upload.name = f"{uuid.uuid4().hex}.{ {'JPEG':'jpg','PNG':'png','WEBP':'webp'}[fmt]}"
+                try:
+                    checked_upload(upload)
+                except forms.ValidationError as error:
+                    self.add_error(key, error)
         return data
 
     def fetch_remote_images(self):

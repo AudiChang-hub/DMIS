@@ -71,7 +71,7 @@
 - 批次套用附加獎勵（批次調整的「附加獎勵」分頁，權限同「傭金與獎勵」分頁）為勾選年式建立同一組方案（生效日預設今天、不可早於今天，結束日選填且不早於生效日；品項成本依生效日成本版本存快照）。唯一會改既有資料的情況：勾選「原方案沒有結束日時，自動設為新方案前一天結束」時，**沒有結束日且在新方案前已開始**的原方案改為生效日前一天結束。已設定結束日而重疊、之後已排定的方案、同日已有方案（含停用）的年式一律略過、不修改；未勾選時有原方案重疊即略過。預覽後資料或成本變更則整批不寫入。訂單有附加獎勵快照，結束原方案不影響既有訂單。來源：`sales/services/vehicle_model_reward_batch.py`；測試 `test_vehicle_model_reward_batch.py`。
 - 報表中心的油車／電車分類（`legacy_energy`）依訂單車型主檔能源別：油車為油車，其他（電動、輕型電動、微型電動二輪）皆為電車；只有沒連車型主檔或主檔未填能源別才退回舊報表型號公式。來源：`sales/reporting/source_compatibility.py`；測試 `test_reporting.py`。
 - 選車上架完全跟著機種啟用狀態：啟用即上架、停用即下架；不另設上架開關；圖片、介紹與排序由機種編輯頁的「選車圖片與介紹」維護。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
-- 車色展示圖可上傳檔案或貼圖片連結（擇一）；連結由伺服器下載後存成本地檔，只連公開網路位址（每次轉址重查、逾時與 8 MB 上限、Pillow 驗證 JPEG／PNG／WebP），來源網址記在稽核 metadata；單一車色下載失敗不擋其他設定。來源：`sales/services/remote_image.py`；測試 `test_catalog_remote_image.py`。
+- 車色展示圖可上傳檔案或貼圖片連結（擇一）；連結由伺服器下載後存成本地檔，只連公開網路位址（每次轉址重查、逾時與 8 MB 上限、Pillow 驗證 JPEG／PNG／WebP），來源網址記在稽核 metadata；單一車色下載失敗不擋其他設定。資料維護區「車色圖片」總覽（root）可逐格就地存圖，檢查相同、需帶目前檔名防覆蓋、每格寫稽核。來源：`sales/services/remote_image.py`、`sales/catalog_photo_views.py`；測試 `test_catalog_remote_image.py`、`test_catalog_photo_board.py`。
 
 ## 財務與權限
 - 營運總表「車款成交額」（`services/sales_metrics.vehicle_sale_amount`）：訂單車價合計；匯入單車價為 0 時改用匯入快照的收款價（不含強制險），只用於報表、不回寫訂單（2026-10-12）。

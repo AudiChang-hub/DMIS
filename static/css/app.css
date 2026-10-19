@@ -7413,3 +7413,101 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 }
 @media (prefers-reduced-motion: reduce) { .side-nav__panel, .side-nav__handle, .side-nav__backdrop, .side-nav__link { transition: none; } }
 @media print { .side-nav { display: none; } body.is-side-nav-pinned .page-shell { padding-left: 0; } }
+/* 車色圖片總覽 */
+.photo-board{--cell-min:176px;display:flex;flex-direction:column;gap:var(--stack-gap)}
+.photo-board__hero{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:var(--stack-gap);animation:page-rise var(--dur-3) var(--ease-out)}
+.photo-board__hero h1{margin:0}.photo-board__hero .muted{max-width:62ch;margin:var(--space-2) 0 0}
+.photo-board__meter{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4) var(--space-5);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--shadow-soft)}
+.photo-board__meter p{margin:0}.photo-board__meter-label{font-family:var(--font-display);font-size:var(--text-lg);font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.photo-board__meter-label b{color:var(--forest)}.photo-board__meter-sub{color:var(--muted);font-size:var(--text-sm);font-variant-numeric:tabular-nums}
+.photo-board__ring{width:52px;height:52px;flex:none;transform:rotate(-90deg)}
+.photo-board__ring circle{fill:none;stroke:var(--surface-subtle);stroke-width:5}
+.photo-board__ring .photo-board__ring-value{stroke:var(--forest);stroke-linecap:round;transition:stroke-dasharray var(--dur-3) var(--ease-out)}
+.photo-board__toolbar{position:sticky;z-index:5;top:var(--app-header-height,72px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface-glass);backdrop-filter:blur(12px)}
+.photo-board__search{display:flex;flex:1 1 320px;align-items:center;gap:var(--space-2);min-width:0}.photo-board__search input[type=search]{flex:1;min-width:0}
+.photo-board__filter{display:inline-flex;align-items:center;gap:var(--space-3);margin:0;font-weight:800;cursor:pointer;white-space:nowrap}
+.photo-board__filter input{position:absolute;opacity:0;width:1px;height:1px}
+.photo-board__switch{position:relative;width:44px;height:26px;border-radius:var(--radius-pill);background:var(--line-strong);transition:background var(--dur-2) var(--ease-out)}
+.photo-board__switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);box-shadow:0 1px 3px color-mix(in srgb,var(--ink) 30%,transparent);transition:transform var(--dur-2) var(--ease-out)}
+.photo-board__filter input:checked+.photo-board__switch{background:var(--forest)}.photo-board__filter input:checked+.photo-board__switch::after{transform:translateX(18px)}
+.photo-board__filter input:focus-visible+.photo-board__switch{outline:2px solid var(--forest);outline-offset:2px}
+.photo-board__brands{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.photo-board__brands a{display:inline-flex;align-items:center;gap:var(--space-2);min-height:36px;padding:0 var(--space-3);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--ink);font-weight:700;text-decoration:none;transition:border-color var(--dur-2) var(--ease-out)}
+.photo-board__brands a:hover{border-color:var(--forest)}
+.photo-board__brands span{min-width:22px;padding:0 var(--space-1);border-radius:var(--radius-pill);background:var(--red-soft);color:var(--red);font-size:var(--text-xs);text-align:center;font-variant-numeric:tabular-nums}
+.photo-board__brands span[data-zero]{background:var(--gold-soft);color:var(--green-ink)}
+.photo-board__done{margin:0;padding:var(--space-5);border:1px solid var(--green-border);border-radius:var(--radius-lg);background:var(--gold-soft);color:var(--green-ink);font-weight:800;text-align:center}
+.photo-board__done[hidden]{display:none}
+.photo-board__brand{display:flex;flex-direction:column;gap:var(--space-4);scroll-margin-top:calc(var(--app-header-height,72px) + 88px)}
+.photo-board__brand>h2{display:flex;align-items:baseline;gap:var(--space-3);margin:var(--space-4) 0 0;font-family:var(--font-display);font-size:var(--text-xl)}
+.photo-board__brand>h2 small{color:var(--muted);font-size:var(--text-sm);font-weight:700;font-variant-numeric:tabular-nums}
+.photo-board__model{padding:var(--space-4) var(--space-5) var(--space-5);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);scroll-margin-top:calc(var(--app-header-height,72px) + 88px)}
+.photo-board__model:target{border-color:var(--forest);box-shadow:0 0 0 4px color-mix(in srgb,var(--forest) 14%,transparent)}
+.photo-board__model>header{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-1) var(--space-3);margin-bottom:var(--space-4)}
+.photo-board__model h3{margin:0;font-size:var(--text-base)}.photo-board__model h3 span{color:var(--muted);font-weight:700}
+.photo-board__model>header p{margin:0;color:var(--muted);font-size:var(--text-sm)}
+.photo-board__count{padding:0 var(--space-2);border-radius:var(--radius-pill);background:var(--red-soft);color:var(--red);font-size:var(--text-xs);font-weight:800;font-variant-numeric:tabular-nums}
+.photo-board__model[data-missing="0"] .photo-board__count{background:var(--gold-soft);color:var(--green-ink)}
+.photo-board__edit{margin-left:auto;color:var(--forest);font-size:var(--text-sm);font-weight:700;text-decoration:none}.photo-board__edit:hover{text-decoration:underline}
+.photo-board__cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cell-min),1fr));gap:var(--space-4);margin:0;padding:0;list-style:none}
+.photo-cell{position:relative;display:flex;min-width:0;flex-direction:column;gap:var(--space-2)}
+.photo-cell__media{position:relative;display:grid;place-items:center;aspect-ratio:4/3;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);outline:0;transition:border-color var(--dur-2) var(--ease-out),box-shadow var(--dur-2) var(--ease-out),transform var(--dur-2) var(--ease-out)}
+.photo-cell__media img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:var(--space-2);background:var(--surface);animation:photo-in var(--dur-3) var(--ease-out)}
+.photo-cell__media img[hidden]{display:none}
+.photo-cell__empty{display:flex;flex-direction:column;align-items:center;gap:var(--space-1);color:var(--muted);font-size:var(--text-xs);font-weight:700}
+.photo-cell[data-has-photo="0"] .photo-cell__media{border:2px dashed var(--line-strong);background:var(--surface-subtle)}
+.photo-cell[data-has-photo="1"] .photo-cell__empty{display:none}
+.photo-cell[data-has-photo="0"] .photo-cell__media{cursor:pointer}.photo-cell[data-has-photo="0"] .photo-cell__media:hover{border-color:var(--forest)}
+.photo-cell__hint-touch{display:none}
+@media(hover:none){.photo-cell__hint-pointer{display:none}.photo-cell__hint-touch{display:inline}}
+.photo-cell__media:focus-visible{border-color:var(--forest);box-shadow:0 0 0 4px color-mix(in srgb,var(--forest) 20%,transparent)}
+.photo-board.is-dragging .photo-cell[data-has-photo="0"] .photo-cell__media{border-color:var(--forest);background:color-mix(in srgb,var(--forest) 6%,var(--surface))}
+.photo-cell.is-over .photo-cell__media{border:2px solid var(--forest);box-shadow:0 0 0 4px color-mix(in srgb,var(--forest) 22%,transparent);transform:scale(1.02)}
+.photo-cell.is-over .photo-cell__empty{color:var(--forest)}
+.photo-cell__progress{position:absolute;inset:auto 0 0;height:3px;background:linear-gradient(90deg,transparent,var(--forest),transparent);background-size:50% 100%;background-repeat:no-repeat;opacity:0}
+.photo-cell[data-state=saving] .photo-cell__progress{opacity:1;animation:photo-progress 1.1s linear infinite}
+.photo-cell[data-state=saving] .photo-cell__media img{opacity:.55}
+.photo-cell[data-state=saving] :is(.photo-cell__actions,.photo-cell__link){pointer-events:none;opacity:.5}
+.photo-cell__meta{display:flex;min-width:0;align-items:center;justify-content:space-between;gap:var(--space-2)}
+.photo-cell__meta strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-sm)}
+.photo-cell__badge{display:inline-flex;flex:none;align-items:center;gap:var(--space-1);padding:0 var(--space-2);border-radius:var(--radius-pill);background:var(--red-soft);color:var(--red);font-size:var(--text-xs);font-weight:800}
+.photo-cell[data-has-photo="1"] .photo-cell__badge{background:var(--gold-soft);color:var(--green-ink)}
+.photo-cell[data-has-photo="1"] .photo-cell__badge::before{content:"";width:8px;height:4px;border:solid currentColor;border-width:0 0 2px 2px;transform:translateY(-1px) rotate(-45deg)}
+.photo-cell.is-fresh[data-state=saved] .photo-cell__badge{animation:photo-pop var(--dur-3) var(--ease-out)}
+.photo-cell__actions{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
+.photo-cell__action{display:inline-flex;min-height:36px;margin:0;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font:inherit;font-size:var(--text-sm);font-weight:700;cursor:pointer;transition:border-color var(--dur-2) var(--ease-out),color var(--dur-2) var(--ease-out)}
+.photo-cell__action:hover,.photo-cell__action[aria-expanded=true]{border-color:var(--forest);color:var(--forest)}
+.photo-cell__action:has(input:focus-visible){outline:2px solid var(--forest);outline-offset:2px}
+.photo-cell__link{display:flex;gap:var(--space-2);animation:image-source-in var(--dur-2) var(--ease-out)}.photo-cell__link[hidden]{display:none}
+.photo-cell__link input{flex:1;min-width:0;min-height:36px;font-size:var(--text-xs)}
+.photo-cell__confirm{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);font-size:var(--text-sm);font-weight:700}.photo-cell__confirm[hidden]{display:none}
+.photo-cell__confirm span{flex-basis:100%}
+.photo-cell__message{margin:0;font-size:var(--text-xs);font-weight:700;overflow-wrap:anywhere}.photo-cell__message:empty{display:none}
+.photo-cell[data-state=saved] .photo-cell__message{color:var(--green)}
+.photo-cell[data-state=error] .photo-cell__message{padding:var(--space-2);border-radius:var(--radius-xs);background:var(--red-soft);color:var(--red)}
+.photo-cell[data-state=error] .photo-cell__media{border-color:var(--red)}
+.photo-board[data-missing-only] .photo-cell[data-has-photo="1"]:not(.is-fresh),.photo-board[data-missing-only] [data-photo-model][data-missing="0"]:not(.is-fresh),.photo-board[data-missing-only] [data-photo-group][data-missing="0"]:not(.is-fresh){display:none}
+@keyframes photo-in{from{opacity:0;transform:scale(.98)}}
+@keyframes photo-pop{40%{transform:scale(1.15)}}
+@keyframes photo-progress{from{background-position:-50% 0}to{background-position:150% 0}}
+@media(max-width:700px){.photo-board{--cell-min:140px}.photo-board__hero{grid-template-columns:minmax(0,1fr)}.photo-board__meter{padding:var(--space-3) var(--space-4)}.photo-board__toolbar{flex-wrap:nowrap;padding:var(--space-2) var(--space-3)}.photo-board__search{flex-basis:0}.photo-board__search button{display:none}.photo-board__model{padding:var(--space-3) var(--space-3) var(--space-4)}.photo-board__cells{gap:var(--space-3)}.photo-board__edit{margin-left:0;flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.photo-board__hero,.photo-cell__media,.photo-cell__media img,.photo-cell__link,.photo-cell__badge,.photo-board__ring-value,.photo-board__switch,.photo-board__switch::after{animation:none!important;transition:none!important}}
+/* 機種清單：缺圖標示與車色圖片總覽入口 */
+.master-photo-filter{display:flex;align-self:end;min-height:44px;margin:0;padding:0 var(--space-3);align-items:center;gap:var(--space-2);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);font-weight:800;cursor:pointer;white-space:nowrap;transition:border-color var(--dur-2) var(--ease-out),background var(--dur-2) var(--ease-out)}
+.master-photo-filter:has(input:checked){border-color:var(--red);background:var(--red-soft);color:var(--red)}
+.master-photo-filter input{width:18px;height:18px;margin:0;accent-color:var(--red)}
+.color-peek__names .color-peek__missing{display:inline-block;margin:0 var(--space-2) 0 calc(var(--space-2) * -1);padding:0 var(--space-2);border-radius:var(--radius-pill);background:var(--red-soft);color:var(--red);font-size:var(--text-xs);font-style:normal;font-weight:800;vertical-align:1px}
+.color-peek__names .is-missing-photo{text-decoration:underline dashed var(--red);text-decoration-thickness:1.5px;text-underline-offset:4px}
+.color-peek__panel .color-peek__missing-list{display:flex;flex-wrap:wrap;margin:var(--space-3) 0 0;gap:var(--space-1) var(--space-2);font-size:var(--text-sm);font-weight:700}
+.color-peek__panel .color-peek__missing-list strong{padding:0 var(--space-2);border-radius:var(--radius-pill);background:var(--red-soft);color:var(--red);font-size:var(--text-xs)}
+.color-peek__panel .color-peek__missing-list span{text-decoration:underline dashed var(--red);text-underline-offset:4px}
+.color-peek__fill{display:flex;margin-top:var(--space-3);padding-top:var(--space-3);justify-content:space-between;border-top:1px solid var(--line);color:var(--forest);font-size:var(--text-sm);font-weight:800;text-decoration:none}
+.color-peek__fill:hover{text-decoration:underline}
+.vm-photo-board-link{display:inline-flex;flex:none;min-height:40px;padding:0 var(--space-4);align-items:center;gap:var(--space-2);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--ink);font-size:var(--text-sm);font-weight:800;text-decoration:none;transition:border-color var(--dur-2) var(--ease-out),transform var(--dur-2) var(--ease-out)}
+.vehicle-model-catalog__toolbar .vm-photo-board-link span{color:inherit}
+.vm-photo-board-link:hover{border-color:var(--forest);transform:translateY(-1px)}
+.vm-photo-board-link.has-missing{border-color:color-mix(in srgb,var(--red) 35%,var(--line))}
+.vm-photo-board-link b{color:var(--red);font-variant-numeric:tabular-nums}
+.vehicle-model-catalog__toolbar .vm-photo-board-link__icon{display:grid;width:28px;height:28px;place-items:center;border-radius:50%;background:var(--surface-subtle);color:var(--forest)}
+@media(max-width:700px){.vehicle-model-catalog__toolbar:has(.vm-photo-board-link){flex-wrap:wrap}.vm-photo-board-link{width:100%;justify-content:space-between}}
+@media(prefers-reduced-motion:reduce){.vm-photo-board-link,.master-photo-filter{transition:none}.vm-photo-board-link:hover{transform:none}}

@@ -640,6 +640,9 @@ def data_maintenance(request):
         "customer_count": SalesOrder.objects.values("owner_id_number").distinct().count(),
         "vehicle_model_count": VehicleModelFamily.objects.count(),
         "vehicle_model_version_count": VehicleModel.objects.count(),
+        "catalog_photo_missing_count": VehicleColor.objects.filter(
+            active=True, vehicle_model__active=True, catalog_image=""
+        ).count(),
         "vehicle_brand_count": VehicleBrand.objects.count(),
         "accessory_product_count": AccessoryProduct.objects.count(),
         "dealer_reward_catalog_count": DealerRewardCatalogItem.objects.count(),
@@ -8626,6 +8629,10 @@ def vehicle_model_list(request):
     }
     if energy_type in valid_energy_types:
         models = models.filter(energy_type=energy_type)
+    missing_photo = request.GET.get("missing_photo") == "1"
+    if missing_photo:
+        models = models.filter(pk__in=VehicleColor.objects.filter(
+            active=True, catalog_image="").values("vehicle_model_id"))
     models = list(
         models.select_related("family")
         .prefetch_related("factory_model_codes", Prefetch(
@@ -8642,6 +8649,7 @@ def vehicle_model_list(request):
     }
     grouped_models = {}
     for model in models:
+        model.missing_photo_count = sum(not color.catalog_image for color in model.enabled_colors)
         brand_record = brand_records.get(model.brand.casefold())
         root_brand = (
             brand_record.parent
@@ -8687,7 +8695,7 @@ def vehicle_model_list(request):
         grouped_models.values(),
         key=lambda group: (group["display_order"], group["name"].casefold()),
     )
-    filters_applied = bool(keyword or energy_type)
+    filters_applied = bool(keyword or energy_type or missing_photo)
     for group in vehicle_model_groups:
         for family in group["families"].values():
             family["models"].sort(
@@ -8845,7 +8853,11 @@ def vehicle_model_list(request):
                 "q": keyword,
                 "energy_type": energy_type,
                 "status": status,
+                "missing_photo": missing_photo,
             },
+            "catalog_photo_missing_count": VehicleColor.objects.filter(
+                active=True, vehicle_model__active=True, catalog_image=""
+            ).count(),
         },
     )
 

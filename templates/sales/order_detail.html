@@ -17,6 +17,7 @@
   </div>
   <div class="hero-actions">
     {% if_access 'order_delete' order.pk %}<a class="button danger-outline" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
+    {% if order.status == "completed" or order.status == "delivered_docs_pending" %}{% if_access 'order_return' order.pk %}<a class="button danger-outline" href="{% url 'order_return' order.pk %}">交車後退車</a>{% endif_access %}{% endif %}
     {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
     {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
     {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
@@ -852,7 +853,7 @@
   </dl>
   {% if order.refund_proof %}{% if_access 'protected_media' 'order' order.pk 'refund_proof' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" data-preview-name="{{ order.refund_proof.name }}" target="_blank">查看退款證明</a>{% endif_access %}{% endif %}
 </section>
-{% elif not order.is_delivered and not order.is_registration_complete %}
+{% elif not order.is_delivered and not order.is_registration_complete and order.status != "exception_closed" %}
 <details class="section-block cancellation-panel cancellation-disclosure">
   <summary>
     <span class="cancellation-disclosure__heading">
@@ -877,13 +878,14 @@
 </details>
 {% elif order.status == "exception_closed" %}
 <section class="section-block cancellation-panel">
-  <div class="section-title"><h2>例外結案（領牌後棄單）</h2><span>{{ order.exception_closed_at|date:"Y/m/d H:i" }}</span></div>
+  <div class="section-title"><h2>{% if order.is_returned_after_delivery %}交車後退車{% else %}例外結案（領牌後棄單）{% endif %}</h2><span>{{ order.exception_closed_at|date:"Y/m/d H:i" }}</span></div>
   <dl class="data-list">
-    <div><dt>結案原因</dt><dd>{{ order.exception_reason }}</dd></div>
+    <div><dt>{% if order.is_returned_after_delivery %}退車原因{% else %}結案原因{% endif %}</dt><dd>{{ order.exception_reason }}</dd></div>
     <div><dt>登記人員</dt><dd>{{ order.exception_closed_by }}</dd></div>
     <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
     {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
-    {% if order.exception_vehicle %}<div class="wide"><dt>釋回車輛</dt><dd>{{ order.exception_vehicle.identifier }}（{{ order.exception_vehicle.registered_plate_number }}），已領牌車再售價 ${{ order.exception_vehicle.resale_price|number_with_commas }}</dd></div>{% endif %}
+    {% if order.exception_vehicle %}<div class="wide"><dt>釋回車輛</dt><dd>{{ order.exception_vehicle.identifier }}（{{ order.exception_vehicle.registered_plate_number }}），已領牌車再售價 ${{ order.exception_vehicle.resale_price|number_with_commas }}</dd></div>{% elif order.is_returned_after_delivery %}<div class="wide"><dt>車輛</dt><dd>不在庫存，只記錄退車</dd></div>{% endif %}
+    {% if order.is_returned_after_delivery and order.signed_contract %}<div class="wide"><dt>已簽署訂購單</dt><dd>保留原檔，不要求重簽</dd></div>{% endif %}
   </dl>
 </section>
 {% elif exception_close_form %}

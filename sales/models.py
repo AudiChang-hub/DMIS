@@ -2994,7 +2994,14 @@ class SalesOrder(TimeStampedModel):
             return "已交車／待結案"
         if self.is_closed:
             return "已結案"
+        if self.is_returned_after_delivery:
+            return "已退車"
         return self.get_status_display()
+
+    @property
+    def is_returned_after_delivery(self):
+        """交車後退車沿用例外結案狀態；領牌後棄單不會有交車紀錄，以此區分。"""
+        return self.status == self.Status.EXCEPTION_CLOSED and bool(self.delivered_at or self.delivered_by)
 
     @property
     def display_status_code(self):
@@ -3121,9 +3128,10 @@ class SalesOrder(TimeStampedModel):
             Status.CANCELLED, Status.CANCEL_REFUND_PENDING, Status.EXCEPTION_CLOSED,
         },
         Status.DELIVERY_PENDING: {Status.DELIVERED_DOCS_PENDING, Status.COMPLETED, Status.EXCEPTION_CLOSED},
-        Status.DELIVERED_DOCS_PENDING: {Status.COMPLETED},
+        # 交車後退車（admin，services/order_return.py）沿用例外結案，不另設狀態。
+        Status.DELIVERED_DOCS_PENDING: {Status.COMPLETED, Status.EXCEPTION_CLOSED},
         Status.CANCEL_REFUND_PENDING: {Status.CANCELLED, Status.ALLOCATION_PENDING},
-        Status.COMPLETED: set(),
+        Status.COMPLETED: {Status.EXCEPTION_CLOSED},
         Status.CANCELLED: set(),
         Status.EXCEPTION_CLOSED: set(),
     }

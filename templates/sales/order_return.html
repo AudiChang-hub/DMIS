@@ -1,0 +1,125 @@
+{% extends "base.html" %}{% load sales_format %}
+{% block title %}交車後退車｜{{ order.number }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--compact{% endblock %}
+{% block content %}
+{% url 'order_detail' order.pk as order_url %}
+{% url 'order_list' as order_list_url %}
+{% include "sales/_page_back.html" with fallback_url=order_url label="訂單" root_url=order_list_url root_label="全部訂單" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">訂單例外處理 · admin</p>
+    <h1>交車後退車</h1>
+    <p class="muted">{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% if order.final_plate_number %} · {{ order.final_plate_number }}{% endif %}</p>
+  </div>
+</section>
+
+<section class="section-block confirm-panel" aria-labelledby="return-change-title">
+  <div class="section-title"><h2 id="return-change-title">這張訂單會怎麼變</h2></div>
+  <div class="section-body confirm-panel__body">
+    <div class="restore-transition{% if blockers %} is-blocked{% endif %}" role="group" aria-label="訂單狀態變更{% if blockers %}（目前不能退車）{% endif %}">
+      <div class="restore-transition__state">
+        <small>目前</small>
+        <span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>
+      </div>
+      <span class="restore-transition__arrow" aria-hidden="true"></span>
+      <div class="restore-transition__state is-target">
+        <small>退車後</small>
+        <span class="status-pill status-exception_closed">已退車</span>
+      </div>
+    </div>
+    <dl class="confirm-facts">
+      <div><dt>訂單</dt><dd>{{ order.number }}{% if legacy %}（Excel 匯入）{% endif %}</dd></div>
+      <div><dt>付款方式</dt><dd>{{ order.get_payment_type_display }}</dd></div>
+      <div><dt>引擎／車身號碼</dt><dd>{{ identifier|default:"未記錄" }}</dd></div>
+      <div><dt>交車</dt><dd>{{ order.delivered_at|date:"Y/m/d"|default:"未記錄日期" }}{% if order.delivered_by %} · {{ order.delivered_by }}{% endif %}</dd></div>
+    </dl>
+    <div class="return-ledger" role="group" aria-label="款項沖回">
+      <div class="return-ledger__row"><span>客戶已確認淨實收</span><strong>${{ received|number_with_commas }}</strong></div>
+      {% if disbursed %}<div class="return-ledger__row"><span>分期公司已撥款</span><strong>${{ disbursed|number_with_commas }}</strong></div>{% endif %}
+      {% if legacy %}<div class="return-ledger__row is-reference"><span>Excel 歷史收款（參考）</span><strong>收款價 ${{ legacy.historical_received_price|number_with_commas }} · 現金 ${{ legacy.cash_received|number_with_commas }} · 刷卡 ${{ legacy.card_received|number_with_commas }}</strong></div>{% endif %}
+      <p class="return-ledger__note">只做紀錄與沖回，不會實際轉帳。應退＝客戶已確認淨實收－沒收{% if manual_cap is not None %}；Excel 匯入的單也可以手填應退（最多 ${{ manual_cap|number_with_commas }}，原因必填）{% endif %}。</p>
+    </div>
+  </div>
+</section>
+
+<section class="section-block confirm-panel" aria-labelledby="return-impact-title">
+  <div class="section-title"><h2 id="return-impact-title">{% if blockers %}目前不能退車{% else %}退車後的影響{% endif %}</h2></div>
+  <div class="section-body confirm-panel__body">
+    {% if blockers %}
+    <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>請先處理以下事項</h3>
+      <ul class="restore-blockers">{% for text, url, link_label in blockers %}<li><span>{{ text }}</span>{% if url %}<a class="button ghost small" href="{{ url }}">{{ link_label }}</a>{% endif %}</li>{% endfor %}</ul>
+    </div></div>
+    {% else %}
+    <div class="callout callout--danger" role="note"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>會影響報表、淨利與車行結算</h3>
+      <ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}<li>原因、款項與退車前的淨利、傭金寫入訂單處理紀錄。</li></ul>
+    </div></div>
+    {% endif %}
+  </div>
+  {% if blockers %}
+  <div class="form-actions confirm-panel__actions confirm-panel__form"><a class="button ghost" href="{{ order_url }}">返回訂單</a></div>
+  {% else %}
+  <form method="post" class="confirm-panel__form return-form" data-confirm="確定辦理 {{ order.number }} 交車後退車？訂單會改為已退車，不再列入有效售出。">
+    {% csrf_token %}{{ form.expected_updated_at }}
+    {% if form.non_field_errors or form.expected_updated_at.errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>尚未退車</h3>{{ form.non_field_errors }}{{ form.expected_updated_at.errors }}</div></div>{% endif %}
+    <fieldset class="confirm-panel__group return-group">
+      <legend>客戶款項</legend>
+      {% if form.manual_refund %}
+      <div class="return-manual">
+        <p class="muted">Excel 匯入的單帳上常沒有付款紀錄：依帳本計算時留空；要退客戶款項時手填應退金額（最多 ${{ manual_cap|number_with_commas }}），系統會寫一筆負向退款紀錄並記下手填原因。</p>
+        <div class="return-grid">
+          {% include "sales/_field.html" with field=form.manual_refund %}
+          {% include "sales/_field.html" with field=form.manual_refund_reason required_label="手填時必填" %}
+        </div>
+      </div>
+      {% endif %}
+      {% if form.forfeited_amount or form.refund_method %}
+      <div class="return-grid">
+        {% if form.forfeited_amount %}
+        {% include "sales/_field.html" with field=form.forfeited_amount %}
+        {% include "sales/_field.html" with field=form.forfeit_reason %}
+        {% endif %}
+        {% include "sales/_field.html" with field=form.refund_method required_label="有應退金額時必填" %}
+        {% include "sales/_field.html" with field=form.refund_reference %}
+      </div>
+      {% endif %}
+      {% if not form.forfeited_amount and not form.manual_refund %}<p class="muted">客戶帳本沒有已確認的淨實收，不會寫退款紀錄。</p>{% endif %}
+      {% include "sales/_field.html" with field=form.refunded_on %}
+    </fieldset>
+    {% if form.lender_clawback %}
+    <fieldset class="confirm-panel__group return-group">
+      <legend>分期公司沖回</legend>
+      <p class="muted">分期公司已撥款 ${{ disbursed|number_with_commas }}。登記沖回金額後，實際撥款歸零，原值留在異動紀錄。</p>
+      <div class="return-grid">
+        {% include "sales/_field.html" with field=form.lender_clawback %}
+        {% include "sales/_field.html" with field=form.lender_reference %}
+      </div>
+    </fieldset>
+    {% endif %}
+    {% if form.resale_price %}
+    <fieldset class="confirm-panel__group return-group">
+      <legend>車輛回到庫存</legend>
+      <p class="muted">{{ vehicle.identifier }} 以已領牌車（車牌 {{ order.final_plate_number }}）改為可銷售，之後只能配給「領牌車」交易。</p>
+      <div class="restore-price">{% include "sales/_field.html" with field=form.resale_price %}</div>
+    </fieldset>
+    {% endif %}
+    {% if form.subsidy_handled %}
+    <div class="callout callout--warning" role="note"><span class="callout__icon" aria-hidden="true">!</span><div>
+      <h3>這張單有汰舊／政府補助</h3>
+      <p>退車前請確認補助已撤回，或已另外處理（例如向補助單位申報）。</p>
+      <label class="check-row">{{ form.subsidy_handled }}<span>{{ form.subsidy_handled.label }}</span></label>
+      {% for error in form.subsidy_handled.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+    </div></div>
+    {% endif %}
+    {% include "sales/_field.html" with field=form.reason %}
+    <div class="confirm-panel__group restore-second-check">
+      <h3>二次確認</h3>
+      <p class="muted">退車會讓這張單退出有效售出與各項報表。請對照上方號碼{% if identifier %} {{ identifier }}{% endif %}，輸入末 4 碼。</p>
+      {% include "sales/_field.html" with field=form.confirm_identifier %}
+    </div>
+    <div class="form-actions confirm-panel__actions"><a class="button ghost" href="{{ order_url }}">返回訂單</a><button class="button danger" type="submit">確認交車後退車</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

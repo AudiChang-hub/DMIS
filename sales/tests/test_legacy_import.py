@@ -161,9 +161,8 @@ class LegacyImportTests(TestCase):
         confirm_import(batch, "tester")
         order = SalesOrder.objects.get()
         root = get_user_model().objects.create_superuser("admin", password="Synthetic-test-only-89!")
-        # 已交車的訂單不能刪除（1.86.21）；本測試只驗證刪除後不被舊列重建，先改成尚未交車。
-        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING, delivered_at=None)
-        order.refresh_from_db()
+        # 匯入錯誤的歷史已完成單（有車牌＝已交車）可由 admin 作廢（1.86.22），重新匯入時略過不重建。
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
         change_deletion(user=root, order_id=order.pk, restore=False, force=True, reason="匯入錯誤",
             expected_updated_at=order.updated_at.isoformat(), confirmation=confirmation_token(order, root))
         repeated = self.make_batch("operations")

@@ -141,6 +141,7 @@ ROOT_ONLY = set("historical_delivery_complete announcement_manage announcement_e
 ROOT_ONLY.add("order_account_scope")
 ROOT_ONLY.add("transfer_signoff_void")  # 作廢調車簽收會把車改回庫存
 ROOT_ONLY.add("inventory_restore")  # 停用／已售出／已調出等車輛改回現有庫存（2026-10-19 方案 B）
+ROOT_ONLY.add("order_return")  # 交車後退車（2026-10-19 方案 A，沿用例外結案）
 ROOT_ONLY.add("order_customer_access")
 ROOT_ONLY.add("permission_workspace")
 ROOT_ONLY.update({"draft_cleanup_list", "draft_cleanup_delete"})  # admin 清理所有人的草稿

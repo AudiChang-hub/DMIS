@@ -38,7 +38,7 @@ def require_access(user, action="operate"):
 
 FORFEIT_BLOCKER = "已沒收的訂金屬實際收入，不可刪除訂單。"
 DELIVERED_BLOCKER = ("已交車的訂單不能刪除：車已交給客人，放回庫存不合理。"
-                     "要退車請先洽 admin，目前系統沒有交車後退車的流程。")
+                     "要退車請由 admin 在訂單頁辦理「交車後退車」。")
 # 刪單後停用、等 admin 判斷是否改回庫存的車輛，在庫存與稽核紀錄標示這段文字。
 DELETION_REVIEW_LABEL = "刪單待確認"
 
@@ -52,10 +52,17 @@ def is_order_registered(order):
     return bool(order.registration_completed_at or order.final_plate_number)
 
 
+def is_imported_order(order):
+    return hasattr(order, "legacy_snapshot")
+
+
 def permanent_deletion_blockers(order):
-    """admin 確認作廢也不能略過的限制。"""
+    """admin 確認作廢也不能略過的限制。
+
+    Excel 匯入的歷史單（2026-10-19 使用者決定）：匯入錯誤時 admin 可作廢（軟刪除、可還原），
+    已交車不擋；重新匯入時由交易鍵略過已刪除的列，不會重建。"""
     blockers = [FORFEIT_BLOCKER] if order.forfeited_amount else []
-    if is_order_delivered(order):
+    if is_order_delivered(order) and not is_imported_order(order):
         blockers.append(DELIVERED_BLOCKER)
     return blockers
 

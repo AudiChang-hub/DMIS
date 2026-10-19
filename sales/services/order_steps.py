@@ -118,7 +118,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         "closing": dict(
             number=None, title="取消與結案",
             state="done" if order.is_closed else ("todo" if order.is_delivered else "optional"),
-            summary=(order.get_status_display() if order.is_cancelled_sale else
+            summary=(order.display_status if order.is_cancelled_sale else
                      f"{timezone.localtime(order.closed_at):%Y/%m/%d} 已結案" if order.is_closed else
                      "補助與文件跑完後確認結案" if order.is_delivered else "客戶不再購車時由此處理"),
         ),

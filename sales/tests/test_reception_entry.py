@@ -55,7 +55,7 @@ class ReceptionEntryTests(TestCase):
     def test_reception_allows_admin_pricing_but_hides_finance_and_is_idempotent(self):
         self.client.force_login(self.root)
         key = str(uuid.uuid4())
-        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="5000",
+        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="5000", deposit_method="cash",
                              registration_plate_fee="999",
                              **{"other_fees-0-name": "FORGED-INTERNAL", "other_fees-0-amount": "999"})
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)

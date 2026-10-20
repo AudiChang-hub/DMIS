@@ -39,7 +39,6 @@ ORDER_REGIONS = (
     "subsidy-documents",
     "subsidy-completion",
     "order-files",
-    "deposit-payment",
 )
 
 
@@ -131,8 +130,9 @@ class InplaceUploadTests(TestCase):
             '<form class="order-file__classify" data-inplace-form',
         ):
             self.assertIn(marker, html)
-        # 訂金入帳、完成交車等跨步驟動作：失敗原地顯示，成功後重新載入回到原位置。
-        self.assertIn('data-inplace-form data-inplace-success="reload"', html)
+        # 1.86.30：訂金步驟改用訂單頁自動儲存（已收妥開關），不再是原地送出後重新載入的區塊。
+        self.assertIn('data-workspace-save="deposit"', html)
+        self.assertNotIn('data-inplace-region id="deposit-payment"', html)
 
     def test_regions_survive_upload_and_delete(self):
         before = region_ids(self.detail())

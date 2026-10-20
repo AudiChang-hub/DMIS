@@ -16,6 +16,7 @@ from sales.models import (
     normalize_vehicle_identifier,
 )
 from .financial_refresh import lock_bonus_periods
+from .import_sales_category import is_new_sales_row
 from .legacy_import import retry_completed_import_row
 
 SALT = "historical-buyer-replacement-v1"
@@ -66,7 +67,7 @@ def replacement_preview(row, order):
     identifier = normalize_vehicle_identifier(row.mapped_data.get("identifier_raw") or row.mapped_data.get("identifier"))
     if row.batch.status != LegacyImportBatch.Status.COMPLETED or row.action != LegacyImportRow.Action.ERROR or row.committed_model or row.committed_pk or row.sheet_name != "銷貨":
         blockers.append("本列不是已完成批次中尚待補匯的銷貨資料，可能已經處理。")
-    if row.mapped_data.get("vehicle_category") != SalesOrder.VehicleCategory.NEW or order.vehicle_category != SalesOrder.VehicleCategory.NEW:
+    if not is_new_sales_row(row.mapped_data) or order.is_used_transaction:
         blockers.append("此流程僅供新車退訂換買家；中古交易需另行核對。")
     if not vehicle or not identifier or identifier not in {vehicle.normalized_engine_number, vehicle.normalized_frame_number}:
         blockers.append("來源列與原訂單配車不相符，不能解除其他車輛。")

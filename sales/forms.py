@@ -281,7 +281,6 @@ class SalesOrderForm(forms.ModelForm):
             "id_verified",
             "vehicle_model",
             "color",
-            "vehicle_category",
             "transaction_type",
             "registration_date",
             "compulsory_insurance_period",
@@ -528,8 +527,6 @@ class SalesOrderForm(forms.ModelForm):
         # 交車方式在交車完成時會再選一次。證件號碼仍必填（客戶依證件號碼歸戶）。
         for field_name in ("owner_phone", "owner_address", "delivery_method"):
             self.fields[field_name].required = False
-        self.fields["vehicle_category"].required = False
-        self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
         # 相容功能上線前建立的草稿與舊版表單送出；新畫面仍會顯示選項。
         self.fields["transaction_type"].required = False
         self.fields["transaction_type"].initial = SalesOrder.TransactionType.REGULAR_NEW
@@ -603,9 +600,6 @@ class SalesOrderForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        if not data.get("vehicle_category"):
-            data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
-            self.cleaned_data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
         if not data.get("transaction_type"):
             data["transaction_type"] = SalesOrder.TransactionType.REGULAR_NEW
             self.cleaned_data["transaction_type"] = SalesOrder.TransactionType.REGULAR_NEW
@@ -628,12 +622,6 @@ class SalesOrderForm(forms.ModelForm):
             self.add_error("commission_recipient", "請選擇這台的台數與傭金歸屬車行。")
         elif source and data["commission_recipient"].pk == source.pk:
             data["commission_recipient"] = None
-
-        if data.get("vehicle_category") == SalesOrder.VehicleCategory.USED:
-            data["transaction_type"] = SalesOrder.TransactionType.USED
-            self.cleaned_data["transaction_type"] = SalesOrder.TransactionType.USED
-        elif data.get("transaction_type") == SalesOrder.TransactionType.USED:
-            self.add_error("transaction_type", "中古車交易的車輛類別也必須選擇中古車。")
 
         model = data.get("vehicle_model")
         selected_energy_type = data.get("vehicle_energy_type")
@@ -1704,7 +1692,6 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("manufactured_year_month", "出廠年月", "year_month", False),
     )
     SALES_FIELDS = (
-        ("vehicle_category", "車輛類別", "vehicle_category", True),
         ("transaction_type", "交易類型", "transaction_type", True),
         ("model_number", "車種型號", "text", True),
         ("identifier_raw", "引擎／車身號碼", "text", False),
@@ -1805,12 +1792,6 @@ class LegacyImportRowCorrectionForm(forms.Form):
                 field = forms.DecimalField(label=display_label, required=False, max_digits=14, decimal_places=0)
             elif kind == "boolean":
                 field = forms.BooleanField(label=display_label, required=False)
-            elif kind == "vehicle_category":
-                field = forms.ChoiceField(
-                    label=display_label,
-                    required=False,
-                    choices=SalesOrder.VehicleCategory.choices,
-                )
             elif kind == "transaction_type":
                 field = forms.ChoiceField(
                     label=display_label,

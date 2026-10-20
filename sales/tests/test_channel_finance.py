@@ -128,7 +128,6 @@ class ChannelFinanceTests(TestCase):
                 "vehicle_energy_type": VehicleModel.EnergyType.GAS,
                 "vehicle_model": self.model.pk,
                 "color": self.color.pk,
-                "vehicle_category": SalesOrder.VehicleCategory.NEW,
                 "payment_type": SalesOrder.PaymentType.INSTALLMENT,
                 "vehicle_price": "77000",
                 "plate_insurance_fee": "0",

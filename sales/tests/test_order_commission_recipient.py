@@ -60,7 +60,7 @@ class OrderCommissionRecipientTests(TestCase):
         data = dict(source_type="dealer", source=str(self.b.pk), owner_type="company", owner_name="測試公司",
                     owner_id_number="83739807", owner_phone="0912345678", owner_address="測試地址", id_verified="on",
                     vehicle_model=str(self.model.pk), color=str(self.color.pk), payment_type="cash", vehicle_price="70000",
-                    vehicle_category="new", transaction_type="regular_new", plate_choice="none", delivery_method="store_pickup",
+                    transaction_type="regular_new", plate_choice="none", delivery_method="store_pickup",
                     deposit_amount="0", plate_insurance_fee="0", installment_opening_fee="0",
                     **{"accessories-TOTAL_FORMS": "0", "accessories-INITIAL_FORMS": "0", "accessories-MIN_NUM_FORMS": "0", "accessories-MAX_NUM_FORMS": "1000",
                        "other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0", "other_fees-MIN_NUM_FORMS": "0", "other_fees-MAX_NUM_FORMS": "1000"})

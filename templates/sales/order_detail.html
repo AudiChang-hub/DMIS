@@ -102,7 +102,6 @@
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.source_display }}</span></div>
     <dl class="data-list">
-      <div><dt>車輛類別</dt><dd>{{ order.get_vehicle_category_display }}</dd></div>
       <div><dt>交易類型</dt><dd>{{ order.get_transaction_type_display }}</dd></div>
       <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
@@ -196,7 +195,7 @@
 {% with step=steps.allocation %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-allocation" data-step-key="allocation" role="tabpanel" aria-labelledby="tab-allocation" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
-{% if order.vehicle_category == 'used' and order.legacy_snapshot %}
+{% if order.is_used_transaction and order.legacy_snapshot %}
 <section class="section-block allocation-summary">
   <div class="section-title allocation-summary__title">
     <div class="allocation-summary__heading">

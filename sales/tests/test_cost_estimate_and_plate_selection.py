@@ -128,7 +128,8 @@ class CostEstimateAndPlateSelectionTests(TestCase):
         # 0185 再把選號從牌險移出、另列總價（2026-10-15）：兩步合計客人應付總額不變。
         from django.db import connection
         from django.db.migrations.loader import MigrationLoader
-        state_apps = MigrationLoader(connection).project_state(("sales", "0185_plate_fee_excludes_selection")).apps
+        # 用目前 schema 的模型跑舊遷移函式：0194 起已刪 vehicle_category，0185 當時的 state 會查不存在的欄位。
+        state_apps = MigrationLoader(connection).project_state().apps
         import_module("sales.migrations.0185_plate_fee_excludes_selection").forwards(state_apps, None)
         order = SalesOrder.objects.get(pk=order.pk)
         self.assertEqual(order.plate_insurance_fee, Decimal("0"))

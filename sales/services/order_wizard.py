@@ -32,7 +32,7 @@ ID_CHECK_ERROR_KEY = "_id_check_error"
 
 STEP_FIELDS = {
     "vehicle": {
-        "vehicle_energy_type", "vehicle_model", "color", "vehicle_category", "transaction_type", "catalog_selection",
+        "vehicle_energy_type", "vehicle_model", "color", "transaction_type", "catalog_selection",
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
         "payment_type", "payment_splits", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
         "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",

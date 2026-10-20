@@ -21,6 +21,7 @@ from .dealer_reward_snapshot import has_dealer_reward_snapshot, order_dealer_rew
 from .financial_refresh import lock_bonus_periods
 from .historical_replacement import require_admin
 from .import_row_review import build_import_row_review, same_import_buyer
+from .import_sales_category import is_new_sales_row
 from .incentive_rule import resolve_incentive_rule
 from .legacy_import import _sales_transaction_key
 from .settlement_cost import resolve_settlement_cost
@@ -75,7 +76,7 @@ def date_change_preview(row, order):
     identifier = normalize_vehicle_identifier(row.mapped_data.get("identifier_raw") or row.mapped_data.get("identifier"))
     if row.batch.status != LegacyImportBatch.Status.COMPLETED or row.action != LegacyImportRow.Action.ERROR or row.committed_model or row.committed_pk or row.excluded or row.sheet_name != "銷貨":
         blockers.append("本列不是已完成批次中尚待處理的銷貨錯誤列，可能已經更新。")
-    if row.mapped_data.get("vehicle_category") != SalesOrder.VehicleCategory.NEW or order.vehicle_category != SalesOrder.VehicleCategory.NEW:
+    if not is_new_sales_row(row.mapped_data) or order.is_used_transaction:
         blockers.append("此流程只處理同一筆新車交易；中古轉售不能當成改期。")
     if not identifier or not vehicle or identifier not in {vehicle.normalized_engine_number, vehicle.normalized_frame_number} or row.mapped_data.get("identifier") != identifier:
         blockers.append("本列與原訂單配車不相符，不能更新其他車輛。")

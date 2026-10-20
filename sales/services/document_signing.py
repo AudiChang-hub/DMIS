@@ -46,7 +46,7 @@ def _company_name(order):
 
 def contract_terms(order):
     fields = (
-        "owner_name", "owner_phone", "owner_address", "vehicle_category", "source_id",
+        "owner_name", "owner_phone", "owner_address", "transaction_type", "source_id",
         "vehicle_model_id", "color_id", "payment_type", "installment_company",
         "installment_periods", "installment_monthly", "installment_opening_fee",
         "delivery_method", "delivery_destination", "plate_choice", "watched_numbers",

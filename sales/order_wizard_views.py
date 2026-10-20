@@ -274,7 +274,7 @@ def build_summary(form, formset, fee_formset, draft):
         vehicle_rows.append((form.fields["color"].label, color.name))
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
-         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source")) + payment_rows},
+         "rows": vehicle_rows + _rows(form, ("transaction_type", "source_type", "source")) + payment_rows},
         {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
         {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
         {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (

@@ -27,6 +27,7 @@ from sales.models import (
     normalize_vehicle_identifier,
     normalize_vehicle_model_master_value,
 )
+from sales.services.import_sales_category import is_new_sales_row
 
 SAME_OWNER = "same_owner"
 IDENTIFIER_TAKEN = "identifier_taken"
@@ -192,7 +193,7 @@ class ImportedOrders:
             if triple[0] and triple[2]:
                 self.by_owner.setdefault(triple, []).append(order_id)
             identifier = _norm("identifier_raw", _excel(data, "identifier_raw"))
-            if identifier and (data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW) == SalesOrder.VehicleCategory.NEW:
+            if identifier and is_new_sales_row(data):
                 self.by_identifier.setdefault(identifier, []).append(order_id)
 
     def candidates(self, data, natural_key):
@@ -205,7 +206,7 @@ class ImportedOrders:
         if same_owner:
             return SAME_OWNER, sorted(same_owner)
         identifier = _norm("identifier_raw", _excel(data, "identifier_raw"))
-        if identifier and (data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW) == SalesOrder.VehicleCategory.NEW:
+        if identifier and is_new_sales_row(data):
             others = [pk for pk in self.by_identifier.get(identifier, [])
                       if _owner_identity(self.baseline[pk]) != _owner_identity(data)]
             if others:

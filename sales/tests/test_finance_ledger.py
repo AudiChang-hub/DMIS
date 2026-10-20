@@ -63,7 +63,7 @@ class CommissionPrefillTests(FinanceLedgerTestBase):
             source_type="dealer", source=str(self.dealer.pk), owner_type="company", owner_name="測試公司",
             owner_id_number="83739807", owner_phone="0912345678", owner_address="測試地址", id_verified="on",
             vehicle_model=str(self.model.pk), color=str(self.color.pk), payment_type="cash", vehicle_price="70000",
-            vehicle_category="new", transaction_type="regular_new", plate_choice="none", delivery_method="store_pickup",
+            transaction_type="regular_new", plate_choice="none", delivery_method="store_pickup",
             deposit_amount="0", plate_insurance_fee="0", installment_opening_fee="0",
             **{"accessories-TOTAL_FORMS": "0", "accessories-INITIAL_FORMS": "0", "accessories-MIN_NUM_FORMS": "0",
                "accessories-MAX_NUM_FORMS": "1000", "other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0",
@@ -359,7 +359,8 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         from django.db.migrations.loader import MigrationLoader
 
         migration = import_module("sales.migrations.0185_plate_fee_excludes_selection")
-        apps = MigrationLoader(connection).project_state(("sales", "0185_plate_fee_excludes_selection")).apps
+        # 用目前 schema 的模型跑舊遷移函式：0194 起已刪 vehicle_category，0185 當時的 state 會查不存在的欄位。
+        apps = MigrationLoader(connection).project_state().apps
         order = self.make_order(plate_insurance_fee=2606, plate_selection_fee=1200, plate_choice="watch",
                                 registration_calculated_total=2606)
         # 牌險本來就沒有併入選號（例如微電車手填 0）：進行中訂單尾款補上選號。

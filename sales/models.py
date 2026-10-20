@@ -3708,6 +3708,14 @@ class SalesOrder(TimeStampedModel):
         }
 
     @property
+    def delivery_destination_missing(self):
+        """送至指定地點或託運卻還沒填目的地。建單時可留空（使用者 2026-10-20），
+        交車頁提醒；實際交付時由交付核對要求填寫，不擋建單與交車前的作業。"""
+        return self.delivery_method in {
+            self.DeliveryMethod.DIRECT_DELIVERY, self.DeliveryMethod.CARRIER,
+        } and not (self.delivery_destination or "").strip()
+
+    @property
     def can_deliver(self):
         return (
             self.is_registration_complete

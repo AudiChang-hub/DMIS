@@ -248,8 +248,8 @@ def build_summary(form, formset, fee_formset, draft):
     payment_rows = _payment_split_rows(form) + _rows(form, ("vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
     if form.finance_editable:
-        # 牌險費留空＝照系統試算（使用者 2026-10-19），金額標明是試算，領牌時依領牌日重算。
-        payment_rows += [(label, f"{text}（系統試算）" if form.instance.plate_insurance_auto else text)
+        # 牌險費留空＝照系統試算（使用者 2026-10-19）；確認頁客人看得到，不列試算金額（使用者 2026-10-20）。
+        payment_rows += [(label, "留空，依系統計算" if form.instance.plate_insurance_auto else text)
                          for label, text in _rows(form, ("plate_insurance_fee",))]
     deposit = form.cleaned_data.get("deposit_amount") or Decimal("0")
     deposit_rows = [(form.fields["deposit_amount"].label, f"{deposit:,.0f} 元" if deposit else "無")]

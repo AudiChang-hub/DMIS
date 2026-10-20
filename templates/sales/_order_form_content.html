@@ -177,7 +177,7 @@
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
       <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
       {% include "sales/_field.html" with field=form.delivery_method %}
-      <div class="conditional-required" data-conditional="delivery-destination">
+      <div class="delivery-destination-field" id="delivery-destination-field" data-conditional="delivery-destination">
         {% include "sales/_field.html" with field=form.delivery_destination %}
       </div>
       {# 精靈把備註放在訂金與費用（使用者 2026-10-17）；訂單頁編輯維持在選號與交車。 #}
@@ -302,10 +302,11 @@
       </div>
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
     </div>
-    {% comment %}只有調價權限（無財務權限）的人仍要填牌險費：只顯示牌險費，規費明細停用並隱藏（使用者 2026-10-15）。{% endcomment %}
-    {% if intake_mode and not intake_finance_editable and intake_pricing_editable %}{% firstof "1" as plate_fee_only %}{% endif %}
-    <details class="card" open {% if intake_mode and not intake_finance_editable and not intake_pricing_editable %}hidden{% endif %}><summary>{% if plate_fee_only %}牌險費{% else %}店內財務・領牌規費與強制險{% endif %}</summary><div class="subsection registration-fee-subsection">
-      <div class="section-title">
+    {% comment %}只有調價權限（無財務權限）的人仍要填牌險費：只顯示牌險費，規費明細停用並隱藏（使用者 2026-10-15）。
+    建立訂單時客人看得到畫面，有財務權限也只顯示牌險費，不列系統算出的明細與金額（使用者 2026-10-20）；明細在訂單頁的店內財務。{% endcomment %}
+    {% if intake_mode and intake_finance_editable %}{% firstof "1" as plate_fee_only %}{% elif intake_mode and intake_pricing_editable %}{% firstof "1" as plate_fee_only %}{% endif %}
+    <details class="card" open {% if intake_mode and not intake_finance_editable and not intake_pricing_editable %}hidden{% endif %}><summary>{% if plate_fee_only %}牌險費{% else %}店內財務・領牌規費與強制險{% endif %}</summary><div class="subsection registration-fee-subsection{% if plate_fee_only %} is-plate-only{% endif %}">
+      <div class="section-title" {% if plate_fee_only %}hidden{% endif %}>
         <div>
           <h3>領牌規費與強制險</h3>
           <p id="registration-rate-summary">{% site_text 'order_form.22518dd5a27d' %}</p>
@@ -345,12 +346,12 @@
       <div class="section-title"><div><h3 id="intake-totals-title">目前金額</h3></div></div>
       <dl class="intake-totals__grid" aria-live="polite">
         <div class="intake-totals__cell"><dt>車價</dt><dd data-intake-total="vehicle">—</dd></div>
-        <div class="intake-totals__cell intake-totals__cell--plus"><dt>牌險費<small class="intake-totals__estimate" data-intake-plate-estimate hidden>系統預估</small></dt><dd data-intake-total="plate">—</dd></div>
+        <div class="intake-totals__cell intake-totals__cell--plus"><dt>牌險費</dt><dd data-intake-total="plate">—</dd></div>
         <div class="intake-totals__cell intake-totals__cell--plus" data-intake-total-cell="selection" hidden><dt>選號費</dt><dd data-intake-total="selection">—</dd></div>
         <div class="intake-totals__cell intake-totals__cell--plus"><dt>配件</dt><dd data-intake-total="accessories">—</dd></div>
         <div class="intake-totals__cell intake-totals__cell--sum"><dt data-intake-total-label>三項合計</dt><dd data-intake-total="sum">—</dd></div>
       </dl>
-      <p class="intake-totals__note" data-intake-total-note>配件只計加購（不含贈品）；其他費用與優惠另計，送出時依實際明細重新計算。</p>
+      <p class="intake-totals__note" data-intake-total-note>配件只計加購（不含贈品）；其他費用與優惠另計，送出時依實際明細重新計算。<span data-intake-plate-pending-note hidden>牌險費留空由系統計算，另列在尾款。</span></p>
     </section>
     {% endif %}
     <div class="subsection deposit-subsection" id="deposit-subsection">

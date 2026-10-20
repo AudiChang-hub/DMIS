@@ -77,19 +77,16 @@
   const lienRegistrationFee = byId("id_lien_registration_fee");
   const calculatedRegistrationTotal = byId("id_registration_calculated_total");
   const actualPlateInsuranceFee = byId("id_plate_insurance_fee");
-  // 牌險費留空＝照系統試算（使用者 2026-10-19）：試算值只以淡色提示顯示，不填進欄位，送出時仍是空白。
-  const serverPlatePlaceholder = actualPlateInsuranceFee.placeholder;
+  // 牌險費留空＝照系統試算（使用者 2026-10-19）：試算值不填進欄位，送出時仍是空白。
+  // 客人看得到建單畫面，欄位與訂金頁都不顯示試算金額（使用者 2026-10-20）；試算值只留給優惠前總價使用。
   function setPlateEstimate(value) {
     actualPlateInsuranceFee.dataset.estimate = value == null ? "" : String(value);
-    actualPlateInsuranceFee.placeholder = value == null
-      ? serverPlatePlaceholder || "留空依系統試算"
-      : `系統預估 ${Math.round(value).toLocaleString("zh-TW")} 元`;
   }
   function plateEstimate() {
     const value = actualPlateInsuranceFee.dataset.estimate;
     return value ? Number(value) : null;
   }
-  // 總價與訂金頁合計用：有填照填的，留空用系統預估。
+  // 優惠前總價用：有填照填的，留空用試算值（訂金頁合計不含留空的牌險）。
   function plateAmountForTotals() {
     return actualPlateInsuranceFee.value !== "" ? Number(actualPlateInsuranceFee.value) || 0 : plateEstimate() || 0;
   }
@@ -605,9 +602,8 @@
     // 只有「指定號碼」收選號費；一般領牌偏好、待確認、不選號都不顯示也不計（使用者 2026-10-17）。
     showConditional("plate-selection", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
-    const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
-    showConditional("delivery-destination", needsDestination);
-    byId("id_delivery_destination").required = needsDestination;
+    // 送達地點建單時不必填（使用者 2026-10-20）：只在送至指定地點或託運時顯示，交車前再補。
+    showConditional("delivery-destination", ["direct_delivery", "carrier"].includes(deliveryMethod.value));
     refreshOcrEntryState();
   }
   // 付款方式明細（使用者 2026-10-16）：可逐筆新增，車價＝各筆合計；計價基準：有分期＝分期、全刷卡＝刷卡、其餘＝現金。
@@ -1803,6 +1799,7 @@
   paymentType.addEventListener("change", depositGuidance);
   depositGuidance();
   // 訂金頁的目前金額：車價＋牌險費＋（指定號碼的選號費）＋配件（只計加購），與總價試算同一組欄位。
+  // 牌險費留空時寫「另計」、不列入合計，客人看不到也推算不出系統算出的金額（使用者 2026-10-20）。
   const intakeTotals = orderForm.querySelector("[data-intake-totals]");
   function updateIntakeTotals() {
     if (!intakeTotals) return;
@@ -1810,20 +1807,21 @@
     // 選號費只在「指定號碼」且有填金額時列出，與 preDiscountTotal 的計算條件一致（使用者 2026-10-17）。
     const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;
     const showSelection = Boolean(selection);
-    // 牌險費留空時以淡色列出系統預估（使用者 2026-10-19）；填 0 就照實顯示 0。
+    // 填 0 就照實顯示 0。
     const typedPlate = amountOf("id_plate_insurance_fee");
-    const estimatedPlate = typedPlate == null ? plateEstimate() : null;
-    const values = {vehicle: amountOf("id_vehicle_price"), plate: typedPlate ?? estimatedPlate, accessories: accessoryPurchaseTotal()};
-    const plateCell = intakeTotals.querySelector('[data-intake-total="plate"]');
-    plateCell.classList.toggle("is-estimate", estimatedPlate != null);
-    intakeTotals.querySelector("[data-intake-plate-estimate]").hidden = estimatedPlate == null;
+    const platePending = typedPlate == null;
+    const values = {vehicle: amountOf("id_vehicle_price"), plate: typedPlate, accessories: accessoryPurchaseTotal()};
     if (showSelection) values.selection = selection;
     values.sum = Object.values(values).reduce((sum, value) => sum + (value || 0), 0);
     intakeTotals.querySelector('[data-intake-total-cell="selection"]').hidden = !showSelection;
-    intakeTotals.querySelector("[data-intake-total-label]").textContent = showSelection ? "四項合計" : "三項合計";
+    intakeTotals.querySelector("[data-intake-total-label]").textContent = platePending
+      ? "合計（牌險另計）" : showSelection ? "四項合計" : "三項合計";
+    intakeTotals.querySelector("[data-intake-plate-pending-note]").hidden = !platePending;
     intakeTotals.querySelectorAll("[data-intake-total]").forEach(node => {
       const value = values[node.dataset.intakeTotal];
-      node.textContent = value == null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
+      const pending = node.dataset.intakeTotal === "plate" && platePending;
+      node.classList.toggle("is-pending", pending);
+      node.textContent = pending ? "另計" : value == null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
     });
   }
   orderForm.addEventListener("input", updateIntakeTotals);

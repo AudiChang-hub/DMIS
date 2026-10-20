@@ -201,6 +201,10 @@ class OrderWizardTests(TestCase):
         self.assertIn('data-intake-total-cell="selection" hidden', panel)
         self.assertIn('const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;', page)
         self.assertIn('showSelection ? "四項合計" : "三項合計"', page)
+        # 使用者 2026-10-20：牌險費留空時寫「另計」、不列入合計，客人看不到系統算出的金額。
+        self.assertIn('"合計（牌險另計）"', page)
+        self.assertIn('node.textContent = pending ? "另計"', page)
+        self.assertNotIn("系統預估", page)
         self.assertEqual(self.post("deposit", draft=self.draft(), **lines).status_code, 302)
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]

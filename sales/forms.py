@@ -455,14 +455,15 @@ class SalesOrderForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
         self.fields["plate_insurance_fee"].label = "牌險費（不含選號）"
-        # 空白＝照系統試算，畫面不另設選項（使用者 2026-10-19）；照試算的訂單顯示空白，試算值以淡色提示。
-        self.fields["plate_insurance_fee"].help_text = "留空依系統試算，領牌時依領牌日重算；有填金額就照填的收。"
+        # 空白＝照系統試算，畫面不另設選項（使用者 2026-10-19）；照試算的訂單顯示空白。
+        # 客人看得到這個畫面，不顯示系統算出的金額與算法（使用者 2026-10-20）。
+        self.fields["plate_insurance_fee"].help_text = "留空依系統計算；有填金額就照填的收。"
+        self.fields["delivery_destination"].help_text = "客人還沒決定可先留空，交車前再補上。"
         auto_plate_fee = self.instance.pk and self.instance.plate_insurance_auto
         if auto_plate_fee and not self.is_bound:
             self.initial["plate_insurance_fee"] = None
         self.fields["plate_insurance_fee"].widget.attrs.update(
-            placeholder=f"系統預估 {self.instance.plate_insurance_fee:,.0f} 元"
-            if auto_plate_fee and self.instance.plate_insurance_fee else "留空依系統試算",
+            placeholder="留空依系統計算",
             min="0",
             # 前端試算油車規費用：沒有領牌日時依訂單日（新單為今天）預估。
             **{"data-estimate-date": (self.instance.order_date or timezone.localdate()).isoformat(),
@@ -930,14 +931,8 @@ class SalesOrderForm(forms.ModelForm):
             if plate_auto:
                 data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = itemized_total
 
-        if data.get("delivery_method") in {
-            SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
-            SalesOrder.DeliveryMethod.CARRIER,
-        } and not data.get("delivery_destination"):
-            self.add_error(
-                "delivery_destination",
-                "送至指定地點或委託託運時必須填寫目的地。",
-            )
+        # 送達地點／託運目的地建單時不必填：客人可能還沒決定送到哪裡（使用者 2026-10-20）；
+        # 交車頁會提醒尚未填寫，實際交付時由交付核對（DeliveryCompletionForm）要求填寫。
 
         # 證件照片與人工核對改為選填（使用者 2026-10-14）：後續流程沒有任何步驟依賴，簽署前也不必補齊。
         return data

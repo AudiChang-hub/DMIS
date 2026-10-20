@@ -640,7 +640,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         # 照試算的訂單編輯時欄位留空；客人看得到畫面，提示不列試算金額（使用者 2026-10-20）。
         page_form = SalesOrderForm(instance=saved)
         self.assertIsNone(page_form.initial["plate_insurance_fee"])
-        self.assertEqual(page_form.fields["plate_insurance_fee"].widget.attrs["placeholder"], "留空依系統計算")
+        self.assertNotIn("placeholder", page_form.fields["plate_insurance_fee"].widget.attrs)
         # 領牌時依領牌日重算（年底領牌，牌照稅與養管費天數較少）。
         registered = RegistrationStageForm(
             {"registration_date": "2026-12-20", "final_plate_number": "abc-1234"}, instance=saved,

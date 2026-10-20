@@ -93,10 +93,15 @@
     periods.addEventListener('change', apply);
     toggle.addEventListener('click', () => {
       if (manual) {
+        // 勾選框不再顯示（使用者 2026-10-20）：改回車型方案時由按鈕取消自訂分期。
+        if (custom?.checked) { custom.checked = false; custom.dispatchEvent(new Event('input', {bubbles:true})); }
+        if (company.value === '__custom__') { company.value = ''; renderPeriods(); }
         setManual(false);
         config.hint.textContent = `${versionHint}請選擇公司與期數；未選取前不更改原值。`;
       } else {
         if (custom) { custom.checked = true; custom.dispatchEvent(new Event('input', {bubbles:true})); }
+        // 與公司選單選「其他／自訂分期」一致：選單標示自訂、期數選單停用，已填的公司與金額保留。
+        if ([...company.children].some(option => option.value === '__custom__')) { company.value = '__custom__'; renderPeriods(); periods.disabled = true; }
         setManual(true);
         config.hint.textContent = `${versionHint}人工調整模式：保留現有內容，不自動套用車型方案。`;
       }

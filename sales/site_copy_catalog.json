@@ -1146,11 +1146,6 @@
     "default": "選擇動力類型與車型後自動試算",
     "template": "templates/sales/order_form.html"
   },
-  "order_form.95121456d49f": {
-    "page": "訂單填寫",
-    "default": "不含選號費（選號費在「選號與交車」填寫）。領牌時依領牌日更新；有填金額的不會被系統蓋掉。",
-    "template": "templates/sales/order_form.html"
-  },
   "order_form.e4b6f41700b0": {
     "page": "訂單填寫",
     "default": "選擇車型與期數後，系統會帶入目前有效的分期公司、每期金額及開辦費；仍可由內部人員修改。",

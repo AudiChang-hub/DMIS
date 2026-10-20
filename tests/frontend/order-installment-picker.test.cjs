@@ -14,10 +14,10 @@ class Control {
   replaceChildren() { this.children=[]; this.value=''; }
   setAttribute(name,value) { this.attrs[name]=value; }
 }
-function setup(fetcher, values={}) {
+function setup(fetcher, values={}, extra=[]) {
   const elements={};
   for (const id of ['installment-company-choice','installment-period-choice','installment-manual-toggle',
-    'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee']) elements[id]=new Control(values[id] || '');
+    'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee', ...extra]) elements[id]=new Control(values[id] || '');
   const manualFields=[{},{}];
   const doc={getElementById:id=>elements[id],querySelectorAll:()=>manualFields,createElement:()=>new Control()};
   const config={document:doc,fetcher,endpoint:'/api/plans/',orderId:'41',vehicleModel:new Control('7'),paymentType:new Control('installment'),hint:new Control()};
@@ -100,4 +100,33 @@ test('其他分期展開人工欄位，不清空原值、不套用方案', async
   assert.equal(elements['installment-period-choice'].disabled,true);
   assert.equal(elements['installment-period-choice'].required,false);
   for (const [key,value] of Object.entries(original)) assert.equal(elements[key].value,value);
+});
+
+test('自訂分期勾選框不顯示，由按鈕切換並同步勾選（使用者 2026-10-20）', async()=>{
+  const {picker,elements,manualFields}=setup(async()=>response(),{}, ['id_installment_custom']);
+  const custom=elements['id_installment_custom']; custom.checked=false;
+  await picker.load();
+  const toggle=elements['installment-manual-toggle'];
+  assert.ok(manualFields.every(field=>field.hidden));
+  toggle.dispatchEvent(new Event('click'));
+  assert.equal(custom.checked,true);
+  assert.ok(manualFields.every(field=>!field.hidden));
+  assert.equal(toggle.textContent,'改用車型方案');
+  assert.equal(elements['installment-company-choice'].value,'__custom__');
+  assert.equal(elements['installment-period-choice'].disabled,true);
+  toggle.dispatchEvent(new Event('click'));
+  assert.equal(custom.checked,false);
+  assert.equal(elements['installment-company-choice'].value,'');
+  assert.ok(manualFields.every(field=>field.hidden));
+  assert.equal(toggle.textContent,'其他／自訂分期');
+});
+
+test('既有自訂分期訂單載入時直接是人工模式，公司選單標示其他／自訂分期', async()=>{
+  const {picker,elements,manualFields}=setup(async()=>response(),{...original,'id_installment_company':'其他融資'}, ['id_installment_custom']);
+  elements['id_installment_custom'].checked=true;
+  await picker.load();
+  assert.ok(manualFields.every(field=>!field.hidden));
+  assert.equal(elements['installment-company-choice'].value,'__custom__');
+  assert.equal(elements.id_installment_company.value,'其他融資');
+  assert.equal(elements.id_installment_monthly.value,'5900');
 });

@@ -4752,7 +4752,8 @@ class OrderFlowTests(TestCase):
             '<input type="date" name="registration_date"',
         )
         order_form_template = (
-            __import__("pathlib").Path("templates/sales/_order_form_content.html").read_text(
+            # 1.86.26：牌險試算欄位拆到 _registration_fee_details.html，建單與訂單頁共用。
+            __import__("pathlib").Path("templates/sales/_registration_fee_details.html").read_text(
                 encoding="utf-8"
             )
         )
@@ -4827,8 +4828,9 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
         self.assertLess(content.index("分期資料"), content.index("其他費用"))
-        # 分期資料緊接在付款方式與車價之後，排在領牌規費與強制險前（2026-10-16）。
-        self.assertLess(content.index("分期資料"), content.index("領牌規費與強制險"))
+        # 分期資料緊接在付款方式與車價之後，排在牌險費前（2026-10-16；1.86.26 建單只剩「牌險費」一格）。
+        self.assertLess(content.index("分期資料"), content.index('id="id_plate_insurance_fee"'))
+        self.assertNotIn("領牌規費與強制險", content)
         self.assertNotContains(order_response, "折扣／抵扣")
         self.assertEqual(
             order_response.context["form"]["deposit_date"].value(),

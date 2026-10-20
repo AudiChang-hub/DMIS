@@ -105,17 +105,30 @@ class OrderWizardSlides1020Tests(TestCase):
 
     def test_plate_section_shows_no_estimate_even_for_finance_staff(self):
         # T-20：建單畫面客人看得到，有財務權限也只顯示牌險費欄位，不列試算明細與金額。
+        # T-24（1.86.26）：只有一層一格，標籤「牌險費」，沒有 placeholder 與說明。
         self.login_admin()
         page = self.client.get(reverse("order_create")).content.decode()
-        self.assertIn("<summary>牌險費</summary>", page)
-        self.assertIn('<div class="section-title" hidden>', page)
-        self.assertIn('<div class="registration-fee-details" hidden>', page)
-        self.assertIn('placeholder="留空依系統計算"', page)
-        self.assertIn("留空依系統計算；有填金額就照填的收。", page)
-        for leaked in ("系統預估", "油車＝規費＋強制險", "牌險手續費收入"):
+        block = page.split('<div class="conditional-panel plate-fee-only">', 1)[1].split("</details>", 1)[0]
+        hidden, visible = block.split('<div class="form-grid" id="gas-registration-calculator">', 1)
+        self.assertTrue(hidden.lstrip().startswith("<div hidden>"))
+        self.assertIn('<p id="registration-rate-summary"></p>', hidden)
+        self.assertIn('name="registration_calculated_total"', hidden)
+        self.assertIn('<label for="id_plate_insurance_fee">牌險費</label>', visible)
+        field = visible.split('name="plate_insurance_fee"', 1)[1].split(">", 1)[0]
+        self.assertNotIn("placeholder", field)
+        self.assertNotIn("help-text", visible.split("non-gas-registration-message", 1)[0])
+        self.assertNotIn("<summary>牌險費</summary>", page)
+        for leaked in ("系統預估", "油車＝規費＋強制險", "牌險手續費收入", "留空依系統計算", "registration-fee-subsection"):
             self.assertNotIn(leaked, page)
-        # 費率明細那一行（排氣量、計費天數、依訂單日預估）只留在隱藏的標題列，畫面不顯示。
-        self.assertIn('<p id="registration-rate-summary">', page.split('<div class="section-title" hidden>', 1)[1][:200])
+        self.assertNotIn("不含選號", block)
+
+    def test_installment_custom_checkbox_is_driven_by_button(self):
+        # T-23（1.86.26）：自訂分期從「其他／自訂分期」按鈕進入，勾選框不顯示但仍隨表單送出。
+        self.login_admin()
+        page = self.client.get(reverse("order_create")).content.decode()
+        self.assertIn('<div hidden><input type="checkbox" name="installment_custom"', page)
+        self.assertNotIn('<label class="checkbox-label"><input type="checkbox" name="installment_custom"', page)
+        self.assertIn('id="installment-manual-toggle"', page)
 
     def test_confirm_step_lists_system_plate_fee_without_amount(self):
         self.login_admin()
@@ -170,3 +183,14 @@ class DeliveryDestinationReminderTests(TestCase):
             self.assertFalse(order.delivery_destination_missing)
             page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "delivery"}).content.decode()
             self.assertNotIn('id="delivery-destination-reminder"', page)
+
+    def test_existing_custom_installment_order_still_shows_and_saves(self):
+        # T-23：原本勾選自訂分期的訂單，訂單頁照常帶出自訂資料，勾選狀態隨表單保留。
+        order = self.order(status=SalesOrder.Status.ALLOCATION_PENDING, payment_type="installment",
+                           installment_custom=True, installment_company="其他融資", installment_periods=17,
+                           installment_monthly=5100, installment_opening_fee=350)
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"}).content.decode()
+        checkbox = page.split('<div hidden><input type="checkbox" name="installment_custom"', 1)[1].split(">", 1)[0]
+        self.assertIn("checked", checkbox)
+        self.assertIn('value="其他融資"', page)
+        self.assertIn('value="5100', page)

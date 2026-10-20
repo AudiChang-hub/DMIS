@@ -453,16 +453,15 @@ class SalesOrderForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs["readonly"] = True
                 self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
-        self.fields["plate_insurance_fee"].label = "牌險費（不含選號）"
-        # 空白＝照系統試算，畫面不另設選項（使用者 2026-10-19）；照試算的訂單顯示空白。
-        # 客人看得到這個畫面，不顯示系統算出的金額與算法（使用者 2026-10-20）。
-        self.fields["plate_insurance_fee"].help_text = "留空依系統計算；有填金額就照填的收。"
+        # 空白＝照系統試算、0＝免收、正數＝照填（使用者 2026-10-19）；照試算的訂單顯示空白。
+        # 畫面只寫「牌險費」一格，不加 placeholder 與說明，規則寫在 BUSINESS_RULES 與手冊（使用者 2026-10-20）。
+        self.fields["plate_insurance_fee"].label = "牌險費"
+        self.fields["plate_insurance_fee"].help_text = ""
         self.fields["delivery_destination"].help_text = "客人還沒決定可先留空，交車前再補上。"
         auto_plate_fee = self.instance.pk and self.instance.plate_insurance_auto
         if auto_plate_fee and not self.is_bound:
             self.initial["plate_insurance_fee"] = None
         self.fields["plate_insurance_fee"].widget.attrs.update(
-            placeholder="留空依系統計算",
             min="0",
             # 前端試算油車規費用：沒有領牌日時依訂單日（新單為今天）預估。
             **{"data-estimate-date": (self.instance.order_date or timezone.localdate()).isoformat(),

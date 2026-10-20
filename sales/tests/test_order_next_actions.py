@@ -1,5 +1,4 @@
 import hashlib
-import re
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -240,7 +239,8 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(actions.primary.key, "delivery")
         self.assertIn("送達地點尚未填寫", actions.primary.description)
 
-    def test_delivery_tab_marks_delivery_recommendation_as_current_work(self):
+    def test_delivery_tab_is_current_step_without_suggestion_block(self):
+        # 使用者 2026-10-20：左側步驟已一步步標出目前作業，訂單頁不再另列下一步建議區塊。
         order = self.make_order()
         order.allocate(self.make_vehicle())
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -255,56 +255,11 @@ class OrderNextActionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active_tab"], "delivery")
-        self.assertContains(response, "next-actions--primary is-current-context")
-        self.assertContains(response, 'data-current-tab="delivery"')
-        self.assertContains(response, 'data-target-tab="delivery"')
-        self.assertContains(response, "data-next-actions-controls hidden")
-        self.assertContains(response, ">目前作業<")
+        self.assertNotIn("next_actions", response.context)
+        self.assertNotContains(response, "data-next-actions")
+        self.assertNotContains(response, "目前作業")
 
-    def test_other_tab_keeps_delivery_navigation_available(self):
-        order = self.make_order()
-        order.allocate(self.make_vehicle())
-        SalesOrder.objects.filter(pk=order.pk).update(
-            registration_completed_at=timezone.now(),
-            status=SalesOrder.Status.DELIVERY_PENDING,
-        )
-        self.client.force_login(self.user)
-
-        response = self.client.get(
-            f"{reverse('order_detail', args=[order.pk])}?tab=order"
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["active_tab"], "order")
-        self.assertContains(response, 'data-current-tab="order"')
-        self.assertNotContains(response, "next-actions--primary is-current-context")
-        self.assertNotContains(response, "data-next-actions-controls hidden")
-        self.assertContains(response, "前往交付")
-
-    def test_current_secondary_tab_is_presented_as_non_navigation(self):
-        order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
-        order.allocate(self.make_vehicle())
-        self.client.force_login(self.user)
-
-        response = self.client.get(
-            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'data-action-key="dealer-early-delivery" data-target-tab="delivery"',
-        )
-        self.assertContains(response, ">目前頁面<")
-        action_markup = re.search(
-            r'<a(?=[^>]*data-action-key="dealer-early-delivery")[^>]*>',
-            response.content.decode("utf-8"),
-        ).group(0)
-        self.assertNotIn(" href=", action_markup)
-        self.assertIn('aria-current="location"', action_markup)
-        self.assertIn('tabindex="-1"', action_markup)
-
-    def test_signed_document_anchor_remains_clickable_on_order_tab(self):
+    def test_signed_document_action_targets_documents_step(self):
         order = self.make_order()
         self.make_vehicle()
 
@@ -313,18 +268,6 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(archive.target_tab, "documents")
         self.assertEqual(archive.target_anchor, "signed-documents")
         self.assertTrue(archive.url.endswith("?tab=documents#signed-documents"))
-
-        self.client.force_login(self.user)
-        response = self.client.get(
-            f"{reverse('order_detail', args=[order.pk])}?tab=order"
-        )
-        action_markup = re.search(
-            r'<a(?=[^>]*data-action-key="documents")[^>]*>',
-            response.content.decode("utf-8"),
-        ).group(0)
-        self.assertIn(" href=", action_markup)
-        self.assertIn('data-target-anchor="signed-documents"', action_markup)
-        self.assertNotIn('aria-current="location"', action_markup)
 
     def test_invalid_tab_falls_back_to_current_step_tab(self):
         order = self.make_order()
@@ -339,11 +282,9 @@ class OrderNextActionTests(TestCase):
             f"{reverse('order_detail', args=[order.pk])}?tab=not-a-real-tab"
         )
 
-        # 無效分頁改開目前步驟（交車）；交車分頁就在下方，建議卡標示「目前作業」。
+        # 無效分頁改開目前步驟（交車）。
         self.assertEqual(response.context["active_tab"], "delivery")
         self.assertContains(response, 'id="tab-delivery" role="tab" aria-controls="panel-delivery" aria-selected="true"')
-        self.assertContains(response, "data-next-actions-controls hidden")
-        self.assertContains(response, ">目前作業<")
 
     def test_dealer_delivered_before_registration_has_both_deadlines(self):
         order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
@@ -405,7 +346,8 @@ class OrderNextActionTests(TestCase):
         SalesOrder.objects.filter(pk=dealer_cash.pk).update(closed_at=timezone.now())
         self.assertIsNone(self.build(dealer_cash))
 
-    def test_order_detail_renders_accessible_compact_workbar(self):
+    def test_order_detail_has_no_suggestion_block(self):
+        # 使用者 2026-10-20：「目前無可配車輛／前往快速進車」「另外可處理」這類建議區塊全部移除；左側步驟仍標目前步驟。
         order = self.make_order()
         self.make_vehicle()
         self.client.force_login(self.user)
@@ -413,40 +355,17 @@ class OrderNextActionTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.context["next_actions"])
-        self.assertContains(response, "data-next-actions")
-        self.assertContains(response, "data-next-actions-workbar")
-        self.assertContains(response, 'aria-labelledby="next-actions-title"')
-        self.assertContains(response, 'aria-labelledby="next-actions-secondary-title"')
-        self.assertContains(response, 'data-action-key="allocation"')
-        self.assertContains(response, "另外可處理")
-        self.assertContains(response, "收合")
-        self.assertNotContains(response, ">稍後處理</button>")
-        self.assertContains(response, "next-actions.js")
-        self.assertNotContains(response, 'class="next-actions-dialog"')
+        for marker in ("data-next-actions", "next-actions", "另外可處理", "next-actions.js"):
+            self.assertNotContains(response, marker)
+        self.assertContains(response, "目前步驟")
+        self.assertFalse(Path("templates/sales/_next_actions.html").exists())
+        self.assertFalse(Path("static/js/next-actions.js").exists())
+        self.assertNotIn(".next-actions", Path("static/css/app.css").read_text(encoding="utf-8"))
 
-    def test_dismissal_is_local_and_reopens_when_state_changes(self):
-        script = Path("static/js/next-actions.js").read_text(encoding="utf-8")
-        self.assertIn("const prefix = `order-next-actions:${orderId}:`", script)
-        self.assertIn("const storageKey = `${prefix}${stateKey}`", script)
-        self.assertIn("key.startsWith(prefix) && key !== storageKey", script)
-        self.assertIn("data-next-actions-restore", script)
-        self.assertIn('primary.dataset.targetTab === tabName', script)
-        self.assertIn("!primary.dataset.targetAnchor", script)
-        self.assertIn("!action.dataset.targetAnchor", script)
-        self.assertIn('controls.hidden = primaryIsCurrent', script)
-        self.assertIn('action.removeAttribute("href")', script)
-        self.assertIn('window.addEventListener("order-tab-change"', script)
-        self.assertNotIn("window.location =", script)
-
-        tab_script = Path("static/js/order-detail-tabs.js").read_text(encoding="utf-8")
-        self.assertIn("tabList.dataset.activeTab = activeName", tab_script)
-        self.assertIn('new CustomEvent("order-tab-change"', tab_script)
-
-    def test_workbar_styles_do_not_split_secondary_actions_into_cards(self):
-        styles = Path("static/css/app.css").read_text(encoding="utf-8")
-        secondary_rule = styles.split(".next-actions__secondary {", 1)[1].split("}", 1)[0]
-
-        self.assertIn("grid-template-columns: 116px minmax(0, 1fr)", secondary_rule)
-        self.assertNotIn("repeat(2", secondary_rule)
-        self.assertIn(".next-actions__secondary-list", styles)
+    def test_no_stock_allocation_step_links_to_quick_intake(self):
+        # 原本由建議卡帶去快速進車，移除後改在配車步驟的「沒有可售庫存」提示旁。
+        order = self.make_order()
+        self.client.force_login(self.user)
+        response = self.client.get(f"{reverse('order_detail', args=[order.pk])}?tab=allocation")
+        self.assertContains(response, "目前無符合的可售庫存")
+        self.assertContains(response, f'href="{reverse("inventory_quick_create")}">前往快速進車</a>', html=False)

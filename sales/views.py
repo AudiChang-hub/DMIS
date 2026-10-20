@@ -5580,7 +5580,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     step_context = build_order_steps(
         order, next_actions=next_actions, requested=request.GET.get("tab", ""), summary=detail_summary
     )
-    # 預設分頁＝目前步驟；下一步建議據此判斷「目前作業」。
+    # 預設分頁＝目前步驟（下一步判斷只用來決定左側步驟的目前步驟，畫面不再另列建議區塊，使用者 2026-10-20）。
     active_tab = step_context["open_step"]
     commission_block_reason = order.commission_attribution_block_reason
     if commission_form is None and not commission_block_reason:
@@ -5638,7 +5638,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "operations_profile": operations_profile,
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
-            "next_actions": next_actions,
             "active_tab": active_tab,
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),

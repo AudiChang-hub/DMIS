@@ -1,7 +1,4 @@
 .order-credit { margin: 0 var(--stack-gap) var(--stack-gap); }
-.detail-hero { flex-wrap: wrap; }
-.detail-hero .hero-actions { flex-wrap: wrap; margin-left: auto; }
-.detail-hero .hero-actions .button { white-space: nowrap; }
 .order-credit[hidden], .order-credit-panel[hidden] { display: none; }
 .order-credit-toggle { border: 0; background: transparent; color: var(--primary); font: inherit; font-weight: 650; padding: var(--space-3) 0; min-height: 44px; cursor: pointer; text-align: left; }
 .order-credit-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-xs); }
@@ -10,34 +7,77 @@
 .order-credit-summary { font-weight: 650; line-height: 1.7; margin: var(--stack-gap-sm) 0 var(--space-2); }
 .order-credit-summary:empty { display: none; }
 .order-credit-panel small { display: block; line-height: 1.7; }
-.commission-attribution { margin-bottom: var(--stack-gap); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); scroll-margin-top: 90px; }
-.commission-attribution__current { padding: var(--space-4) var(--space-5); display: flex; justify-content: space-between; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
-.commission-attribution__current > div { display: grid; gap: var(--space-1); }
-.commission-attribution__current strong { font-size: var(--text-xl); color: var(--ink); }
-.commission-attribution__current p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
-.commission-attribution__current p span { margin-left: var(--space-3); }
-.commission-attribution__editor > summary { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); min-height: 68px; color: var(--ink); background: var(--surface-soft); font-weight: 750; cursor: pointer; list-style: none; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.commission-attribution__action { display: inline-flex; align-items: center; justify-content: center; gap: var(--stack-gap-sm); min-height: 44px; padding: var(--space-3) var(--space-4); flex: 0 0 auto; border-radius: var(--radius-md); background: var(--forest); color: var(--on-accent); box-shadow: var(--shadow-soft); }
-.commission-attribution__editor[open] > summary { border-radius: 0; }
-.commission-attribution__editor > summary:hover .commission-attribution__action { filter: brightness(.92); }
-.commission-attribution__editor > summary::-webkit-details-marker { display: none; }
-.commission-attribution__editor > summary:focus-visible { outline: 2px solid var(--forest); outline-offset: -3px; }
-.commission-attribution__editor[open] .commission-attribution__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
-.commission-attribution__editor form { padding: var(--space-2) var(--space-5) var(--space-5); }
-.commission-attribution__fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--stack-gap-sm); }
-.commission-attribution__fields .field { min-width: 0; }
-.commission-attribution__hint, .commission-attribution__locked { color: var(--muted); font-size: var(--text-sm); line-height: 1.7; }
-.commission-attribution__locked { margin: 0; padding: 0 var(--space-5) var(--space-4); }
-.commission-attribution__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
-.commission-attribution__actions [hidden] { display: none; }
-.commission-attribution .note-box a { display: inline-block; margin-top: var(--space-2); }
 @media (max-width: 600px) {
   .order-credit { margin: 0 var(--stack-gap-sm) var(--stack-gap-sm); }
   .order-credit-panel { padding: var(--inset-pad); }
-  .commission-attribution__current { padding: var(--inset-pad); gap: var(--space-2); }
-  .commission-attribution__current p span { display: block; margin: var(--space-1) 0 0; }
-  .commission-attribution__editor > summary { padding-inline: var(--space-4); }
-  .commission-attribution__editor form { padding: var(--space-2) var(--space-4) var(--space-4); }
+}
+
+/* 訂單頁首（使用者 2026-10-20）：右側放台數歸屬小卡與單張訂單處置；收入與支出、列印與簽署文件改由左側步驟進入。 */
+.detail-hero { align-items: flex-start; flex-wrap: nowrap; }
+.detail-hero > div:first-child { min-width: 0; }
+.detail-hero__side { display: grid; justify-items: end; align-content: start; gap: var(--space-3); margin-left: auto; flex: 0 1 auto; min-width: 0; }
+.detail-hero__actions { flex-wrap: wrap; justify-content: flex-end; }
+.detail-hero__actions:empty { display: none; }
+.detail-hero__actions .button { min-height: 36px; padding-inline: var(--space-4); }
+
+/* 台數歸屬小卡：平時一行，「變更車行」在小卡下方展開成浮層，不推擠下方填寫區。 */
+.commission-attribution {
+  position: relative; display: flex; align-items: center; gap: var(--space-4); max-width: 100%;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4); scroll-margin-top: 120px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+}
+.commission-attribution__current { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: var(--space-2); row-gap: 1px; min-width: 0; }
+.commission-attribution__label { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; white-space: nowrap; }
+.commission-attribution__recipient { color: var(--ink); font-size: var(--text-md); font-weight: 850; line-height: 1.25; overflow-wrap: anywhere; }
+.commission-attribution__meta { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: var(--text-2xs); white-space: nowrap; }
+.commission-attribution__meta span { margin-left: var(--space-2); padding-left: var(--space-2); border-left: 1px solid var(--line); }
+.commission-attribution__locked { max-width: 22ch; margin: 0; color: var(--muted); font-size: var(--text-2xs); line-height: 1.5; }
+.commission-attribution__editor > summary { display: block; list-style: none; cursor: pointer; border-radius: var(--radius-pill); }
+.commission-attribution__editor > summary::-webkit-details-marker { display: none; }
+.commission-attribution__action {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: 0 var(--space-3) 0 var(--space-4);
+  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-pill); font-size: var(--text-sm); font-weight: 800; white-space: nowrap;
+  transition: filter var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
+}
+.commission-attribution__editor > summary:hover .commission-attribution__action { filter: brightness(.92); }
+.commission-attribution__editor > summary:active .commission-attribution__action { transform: translateY(1px); }
+.commission-attribution__editor > summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; }
+.commission-attribution__chevron { transition: transform var(--dur-2) var(--ease-out); }
+.commission-attribution__editor[open] .commission-attribution__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
+.commission-attribution__panel {
+  position: absolute; z-index: 40; top: calc(100% + var(--space-2)); right: 0; width: min(560px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-5); text-align: left; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: 0 18px 48px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
+  animation: commission-panel-in var(--dur-2) var(--ease-out);
+}
+.commission-attribution__panel-title { margin: 0 0 var(--space-3); color: var(--ink); font-size: var(--text-sm-plus); font-weight: 850; }
+.commission-attribution__fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--stack-gap-sm); }
+.commission-attribution__fields .field { min-width: 0; }
+.commission-attribution__hint { color: var(--muted); font-size: var(--text-sm); line-height: 1.7; }
+.commission-attribution__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.commission-attribution__actions [hidden] { display: none; }
+.commission-attribution .note-box a { display: inline-block; margin-top: var(--space-2); }
+@keyframes commission-panel-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .commission-attribution__panel { animation: none; } }
+
+/* 捲動後的精簡頁首：只留姓名、狀態與歸屬車行；刪除這類處置不跟著固定，避免誤按。 */
+.order-sticky-hero.is-stuck .detail-hero__side { grid-auto-flow: column; align-items: center; }
+.order-sticky-hero.is-stuck .detail-hero__actions,
+.order-sticky-hero.is-stuck .commission-attribution__meta,
+.order-sticky-hero.is-stuck .commission-attribution__locked { display: none; }
+.order-sticky-hero.is-stuck .commission-attribution { padding-block: var(--space-1); box-shadow: none; }
+.order-sticky-hero.is-stuck .commission-attribution__action { min-height: 32px; }
+
+@media (max-width: 600px) {
+  .detail-hero { flex-wrap: wrap; }
+  .detail-hero__side { width: 100%; justify-items: stretch; }
+  .detail-hero__actions { justify-content: flex-end; }
+  .detail-hero .detail-hero__actions .button { flex: 0 0 auto; }
+  .commission-attribution { justify-content: space-between; flex-wrap: wrap; }
+  .commission-attribution__meta { white-space: normal; }
+  .commission-attribution__editor { margin-left: auto; }
+  .commission-attribution__editor[open] { flex: 1 0 100%; display: grid; justify-items: end; }
+  .commission-attribution__panel { position: static; width: 100%; margin-top: var(--space-3); padding: var(--space-4); box-shadow: none; }
   .commission-attribution__fields { grid-template-columns: 1fr; gap: var(--space-3); }
-  .commission-attribution__locked { padding-inline: var(--space-4); }
+  .order-sticky-hero.is-stuck .detail-hero__side { display: none; }
 }

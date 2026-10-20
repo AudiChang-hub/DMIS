@@ -4571,7 +4571,7 @@ class OrderFlowTests(TestCase):
         )
         self.assertContains(detail, "在行動裝置上簽名")
         self.assertContains(detail, "印出紙本給客人簽")
-        self.assertContains(detail, "簽署與列印文件")
+        self.assertContains(detail, "列印與簽署文件")
         self.assertContains(detail, "列印空白合約")
         self.assertContains(detail, "列印空白同意書")
         self.assertContains(detail, "簽署文件留存")

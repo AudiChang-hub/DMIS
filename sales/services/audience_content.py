@@ -4,6 +4,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.86.29", "改善"): [("order_list", "internal")] * 3,
     ("1.86.28", "改善"): [("order_documents_print",)],
     ("1.86.27", "修正"): [("order_documents_print",), ("order_list", "internal")],
     ("1.86.27", "改善"): [("order_documents_print",), ("order_list", "internal"), ("order_list", "internal")],
@@ -336,7 +337,7 @@ def release_context(policy):
 # 給受限帳號的說明逐項拆開，避免共用長篇章節混入管理或財務內容。
 HELP_ITEMS = (
     ("single-order-access", "單筆查閱與列印授權", ("root",), (
-        "到資料維護區的帳號與權限，選人員後以帳號資料、畫面與操作、訂單範圍、指定訂單四個分頁管理。訂單的管理本單權限入口也會帶到同一工作區。",
+        "到資料維護區的帳號與權限，選人員後以帳號資料、畫面與操作、訂單範圍、指定訂單四個分頁管理。",
         "指定訂單先搜尋單號或車主，再選沿用一般設定或本筆自訂。自訂時勾選允許、未勾選禁止；填寫原因並儲存後立即生效。畫面上方顯示目前實際權限。帳號功能未開放時需先啟用，不會偷偷擴權。",
         "恢復一般設定可能重新開放本人訂單的原有權限。舊版額外授權在修改前維持原效果；人員更換預設店別後，舊設定失效，即使轉回也需重新確認。不改來源、公司、金額或帳務。")),
     ("print-company-admin", "設定與確認開單公司", ("root",), (

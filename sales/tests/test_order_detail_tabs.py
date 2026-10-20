@@ -93,11 +93,15 @@ class OrderDetailTabTests(TestCase):
         # 未選取的步驟內容仍在頁面上（無腳本時全部顯示）。
         self.assertIn("車輛交付", page.split('id="panel-delivery"', 1)[1])
 
-    def test_next_action_links_target_tabs(self):
+    def test_documents_and_finance_are_reached_from_left_steps(self):
+        # 使用者 2026-10-20：頂部的「簽署與列印文件」「收入與支出」與左側步驟重複，只留左側步驟。
         order, _vehicle = self.make_order()
         page = self.detail(order)
-        self.assertIn(f'href="{order_step_url(order.pk, "documents", "signed-documents")}"', page)
-        self.assertIn('data-target-tab="documents" data-target-anchor="signed-documents"', page)
+        self.assertIn(f'href="{order_step_url(order.pk, "documents")}" data-step-link="documents"', page)
+        self.assertIn(f'href="{order_step_url(order.pk, "finance")}" data-step-link="finance"', page)
+        hero = page[page.index("data-sticky-hero"):page.index("</section>", page.index("data-sticky-hero"))]
+        for label in ("簽署與列印文件", "收入與支出", "調整台數歸屬", "管理本單權限"):
+            self.assertNotIn(label, hero)
 
     def test_step_url_uses_tab_hash(self):
         detail = reverse("order_detail", args=[7])
@@ -130,11 +134,11 @@ class OrderDetailTabTests(TestCase):
         self.assertIn("order-tabpanel-reveal", feedback)
 
     def test_entry_and_step_switch_land_on_same_stage(self):
-        # 進頁、重新整理、點步驟都停在同一個停點（精簡頁首下方，從建議下一步開始），使用者 2026-10-14；1.84.0 起沒有接單紀錄卡。
+        # 進頁、重新整理、點步驟都停在同一個停點（精簡頁首下方，從步驟內容開始），使用者 2026-10-14；1.84.0 起沒有接單紀錄卡。
         order, _vehicle = self.make_order()
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
-        self.assertLess(page.index("data-order-stage-start"), page.index('class="next-actions'))
+        self.assertNotIn('class="next-actions', page)  # 1.86.29 起不再列下一步建議區塊
         self.assertNotIn('id="order-acceptance"', page)
         self.assertLess(page.index('id="commission-attribution"'), page.index("data-order-stage-start"))
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")

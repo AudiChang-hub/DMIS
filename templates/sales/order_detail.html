@@ -17,19 +17,18 @@
     <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
     <p class="order-owner-facts">{% if order.owner_phone %}<span>電話 <strong>{{ order.owner_phone }}</strong></span>{% endif %}{% if order.owner_birth_date %}<span>生日 <strong>{{ order.owner_birth_date|roc_date }}</strong>（西元 {{ order.owner_birth_date|date:"Y/m/d" }}）</span>{% endif %}</p>
   </div>
-  <div class="hero-actions">
-    {% if_access 'order_delete' order.pk %}<a class="button danger-outline" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
-    {% if order.status == "completed" or order.status == "delivered_docs_pending" %}{% if_access 'order_return' order.pk %}<a class="button danger-outline" href="{% url 'order_return' order.pk %}">交車後退車</a>{% endif_access %}{% endif %}
-    {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
-    {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
-    {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
-    {% if not editing_order and order.needs_customer_signatures %}{% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="?tab=documents#signed-documents" data-target-tab="documents" data-target-anchor="signed-documents">簽署與列印文件</a>{% endif_access %}{% endif %}
+  {# 頁首右側（使用者 2026-10-20）：台數歸屬縮成小卡放右上角（調整台數歸屬就是卡上的「變更」）；收入與支出、列印與簽署文件在左側步驟；管理本單權限不再提供入口。只留刪除與退車。 #}
+  <div class="detail-hero__side">
+    {% include "sales/_order_commission_attribution.html" %}
+    <div class="hero-actions detail-hero__actions">
+      {% if_access 'order_delete' order.pk %}<a class="button danger-outline small" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
+      {% if order.status == "completed" or order.status == "delivered_docs_pending" %}{% if_access 'order_return' order.pk %}<a class="button danger-outline small" href="{% url 'order_return' order.pk %}">交車後退車</a>{% endif_access %}{% endif %}
+    </div>
   </div>
 </section>
 
 {% if historical_delivery_pending %}{% if_access 'historical_delivery_complete' %}{% include "sales/_historical_delivery_complete.html" %}{% endif_access %}{% endif %}
-<div data-workspace-section="order">{% include "sales/_order_commission_attribution.html" %}</div>
-{# 進頁與切換步驟的固定停點：頁首縮成精簡列後，從建議下一步開始顯示（static/js/order-workspace.js）。 #}
+{# 進頁與切換步驟的固定停點：頁首縮成精簡列後，從步驟內容開始顯示（static/js/order-workspace.js）。 #}
 <div class="order-stage-start" data-order-stage-start aria-hidden="true"></div>
 
 {% if request.GET.created == "1" and order.needs_customer_signatures %}
@@ -48,7 +47,6 @@
 </script>
 {% endif %}
 
-<div data-workspace-section="order">{% include "sales/_next_actions.html" %}</div>
 {% include "sales/_order_step_nav.html" %}
 {% if editing_order %}{% include "sales/_order_form_content.html" %}{% endif %}
 <div class="order-steps">
@@ -229,6 +227,8 @@
       <button class="button primary block" type="submit">確認配車並鎖定</button>
     {% else %}
       <p class="field-error">{% site_text 'order_detail.8b672b874902' %}</p>
+      {# 原本由下一步建議卡帶去快速進車；建議卡移除後入口放在這裡（使用者 2026-10-20）。 #}
+      {% if_access 'inventory_quick_create' %}<a class="button secondary small" href="{% url 'inventory_quick_create' %}">前往快速進車</a>{% endif_access %}
     {% endif %}
   </form>
 </section>
@@ -1019,7 +1019,6 @@
 <script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
-<script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/delivery-form.js' %}?v={{ app_version }}" defer></script>

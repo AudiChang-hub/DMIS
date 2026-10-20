@@ -110,7 +110,8 @@ class PaymentSplitTests(TestCase):
         reader = PdfReader(BytesIO(b"".join(response.streaming_content)))
         lines = [line.strip() for page in reader.pages for line in page.extract_text().splitlines()]
         for expected in ("現金 $50,000", "刷卡 $20,000", "匯款 $9,800"):
-            self.assertEqual(sum(expected in line for line in lines), 4, expected)  # 兩聯 × 車主區與收款區
+            # 兩聯各一次：付款方式只列在「訂單與車主資料」，收款資料不再重複（使用者 2026-10-20）。
+            self.assertEqual(sum(expected in line for line in lines), 2, expected)
         self.assertFalse([line for line in lines if "＋" in line and "$" in line])
 
     def test_wizard_draft_keeps_every_payment_split(self):

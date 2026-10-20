@@ -99,9 +99,25 @@ class OrderDetailTabTests(TestCase):
         page = self.detail(order)
         self.assertIn(f'href="{order_step_url(order.pk, "documents")}" data-step-link="documents"', page)
         self.assertIn(f'href="{order_step_url(order.pk, "finance")}" data-step-link="finance"', page)
-        hero = page[page.index("data-sticky-hero"):page.index("</section>", page.index("data-sticky-hero"))]
+        # 整個頁首元素：歸屬小卡本身也是 <section>，不能切到第一個 </section> 為止；頁首結束在固定停點之前。
+        # 捲動後的精簡頁首是同一個元素加上 is-stuck，內容相同，只由樣式隱藏部分欄位。
+        start = page.rindex("<section", 0, page.index("data-sticky-hero"))
+        hero = page[start:page.index("data-order-stage-start")]
+        self.assertIn('id="commission-attribution"', hero)
+        self.assertIn('class="hero-actions detail-hero__actions"', hero)  # 範圍涵蓋到小卡下方的處置按鈕區
         for label in ("簽署與列印文件", "收入與支出", "調整台數歸屬", "管理本單權限"):
             self.assertNotIn(label, hero)
+        styles = Path("static/css/order-commission-recipient.css").read_text(encoding="utf-8")
+        self.assertIn(".order-sticky-hero.is-stuck .detail-hero__actions", styles)
+        # admin 看得到刪除：在小卡下方，仍在同一個頁首範圍內。
+        from django.contrib.auth import get_user_model
+        self.client.force_login(get_user_model().objects.create_superuser("admin", password="test-only"))
+        admin_page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
+        start = admin_page.rindex("<section", 0, admin_page.index("data-sticky-hero"))
+        admin_hero = admin_page[start:admin_page.index("data-order-stage-start")]
+        self.assertLess(admin_hero.index('id="commission-attribution"'), admin_hero.index("刪除訂單"))
+        for label in ("簽署與列印文件", "收入與支出", "調整台數歸屬", "管理本單權限"):
+            self.assertNotIn(label, admin_hero)
 
     def test_step_url_uses_tab_hash(self):
         detail = reverse("order_detail", args=[7])

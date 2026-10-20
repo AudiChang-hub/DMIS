@@ -115,14 +115,14 @@ class OrderDetailTabTests(TestCase):
         PaymentRecord.objects.filter(order=order, system_key="deposit").update(received_amount=0)
         self.client.force_login(self.user)
         response = self.client.post(reverse("deposit_payment_update", args=[order.pk]), {
-            "deposit-received_amount": "abc", "deposit-received_on": "not-a-date",
+            "deposit-amount": "abc", "deposit-received_on": "not-a-date",
         })
         self.assertRedirects(response, order_step_url(order.pk, "deposit"), fetch_redirect_response=False)
         followed = self.client.get(response.url)
         page = followed.content.decode()
         self.assertIn('aria-selected="true"', tab_markup(page, "deposit"))
         self.assertIn("is-active", panel_markup(page, "deposit"))
-        self.assertTrue(any("訂金未登記" in str(message) for message in followed.context["messages"]))
+        self.assertTrue(any("訂金未儲存" in str(message) for message in followed.context["messages"]))
 
     def test_script_switches_tabs_by_keyboard_hash_and_errors(self):
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")

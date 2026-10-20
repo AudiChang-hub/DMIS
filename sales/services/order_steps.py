@@ -61,6 +61,7 @@ def _deposit(order):
 
 
 def build_order_steps(order, *, next_actions=None, requested=None, summary=None):
+    from .deposit_step import deposit_summary
     from .payment_summary import payment_summary
 
     summary = summary or payment_summary(order)
@@ -75,8 +76,8 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         "deposit": dict(
             number=2, title="訂金",
             state="done" if expected <= 0 or (received >= expected) else "todo",
-            summary=("未約定訂金" if expected <= 0 else
-                     f"約定 {_money(expected)}・" + (f"已收 {_money(received)}" if received else "尚未確認收款")),
+            # 訂金只有一個數字：已收妥／待收妥（使用者 2026-10-20 T-29）。
+            summary=deposit_summary(order, record),
         ),
         "documents": dict(
             number=3, title="列印與簽署文件",

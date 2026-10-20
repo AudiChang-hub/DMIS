@@ -54,8 +54,8 @@ class OrderStepTests(TestCase):
         PaymentRecord.objects.filter(order=order, system_key="deposit").update(received_amount=0)
         self.client.force_login(self.user)
         response = self.client.post(reverse("deposit_payment_update", args=[order.pk]), {
-            "deposit-received_amount": "5000", "deposit-received_on": "2026-08-01",
-            "deposit-payment_method": "現金", "deposit-confirmed": "on",
+            "deposit-amount": "5000", "deposit-received_on": "2026-08-01",
+            "deposit-method": "cash", "deposit-confirmed": "on",
         })
         self.assertRedirects(response, order_step_url(order.pk, "deposit"))
         deposit = order.payment_records.get(system_key="deposit")

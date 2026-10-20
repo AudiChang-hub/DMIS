@@ -84,6 +84,7 @@ from .forms import (
     DiscountRequestForm,
     DeliveryCompletionForm,
     DeliveryPaymentForm,
+    DepositStepForm,
     InstallmentCompanyForm,
     InstallmentPlanOptionFormSet,
     InstallmentPlanVersionForm,
@@ -5001,8 +5002,8 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
             description=f"下單時填寫總價優惠並直接生效：{intake_discount_detail(order, form)}；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。",
             actor_name=request.user.get_username(),
         )
-    if form.cleaned_data.get("deposit_received"):
-        _confirm_intake_deposit(request, order)
+    # 建單填了訂金就算已收妥（使用者 2026-10-20 T-29 方案 A）：實收＝訂金，確認人記建單者。
+    _confirm_intake_deposit(request, order)
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
@@ -5015,24 +5016,14 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
 
 
 def _confirm_intake_deposit(request, order):
-    """開單勾「已收到這筆訂金」：沿用訂金登記表單的檢查，直接登記實收並確認入帳。"""
-    sync_order_operations(order.pk)
-    payment = PaymentRecord.objects.select_for_update().get(order=order, system_key="deposit")
-    if payment.confirmed:
+    """建單填了訂金：直接登記實收並確認入帳（services/deposit_step.py）。"""
+    from .services.deposit_step import confirm_intake_deposit
+    payment = confirm_intake_deposit(order, _editing_name(request.user))
+    if payment is None:
         return
-    form = DeliveryPaymentForm({
-        "deposit-received_amount": str(order.deposit_amount),
-        "deposit-received_on": order.deposit_date.isoformat(),
-        "deposit-payment_method": order.get_deposit_method_display(),
-        "deposit-confirmed": "on",
-    }, instance=payment, prefix="deposit")
-    if not form.is_valid():
-        messages.warning(request, "訂金未能直接入帳，請到訂單的訂金步驟確認：" + _form_error_text(form))
-        return
-    payment = form.save(_editing_name(request.user))
     OrderEvent.objects.create(
         order=order, event_type="deposit_payment_updated", actor_name=_editing_name(request.user),
-        description=f"建立訂單時登記訂金實收 ${payment.received_amount:,.0f}／已確認",
+        description=f"建立訂單時填寫訂金 ${payment.received_amount:,.0f}，視為已收妥並入帳",
     )
 
 
@@ -5561,11 +5552,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary, ignore_balance=collect_balance, include_prep=False)
     deposit_payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
     deposit_payment_form = None
-    if deposit_payment is not None and not deposit_payment.confirmed and can_edit_finance(request.user):
-        deposit_payment_form = DeliveryPaymentForm(instance=deposit_payment, prefix="deposit")
-        deposit_payment_form.fields["confirmed"].label = "確認此筆訂金已收妥"
-        if not deposit_payment.received_amount:
-            deposit_payment_form.initial["received_amount"] = order.deposit_amount or None
+    if deposit_payment is not None and can_edit_finance(request.user):
+        deposit_payment_form = DepositStepForm(prefix="deposit", order=order, payment=deposit_payment)
     exception_close_ready = (
         order.is_registration_complete and not order.is_delivered and not order.is_cancelled_sale
     )
@@ -7141,30 +7129,43 @@ def delivery_complete(request, pk):
 @login_required
 @transaction.atomic
 def deposit_payment_update(request, pk):
-    """訂金步驟：登記並確認訂金實收；已確認後只能以沖銷更正。"""
+    """訂金步驟自動儲存（使用者 2026-10-20 T-29 方案 A）：訂金只有一個數字，「已收妥」開關＝確認入帳／取消已確認。"""
+    from .services.deposit_step import deposit_state, save_deposit_step
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     detail_url = order_step_url(pk, "deposit")
+    workspace = order_workspace.is_workspace_save(request)
     if request.method != "POST":
         return redirect(detail_url)
-    if order.is_cancelled_sale:
-        messages.error(request, "此訂單已進入取消或結案流程，不能登記訂金。")
+
+    def fail(message, form=None):
+        if workspace:
+            return order_workspace.save_error(message, forms=(form,) if form is not None else ())
+        messages.error(request, message)
         return redirect(detail_url)
+
+    if order.is_cancelled_sale:
+        return fail("此訂單已進入取消或結案流程，不能修改訂金。")
     sync_order_operations(order.pk)
     payment = get_object_or_404(PaymentRecord.objects.select_for_update(), order=order, system_key="deposit")
-    if payment.confirmed:
-        messages.info(request, "訂金已確認入帳。")
-        return redirect(detail_url)
-    form = DeliveryPaymentForm(request.POST, request.FILES, instance=payment, prefix="deposit")
+    form = DepositStepForm(request.POST, prefix="deposit", order=order, payment=payment)
     if not form.is_valid():
-        messages.error(request, "訂金未登記：" + _form_error_text(form))
-        return redirect(detail_url)
-    payment = form.save(_editing_name(request.user))
-    _record_duplicate_acknowledgements(order, [form], request.user)
-    OrderEvent.objects.create(
-        order=order, event_type="deposit_payment_updated", actor_name=_editing_name(request.user),
-        description=f"登記訂金實收 ${payment.received_amount:,.0f}／{'已確認' if payment.confirmed else '尚未確認'}",
-    )
-    messages.success(request, "訂金已確認收款。" if payment.confirmed else "訂金資料已保存，尚未確認收款。")
+        return fail("訂金未儲存：" + _form_error_text(form), form)
+    actor = _editing_name(request.user)
+    try:
+        description = save_deposit_step(order, payment, form.cleaned_data, actor)
+    except ValidationError as error:
+        return fail(" ".join(error.messages))
+    if description:
+        OrderEvent.objects.create(order=order, event_type="deposit_payment_updated", actor_name=actor, description=description)
+    order = SalesOrder.objects.prefetch_related("payment_records").get(pk=pk)
+    if workspace:
+        # 同頁即時更新：開關與欄位鎖定、步驟摘要與側欄狀態，不必重新載入。
+        from .services.order_steps import build_order_steps
+        step = build_order_steps(order, next_actions=build_order_next_actions(order))["steps"]["deposit"]
+        state = {**deposit_state(order), "step_state": step["state"], "step_state_label": step["state_label"],
+                 "step_marker_html": render_to_string("sales/_order_step_marker.html", {"step": step})}
+        return order_workspace.saved(request, order, extra={"deposit": state})
+    messages.success(request, description or "訂金沒有變更。")
     return redirect(detail_url)
 
 

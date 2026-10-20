@@ -385,7 +385,8 @@ class ReceptionWizardTests(TestCase):
         self.assertEqual(response.url, reverse("order_submitted", args=[order.pk]))
         self.assertEqual((order.deposit_amount, order.deposit_method), (3000, "cash"))
         deposit = order.payment_records.get(system_key="deposit")
-        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (3000, 0, False))
+        # 建單填了訂金就算已收妥（使用者 2026-10-20 T-29 方案 A，接待模式也一樣）。
+        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (3000, 3000, True))
         # 沒有簽署或列印權限時，成立頁不顯示空白的簽署區塊。
         self.assertNotContains(self.client.get(response.url), "sign-choice")
         self.assertFalse(OrderEvent.objects.filter(order=order, event_type="identity_manual_check").exists())

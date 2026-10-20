@@ -74,8 +74,8 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertNotEqual(order.registration_plate_fee, 999)
         self.assertEqual(order.calculated_balance, Decimal("79800") - 5000)
         deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
-        # 與內部建單同一路徑：約定訂金成為未確認的收款列，由店內確認實收後才入帳。
-        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (5000, 0, False))
+        # 建單填了訂金就算已收妥（使用者 2026-10-20 T-29 方案 A，接待模式也一樣）。
+        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (5000, 5000, True))
         self.assertEqual(deposit.payment_method, "匯款")
 
     def test_restricted_staff_can_enter_deposit_but_not_other_finance(self):
@@ -94,35 +94,33 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertEqual((order.deposit_amount, order.vehicle_price, order.accepted_by), (3000, 79800, self.clerk))
         self.assertNotEqual(order.compulsory_insurance_fee, 777)
         self.assertFalse(order.other_fees.exists())
-        self.assertTrue(PaymentRecord.objects.filter(order=order, system_key="deposit", expected_amount=3000, confirmed=False).exists())
+        self.assertTrue(PaymentRecord.objects.filter(order=order, system_key="deposit", expected_amount=3000, received_amount=3000, confirmed=True).exists())
 
-    def test_staff_can_confirm_deposit_when_creating_order(self):
-        # 店內有收款確認權限：開單勾「已收到這筆訂金」直接入帳，不必再到訂單頁確認（2026-10-14）。
+    def test_deposit_entered_at_creation_is_received_and_posted(self):
+        # 使用者 2026-10-20 T-29 方案 A：建單填了訂金就算已收妥，沒有「已收到這筆訂金」勾選。
         self.client.force_login(self.root)
         page = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
-        self.assertIn('name="deposit_received"', page)
-        # 勾了已收到就必須選付款方式。
-        response = self.submit_to("order_create", deposit_amount="3000", deposit_method="", deposit_received="on")
+        self.assertNotIn('name="deposit_received"', page)
+        self.assertIn("填了就視為已收到，建立訂單時直接入帳。", page)
+        # 有填訂金就必須選付款方式。
+        response = self.submit_to("order_create", deposit_amount="3000", deposit_method="")
         self.assertEqual(response.status_code, 200)
         self.assertIn("deposit_method", response.context["form"].errors)
         order = self.assert_created(self.submit_to(
-            "order_create", deposit_amount="3000", deposit_date="", deposit_method="cash", deposit_received="on",
+            "order_create", deposit_amount="3000", deposit_date="", deposit_method="cash",
         ))
         deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
-        self.assertEqual((deposit.received_amount, deposit.confirmed, deposit.payment_method), (3000, True, "現金"))
+        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed, deposit.payment_method),
+                         (3000, 3000, True, "現金"))
         self.assertEqual(deposit.received_on, timezone.localdate())
         self.assertEqual(deposit.confirmed_by, "admin")
-        self.assertTrue(OrderEvent.objects.filter(order=order, description__contains="建立訂單時登記訂金實收").exists())
+        self.assertTrue(OrderEvent.objects.filter(order=order, description__contains="視為已收妥並入帳").exists())
 
-    def test_deposit_received_needs_payment_confirmation_access(self):
-        # 接待模式與受限店員沒有收款確認權限：看不到勾選，偽造送出也仍是未確認。
+    def test_no_deposit_creates_nothing_to_confirm(self):
         self.grant_intake_only()
-        page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()
-        self.assertNotIn('name="deposit_received"', page)
-        order = self.assert_created(self.submit_to(
-            "order_start", deposit_amount="3000", deposit_method="cash", deposit_received="on",
-        ))
-        self.assertFalse(PaymentRecord.objects.get(order=order, system_key="deposit").confirmed)
+        order = self.assert_created(self.submit_to("order_start", deposit_amount="", deposit_method=""))
+        deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
+        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (0, 0, False))
 
     def test_blank_deposit_is_zero_and_negative_is_rejected(self):
         self.grant_intake_only()
@@ -136,7 +134,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
 
     def test_amount_discount_is_approved_immediately_and_on_contract(self):
         order = self.assert_created(self.submit(
-            deposit_amount="2000", intake_discount_mode="amount", intake_discount_amount="1800",
+            deposit_amount="2000", deposit_method="cash", intake_discount_mode="amount", intake_discount_amount="1800",
             intake_discount_reason="老客戶回購",
         ))
         self.assertEqual(order.discount_status, SalesOrder.DiscountStatus.APPROVED)
@@ -254,7 +252,7 @@ class WizardDiscountTests(IntakeFixtures):
         self.assertContains(too_much, "優惠須大於零，且不可超過折扣前總價。")
         draft.refresh_from_db()
         self.assertNotIn("deposit", draft.data["_wizard_done"])
-        good = {"intake_discount_amount": "2800", "intake_discount_reason": "老客戶", "deposit_amount": "1000"}
+        good = {"intake_discount_amount": "2800", "intake_discount_reason": "老客戶", "deposit_amount": "1000", "deposit_method": "cash"}
         self.assertEqual(self.wizard_post("deposit", draft, **good).status_code, 302)
         draft.refresh_from_db()
         self.assertEqual(draft.data["intake_discount_amount"], "2800")

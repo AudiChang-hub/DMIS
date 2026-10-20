@@ -248,7 +248,40 @@
       const remove = row.querySelector('[data-delete-payment]'); if (remove) remove.hidden = locked;
     });
   }
+  // 訂金步驟（使用者 2026-10-20 T-29）：已收妥即入帳，金額、日期、方式與訂單上的訂金一起鎖定；
+  // 同步更新步驟摘要與側欄狀態，不必重新載入。
+  const STEP_STATES = ['done', 'current', 'todo', 'optional', 'locked', 'reference'];
+  function setStepState(node, state) {
+    if (!node) return;
+    STEP_STATES.forEach(name => node.classList.remove(`is-${name}`));
+    node.classList.add(`is-${state}`);
+  }
+  function applyDeposit(state) {
+    const form = root.querySelector('[data-deposit-step]');
+    if (form) {
+      form.classList.toggle('is-received', state.confirmed);
+      ['amount', 'received_on', 'method'].forEach(name => { const field = form.elements.namedItem(`deposit-${name}`); if (field) field.disabled = state.locked; });
+      const toggle = form.elements.namedItem('deposit-confirmed');
+      if (toggle) toggle.checked = state.confirmed;
+      const title = form.querySelector('[data-deposit-title]'); if (title) title.textContent = state.confirmed ? '訂金已收妥' : '訂金待收妥';
+      const hint = form.querySelector('[data-deposit-hint]'); if (hint) hint.textContent = state.confirmed ? '已入帳；要修改先關掉。' : '收到款項後打開，即入帳。';
+    }
+    ['id_deposit_amount', 'id_deposit_date', 'id_deposit_method'].forEach(id => { const field = document.getElementById(id); if (field && field.form !== form) field.disabled = state.locked; });
+    const panel = document.getElementById('panel-deposit');
+    setStepState(panel, state.step_state);
+    const summary = panel?.querySelector('.order-step__heading p'); if (summary) summary.textContent = state.summary;
+    const badge = panel?.querySelector('.order-step__state');
+    if (badge) { setStepState(badge, state.step_state); badge.textContent = state.step_state_label; }
+    const headMarker = panel?.querySelector('.order-step__marker'); if (headMarker && state.step_marker_html != null) headMarker.innerHTML = state.step_marker_html;
+    const tab = document.getElementById('tab-deposit');
+    if (tab) {
+      setStepState(tab, state.step_state);
+      const label = tab.querySelector('.order-step-tab__state'); if (label) label.textContent = state.step_state_label;
+      const marker = tab.querySelector('.order-step-tab__marker'); if (marker && state.step_marker_html != null) marker.innerHTML = state.step_marker_html;
+    }
+  }
   function merge(payload, savedForm, typed = new Set()) {
+    if (payload.deposit) applyDeposit(payload.deposit);
     if (payload.customer_balance_due != null) {
       root.querySelectorAll('[data-customer-balance]').forEach(node => { node.textContent = '$' + Number(payload.customer_balance_due).toLocaleString('zh-TW'); });
     }

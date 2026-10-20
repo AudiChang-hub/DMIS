@@ -1,18 +1,32 @@
 {% load screen_access sales_format %}
-<div class="order-step-deposit" id="deposit-payment" data-inplace-region>
-  <dl class="data-list">
-    <div><dt>約定訂金</dt><dd>${{ order.deposit_amount|number_with_commas }}</dd></div>
-    {% if deposit_payment and order.deposit_amount > 0 %}<div><dt>收款狀態</dt><dd>{% if deposit_payment.confirmed %}已確認收款 ${{ deposit_payment.received_amount|number_with_commas }}（{{ deposit_payment.received_on|date:"Y/m/d" }}）{% else %}尚未確認收款{% endif %}</dd></div>{% endif %}
-  </dl>
-  {% if order.deposit_amount <= 0 %}
-  <p class="muted">本單未約定訂金，可略過此步驟；如需收訂金，請先在「訂車與配件」修改約定訂金。</p>
-  {% elif deposit_payment.confirmed %}
-  <p class="muted">訂金已入帳；如登記有誤，請到「收入與支出」以沖銷更正。</p>
-  {% elif deposit_payment_form and not order.is_cancelled_sale %}{% if_access 'deposit_payment_update' order.pk %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'deposit_payment_update' order.pk %}" class="form-grid" data-inplace-form data-inplace-success="reload">
+{% comment %}訂金步驟（使用者 2026-10-20 T-29 方案 A）：訂金只有一個數字；「已收妥」開關＝確認入帳／取消已確認，改了就自動儲存。
+沒有約定訂金、收款帳戶、收款證明與非重複勾選；建單填了訂金就已收妥。{% endcomment %}
+<div class="order-step-deposit" id="deposit-payment">
+  {% if deposit_payment_form and not order.is_cancelled_sale %}{% if_access 'deposit_payment_update' order.pk %}
+  {% with form=deposit_payment_form %}
+  <form method="post" action="{% url 'deposit_payment_update' order.pk %}" class="deposit-step{% if deposit_payment.confirmed %} is-received{% endif %}" data-workspace-save="deposit" data-deposit-step>
     {% csrf_token %}
-    {% for field in deposit_payment_form %}{% include "sales/_field.html" %}{% endfor %}
-    <div class="span-2"><button class="button primary" type="submit">登記訂金收款</button></div>
+    <label class="deposit-receipt" for="{{ form.confirmed.id_for_label }}">
+      <span class="deposit-receipt__copy">
+        <strong class="deposit-receipt__title" data-deposit-title>{% if deposit_payment.confirmed %}訂金已收妥{% else %}訂金待收妥{% endif %}</strong>
+        <small class="deposit-receipt__hint" data-deposit-hint>{% if form.confirmed.field.disabled %}已沖銷；更正請到「收入與支出」。{% elif deposit_payment.confirmed %}已入帳；要修改先關掉。{% else %}收到款項後打開，即入帳。{% endif %}</small>
+      </span>
+      {{ form.confirmed }}<span class="deposit-receipt__switch" aria-hidden="true"></span>
+    </label>
+    {% if form.confirmed.errors %}<p class="field-error" role="alert">{{ form.confirmed.errors|join:" " }}</p>{% endif %}
+    <div class="form-grid deposit-step__fields">
+      {% include "sales/_field.html" with field=form.amount %}
+      {% include "sales/_field.html" with field=form.received_on %}
+      {% include "sales/_field.html" with field=form.method %}
+      {% include "sales/_field.html" with field=form.note %}
+    </div>
+    <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
   </form>
-  {% endif_access %}{% endif %}
+  {% endwith %}
+  {% endif_access %}{% else %}
+  <dl class="data-list">
+    <div><dt>訂金</dt><dd>{% if order.deposit_amount > 0 %}${{ order.deposit_amount|number_with_commas }}{% else %}沒有訂金{% endif %}</dd></div>
+    {% if order.deposit_amount > 0 %}<div><dt>收款狀態</dt><dd>{% if deposit_payment.confirmed %}已收妥（{{ deposit_payment.received_on|date:"Y/m/d" }}）{% else %}待收妥{% endif %}</dd></div>{% endif %}
+  </dl>
+  {% endif %}
 </div>

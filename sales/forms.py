@@ -1879,6 +1879,13 @@ class OrderEditForm(SalesOrderForm):
             self.fields["confirm_completed_correction"].required = True
         else:
             self.fields.pop("confirm_completed_correction")
+        # 訂金已收妥（入帳）後，訂單上的訂金跟著鎖定；要改請到「訂金」步驟關掉已收妥（使用者 2026-10-20 T-29）。
+        if self.instance.pk and self.instance.payment_records.filter(system_key="deposit", confirmed=True).exists():
+            for name in ("deposit_amount", "deposit_date", "deposit_method"):
+                if name in self.fields:
+                    self.fields[name].disabled = True
+            if "deposit_amount" in self.fields:
+                self.fields["deposit_amount"].help_text = "訂金已收妥並入帳；要修改請到「訂金」步驟關掉「已收妥」。"
 
     def clean(self):
         data = super().clean()
@@ -3462,6 +3469,56 @@ class DeliveryPaymentForm(forms.ModelForm):
         if commit:
             payment.save()
         return payment
+
+
+class DepositStepForm(forms.Form):
+    """訂單頁「訂金」步驟（使用者 2026-10-20 T-29 方案 A）：訂金只有一個數字，改了就自動儲存。
+    「已收妥」打開＝確認入帳、關掉＝取消已確認；沒有收款帳戶、收款證明與非重複勾選。"""
+
+    amount = forms.DecimalField(label="訂金金額", max_digits=12, decimal_places=0, min_value=Decimal("0"), required=False)
+    received_on = forms.DateField(label="收款日期", required=False, widget=DateInput())
+    method = forms.ChoiceField(label="收款方式", required=False)
+    note = forms.CharField(label="收款備註", max_length=250, required=False)
+    confirmed = forms.BooleanField(label="已收妥", required=False)
+
+    def __init__(self, *args, order, payment, **kwargs):
+        from sales.services.deposit_step import method_value
+        super().__init__(*args, **kwargs)
+        self.order, self.payment = order, payment
+        self.fields["method"].choices = [("", "請選擇"), *SalesOrder.PaymentMethod.choices]
+        confirmed = bool(payment.confirmed)
+        self.initial.update({
+            "amount": (payment.received_amount if confirmed else order.deposit_amount) or None,
+            "received_on": payment.received_on or order.deposit_date or timezone.localdate(),
+            "method": method_value(order, payment.payment_method) if confirmed else order.deposit_method,
+            "note": payment.note,
+            "confirmed": confirmed,
+        })
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["amount"].widget.attrs.update(inputmode="numeric", min="0", placeholder="沒有訂金請留空")
+        confirm = self.fields["confirmed"].widget.attrs
+        confirm.update({"class": "deposit-receipt__input", "role": "switch"})
+        # 已收妥即入帳：金額、日期、方式鎖定，要改先關掉「已收妥」（2026-10-17 取消已確認規則）。
+        if confirmed:
+            for name in ("amount", "received_on", "method"):
+                self.fields[name].disabled = True
+        else:
+            confirm["data-autosave-confirm"] = "確認這筆訂金已收妥？打開後即入帳，金額、日期與方式會鎖定。"
+        if payment.pk and payment.reversal_entries.exists():
+            self.fields["confirmed"].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.payment.confirmed:
+            return cleaned
+        amount = cleaned.get("amount") or Decimal("0")
+        if cleaned.get("confirmed"):
+            if amount <= 0:
+                self.add_error("amount", "請先填訂金金額，才能標記已收妥。")
+            if not cleaned.get("method"):
+                self.add_error("method", "標記已收妥前請選收款方式。")
+        return cleaned
 
 
 class VehicleModelCommissionForm(forms.Form):

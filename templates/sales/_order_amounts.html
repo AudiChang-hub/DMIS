@@ -60,8 +60,13 @@
       {% endif %}
       <div class="balance-equation">
         {% if order.payment_type == 'installment' %}
-        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金{% if order.approved_discount_amount %}與折扣{% endif %}{% if order.customer_vehicle_split_amount %}；含客人自付車款 ${{ order.customer_vehicle_split_amount|number_with_commas }}{% endif %}。</span></div>
-        <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
+        {# 分期外應收＝總價－分期車款（只有車價能分期），尾款再扣訂金（使用者 2026-10-20；「預估尾款」改稱「尾款」）。金額以收支保存的應收為準。 #}
+        <div class="balance-equation__header"><dt>尾款計算</dt><span>分期外應收＝總價扣掉分期車款，由客人自付{% if order.customer_vehicle_split_amount %}；含客人自付車款 ${{ order.customer_vehicle_split_amount|number_with_commas }}{% endif %}</span></div>
+        <div class="balance-equation__terms">
+          <div class="included"><span>分期外應收</span><strong data-customer-receivable>${{ order.customer_receivable_total|number_with_commas }}</strong></div>
+          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount|number_with_commas }}</strong></div>{% endif %}
+        </div>
+        <div class="balance-equation__result"><span>尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
         {% else %}
         <div class="balance-equation__header">
           <dt>尾款計算</dt>
@@ -81,7 +86,7 @@
           {% if order.approved_discount_amount %}<div class="deduction"><span>− 已核准折扣</span><strong>${{ order.approved_discount_amount|number_with_commas }}</strong></div>{% endif %}
           {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
         </div>
-        <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
+        <div class="balance-equation__result"><span>尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
         {% endif %}
       </div>
     </dl>

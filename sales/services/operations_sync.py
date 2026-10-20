@@ -10,6 +10,10 @@ from sales.services.agency_fee import (
 from sales.services.customer_receivable import default_customer_balance
 
 
+BALANCE_LABEL = "尾款"
+LEGACY_INSTALLMENT_BALANCE_LABEL = "分期外應收"
+
+
 def _money(value):
     return value or Decimal("0")
 
@@ -234,11 +238,12 @@ def sync_order_operations(order_id, *, update_receivables=False):
             },
             update_receivables=update_receivables,
         )
-        balance_label = "分期外應收"
     else:
         cash_due = default_customer_balance(order)
         active_keys.add("balance")
-        balance_label = "尾款"
+    # 這一列是扣訂金後還要收的錢，分期、現金都叫「尾款」；分期外應收是扣訂金前的金額，
+    # 只在訂購單與訂單頁另外列（使用者 2026-10-20）。舊名稱由 rename_balance_payment_label 回填。
+    balance_label = BALANCE_LABEL
     _upsert_system_payment(
         order,
         "balance",

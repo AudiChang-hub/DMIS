@@ -43,8 +43,9 @@ class ContractSlides1020Tests(TestCase):
         self.assertNotIn("1,396", text)
         self.assertNotIn("76,396", text)
         self.assertIn("稅金 牌險 1 另計 另計", text)
-        self.assertIn("應收 $75,000（牌險另計）", text)
-        self.assertIn("預估尾款 $75,000（牌險另計）", text)
+        self.assertIn("總價 $75,000（牌險另計）", text)
+        self.assertIn("尾款 $75,000（牌險另計）", text)
+        self.assertNotIn("預估尾款", text)
 
     def test_registered_system_plate_fee_hides_rate_details(self):
         _order, text = self.contract_text(plate_insurance_auto=True, registration_date=date(2026, 10, 1))

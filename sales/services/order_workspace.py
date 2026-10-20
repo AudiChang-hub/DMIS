@@ -197,6 +197,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'payment_values': payment_values,
         'locked_payments': locked_payments,
         'customer_balance_due': str(order.customer_balance_due) if profile else None,
+        'customer_receivable_total': str(order.customer_receivable_total) if profile else None,
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
         'delivery_ready': not delivery_blockers,
         'delivery_blocker': delivery_blockers[0] if delivery_blockers else '',

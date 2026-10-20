@@ -149,7 +149,7 @@
 {% include "sales/_payment_ledger.html" %}
 {% if order_workspace %}
 <details class="finance-amounts" data-workspace-section="finance" open>
-  <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與預估尾款</small></span></summary>
+  <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與尾款</small></span></summary>
   {% include "sales/_order_amounts.html" with hide_variance_action=True %}
 </details>
 {% endif %}

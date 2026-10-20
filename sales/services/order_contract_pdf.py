@@ -1,3 +1,4 @@
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -154,6 +155,45 @@ def fitted_row_height(row, col_widths, minimum=7 * mm):
 
 def money(value):
     return f"{value:,.0f}"
+
+
+def printed_detail_total(order):
+    """「車價與費用明細」逐列小計的合計（與下方各列的條件一致；照系統算的牌險印「另計」不計入）。"""
+    zero = Decimal("0")
+    return (
+        (order.vehicle_price or zero)
+        + (zero if order.plate_insurance_auto else (order.plate_insurance_fee or zero))
+        + order.other_fee_total
+        + (order.plate_selection_fee or zero)
+        + (order.lien_registration_fee or zero)
+        + order.accessory_total
+        - (order.approved_discount_amount or zero)
+        + (order.effective_installment_fee or zero)
+        + (order.old_vehicle_tax or zero)
+        - (order.old_vehicle_valuation or zero)
+    )
+
+
+def contract_payment_amounts(order):
+    """訂購單「收款資料」的金額，彼此能直接加減對上（使用者 2026-10-20）：
+
+    分期：總價－車價分期金額＝分期外應收，分期外應收－已收訂金＝尾款；現金：總價－已收訂金＝尾款。
+    尾款以收支保存的應收為準；照系統算的牌險不印金額，各金額都不含它。
+    """
+    zero = Decimal("0")
+    hidden_plate = (order.plate_insurance_fee or zero) if order.plate_insurance_auto else zero
+    receivable = order.customer_receivable_total - hidden_plate
+    financed = zero
+    if order.payment_type == order.PaymentType.INSTALLMENT:
+        financed = order.installment_split_amount if order.cash_receivable_v2 else (order.installment_amount or zero)
+    return {
+        "hidden_plate": hidden_plate,
+        "total": receivable + financed,
+        "financed": financed,
+        "receivable": receivable,
+        "deposit": order.deposit_amount or zero,
+        "balance": order.customer_balance_due - hidden_plate,
+    }
 
 
 def draw_company_header(c, data, y):
@@ -502,7 +542,18 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
                 p(f"-{money(order.approved_discount_amount)}", right_style),
             ]
         )
-    if order.installment_opening_fee:
+    if order.old_vehicle_tax:
+        rows.append(
+            [p("其他"), p("舊車稅金"), p("汰舊舊車稅金"), p("1", center_style),
+             p(money(order.old_vehicle_tax), right_style), p(money(order.old_vehicle_tax), right_style)]
+        )
+    if order.old_vehicle_valuation:
+        rows.append(
+            [p("其他"), p("舊車估價折抵"), p("舊車估價"), p("1", center_style),
+             p(f"-{money(order.old_vehicle_valuation)}", right_style),
+             p(f"-{money(order.old_vehicle_valuation)}", right_style)]
+        )
+    if order.effective_installment_fee:
         rows.append(
             [
                 p("分期"),
@@ -515,6 +566,15 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
                 p(money(order.installment_opening_fee), right_style),
                 p(money(order.installment_opening_fee), right_style),
             ]
+        )
+    amounts = contract_payment_amounts(order)
+    # 收支頁人工調整過應收（或牌險改以收入計）時，差額列成一筆，明細合計才等於收款資料的總價。
+    adjustment = amounts["total"] - printed_detail_total(order)
+    if adjustment:
+        sign = "-" if adjustment < 0 else ""
+        rows.append(
+            [p("其他"), p("應收調整"), p("依收支保存的應收"), p("1", center_style),
+             p(f"{sign}{money(abs(adjustment))}", right_style), p(f"{sign}{money(abs(adjustment))}", right_style)]
         )
     price_widths = [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm]
     price_data = [[cell for index, cell in enumerate(row) if index != 2] for row in [price_header] + rows]
@@ -564,68 +624,52 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
     ))
 
     # Payment
+    # 沿用原本「標籤｜值」三組一列的格線表格；欄位依計算順序排（使用者 2026-10-20）：
+    # 分期 總價 → 車價分期金額 → 分期外應收 → 已收訂金 → 尾款；現金 總價 → 已收訂金 → 尾款。尾款固定在右下角並加重。
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
-    # 照系統算的牌險沒有印出金額，應收與尾款也不含它，避免相減推算出來（使用者 2026-10-20）。
-    hidden_plate = (order.plate_insurance_fee or 0) if order.plate_insurance_auto else 0
-    plate_note = "（牌險另計）" if hidden_plate else ""
-    payment_first_row = [
-        p("<b>付款方式</b>"),
-        payment_lines(order),
-    ]
+    plate_note = "（牌險另計）" if amounts["hidden_plate"] else ""
+
+    def amount_cell(value, note=plate_note):
+        return p(f"${money(value)}{note}")
+
+    deposit_date = p(order.deposit_date.strftime("%Y-%m-%d") if order.deposit_date and order.deposit_amount else "—")
+    deposit_method = p(order.get_deposit_method_display() if order.deposit_method and order.deposit_amount else "—")
     if is_installment:
-        payment_first_row.extend(
-            [
-                p("<b>分期還款總額</b>"),
-                p(f"${money(order.installment_monthly * order.installment_periods)}"),
-                p("<b>分期外應收</b>"),
-                p(f"${money(order.customer_balance_due - hidden_plate)}{plate_note}"),
-            ]
-        )
+        payment_data = [
+            [p("<b>付款方式</b>"), payment_lines(order),
+             p("<b>總價</b>"), amount_cell(amounts["total"]),
+             p("<b>車價分期金額</b>"), amount_cell(amounts["financed"], "")],
+            [p("<b>分期外應收</b>"), amount_cell(amounts["receivable"]),
+             p("<b>已收訂金</b>"), amount_cell(amounts["deposit"], ""),
+             p("<b>訂金收款日</b>"), deposit_date],
+            [p("<b>收款方式</b>"), deposit_method, "", "",
+             p("<b>尾款</b>"), p(f"<b>${money(amounts['balance'])}</b>{plate_note}")],
+        ]
+        span_styles = [("SPAN", (1, 2), (3, 2))]
     else:
-        payment_first_row.extend(
-            [
-                p("<b>應收</b>"),
-                p(f"${money(order.customer_balance_due + order.deposit_amount - hidden_plate)}{plate_note}"),
-                "",
-                "",
-            ]
-        )
-    payment_data = [
-        payment_first_row,
-        [
-            p("<b>已收訂金</b>"),
-            p(f"${money(order.deposit_amount)}"),
-            p("<b>訂金收款日</b>"),
-            p(order.deposit_date.strftime("%Y-%m-%d") if order.deposit_date and order.deposit_amount else "—"),
-            p("<b>收款方式</b>"),
-            p(order.get_deposit_method_display() if order.deposit_method and order.deposit_amount else "—"),
-        ],
-        [
-            p("<b>預估尾款</b>"),
-            p(f"${money(order.customer_balance_due - hidden_plate)}{plate_note}"),
-            "",
-            "",
-            "",
-            "",
-        ],
-    ]
+        payment_data = [
+            [p("<b>付款方式</b>"), payment_lines(order),
+             p("<b>總價</b>"), amount_cell(amounts["total"]),
+             p("<b>已收訂金</b>"), amount_cell(amounts["deposit"], "")],
+            [p("<b>訂金收款日</b>"), deposit_date,
+             p("<b>收款方式</b>"), deposit_method,
+             p("<b>尾款</b>"), p(f"<b>${money(amounts['balance'])}</b>{plate_note}")],
+        ]
+        span_styles = []
+    last = len(payment_data) - 1
     payment_styles = [
         ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
-        ("BACKGROUND", (2, 0), (2, 1), GREEN_LIGHT),
-        ("BACKGROUND", (4, 1), (4, 1), GREEN_LIGHT),
-        ("SPAN", (1, 2), (5, 2)),
-        ("BACKGROUND", (0, 2), (1, 2), HexColor("#DDEFE6")),
-        ("FONTNAME", (0, 2), (1, 2), "MSJH-Bold"),
+        ("BACKGROUND", (2, 0), (2, last - 1 if is_installment else -1), GREEN_LIGHT),
+        ("BACKGROUND", (4, 0), (4, -1), GREEN_LIGHT),
+        *span_styles,
+        ("BACKGROUND", (4, last), (5, last), HexColor("#DDEFE6")),
+        ("FONTNAME", (4, last), (5, last), "MSJH-Bold"),
     ]
-    if is_installment:
-        payment_styles.append(("BACKGROUND", (4, 0), (4, 0), GREEN_LIGHT))
-    else:
-        payment_styles.append(("SPAN", (3, 0), (5, 0)))
     payment_widths = [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm]
     payment_table = make_table(
         payment_data,
         payment_widths,
-        row_heights=[fitted_row_height(payment_data[0], payment_widths), 7 * mm, 8 * mm],
+        row_heights=[fitted_row_height(row, payment_widths) for row in payment_data],
         styles=payment_styles,
     )
 

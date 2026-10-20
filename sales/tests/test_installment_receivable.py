@@ -133,7 +133,7 @@ class InstallmentReceivableTests(TestCase):
         self.assertEqual(order.customer_receivable_total, order.customer_balance_due + order.deposit_amount)
         text = pdf_text(order)
         section = payment_section(text)
-        assert_in_order(self, section, ["付款方式", "總價 $79,800", "已收訂金 $4,600", "訂金收款日", "收款方式", "尾款 $75,200"])
+        assert_in_order(self, section, ["總價 $79,800", "已收訂金 $4,600", "訂金收款日", "尾款 $75,200"])
         self.assertNotIn("車價分期金額", section)
         self.assertNotIn("分期外應收", section)
         self.assertNotIn("預估尾款", text)
@@ -225,3 +225,34 @@ class BalancePaymentLabelTests(TestCase):
         overview = self.client.get(reverse("order_overview", args=[order.pk])).content.decode()
         self.assertNotIn("尾款（應收）", overview)
         self.assertNotIn("預估尾款", overview)
+
+
+class PaymentSectionLayoutTests(TestCase):
+    """收款資料只列算式需要的欄位（使用者 2026-10-20）：不重複付款方式、不印訂金收款方式，依序讀成一條算式。"""
+    setUp = flow.OrderFlowTests.setUp
+    make_order = flow.OrderFlowTests.make_order
+    fdd722 = InstallmentReceivableTests.fdd722
+
+    def test_installment_reads_as_one_equation(self):
+        order = self.fdd722(deposit_method="transfer")
+        text = pdf_text(order)
+        section = payment_section(text)
+        self.assertEqual(
+            section.strip(),
+            "收款資料 總價 $90,100 車價分期金額 $79,800 分期外應收 $10,300 "
+            f"已收訂金 $7,000 訂金收款日 {order.deposit_date:%Y-%m-%d} 尾款 $3,300",
+        )
+        self.assertNotIn("收款方式", section)
+        self.assertNotIn("付款方式", section)
+        # 上方「訂單與車主資料」仍列付款方式；訂單裡的訂金收款方式照舊保存。
+        self.assertIn("付款方式", text[:text.index("收款資料")])
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).deposit_method, "transfer")
+
+    def test_cash_reads_total_deposit_date_then_balance_row(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(deposit_method="cash")
+        order = SalesOrder.objects.get(pk=order.pk)
+        section = payment_section(pdf_text(order)).strip()
+        deposit_date = f"{order.deposit_date:%Y-%m-%d}" if order.deposit_date else "—"
+        self.assertEqual(section, f"收款資料 總價 $79,800 已收訂金 $4,600 訂金收款日 {deposit_date} 尾款 $75,200")
+

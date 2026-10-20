@@ -624,8 +624,9 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
     ))
 
     # Payment
-    # 沿用原本「標籤｜值」三組一列的格線表格；欄位依計算順序排（使用者 2026-10-20）：
-    # 分期 總價 → 車價分期金額 → 分期外應收 → 已收訂金 → 尾款；現金 總價 → 已收訂金 → 尾款。尾款固定在右下角並加重。
+    # 沿用原本「標籤｜值」三組一列的格線表格，由左到右、由上到下讀成一條算式（使用者 2026-10-20）：
+    # 分期 總價 → 車價分期金額 → 分期外應收 → 已收訂金（訂金收款日）→ 尾款；現金 總價 → 已收訂金（訂金收款日）→ 尾款。
+    # 付款方式已列在「訂單與車主資料」、訂金的收款方式不印（訂單資料照舊保存）；尾款放最後並加強調底色。
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
     plate_note = "（牌險另計）" if amounts["hidden_plate"] else ""
 
@@ -633,38 +634,30 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
         return p(f"${money(value)}{note}")
 
     deposit_date = p(order.deposit_date.strftime("%Y-%m-%d") if order.deposit_date and order.deposit_amount else "—")
-    deposit_method = p(order.get_deposit_method_display() if order.deposit_method and order.deposit_amount else "—")
+    balance_cell = p(f"<b>${money(amounts['balance'])}</b>{plate_note}")
     if is_installment:
         payment_data = [
-            [p("<b>付款方式</b>"), payment_lines(order),
-             p("<b>總價</b>"), amount_cell(amounts["total"]),
-             p("<b>車價分期金額</b>"), amount_cell(amounts["financed"], "")],
-            [p("<b>分期外應收</b>"), amount_cell(amounts["receivable"]),
+            [p("<b>總價</b>"), amount_cell(amounts["total"]),
+             p("<b>車價分期金額</b>"), amount_cell(amounts["financed"], ""),
+             p("<b>分期外應收</b>"), amount_cell(amounts["receivable"])],
+            [p("<b>已收訂金</b>"), amount_cell(amounts["deposit"], ""),
+             p("<b>訂金收款日</b>"), deposit_date,
+             p("<b>尾款</b>"), balance_cell],
+        ]
+        balance_styles = [("BACKGROUND", (4, 1), (5, 1), HexColor("#DDEFE6"))]
+        label_styles = [("BACKGROUND", (column, 0), (column, -1), GREEN_LIGHT) for column in (0, 2)]
+        label_styles.append(("BACKGROUND", (4, 0), (4, 0), GREEN_LIGHT))
+    else:
+        # 現金單只有四項：尾款獨立一列、值橫跨整列，不留空白格。
+        payment_data = [
+            [p("<b>總價</b>"), amount_cell(amounts["total"]),
              p("<b>已收訂金</b>"), amount_cell(amounts["deposit"], ""),
              p("<b>訂金收款日</b>"), deposit_date],
-            [p("<b>收款方式</b>"), deposit_method, "", "",
-             p("<b>尾款</b>"), p(f"<b>${money(amounts['balance'])}</b>{plate_note}")],
+            [p("<b>尾款</b>"), balance_cell, "", "", "", ""],
         ]
-        span_styles = [("SPAN", (1, 2), (3, 2))]
-    else:
-        payment_data = [
-            [p("<b>付款方式</b>"), payment_lines(order),
-             p("<b>總價</b>"), amount_cell(amounts["total"]),
-             p("<b>已收訂金</b>"), amount_cell(amounts["deposit"], "")],
-            [p("<b>訂金收款日</b>"), deposit_date,
-             p("<b>收款方式</b>"), deposit_method,
-             p("<b>尾款</b>"), p(f"<b>${money(amounts['balance'])}</b>{plate_note}")],
-        ]
-        span_styles = []
-    last = len(payment_data) - 1
-    payment_styles = [
-        ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
-        ("BACKGROUND", (2, 0), (2, last - 1 if is_installment else -1), GREEN_LIGHT),
-        ("BACKGROUND", (4, 0), (4, -1), GREEN_LIGHT),
-        *span_styles,
-        ("BACKGROUND", (4, last), (5, last), HexColor("#DDEFE6")),
-        ("FONTNAME", (4, last), (5, last), "MSJH-Bold"),
-    ]
+        balance_styles = [("SPAN", (1, 1), (5, 1)), ("BACKGROUND", (0, 1), (5, 1), HexColor("#DDEFE6"))]
+        label_styles = [("BACKGROUND", (column, 0), (column, 0), GREEN_LIGHT) for column in (0, 2, 4)]
+    payment_styles = [*label_styles, *balance_styles]
     payment_widths = [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm]
     payment_table = make_table(
         payment_data,

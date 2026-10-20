@@ -499,6 +499,13 @@
     <p class="muted">本單尚未收清 ${{ dealer_credit.due|number_with_commas }}；{{ order.source.name }} 其他已交車未收清 ${{ dealer_credit.outstanding|number_with_commas }}；額度 {% if dealer_credit.limit is None %}未設定（只追蹤不阻擋）{% else %}${{ dealer_credit.limit|number_with_commas }}{% endif %}。</p>
   </div>
   {% endif %}
+  {% if not order.is_delivered and not order.is_cancelled_sale and order.delivery_destination_missing %}
+  {# 送達地點建單時可留空（使用者 2026-10-20）：交車前提醒，不擋流程；交付核對送出時才必填。 #}
+  <div class="delivery-gate delivery-gate--reminder" id="delivery-destination-reminder" role="note">
+    <div class="delivery-gate__heading"><strong>送達地點尚未填寫</strong></div>
+    <p>交車方式是「{{ order.get_delivery_method_display }}」，還沒有送達地點／託運目的地。客人決定後{% if inline_order_form %}可在<a href="?tab=order#delivery-destination-field" data-target-tab="order" data-target-anchor="delivery-destination-field">訂單資料的「選號與交車」</a>補上，或{% else %}請{% endif %}在交付核對時一併填寫。</p>
+  </div>
+  {% endif %}
   {% if order.is_delivered %}
     <div class="delivery-complete">
       <div class="delivery-complete__hero">

@@ -401,7 +401,8 @@ def build_order_next_actions(
         primary = NextAction(
             key="delivery",
             title="完成車輛交付",
-            description="領牌已完成，請核對車況、文件、鑰匙、配件與收款。",
+            description="領牌已完成，請核對車況、文件、鑰匙、配件與收款。"
+            + ("送達地點尚未填寫，交付前請補上。" if order.delivery_destination_missing else ""),
             action_label="前往交付",
             url=_tab_url(order, "delivery"),
             target_tab="delivery",

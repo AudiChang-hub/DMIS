@@ -48,9 +48,6 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .intake-totals__cell { position: relative; display: grid; align-content: center; gap: var(--space-1); min-width: 0; }
 .intake-totals__cell[hidden] { display: none; }
 .intake-totals__cell dt { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
-/* 牌險費留空＝照系統試算：預估值淡色顯示，與人員填的金額區分。 */
-.intake-totals__estimate { margin-inline-start: .4em; font-size: var(--text-xs); font-weight: 500; }
-.intake-totals__cell dd.is-estimate { color: var(--muted); font-weight: 600; }
 .intake-totals__cell dd {
   margin: 0; font-family: var(--font-display); font-size: var(--totals-value); font-weight: 700; line-height: 1.15;
   font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap;
@@ -69,6 +66,8 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 }
 .intake-totals__cell--sum::before { bottom: calc(var(--space-2) + var(--totals-value) * 1.15 / 2); left: calc(var(--space-3) - var(--totals-gap) / 2); }
 .intake-totals__cell--sum dt, .intake-totals__cell--sum dd { color: var(--action-text); }
+/* 牌險費留空＝由系統計算：不露出金額，寫「另計」並退成淡色，不列入合計（使用者 2026-10-20）。 */
+.intake-totals__cell dd.is-pending { color: var(--muted); font-family: var(--font-sans); font-weight: 600; letter-spacing: .04em; }
 .intake-totals__note { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-sm); }
 @container intake-totals (max-width: 760px) {
   .intake-totals__grid { --totals-gap: var(--space-5); --totals-value: var(--text-lg); padding-inline: var(--space-4); }

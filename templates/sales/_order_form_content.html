@@ -361,7 +361,6 @@
         {% include "sales/_field.html" with field=form.deposit_amount %}
         {% include "sales/_field.html" with field=form.deposit_date %}
         {% include "sales/_field.html" with field=form.deposit_method %}
-        {% if form.deposit_received %}<div class="span-2">{% include "sales/_field.html" with field=form.deposit_received %}</div>{% endif %}
       </div>
     </div>
     {% if intake_mode and form.intake_discount_mode %}

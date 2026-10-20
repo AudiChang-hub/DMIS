@@ -254,8 +254,8 @@ def build_summary(form, formset, fee_formset, draft):
     deposit = form.cleaned_data.get("deposit_amount") or Decimal("0")
     deposit_rows = [(form.fields["deposit_amount"].label, f"{deposit:,.0f} 元" if deposit else "無")]
     deposit_rows += _rows(form, ("deposit_date", "deposit_method") if deposit else ())
-    if deposit and "deposit_received" in form.fields:
-        deposit_rows.append(("收款確認", "已收到，建立時直接入帳" if form.cleaned_data.get("deposit_received") else "尚未確認，建立後再登記"))
+    if deposit:
+        deposit_rows.append(("收款確認", "已收到，建立時直接入帳"))
     deposit_rows += _discount_rows(form, formset, fee_formset)
     tradein_rows = _rows(form, ("trade_in_intent",))
     if "subsidy_programs" in form.fields:

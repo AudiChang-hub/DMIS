@@ -294,8 +294,8 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
         [
             p("<b>車主姓名</b>"),
             p(safe(order.owner_name)),
-            p("<b>車輛類別</b>"),
-            p(order.get_vehicle_category_display()),
+            p("<b>交易類型</b>"),
+            p(order.get_transaction_type_display()),
             p("<b>訂單來源</b>"),
             p(safe(order.source.name if order.source_id else "馭盛")),
         ],

@@ -3044,10 +3044,6 @@ class SalesOrder(TimeStampedModel):
         self.closed_at, self.closed_by = None, ""
         OrderEvent.objects.create(order=self, event_type="order_reopened", description="撤回結案，回到已交車", actor_name=actor_name)
 
-    class VehicleCategory(models.TextChoices):
-        NEW = "new", "新車"
-        USED = "used", "中古車"
-
     class TransactionType(models.TextChoices):
         REGULAR_NEW = "regular_new", "一般新車"
         REGISTERED = "registered", "領牌車"
@@ -3212,12 +3208,6 @@ class SalesOrder(TimeStampedModel):
         null=True,
         related_name="active_order",
         verbose_name="已配車輛",
-    )
-    vehicle_category = models.CharField(
-        "車輛類別",
-        max_length=10,
-        choices=VehicleCategory.choices,
-        default=VehicleCategory.NEW,
     )
     transaction_type = models.CharField(
         "交易類型",
@@ -3604,6 +3594,11 @@ class SalesOrder(TimeStampedModel):
     def needs_customer_signatures(self):
         """只有本店來源的訂單需要客人簽車輛訂購單與個資同意書；車行、網路平台略過這一步（使用者 2026-10-13）。"""
         return self.source_type == self.SourceType.STORE
+
+    @property
+    def is_used_transaction(self):
+        """中古車交易：原「車輛類別＝中古車」，2026-10-20 起只看交易類型。"""
+        return self.transaction_type == self.TransactionType.USED
 
     @property
     def has_signed_contract(self):
@@ -4248,10 +4243,6 @@ class SalesOrder(TimeStampedModel):
                 period__starts_on__lte=self.registration_date, period__ends_on__gte=self.registration_date,
             ).exists():
                 errors["commission_recipient"] = "目標車行在該領牌期間已結算台數獎金，不能加入或變更已結算清單。"
-        if self.vehicle_category == self.VehicleCategory.USED:
-            self.transaction_type = self.TransactionType.USED
-        elif self.transaction_type == self.TransactionType.USED:
-            errors["transaction_type"] = "中古車交易的車輛類別也必須選擇中古車。"
         if self.color_id and self.vehicle_model_id:
             if self.color.vehicle_model_id != self.vehicle_model_id:
                 errors["color"] = "此車色不屬於選定車型。"

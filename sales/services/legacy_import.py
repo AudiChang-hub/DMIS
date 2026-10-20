@@ -34,6 +34,7 @@ from sales.models import (
     normalize_vehicle_identifier,
     payment_ledger_maintenance,
 )
+from sales.services.import_sales_category import USED as SALES_USED, is_new_sales_row, sales_row_category
 from sales.services.import_order_review import (
     KIND_MESSAGES as REVIEW_KIND_MESSAGES,
     REVIEW_MESSAGES,
@@ -306,8 +307,7 @@ def build_import_master_workspace(batch):
                         "source_row": source_row,
                         "context_label": (
                             "中古車銷售"
-                            if data.get("vehicle_category")
-                            == SalesOrder.VehicleCategory.USED
+                            if sales_row_category(data) == SALES_USED
                             else "新車銷售"
                             if sheet_name == "銷貨"
                             else "庫存進貨"
@@ -661,18 +661,18 @@ def _date(value):
     return None
 
 
-def _infer_sales_vehicle_category(raw, dealer_name):
-    """只使用明確的中古車交易文字，避免把新車的舊車估價誤判為中古車。"""
+def _infer_used_sales_reason(raw, dealer_name):
+    """只使用明確的中古車交易文字，避免把新車的舊車估價誤判為中古車；不是中古車回傳空字串。"""
     dealer = _text(dealer_name).replace(" ", "")
     note = _text(raw.get("備註"))
     subsidy = _text(raw.get("補助方案"))
     if dealer == "中古車":
-        return SalesOrder.VehicleCategory.USED, "車行欄位為中古車"
+        return "車行欄位為中古車"
     if "中古車買賣" in note or note.strip() == "中古車":
-        return SalesOrder.VehicleCategory.USED, "備註標示中古車交易"
+        return "備註標示中古車交易"
     if "中古車過戶" in subsidy:
-        return SalesOrder.VehicleCategory.USED, "補助方案標示中古車過戶"
-    return SalesOrder.VehicleCategory.NEW, "未發現中古車交易標記"
+        return "補助方案標示中古車過戶"
+    return ""
 
 
 TRANSACTION_TYPE_MARKERS = (
@@ -683,10 +683,11 @@ TRANSACTION_TYPE_MARKERS = (
 )
 
 
-def _infer_sales_transaction_type(raw, dealer_name, vehicle_category, sales_category=""):
-    """交易類型與來源分開判斷，避免把「試乘車」建立成通路。"""
-    if vehicle_category == SalesOrder.VehicleCategory.USED:
-        return SalesOrder.TransactionType.USED, "車輛類別為中古車"
+def _infer_sales_transaction_type(raw, dealer_name, sales_category=""):
+    """交易類型與來源分開判斷，避免把「試乘車」建立成通路；中古車交易優先。"""
+    used_reason = _infer_used_sales_reason(raw, dealer_name)
+    if used_reason:
+        return SalesOrder.TransactionType.USED, used_reason
     text = " ".join(
         filter(
             None,
@@ -780,7 +781,7 @@ def _sales_transaction_key(data):
         filter(None, (data.get("model_number", ""), data.get("plate_number", "")))
     )
     vehicle_key = identifier or vehicle_fallback or "unknown-vehicle"
-    category = data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW
+    category = sales_row_category(data)
     transaction_date = (
         data.get("registration_date")
         or data.get("invoice_date")
@@ -901,15 +902,10 @@ def _operations_sales_rows(batch, workbook):
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
         raw = _row_dict_values(headers, row_values)
         dealer_name_raw = _text(cell("dealer_name"))
-        vehicle_category, vehicle_category_reason = _infer_sales_vehicle_category(
-            raw,
-            dealer_name_raw,
-        )
         sales_category = text_cell("sales_category")
         transaction_type, transaction_type_reason = _infer_sales_transaction_type(
             raw,
             dealer_name_raw,
-            vehicle_category,
             sales_category,
         )
         dealer_name = _clean_sales_source_name(dealer_name_raw)
@@ -936,8 +932,6 @@ def _operations_sales_rows(batch, workbook):
             and (not old_owner_id_number or old_owner_id_number == owner_id_number)
         )
         mapped = {
-            "vehicle_category": vehicle_category,
-            "vehicle_category_reason": vehicle_category_reason,
             "transaction_type": transaction_type,
             "transaction_type_reason": transaction_type_reason,
             "model_number": model_number,
@@ -1265,19 +1259,14 @@ def revalidate_import_batch(batch):
         raise ValueError("只有待確認批次可以重新驗證。")
     rows = list(batch.rows.order_by("sheet_name", "source_row"))
     active_rows = [row for row in rows if not row.excluded]
-    # 舊版預覽批次沒有車輛類別與交易類型；重新驗證時補上推論結果。
-    # 已經人工指定的內容一律保留。
+    # 舊版預覽批次沒有交易類型；重新驗證時補上推論結果。已經人工指定的內容一律保留。
+    # 2026-10-20 起不再存車輛類別：人工指定過中古車的舊列轉成交易類型，再移除舊鍵。
     for row in active_rows:
         if row.sheet_name != "銷貨":
             continue
         mapped_data = dict(row.mapped_data)
-        if not mapped_data.get("vehicle_category"):
-            category, reason = _infer_sales_vehicle_category(
-                row.raw_data,
-                mapped_data.get("dealer_name_raw") or mapped_data.get("dealer_name", ""),
-            )
-            mapped_data["vehicle_category"] = category
-            mapped_data["vehicle_category_reason"] = reason
+        legacy_category = mapped_data.pop("vehicle_category", None)
+        mapped_data.pop("vehicle_category_reason", None)
         if not row.manually_corrected:
             mapped_data["dealer_name_raw"] = (
                 mapped_data.get("dealer_name_raw")
@@ -1289,18 +1278,19 @@ def revalidate_import_batch(batch):
             transaction_type, reason = _infer_sales_transaction_type(
                 row.raw_data,
                 mapped_data.get("dealer_name_raw", ""),
-                mapped_data["vehicle_category"],
                 mapped_data.get("sales_category", ""),
             )
             mapped_data["transaction_type"] = transaction_type
             mapped_data["transaction_type_reason"] = reason
         elif not mapped_data.get("transaction_type"):
-            transaction_type, reason = _infer_sales_transaction_type(
-                row.raw_data,
-                mapped_data.get("dealer_name_raw", ""),
-                mapped_data["vehicle_category"],
-                mapped_data.get("sales_category", ""),
-            )
+            if legacy_category == SALES_USED:
+                transaction_type, reason = SalesOrder.TransactionType.USED, "人工調整"
+            else:
+                transaction_type, reason = _infer_sales_transaction_type(
+                    row.raw_data,
+                    mapped_data.get("dealer_name_raw", ""),
+                    mapped_data.get("sales_category", ""),
+                )
             mapped_data["transaction_type"] = transaction_type
             mapped_data["transaction_type_reason"] = reason
         mapped_data["note"] = _sales_order_note(
@@ -1334,11 +1324,7 @@ def revalidate_import_batch(batch):
                 sales_plateless_counts[plateless_key] = (
                     sales_plateless_counts.get(plateless_key, 0) + 1
                 )
-            if (
-                identifier
-                and row.mapped_data.get("vehicle_category", SalesOrder.VehicleCategory.NEW)
-                == SalesOrder.VehicleCategory.NEW
-            ):
+            if identifier and is_new_sales_row(row.mapped_data):
                 sales_new_identifier_counts[identifier] = (
                     sales_new_identifier_counts.get(identifier, 0) + 1
                 )
@@ -1398,10 +1384,7 @@ def revalidate_import_batch(batch):
                 row.action = LegacyImportRow.Action.CREATE
         elif row.sheet_name == "銷貨":
             identifier = row.mapped_data.get("identifier", "")
-            category = row.mapped_data.get(
-                "vehicle_category",
-                SalesOrder.VehicleCategory.NEW,
-            )
+            is_new_sale = is_new_sales_row(row.mapped_data)
             is_placeholder = _is_empty_sales_placeholder(row.mapped_data)
             is_non_vehicle_noise = _is_non_vehicle_sales_noise(row.mapped_data)
             if is_placeholder or is_non_vehicle_noise:
@@ -1421,7 +1404,7 @@ def revalidate_import_batch(batch):
                     row.action = LegacyImportRow.Action.CONFLICT
                     messages.append(DUPLICATE_SALES_TRANSACTION_MESSAGE)
                 elif (
-                    category == SalesOrder.VehicleCategory.NEW
+                    is_new_sale
                     and identifier
                     and sales_new_identifier_counts.get(identifier, 0) > 1
                 ):
@@ -1541,7 +1524,7 @@ def revalidate_import_batch(batch):
                 not in known_sources
             }),
             "used_vehicle_sales": sum(
-                row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.USED
+                sales_row_category(row.mapped_data) == SALES_USED
                 for row in sales_rows
             ),
             "combined_fee_income_rows": sum(
@@ -1606,12 +1589,9 @@ def apply_import_row_decision(row, mapping, decision, reason, actor_name):
         updated.update({key: _json_clean_value(value) for key, value in mapping.items()})
         if "identifier_raw" in mapping:
             updated["identifier"] = normalize_vehicle_identifier(mapping.get("identifier_raw")) or ""
-        if (
-            row.sheet_name == "銷貨"
-            and mapping.get("vehicle_category")
-            and mapping.get("vehicle_category") != before.get("vehicle_category")
-        ):
-            updated["vehicle_category_reason"] = "人工調整"
+        if row.sheet_name == "銷貨":
+            updated.pop("vehicle_category", None)
+            updated.pop("vehicle_category_reason", None)
         if (
             row.sheet_name == "銷貨"
             and mapping.get("transaction_type")
@@ -1882,9 +1862,9 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
             return
     model = _model_for_number(data["model_number"])
     color = _color_for_model(model, data["color"])
-    vehicle_category = data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW
+    is_new_sale = is_new_sales_row(data)
     vehicle = None
-    if vehicle_category == SalesOrder.VehicleCategory.NEW and data["identifier"]:
+    if is_new_sale and data["identifier"]:
         vehicle = VehicleInventory.objects.filter(normalized_engine_number=data["identifier"]).first() or VehicleInventory.objects.filter(normalized_frame_number=data["identifier"]).first()
     order_date = _date(data["order_date"]) or (
         timezone.localdate() if pending_order
@@ -1906,11 +1886,13 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         owner_name=data["owner_name"] or "歷史資料未填", owner_phone=data["owner_phone"] or "未提供",
         owner_email=data["owner_email"], owner_birth_date=_date(data["owner_birth_date"]),
         owner_address=data["owner_address"] or "未提供", owner_id_number=owner_id,
-        vehicle_model=model, color=color, vehicle_price=pending_order["vehicle_price"] if pending_order else 0, vehicle_category=vehicle_category,
+        vehicle_model=model, color=color, vehicle_price=pending_order["vehicle_price"] if pending_order else 0,
         actual_balance=pending_order["balance"] if pending_order else 0,
         balance_adjustment_reason=pending_order["reason"] if pending_order else "",
         vehicle_price_adjustment_reason=pending_order["reason"] if pending_order else "",
-        transaction_type=data.get("transaction_type") or SalesOrder.TransactionType.REGULAR_NEW,
+        transaction_type=SalesOrder.TransactionType.USED if not is_new_sale else (
+            data.get("transaction_type") or SalesOrder.TransactionType.REGULAR_NEW
+        ),
         registration_date=_date(data["registration_date"]), final_plate_number=data["plate_number"],
         payment_type=SalesOrder.PaymentType.INSTALLMENT if data["installment_periods"] else (SalesOrder.PaymentType.CARD if _decimal(data["card_received"]) else SalesOrder.PaymentType.CASH),
         installment_company=data["installment_company"], installment_periods=data["installment_periods"],
@@ -1921,7 +1903,7 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         old_owner_household_address=_clip(SalesOrder, "old_owner_household_address", data.get("old_owner_household", "")),
         note=data.get("note", ""),
         is_trade_in_subsidy=(
-            vehicle_category == SalesOrder.VehicleCategory.NEW
+            is_new_sale
             and (bool(data["trade_in_plate"]) or bool(data.get("trade_in_marked")))
         ),
         allocated_vehicle=vehicle,

@@ -122,7 +122,6 @@ def build_order_overview(order, *, include_finance=True):
             _row("型號", getattr(model, "model_number", "") if model else "", mono=True),
             _row("年式", getattr(model, "model_year", "") if model else ""),
             _row("車色", order.color.name if order.color_id else ""),
-            _row("車輛類別", _display(order, "vehicle_category")),
             _row("引擎號碼", vehicle.engine_number if vehicle else legacy_identifier, mono=True),
             _row("車身號碼", vehicle.frame_number if vehicle else "", mono=True),
             _row("出廠年月", getattr(vehicle, "manufactured_year_month", "") if vehicle else ""),

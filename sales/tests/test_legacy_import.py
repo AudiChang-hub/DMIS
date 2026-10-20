@@ -34,7 +34,7 @@ from sales.services.legacy_import import (
     PREVIEW_SCHEMA_VERSION,
     _clean_sales_source_name,
     _infer_sales_transaction_type,
-    _infer_sales_vehicle_category,
+    _sales_transaction_key,
     _sales_order_note,
     apply_import_row_decision,
     build_import_master_workspace,
@@ -683,7 +683,7 @@ class LegacyImportTests(TestCase):
         form = LegacyImportRowCorrectionForm(row=row)
         self.assertIn("換買家", form.review["comparisons"][0]["title"])
         self.assertIn("owner_id_number", form.review["notes"])
-        row.mapped_data["vehicle_category"] = SalesOrder.VehicleCategory.USED
+        row.mapped_data["transaction_type"] = SalesOrder.TransactionType.USED
         self.assertEqual(LegacyImportRowCorrectionForm(row=row).review["comparisons"][0]["order"], order)
 
     def test_import_review_lists_all_orders_beyond_five_and_peer_rows(self):
@@ -691,7 +691,7 @@ class LegacyImportTests(TestCase):
         for index in range(6):
             archived = SalesOrder.objects.create(owner_name=f"歷史買家{index}", owner_id_number=f"HIST-REVIEW-{index}",
                 owner_phone="未提供", owner_address="未提供", vehicle_model=original.vehicle_model, color=original.color,
-                vehicle_category=SalesOrder.VehicleCategory.USED, status=SalesOrder.Status.CANCELLED)
+                transaction_type=SalesOrder.TransactionType.USED, status=SalesOrder.Status.CANCELLED)
             peer = LegacyImportRow.objects.create(batch=row.batch, sheet_name="銷貨", source_row=1800+index,
                 fingerprint=f"peer-{index}", natural_key=f"peer-{index}", action="create", mapped_data=original.legacy_snapshot.import_row.mapped_data,
                 committed_model="SalesOrder", committed_pk=str(archived.pk))
@@ -951,21 +951,32 @@ class LegacyImportTests(TestCase):
         self.assertEqual(batch.result_summary["errors"], 0)
 
     def test_explicit_used_vehicle_signals_do_not_match_trade_in_wording(self):
+        used = SalesOrder.TransactionType.USED
+        self.assertEqual(_infer_sales_transaction_type({}, "中古車"), (used, "車行欄位為中古車"))
+        self.assertEqual(_infer_sales_transaction_type({"備註": "中古車買賣"}, ""), (used, "備註標示中古車交易"))
         self.assertEqual(
-            _infer_sales_vehicle_category({}, "中古車")[0],
-            SalesOrder.VehicleCategory.USED,
+            _infer_sales_transaction_type({"補助方案": "FUN 中古車過戶"}, ""), (used, "補助方案標示中古車過戶")
         )
+        # 中古車標記優先於試乘車等其他交易類型文字。
+        self.assertEqual(_infer_sales_transaction_type({"備註": "中古車買賣"}, "昌勝(試乘車)")[0], used)
         self.assertEqual(
-            _infer_sales_vehicle_category({"備註": "中古車買賣"}, "")[0],
-            SalesOrder.VehicleCategory.USED,
+            _infer_sales_transaction_type({"備註": "新車成交，另有中古車估價"}, "")[0],
+            SalesOrder.TransactionType.REGULAR_NEW,
         )
+
+    def test_sales_transaction_key_unchanged_after_vehicle_category_removed(self):
+        """2026-10-20 起不再存車輛類別；交易鍵仍是 new／used，已匯入列的 natural_key 不變。"""
+        base = {"identifier": "AB123", "registration_date": "2025-01-02", "owner_name": "王小明"}
+        legacy_new = _sales_transaction_key({**base, "vehicle_category": "new"})
+        legacy_used = _sales_transaction_key({**base, "vehicle_category": "used"})
+        self.assertIn(":new:", legacy_new)
+        self.assertIn(":used:", legacy_used)
+        for transaction_type in ("regular_new", "test_ride", "prize", "registered", "other"):
+            self.assertEqual(_sales_transaction_key({**base, "transaction_type": transaction_type}), legacy_new)
+        self.assertEqual(_sales_transaction_key({**base, "transaction_type": "used"}), legacy_used)
+        # 舊預覽列兩鍵都有時以交易類型為準（人工把交易類型改掉後不會留著舊類別）。
         self.assertEqual(
-            _infer_sales_vehicle_category({"補助方案": "FUN 中古車過戶"}, "")[0],
-            SalesOrder.VehicleCategory.USED,
-        )
-        self.assertEqual(
-            _infer_sales_vehicle_category({"備註": "新車成交，另有中古車估價"}, "")[0],
-            SalesOrder.VehicleCategory.NEW,
+            _sales_transaction_key({**base, "vehicle_category": "used", "transaction_type": "regular_new"}), legacy_new
         )
 
     def test_transaction_type_is_separated_from_sales_source_name(self):
@@ -977,21 +988,15 @@ class LegacyImportTests(TestCase):
             _clean_sales_source_name("昌勝(代申請補助)"), "昌勝"
         )
         self.assertEqual(
-            _infer_sales_transaction_type(
-                {}, "昌勝(試乘車)", SalesOrder.VehicleCategory.NEW
-            )[0],
+            _infer_sales_transaction_type({}, "昌勝(試乘車)")[0],
             SalesOrder.TransactionType.TEST_RIDE,
         )
         self.assertEqual(
-            _infer_sales_transaction_type(
-                {}, "中獎車", SalesOrder.VehicleCategory.NEW
-            )[0],
+            _infer_sales_transaction_type({}, "中獎車")[0],
             SalesOrder.TransactionType.PRIZE,
         )
         self.assertEqual(
-            _infer_sales_transaction_type(
-                {}, "中古車", SalesOrder.VehicleCategory.USED
-            )[0],
+            _infer_sales_transaction_type({}, "中古車")[0],
             SalesOrder.TransactionType.USED,
         )
         self.assertEqual(
@@ -1081,17 +1086,20 @@ class LegacyImportTests(TestCase):
         self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
         sales_rows = list(batch.rows.filter(sheet_name="銷貨").order_by("source_row"))
         self.assertEqual(len(sales_rows), 2)
-        self.assertEqual(sales_rows[0].mapped_data["vehicle_category"], "new")
-        self.assertEqual(sales_rows[1].mapped_data["vehicle_category"], "used")
+        self.assertNotIn("vehicle_category", sales_rows[0].mapped_data)
+        self.assertEqual(sales_rows[0].mapped_data["transaction_type"], SalesOrder.TransactionType.REGULAR_NEW)
+        self.assertEqual(sales_rows[1].mapped_data["transaction_type"], SalesOrder.TransactionType.USED)
+        self.assertIn(":new:", sales_rows[0].natural_key)
+        self.assertIn(":used:", sales_rows[1].natural_key)
         self.assertNotEqual(sales_rows[0].natural_key, sales_rows[1].natural_key)
 
         confirm_import(batch, "tester")
 
         new_order = SalesOrder.objects.get(owner_name="正式車主")
         used_order = SalesOrder.objects.get(owner_name="中古車主")
-        self.assertEqual(new_order.vehicle_category, SalesOrder.VehicleCategory.NEW)
+        self.assertFalse(new_order.is_used_transaction)
         self.assertIsNotNone(new_order.allocated_vehicle)
-        self.assertEqual(used_order.vehicle_category, SalesOrder.VehicleCategory.USED)
+        self.assertEqual(used_order.transaction_type, SalesOrder.TransactionType.USED)
         self.assertIsNone(used_order.allocated_vehicle)
         self.assertEqual(used_order.legacy_snapshot.vehicle_identifier, "AB-123")
         self.assertIn("ab123", used_order.search_index.search_text)
@@ -1099,13 +1107,18 @@ class LegacyImportTests(TestCase):
         self.assertContains(detail, "歷史中古車交易")
         self.assertContains(detail, "不需占用新車庫存")
 
-    def test_revalidate_backfills_vehicle_category_for_existing_preview(self):
+    def test_revalidate_converts_legacy_vehicle_category_preview(self):
+        """1.86.25 前的預覽列存了車輛類別、可能沒有交易類型；重新驗證改成只看交易類型。"""
         batch = self.make_used_vehicle_batch()
         build_import_preview(batch)
         for row in batch.rows.filter(sheet_name="銷貨"):
             mapped_data = dict(row.mapped_data)
-            mapped_data.pop("vehicle_category", None)
-            mapped_data.pop("vehicle_category_reason", None)
+            mapped_data["vehicle_category"] = (
+                "used" if mapped_data["transaction_type"] == SalesOrder.TransactionType.USED else "new"
+            )
+            mapped_data["vehicle_category_reason"] = "舊版推論"
+            mapped_data.pop("transaction_type", None)
+            mapped_data.pop("transaction_type_reason", None)
             row.mapped_data = mapped_data
             row.save(update_fields=["mapped_data", "updated_at"])
         placeholder = LegacyImportRow.objects.create(
@@ -1131,8 +1144,10 @@ class LegacyImportTests(TestCase):
         self.assertEqual(summary["counts"]["conflict"], 0)
         self.assertEqual(summary["counts"]["skip"], 1)
         self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
-        self.assertEqual(rows[0].mapped_data["vehicle_category"], "new")
-        self.assertEqual(rows[1].mapped_data["vehicle_category"], "used")
+        self.assertEqual(rows[0].mapped_data["transaction_type"], SalesOrder.TransactionType.REGULAR_NEW)
+        self.assertEqual(rows[1].mapped_data["transaction_type"], SalesOrder.TransactionType.USED)
+        self.assertNotIn("vehicle_category", rows[1].mapped_data)
+        self.assertNotIn("vehicle_category_reason", rows[1].mapped_data)
         placeholder.refresh_from_db()
         self.assertEqual(placeholder.action, LegacyImportRow.Action.SKIP)
         self.assertIn("Excel 空白公式列，系統自動略過", placeholder.messages)
@@ -1180,7 +1195,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(summary["counts"]["conflict"], 2)
         later_row = batch.rows.filter(sheet_name="銷貨").order_by("source_row").last()
         mapping = dict(later_row.mapped_data)
-        mapping["vehicle_category"] = SalesOrder.VehicleCategory.USED
+        mapping["transaction_type"] = SalesOrder.TransactionType.USED
         summary = apply_import_row_decision(
             later_row,
             mapping,
@@ -1190,7 +1205,30 @@ class LegacyImportTests(TestCase):
         )
         later_row.refresh_from_db()
         self.assertEqual(summary["counts"]["conflict"], 0)
-        self.assertEqual(later_row.mapped_data["vehicle_category_reason"], "人工調整")
+        self.assertEqual(later_row.mapped_data["transaction_type_reason"], "人工調整")
+        self.assertIn(":used:", later_row.natural_key)
+
+    def test_revalidate_keeps_manual_used_category_from_legacy_preview(self):
+        """舊預覽列人工指定中古車、卻沒有交易類型：重新驗證轉成中古車交易，不被推論蓋掉。"""
+        batch = self.make_used_vehicle_batch(mark_as_used=False)
+        build_import_preview(batch)
+        later_row = batch.rows.filter(sheet_name="銷貨").order_by("source_row").last()
+        mapped_data = dict(later_row.mapped_data)
+        mapped_data.pop("transaction_type", None)
+        mapped_data.pop("transaction_type_reason", None)
+        mapped_data["vehicle_category"] = "used"
+        mapped_data["vehicle_category_reason"] = "人工調整"
+        later_row.mapped_data = mapped_data
+        later_row.manually_corrected = True
+        later_row.save(update_fields=["mapped_data", "manually_corrected", "updated_at"])
+
+        summary = revalidate_import_batch(batch)
+
+        later_row.refresh_from_db()
+        self.assertEqual(summary["counts"]["conflict"], 0)
+        self.assertEqual(later_row.mapped_data["transaction_type"], SalesOrder.TransactionType.USED)
+        self.assertEqual(later_row.mapped_data["transaction_type_reason"], "人工調整")
+        self.assertNotIn("vehicle_category", later_row.mapped_data)
 
     def test_channel_preview_groups_source_and_contact(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)

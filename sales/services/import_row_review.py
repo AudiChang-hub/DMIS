@@ -4,6 +4,7 @@ import re
 from django.db.models import Q
 
 from sales.models import LegacyImportRow, SalesOrder, VehicleInventory, normalize_vehicle_identifier
+from sales.services.import_sales_category import is_new_sales_row
 
 
 COMPARISON_FIELDS = {
@@ -83,7 +84,7 @@ def build_import_row_review(row, labels):
             if row.sheet_name == "進貨":
                 title = "同號碼已有銷售紀錄：請核對庫存與交易"
                 guidance = "進貨與銷貨是不同用途的資料，買家欄位空白不代表退訂。請先核對車輛狀態與相關訂單。"
-            elif row.mapped_data.get("vehicle_category") and row.mapped_data["vehicle_category"] != order.vehicle_category:
+            elif is_new_sales_row(row.mapped_data) == order.is_used_transaction:
                 title = "同車輛的不同交易類別：請核對完整歷史"
                 guidance = "新車與中古轉售可能是合法的不同交易，不會僅憑相同號碼判定重複或取消原單。"
             elif "owner_name" in differences or identity_changed:
@@ -110,13 +111,13 @@ def build_import_row_review(row, labels):
 
     replacement_candidates = [item["order"] for item in comparisons
         if row.batch.status == "completed" and row.action == "error" and not row.committed_model and not row.committed_pk
-        and row.sheet_name == "銷貨" and row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.NEW
-        and item["occupies_vehicle"] and item["order"].vehicle_category == SalesOrder.VehicleCategory.NEW
+        and row.sheet_name == "銷貨" and is_new_sales_row(row.mapped_data)
+        and item["occupies_vehicle"] and not item["order"].is_used_transaction
         and _text(row.mapped_data.get("owner_name")) and _text(row.mapped_data.get("owner_name")) != item["order"].owner_name.strip()]
     date_candidates = [item["order"] for item in comparisons
         if row.batch.status == "completed" and row.action == "error" and not row.committed_model and not row.committed_pk
-        and row.sheet_name == "銷貨" and row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.NEW
-        and item["occupies_vehicle"] and item["order"].vehicle_category == SalesOrder.VehicleCategory.NEW
+        and row.sheet_name == "銷貨" and is_new_sales_row(row.mapped_data)
+        and item["occupies_vehicle"] and not item["order"].is_used_transaction
         and same_import_buyer(row.mapped_data, item["order"])
         and _text(row.mapped_data.get("registration_date")) != _text(item["order"].registration_date)]
     return {"notes": notes, "comparisons": comparisons, "peer_rows": peer_rows, "identifier": identifier,

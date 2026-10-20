@@ -285,7 +285,8 @@
     </div>
     <div class="conditional-panel" data-conditional="installment">
       <h3>分期資料</h3>
-      <div{% if intake_mode and not intake_pricing_editable %} hidden{% endif %}>{% include "sales/_field.html" with field=form.installment_custom %}</div>
+      {# 自訂分期一律從下方「其他／自訂分期」按鈕進入（使用者 2026-10-20 T-23）；勾選框留著但不顯示，由按鈕同步，既有自訂分期照常顯示與編輯。 #}
+      <div hidden>{{ form.installment_custom }}</div>
       <div class="installment-picker">
         <div class="form-grid">
           <div class="field"><label for="installment-company-choice">分期公司（車型方案）</label><select id="installment-company-choice"><option value="">載入已設定的公司…</option></select></div>
@@ -302,39 +303,40 @@
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
     </div>
     {% comment %}只有調價權限（無財務權限）的人仍要填牌險費：只顯示牌險費，規費明細停用並隱藏（使用者 2026-10-15）。
-    建立訂單時客人看得到畫面，有財務權限也只顯示牌險費，不列系統算出的明細與金額（使用者 2026-10-20）；明細在訂單頁的店內財務。{% endcomment %}
+    建立訂單時客人看得到畫面，有財務權限也只顯示牌險費（2026-10-20）；明細在訂單頁的店內財務。
+    牌險費只有一層、一格，標籤「牌險費」，不加 placeholder 與說明（使用者 2026-10-20 T-24）；試算欄位留在隱藏區給前端計算。{% endcomment %}
     {% if intake_mode and intake_finance_editable %}{% firstof "1" as plate_fee_only %}{% elif intake_mode and intake_pricing_editable %}{% firstof "1" as plate_fee_only %}{% endif %}
-    <details class="card" open {% if intake_mode and not intake_finance_editable and not intake_pricing_editable %}hidden{% endif %}><summary>{% if plate_fee_only %}牌險費{% else %}店內財務・領牌規費與強制險{% endif %}</summary><div class="subsection registration-fee-subsection{% if plate_fee_only %} is-plate-only{% endif %}">
-      <div class="section-title" {% if plate_fee_only %}hidden{% endif %}>
+    {% if plate_fee_only %}
+    <div class="conditional-panel plate-fee-only">
+      <div hidden>
+        <p id="registration-rate-summary"></p>
+        {% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}
+        {% include "sales/_registration_fee_details.html" %}
+      </div>
+      <div class="form-grid" id="gas-registration-calculator">{% include "sales/_field.html" with field=form.plate_insurance_fee %}</div>
+      <div id="non-gas-registration-message" class="note-box" hidden>選擇動力類型與車型後顯示牌險欄位。</div>
+    </div>
+    {% else %}
+    <details class="card" open {% if intake_mode %}hidden{% endif %}><summary>店內財務・領牌規費與強制險</summary><div class="subsection registration-fee-subsection">
+      <div class="section-title">
         <div>
           <h3>領牌規費與強制險</h3>
           <p id="registration-rate-summary">{% site_text 'order_form.22518dd5a27d' %}</p>
         </div>
       </div>
       <div id="gas-registration-calculator">
-        <div class="form-grid" {% if plate_fee_only %}hidden{% endif %}>{% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}</div>
+        <div class="form-grid">{% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}</div>
         <div class="form-grid">
-          <div class="registration-fee-details" {% if plate_fee_only %}hidden{% endif %}>
-          {{ form.registration_date.as_hidden }}
-          {% include "sales/_field.html" with field=form.compulsory_insurance_period %}
-          {% include "sales/_field.html" with field=form.registration_plate_fee %}
-          {% include "sales/_field.html" with field=form.registration_license_fee %}
-          {% include "sales/_field.html" with field=form.registration_inspection_fee %}
-          {% include "sales/_field.html" with field=form.road_maintenance_fee %}
-          {% include "sales/_field.html" with field=form.license_tax_fee %}
-          {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
-          {{ form.lien_registration_fee }}
-          {% include "sales/_field.html" with field=form.registration_calculated_total %}
-          </div>
+          <div class="registration-fee-details">{% include "sales/_registration_fee_details.html" %}</div>
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>
-        <p class="form-hint">{% site_text 'order_form.95121456d49f' %}</p>
       </div>
       <div id="non-gas-registration-message" class="note-box" hidden>
         選擇動力類型與車型後顯示牌險欄位。
       </div>
     </div>
     </details>
+    {% endif %}
   </details>
 
   <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>

@@ -1810,6 +1810,8 @@ input[type="file"].form-control { padding: var(--space-3); }
 .conditional-panel, .subsection { margin: 0 var(--stack-gap) var(--stack-gap); padding-top: var(--space-4); border-top: 1px solid var(--line); }
 .conditional-panel h3 { margin-bottom: 0; }
 .conditional-panel .form-grid { padding-inline: 0; }
+/* 建單的牌險費只有一格、沒有小標題（使用者 2026-10-20）：欄位直接接在分隔線下；加權以蓋過後面 @media 的內距。 */
+.conditional-panel.plate-fee-only .form-grid { padding-top: 0; }
 .accessory-row {
   position: relative;
   display: grid;
@@ -1842,8 +1844,6 @@ input[type="file"].form-control { padding: var(--space-3); }
   font-size: var(--text-sm-plus);
 }
 .registration-fee-subsection .form-grid { padding: var(--space-4) 0 var(--space-1); }
-/* 建單只顯示牌險費一格（使用者 2026-10-20）：標題列隱藏，欄位貼齊內框上緣；選擇器加權以蓋過後面 @media 的內距。 */
-.registration-fee-subsection.is-plate-only .form-grid { padding-top: 0; }
 .registration-fee-subsection input[readonly] {
   color: var(--ink-soft);
   background: var(--mint);

@@ -49,10 +49,13 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.grant_intake_only()
         ScreenAccessGrant.objects.create(user=self.user, screen_key="order_pricing", view=True, operate=True)
         page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()
-        self.assertIn('<details class="card" open ><summary>牌險費</summary>', page)
+        # 1.86.26：牌險費只有一層一格，不再包卡片；試算欄位在隱藏區。
+        self.assertIn('<div class="conditional-panel plate-fee-only">', page)
+        self.assertNotIn("<summary>牌險費</summary>", page)
         self.assertIn('name="plate_insurance_fee"', page)
         self.assertNotIn('name="plate_insurance_fee" disabled', page)
-        self.assertIn('<div class="registration-fee-details" hidden>', page)
+        hidden = page.split('<div class="conditional-panel plate-fee-only">', 1)[1].split('id="gas-registration-calculator"', 1)[0]
+        self.assertIn('name="registration_plate_fee"', hidden)
 
     def test_reception_mode_shows_and_saves_deposit_like_internal_flow(self):
         self.grant_intake_only()

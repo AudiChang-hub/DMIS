@@ -3881,6 +3881,12 @@ class SalesOrder(TimeStampedModel):
         return customer_balance(self)
 
     @property
+    def customer_receivable_total(self):
+        """扣訂金前的客人應收（現金單為總價、分期單為「分期外應收」）；尾款＝此金額－訂金。"""
+        from sales.services.customer_receivable import customer_receivable_total
+        return customer_receivable_total(self)
+
+    @property
     def is_electric_vehicle(self):
         return bool(self.vehicle_model_id and self.vehicle_model.energy_type != VehicleModel.EnergyType.GAS)
 

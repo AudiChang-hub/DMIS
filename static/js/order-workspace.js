@@ -252,6 +252,9 @@
     if (payload.customer_balance_due != null) {
       root.querySelectorAll('[data-customer-balance]').forEach(node => { node.textContent = '$' + Number(payload.customer_balance_due).toLocaleString('zh-TW'); });
     }
+    if (payload.customer_receivable_total != null) {
+      root.querySelectorAll('[data-customer-receivable]').forEach(node => { node.textContent = '$' + Number(payload.customer_receivable_total).toLocaleString('zh-TW'); });
+    }
     if (payload.discount) {
       root.querySelectorAll('[data-discount-summary]').forEach(node => { node.textContent = Number(payload.discount[node.dataset.discountSummary]).toLocaleString('zh-TW'); });
       root.querySelectorAll('[data-discount-total]').forEach(node => { node.dataset.discountTotal = payload.discount.before; });

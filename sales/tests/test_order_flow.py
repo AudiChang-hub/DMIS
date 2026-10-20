@@ -4475,8 +4475,8 @@ class OrderFlowTests(TestCase):
             "本人（或本公司）了解機車屬於財產登記制",
             extracted,
         )
-        self.assertIn("應收", extracted)
-        self.assertNotIn("現場應收", extracted)
+        self.assertIn("總價", extracted)
+        self.assertNotIn("應收", extracted)
         self.assertNotIn("分期總額", extracted)
         self.assertNotIn("收款說明", extracted)
         self.assertNotIn("領牌＋強制險，依單據收款", extracted)
@@ -4509,8 +4509,9 @@ class OrderFlowTests(TestCase):
             page.extract_text() for page in PdfReader(BytesIO(content)).pages
         )
 
-        self.assertIn("分期還款總額", extracted)
-        self.assertIn("應收", extracted)
+        self.assertIn("車價分期金額", extracted)
+        self.assertNotIn("分期還款總額", extracted)
+        self.assertIn("分期外應收", extracted)
         self.assertNotIn("收款說明", extracted)
         self.assertNotIn("領牌＋強制險，依單據收款", extracted)
         self.assertIn("選號費", extracted)

@@ -149,10 +149,13 @@ def build_order_overview(order, *, include_finance=True):
             _money_row("其他費用合計", order.other_fee_total, skip_zero=True),
             _money_row("已核准折扣", order.approved_discount_amount, skip_zero=True),
             _row("折扣原因", order.discount_reason if order.approved_discount_amount else ""),
+            # 分期外應收＝扣訂金前客人自付的部分（使用者 2026-10-20），尾款才扣訂金。
+            *([_money_row("分期外應收", order.customer_receivable_total)]
+              if order.payment_type == order.PaymentType.INSTALLMENT else []),
             _money_row("訂金", order.deposit_amount),
             _row("訂金收款日", _date(order.deposit_date) if order.deposit_amount else "", mono=True),
             _row("訂金收款方式", _display(order, "deposit_method") if order.deposit_amount else ""),
-            _money_row("尾款（應收）", order.customer_balance_due),
+            _money_row("尾款", order.customer_balance_due),
         ]),
     ]
 

@@ -427,6 +427,9 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
     else:
         plate_description = safe(print_copy(c, "contract.plate_description_pending", "領牌＋強制險，依單據收款"))
     plate_money = money(plate_amount) if plate_amount else "—"
+    if order.plate_insurance_auto:
+        # 留空照系統算的牌險不印金額（使用者 2026-10-20），應收與尾款也扣掉這筆、註明牌險另計。
+        plate_money = "另計"
     rows.append(
         [
             p("稅金"),
@@ -547,19 +550,13 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
             p(("同一人" if order.old_owner_same_as_owner else "不同人") if order.is_trade_in_subsidy else "—"),
         ]
     ]
-    if order.is_trade_in_subsidy and not order.old_owner_same_as_owner:
-        subsidy_data.append(
-            [
-                p("<b>舊車主姓名</b>"),
-                p(safe(order.old_owner_name)),
-                p("<b>舊車車牌</b>"),
-                p(safe(order.trade_in_plate)),
-            ]
-        )
+    # 舊車主姓名與舊車車牌訂單階段不會填，訂購單不再列，汰舊區只剩一列（使用者 2026-10-20）；訂單欄位與內容指紋照舊。
+    # 補助項目多時換行撐高該列，不再固定列高。
+    subsidy_widths = [25 * mm, 68 * mm, 25 * mm, 68 * mm]
     layout.draw_section("汰舊／補助資料", make_table(
         subsidy_data,
-        [25 * mm, 68 * mm, 25 * mm, 68 * mm],
-        row_heights=[7 * mm] * len(subsidy_data),
+        subsidy_widths,
+        row_heights=[fitted_row_height(row, subsidy_widths) for row in subsidy_data],
         styles=[
             ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
             ("BACKGROUND", (2, 0), (2, -1), GREEN_LIGHT),
@@ -568,6 +565,9 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
 
     # Payment
     is_installment = order.payment_type == order.PaymentType.INSTALLMENT
+    # 照系統算的牌險沒有印出金額，應收與尾款也不含它，避免相減推算出來（使用者 2026-10-20）。
+    hidden_plate = (order.plate_insurance_fee or 0) if order.plate_insurance_auto else 0
+    plate_note = "（牌險另計）" if hidden_plate else ""
     payment_first_row = [
         p("<b>付款方式</b>"),
         payment_lines(order),
@@ -578,14 +578,14 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
                 p("<b>分期還款總額</b>"),
                 p(f"${money(order.installment_monthly * order.installment_periods)}"),
                 p("<b>分期外應收</b>"),
-                p(f"${money(order.customer_balance_due)}"),
+                p(f"${money(order.customer_balance_due - hidden_plate)}{plate_note}"),
             ]
         )
     else:
         payment_first_row.extend(
             [
                 p("<b>應收</b>"),
-                p(f"${money(order.customer_balance_due + order.deposit_amount)}"),
+                p(f"${money(order.customer_balance_due + order.deposit_amount - hidden_plate)}{plate_note}"),
                 "",
                 "",
             ]
@@ -602,7 +602,7 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
         ],
         [
             p("<b>預估尾款</b>"),
-            p(f"${money(order.customer_balance_due)}"),
+            p(f"${money(order.customer_balance_due - hidden_plate)}{plate_note}"),
             "",
             "",
             "",

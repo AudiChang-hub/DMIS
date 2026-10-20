@@ -4860,21 +4860,20 @@ class OrderFlowTests(TestCase):
         self.assertEqual(inventory_response.status_code, 200)
         self.assertContains(inventory_response, "新增進車")
 
-    def test_delivery_destination_is_required_only_for_delivery_or_carrier(self):
-        required_data = {
-            "delivery_method": SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
-        }
-        direct_delivery_form = SalesOrderForm(data=required_data)
-        direct_delivery_form.is_valid()
-        self.assertIn(
-            "delivery_destination", direct_delivery_form.errors
+    def test_delivery_destination_is_optional_when_creating_order(self):
+        # 使用者 2026-10-20：客人可能還沒決定送到哪裡，送至指定地點或託運都不必先填目的地。
+        direct_delivery_form = SalesOrderForm(
+            data={"delivery_method": SalesOrder.DeliveryMethod.DIRECT_DELIVERY}
         )
+        direct_delivery_form.is_valid()
+        self.assertNotIn("delivery_destination", direct_delivery_form.errors)
+        self.assertFalse(direct_delivery_form.fields["delivery_destination"].required)
 
         carrier_form = SalesOrderForm(
             data={"delivery_method": SalesOrder.DeliveryMethod.CARRIER}
         )
         carrier_form.is_valid()
-        self.assertIn("delivery_destination", carrier_form.errors)
+        self.assertNotIn("delivery_destination", carrier_form.errors)
 
         pickup_form = SalesOrderForm(
             data={"delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP}

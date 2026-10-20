@@ -222,6 +222,23 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(actions.primary.key, "delivery")
         self.assertIn("?tab=delivery", actions.primary.url)
         self.assertEqual(actions.primary.target_tab, "delivery")
+        self.assertNotIn("送達地點", actions.primary.description)
+
+    def test_delivery_action_reminds_missing_destination(self):
+        # 送達地點建單時可留空（使用者 2026-10-20），交車前在建議裡提醒補上。
+        order = self.make_order()
+        order.allocate(self.make_vehicle())
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_completed_at=timezone.now(),
+            status=SalesOrder.Status.DELIVERY_PENDING,
+            delivery_method=SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
+            delivery_destination="",
+        )
+
+        actions = self.build(order)
+
+        self.assertEqual(actions.primary.key, "delivery")
+        self.assertIn("送達地點尚未填寫", actions.primary.description)
 
     def test_delivery_tab_marks_delivery_recommendation_as_current_work(self):
         order = self.make_order()

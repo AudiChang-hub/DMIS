@@ -120,7 +120,9 @@ class OrderCommissionRecipientTests(TestCase):
         for source_type in ("store", "dealer"):
             order = self.make_order(source_type=source_type, status=SalesOrder.Status.COMPLETED)
             page = self.client.get(reverse("order_detail", args=[order.pk]), {"attribution": "1"})
-            self.assertContains(page, "data-open-attribution")
+            # 台數歸屬小卡在頁首右上角，頂部不再有重複的「調整台數歸屬」按鈕（使用者 2026-10-20）。
+            self.assertNotContains(page, "data-open-attribution")
+            self.assertContains(page, 'class="detail-hero__side"')
             self.assertContains(page, 'class="commission-attribution__editor" open')
             self.assertContains(page, "data-commission-attribution-form")
             if source_type == "store":

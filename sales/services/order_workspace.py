@@ -166,6 +166,23 @@ def save_error(message, *, status=400, forms=()):
     return JsonResponse({'ok': False, 'error': message, 'errors': errors}, status=status)
 
 
+def delivery_gate(request, order, summary=None, balance=None):
+    """交車頁與自動儲存回應共用的交車判斷（使用者 2026-10-21 T-56）。
+
+    尾款可在交車表單一併登記時（一般單、系統尾款列未收妥、仍有尾款、有財務權限），尾款不列為阻擋，
+    送出時連同收款一起驗證。回傳 (是否在交車表單收尾款, 阻擋原因)。"""
+    if order.is_delivered:
+        return False, []
+    summary = summary or payment_summary(order)
+    if balance is None:
+        balance = next((p for p in order.payment_records.all() if p.system_key == "balance"), None)
+    collect = bool(
+        order.source_type != order.SourceType.DEALER and balance is not None and not balance.confirmed
+        and summary["delivery_due"] > 0 and can_edit_finance(request.user)
+    )
+    return collect, order.delivery_blockers(summary, ignore_balance=collect, include_prep=False)
+
+
 def saved(request, order, *, form=None, formsets=(), extra=None):
     """只回傳已保存資料；維持欄位 index，讓新增的明細可再次編輯。"""
     order.refresh_from_db()
@@ -189,7 +206,10 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         from sales.forms import PaymentRecordForm
         for payment in order.payment_records.filter(entry_type='receipt'):
             payment_values[str(payment.pk)] = field_values(PaymentRecordForm(instance=payment))
-    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(include_prep=False)
+    summary = payment_summary(order)
+    collect_balance, delivery_blockers = delivery_gate(request, order, summary)
+    # 頁面載入時沒有尾款欄位（當時尾款已收妥）就不能在交車表單收尾款，畫面改用含尾款的判斷。
+    strict_blockers = order.delivery_blockers(summary, include_prep=False) if collect_balance else delivery_blockers
     locked_payments = [str(pk) for pk in order.payment_records.filter(entry_type='receipt', confirmed=True).values_list('pk', flat=True)] if profile else []
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,
@@ -203,7 +223,10 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
         'delivery_ready': not delivery_blockers,
         'delivery_blocker': delivery_blockers[0] if delivery_blockers else '',
-        'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
+        'delivery_blockers': delivery_blockers,
+        'delivery_collect_balance': collect_balance,
+        'delivery_blockers_strict': strict_blockers,
+        'receipt_summary': {key: str(value) for key, value in summary.items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
         # 匯入單第一次存檔後，訂單編號下方的來源標記即時改為「Excel 匯入已修改」（services/order_origin.py）。

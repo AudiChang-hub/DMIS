@@ -284,13 +284,31 @@
     }
     if (Array.isArray(payload.locked_payments)) lockPayments(payload.locked_payments);
     if (typeof payload.delivery_ready === 'boolean') {
+      // 與頁面同一判斷（使用者 2026-10-21 T-56）：尾款可在交車表單一併登記時不擋；
+      // 但頁面載入時沒有尾款欄位（當時已收妥）就無法在這裡收，改用含尾款的判斷。原因清單同步顯示在按鈕下方。
+      const canCollect = Boolean(root.querySelector('#delivery-balance'));
+      const blockers = Array.isArray(payload.delivery_blockers)
+        ? (payload.delivery_collect_balance && !canCollect ? payload.delivery_blockers_strict : payload.delivery_blockers)
+        : (payload.delivery_ready ? [] : [payload.delivery_blocker].filter(Boolean));
+      const ready = blockers.length === 0;
       root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
-        button.disabled = !payload.delivery_ready; button.setAttribute('aria-disabled', String(!payload.delivery_ready));
-        button.textContent = payload.delivery_ready ? '確認完成交付' : '尚未符合交車條件';
-        if (!payload.delivery_ready && payload.delivery_blocker) button.title = payload.delivery_blocker;
-        if (payload.delivery_ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？'; }
+        button.disabled = !ready; button.setAttribute('aria-disabled', String(!ready));
+        button.textContent = !ready ? '尚未符合交車條件' : (canCollect && payload.delivery_collect_balance ? '收尾款並完成交車' : '確認完成交付');
+        if (!ready && blockers[0]) button.title = blockers[0];
+        if (ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？完成後訂單與實體車輛將鎖定。'; }
+      });
+      root.querySelectorAll('[data-delivery-blockers]').forEach(list => {
+        list.replaceChildren(...blockers.map(text => { const item = document.createElement('li'); item.textContent = text; return item; }));
+        list.hidden = ready;
       });
     }
+    // 系統尾款列的應收提示跟著最新應收更新（使用者 2026-10-21 T-56）。
+    if (payload.payment_values) root.querySelectorAll('[data-balance-due]').forEach(hint => {
+      const id = hint.closest('[data-payment-row]')?.querySelector('[name$="-id"]')?.value;
+      const expected = id && payload.payment_values[id]?.expected_amount;
+      const amount = hint.querySelector('[data-balance-due-amount]');
+      if (amount && expected != null && expected !== '') amount.textContent = Number(expected).toLocaleString('zh-TW');
+    });
     forms.forEach(form => {
       const updates = payload.sync?.[form.dataset.workspaceSave] || {};
       if (form.dataset.workspaceSave === 'operations' && payload.payment_values) {

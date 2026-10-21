@@ -105,7 +105,8 @@
       <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span></span></div>
       <div class="payment-records" id="payment-records">
         {% for payment in payment_formset %}
-          {% if not payment.instance.is_receivable_only %}
+          {# 未收的系統尾款列也列在收款明細，標出應收尾款，收到尾款直接填這一列（使用者 2026-10-21 T-56）。 #}
+          {% if not payment.instance.is_receivable_only or payment.instance.system_key == "balance" %}
             {% include "sales/_payment_receipt_row.html" %}
           {% endif %}
         {% endfor %}
@@ -117,7 +118,7 @@
     </section>
     {% comment %}應收一律照系統計算、畫面不顯示（使用者 2026-10-21 T-46）；應收列仍隨表單送出（全部隱藏），維持表單組的列數。{% endcomment %}
     <div hidden>
-      {% for payment in payment_formset %}{% if payment.instance.is_receivable_only %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
+      {% for payment in payment_formset %}{% if payment.instance.is_receivable_only and payment.instance.system_key != "balance" %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
     </div>
   </details>
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}

@@ -608,7 +608,8 @@
         </div>
         <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
       </div>
-      {% if delivery_blockers %}<ul class="delivery-blockers">{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+      {# 原因清單一律輸出，自動儲存後由 order-workspace.js 依最新判斷更新；沒有原因時隱藏（使用者 2026-10-21 T-56）。 #}
+      <ul class="delivery-blockers" data-delivery-blockers role="status" aria-live="polite"{% if not delivery_blockers %} hidden{% endif %}>{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>
     </form>
   {% else %}
     <p>{% site_text 'order_detail.5dd8edcdc2f2' %}</p>

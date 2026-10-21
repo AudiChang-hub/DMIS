@@ -5544,13 +5544,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     from .services.order_exception import exception_close_blockers
     detail_summary = payment_summary(order)
     from .services.order_intake import can_edit_finance
-    # 交車時可在同一表單收尾款；尾款阻擋改在送出時連同收款一起驗證。
-    collect_balance = bool(
-        not order.is_delivered and order.source_type != SalesOrder.SourceType.DEALER
-        and balance_payment is not None and not balance_payment.confirmed
-        and detail_summary["delivery_due"] > 0 and can_edit_finance(request.user)
-    )
-    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary, ignore_balance=collect_balance, include_prep=False)
+    # 交車時可在同一表單收尾款；尾款阻擋改在送出時連同收款一起驗證（與自動儲存回應共用同一判斷）。
+    collect_balance, delivery_blockers = order_workspace.delivery_gate(request, order, detail_summary, balance_payment)
     deposit_payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
     deposit_payment_form = None
     if deposit_payment is not None and can_edit_finance(request.user):

@@ -225,7 +225,7 @@
       <div class="installment-picker">
         <div class="form-grid">
           <div class="field"><label for="installment-company-choice">分期公司（車型方案）</label><select id="installment-company-choice"><option value="">載入已設定的公司…</option></select></div>
-          <div class="field"><label for="installment-period-choice">期數與每期金額</label><select id="installment-period-choice"><option value="">請先選擇分期公司</option></select></div>
+          <div class="field" id="installment-period-field"><label for="installment-period-choice">期數與每期金額</label><select id="installment-period-choice"><option value="">請先選擇分期公司</option></select></div>
         </div>
         <button class="button ghost" type="button" id="installment-manual-toggle" aria-expanded="true" {% if intake_mode and not intake_pricing_editable %}hidden{% endif %}>其他／自訂分期</button>
       </div>

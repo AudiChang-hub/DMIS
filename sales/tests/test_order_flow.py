@@ -6014,13 +6014,14 @@ class OrderOperationsTests(TestCase):
         visible_rows = html.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
         self.assertEqual(visible_rows.count('data-payment-row'), 1)
         self.assertIn('value="訂金"', visible_rows)
-        # 不額外預填人工列；新增按鈕使用單一空白 template。
+        # 不額外預填人工列；新增按鈕使用單一空白 template。1.86.3x（T-47）起訂金等系統列也能刪除，
+        # 所以刪除按鈕＝訂金列 1 個＋空白 template 1 個。
         self.assertEqual(
             html.count(
                 '<button type="button" class="button danger-outline small" '
                 "data-delete-payment>"
             ),
-            1,
+            2,
         )
 
     def test_installment_disbursement_can_be_confirmed_from_reconciliation_list(self):
@@ -6121,7 +6122,7 @@ class OrderOperationsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "收款與分期對帳")
+        self.assertContains(response, "<summary><strong>收款</strong>")
         self.assertTrue(
             OrderOperationsProfile.objects.filter(order=self.order).exists()
         )

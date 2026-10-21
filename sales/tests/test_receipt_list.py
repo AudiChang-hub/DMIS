@@ -91,9 +91,10 @@ class ReceiptListTests(TestCase):
         second = self.receipt(40000, confirmed=True, receipt_kind="lender")
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).actual_disbursement, 60000)
         self.assertEqual(payment_summary(self.order)["customer_due"], 2000)
+        reverse_payment(order_id=self.order.pk, payment_id=second.pk, actor_name="測試", reason="重複入帳")
+        # 1.86.3x 起已確認收款可直接刪除（T-47），但已沖銷的舊收款仍不能刪。
         with self.assertRaises(ValidationError):
             second.delete()
-        reverse_payment(order_id=self.order.pk, payment_id=second.pk, actor_name="測試", reason="重複入帳")
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).actual_disbursement, 20000)
         reverse_payment(order_id=self.order.pk, payment_id=first.pk, actor_name="測試", reason="撥款退回")
         profile = OrderOperationsProfile.objects.get(order=self.order)

@@ -14,14 +14,20 @@
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
     <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
-    {# 新車主資料依序往右排（使用者 2026-10-21）：證號 → 生日 → 電話 → Email → 地址；空白或匯入佔位值不顯示。 #}
-    <ul class="order-owner-facts" id="order-owner-facts" data-inplace-region aria-label="新車主資料">
-      {% if order.owner_id_number and not order.owner_id_number|slice:":5" == "HIST-" %}<li><span>{% if order.owner_type == "company" %}統一編號{% elif order.owner_type == "foreign" %}居留證號{% else %}身分證字號{% endif %}</span><strong class="order-owner-facts__mono">{{ order.owner_id_number }}</strong></li>{% endif %}
-      {% if order.owner_birth_date %}<li><span>生日</span><strong>{{ order.owner_birth_date|roc_date }}</strong><small>西元 {{ order.owner_birth_date|date:"Y/m/d" }}</small></li>{% endif %}
-      {% if order.owner_phone and order.owner_phone != "未提供" %}<li><span>電話</span><strong class="order-owner-facts__mono">{{ order.owner_phone }}</strong></li>{% endif %}
-      {% if order.owner_email %}<li><span>Email</span><strong class="order-owner-facts__email">{{ order.owner_email }}</strong></li>{% endif %}
-      {% if order.owner_address and order.owner_address != "未提供" %}<li class="order-owner-facts__address"><span>{% if order.owner_type == "company" %}公司地址{% else %}戶籍地址{% endif %}</span><strong>{{ order.owner_address }}</strong></li>{% endif %}
+    {# 頁首資料列（使用者 2026-10-21 T-42）：電話 → 車型 → 車色 → 車牌號碼 → 引擎號碼／車身號碼；證號、生日、Email、地址在「新車主資料」。配車前車牌與引擎／車身合成一格「配車後顯示」。 #}
+    {% with vehicle=order.allocated_vehicle legacy_identifier=order.legacy_snapshot.vehicle_identifier %}
+    <ul class="order-hero-facts" id="order-hero-facts" data-inplace-region aria-label="訂單重點資料">
+      {% if order.owner_phone and order.owner_phone != "未提供" %}<li><span>電話</span><strong class="order-hero-facts__mono">{{ order.owner_phone }}</strong></li>{% endif %}
+      {% if order.vehicle_model_id %}<li><span>車型</span><strong>{{ order.vehicle_model }}</strong></li>{% endif %}
+      {% if order.color_id %}<li><span>車色</span><strong>{{ order.color.name }}</strong></li>{% endif %}
+      {% if vehicle or legacy_identifier or order.final_plate_number %}
+      <li><span>車牌號碼</span>{% if order.final_plate_number %}<strong class="order-hero-facts__mono">{{ order.final_plate_number }}</strong>{% else %}<strong class="order-hero-facts__pending">尚未領牌</strong>{% endif %}</li>
+      <li><span>引擎號碼／車身號碼</span>{% if vehicle %}<strong class="order-hero-facts__mono">{% if vehicle.engine_number and vehicle.frame_number %}{{ vehicle.engine_number }}／{{ vehicle.frame_number }}{% else %}{{ vehicle.engine_number|default:vehicle.frame_number|default:"—" }}{% endif %}</strong>{% elif legacy_identifier %}<strong class="order-hero-facts__mono">{{ legacy_identifier }}</strong>{% else %}<strong class="order-hero-facts__pending">配車後顯示</strong>{% endif %}</li>
+      {% else %}
+      <li><span>車牌號碼・引擎號碼／車身號碼</span><strong class="order-hero-facts__pending">配車後顯示</strong></li>
+      {% endif %}
     </ul>
+    {% endwith %}
   </div>
   {# 頁首右側（使用者 2026-10-20）：台數歸屬縮成小卡放右上角（調整台數歸屬就是卡上的「變更」）；收入與支出、列印與簽署文件在左側步驟；管理本單權限不再提供入口。只留刪除與退車。 #}
   <div class="detail-hero__side">
@@ -127,6 +133,7 @@
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
 {% include "sales/_order_step_deposit.html" %}
+{% include "sales/_order_step_fees.html" %}
 </div></section>{% endwith %}
 {% if not editing_order and order.needs_customer_signatures %}
 {% with step=steps.documents %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-documents" data-step-key="documents" role="tabpanel" aria-labelledby="tab-documents" tabindex="-1">

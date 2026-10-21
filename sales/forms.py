@@ -1818,13 +1818,9 @@ class OrderEditForm(SalesOrderForm):
             self.fields["confirm_completed_correction"].required = True
         else:
             self.fields.pop("confirm_completed_correction")
-        # 訂金已收妥（入帳）後，訂單上的訂金跟著鎖定；要改請到「訂金」步驟關掉已收妥（使用者 2026-10-20 T-29）。
-        if self.instance.pk and self.instance.payment_records.filter(system_key="deposit", confirmed=True).exists():
-            for name in ("deposit_amount", "deposit_date", "deposit_method"):
-                if name in self.fields:
-                    self.fields[name].disabled = True
-            if "deposit_amount" in self.fields:
-                self.fields["deposit_amount"].help_text = "訂金已收妥並入帳；要修改請到「訂金」步驟關掉「已收妥」。"
+        # 訂金只在左側「訂金與費用」步驟修改（使用者 2026-10-21 T-44）；訂單表單不再帶訂金欄位，自動儲存不會動到訂金。
+        for name in ("deposit_amount", "deposit_date", "deposit_method"):
+            self.fields.pop(name, None)
 
     def clean(self):
         data = super().clean()
@@ -2015,6 +2011,35 @@ OtherFeeFormSet = inlineformset_factory(
     OtherFeeLine,
     form=OtherFeeLineForm,
     extra=1,
+    can_delete=True,
+)
+
+
+# 訂單頁只列已存的明細，不多一列空白（使用者 2026-10-21 T-43）；新增一律按「＋ 新增」。
+OrderPageAccessoryFormSet = inlineformset_factory(
+    SalesOrder,
+    AccessoryLine,
+    form=AccessoryLineForm,
+    extra=0,
+    can_delete=True,
+)
+
+
+class BaseOrderPageOtherFeeFormSet(BaseInlineFormSet):
+    """其他費用放在左側「訂金與費用」步驟、訂單表單外（使用者 2026-10-21 T-44）：以 form 屬性併入訂單表單一起自動儲存。"""
+
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        for field in form.fields.values():
+            field.widget.attrs["form"] = "order-form"
+
+
+OrderPageOtherFeeFormSet = inlineformset_factory(
+    SalesOrder,
+    OtherFeeLine,
+    form=OtherFeeLineForm,
+    formset=BaseOrderPageOtherFeeFormSet,
+    extra=0,
     can_delete=True,
 )
 

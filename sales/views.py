@@ -96,6 +96,8 @@ from .forms import (
     LegacyVehicleModelLinkForm,
     LegacyVehicleModelQuickCreateForm,
     OtherFeeFormSet,
+    OrderPageAccessoryFormSet,
+    OrderPageOtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
     OrderCommissionAttributionForm,
@@ -6211,8 +6213,8 @@ def _inline_order_form_context(request, order, form=None, formset=None, fee_form
             form.fields[field].widget.attrs["form"] = "order-form"
     return {
         "form": form,
-        "formset": formset or AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}),
-        "fee_formset": fee_formset or OtherFeeFormSet(instance=order, prefix="other_fees"),
+        "formset": formset or OrderPageAccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}),
+        "fee_formset": fee_formset or OrderPageOtherFeeFormSet(instance=order, prefix="other_fees"),
         "inline_order_form": True,
         "document_source": order,
         "document_model": "order",
@@ -6281,8 +6283,8 @@ def order_edit(request, pk):
         if order_workspace.is_workspace_save(request) or request.POST.get("_workspace") == "1":
             for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
                 form.fields.pop(field, None)
-        formset = AccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
-        fee_formset = OtherFeeFormSet(
+        formset = OrderPageAccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
+        fee_formset = OrderPageOtherFeeFormSet(
             request.POST, instance=order, prefix="other_fees"
         )
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
@@ -6367,8 +6369,8 @@ def order_edit(request, pk):
             return redirect("order_detail", pk=pk)
     else:
         form = OrderEditForm(instance=order)
-        formset = AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
-        fee_formset = OtherFeeFormSet(instance=order, prefix="other_fees")
+        formset = OrderPageAccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
+        fee_formset = OrderPageOtherFeeFormSet(instance=order, prefix="other_fees")
 
     if request.method == "POST" and order_workspace.is_workspace_save(request):
         return order_workspace.save_error("訂單內容未儲存，請修正下列欄位。", forms=(form, *formset.forms, *fee_formset.forms))

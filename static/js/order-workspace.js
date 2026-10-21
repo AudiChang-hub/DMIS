@@ -234,7 +234,7 @@
       row.querySelectorAll('[data-payment-locked-only], .receipt-amount .help-text').forEach(node => { node.hidden = !locked; });
     });
   }
-  // 訂金步驟（使用者 2026-10-20 T-29）：已收妥即入帳，金額、日期、方式與訂單上的訂金一起鎖定；
+  // 訂金步驟（使用者 2026-10-20 T-29）：已收妥即入帳，金額、日期、方式一起鎖定（訂單表單已不帶訂金欄位，10-21 T-44）；
   // 同步更新步驟摘要與側欄狀態，不必重新載入。
   const STEP_STATES = ['done', 'current', 'todo', 'optional', 'locked', 'reference'];
   function setStepState(node, state) {
@@ -252,7 +252,6 @@
       const title = form.querySelector('[data-deposit-title]'); if (title) title.textContent = state.confirmed ? '訂金已收妥' : '訂金待收妥';
       const hint = form.querySelector('[data-deposit-hint]'); if (hint) hint.textContent = state.confirmed ? '已入帳；要修改先關掉。' : '收到款項後打開，即入帳。';
     }
-    ['id_deposit_amount', 'id_deposit_date', 'id_deposit_method'].forEach(id => { const field = document.getElementById(id); if (field && field.form !== form) field.disabled = state.locked; });
     const panel = document.getElementById('panel-deposit');
     setStepState(panel, state.step_state);
     const summary = panel?.querySelector('.order-step__heading p'); if (summary) summary.textContent = state.summary;
@@ -337,7 +336,8 @@
     [...form.querySelectorAll('[name$="-TOTAL_FORMS"]')].forEach(total => {
       const prefix = total.name.replace(/-TOTAL_FORMS$/, '');
       const idOf = row => [...row.querySelectorAll('input')].find(f => f.name.startsWith(prefix + '-') && f.name.endsWith('-id'));
-      const rows = [...form.querySelectorAll('[data-dynamic-row],[data-payment-row],[data-payment-expectation],[data-form-row]')].filter(idOf);
+      // 以 form 屬性併入、放在表單外的明細列（例如「訂金與費用」步驟的其他費用）也要一起重編。
+      const rows = [...document.querySelectorAll('[data-dynamic-row],[data-payment-row],[data-payment-expectation],[data-form-row]')].filter(row => idOf(row)?.form === form);
       // 送出後才按刪除的列不算已刪除，留到下一次儲存。
       const plan = rowPlan(rows.map(row => {
         const del = row.querySelector('[name$="-DELETE"]');

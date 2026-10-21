@@ -74,7 +74,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
                     + (f"・配件 {len(accessories)} 項" if accessories else "・無配件"),
         ),
         "deposit": dict(
-            number=2, title="訂金",
+            number=2, title="訂金與費用",
             state="done" if expected <= 0 or (received >= expected) else "todo",
             # 訂金只有一個數字：已收妥／待收妥（使用者 2026-10-20 T-29）。
             summary=deposit_summary(order, record),

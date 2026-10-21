@@ -272,8 +272,10 @@
     {% endif %}
   </details>
 
-  <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">{% if order_workspace %}6{% else %}8{% endif %}</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用{% if wizard %}、備註{% endif %}與附件</small></span></summary>
+  {% if not order_workspace %}
+  {# 訂單頁的訂金與其他費用都在左側「訂金與費用」步驟（使用者 2026-10-21 T-44），這一區只給建單精靈。 #}
+  <details class="form-section" id="deposit" open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
+    <summary><span class="step-number">8</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用{% if wizard %}、備註{% endif %}與附件</small></span></summary>
     {% if wizard %}
     {# 精靈的配件在訂金之前（使用者 2026-10-17）：收訂金前先讓客人看到車價、牌險費、配件與合計；有選號費（指定號碼）時多列一格。 #}
     <section class="subsection intake-totals" data-intake-totals aria-labelledby="intake-totals-title">
@@ -327,36 +329,14 @@
     </details>
 
     {% endif %}
-    <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
-      <div class="section-title"><h3>其他費用</h3></div>
-      <div id="other-fee-forms">
-      {% for fee_form in fee_formset %}
-        <div class="other-fee-row dynamic-row{% if fee_form.DELETE.value %} is-pending-delete{% endif %}" data-dynamic-row data-row-label="費用">
-          {{ fee_form.id }}
-          <span hidden>{{ fee_form.DELETE }}</span>
-          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
-          {% include "sales/_field.html" with field=fee_form.name %}
-          {% include "sales/_field.html" with field=fee_form.amount %}
-        </div>
-      {% endfor %}
-      </div>
-      <template id="empty-other-fee">
-        <div class="other-fee-row dynamic-row" data-dynamic-row data-row-label="費用">
-          {{ fee_formset.empty_form.id }}
-          <span hidden>{{ fee_formset.empty_form.DELETE }}</span>
-          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
-          {% include "sales/_field.html" with field=fee_formset.empty_form.name %}
-          {% include "sales/_field.html" with field=fee_formset.empty_form.amount %}
-        </div>
-      </template>
-      <button type="button" class="button ghost add-row-button" id="add-other-fee">＋ 新增費用</button>
-    </div>
+    {% include "sales/_order_other_fees.html" %}
     {% if wizard %}<div class="subsection note-subsection{% if form.note.errors %} has-error{% endif %}" data-field-container>
       <div class="section-title"><div><h3><label for="{{ form.note.id_for_label }}">備註</label></h3><p class="muted">談定金額後，其他要交代的事寫在這裡；沒有可留空。</p></div></div>
       {{ form.note }}
       {% for error in form.note.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
     </div>{% endif %}
     {% if intake_mode %}<div class="subsection attachment-section"><h3>下訂附件</h3><p>{% site_text 'order_form.06e865b632d7' %}</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}  </details>
+  {% endif %}
 
   {% if order_workspace %}{% include "sales/_order_owner_section.html" %}{% endif %}
 

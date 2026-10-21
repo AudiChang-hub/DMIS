@@ -89,8 +89,8 @@ class DepositStepTests(TestCase):
                          (Decimal("8000"), Decimal("0"), False, "客人改付"))
         change = OrderChange.objects.filter(order=order, reason="訂金步驟").latest("pk")
         self.assertEqual(change.changes["deposit_amount"], {"before": "5000", "after": "8000"})
-        # 訂單頁其他區塊同步收到新訂金。
-        self.assertEqual(str(response.json()["sync"]["order"]["deposit_amount"]), "8000")
+        # 訂單表單不再帶訂金欄位（使用者 2026-10-21 T-44），同步內容也不含訂金，不會蓋回舊值。
+        self.assertNotIn("deposit_amount", response.json()["sync"]["order"])
 
     def test_received_deposit_is_locked_until_switched_off(self):
         order = self.order()
@@ -106,16 +106,14 @@ class DepositStepTests(TestCase):
         panel = page.split('id="deposit-payment"', 1)[1].split("</form>", 1)[0]
         self.assertIn("訂金已收妥", panel)
         self.assertRegex(panel, r'name="deposit-amount"[^>]*disabled')
-        # 訂單資料上的訂金也一起鎖定。
-        form = OrderEditForm(instance=order)
-        self.assertTrue(form.fields["deposit_amount"].disabled)
-        self.assertIn("關掉「已收妥」", form.fields["deposit_amount"].help_text)
+        # 訂金只在「訂金與費用」步驟修改（使用者 2026-10-21 T-44）：訂單表單沒有訂金欄位。
+        for name in ("deposit_amount", "deposit_date", "deposit_method"):
+            self.assertNotIn(name, OrderEditForm(instance=order).fields)
         # 關掉後解鎖，可以改金額。
         self.save(order, confirmed=None)
         self.save(order, amount="6000")
         order.refresh_from_db()
         self.assertEqual(order.deposit_amount, Decimal("6000"))
-        self.assertFalse(OrderEditForm(instance=order).fields["deposit_amount"].disabled)
 
     def test_switch_on_needs_amount_and_method(self):
         order = self.order()

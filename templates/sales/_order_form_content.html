@@ -93,6 +93,8 @@
     </div>
   </details>
 
+  {# 訂單頁的訂單來源與台數歸屬改在頁首右上角小卡（使用者 2026-10-21）；建單精靈與獨立編輯頁維持這一區。 #}
+  {% if not order_workspace %}
   <details class="form-section" id="source" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">2</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
     <div class="form-grid">
@@ -103,9 +105,10 @@
     </div>
     <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_order_commission_recipient.html" %}</div>
   </details>
+  {% endif %}
 
   <details class="form-section" id="accessories" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="accessories" {% if wizard.current != 'accessories' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">3</span><span><strong>加購項目與贈品{% if wizard %} <span class="optional-badge">可略過</span>{% endif %}</strong><small>加購或贈送的項目、數量與安裝工資；都沒有可直接下一步</small></span></summary>
+    <summary><span class="step-number">{% if order_workspace %}2{% else %}3{% endif %}</span><span><strong>加購項目與贈品{% if wizard %} <span class="optional-badge">可略過</span>{% endif %}</strong><small>加購或贈送的項目、數量與安裝工資；都沒有可直接下一步</small></span></summary>
     {% if wizard %}<p class="info-banner wizard-skip-note" data-wizard-skip-note>這一步可略過：客人沒有加購項目或贈品，直接按「下一步」就好；空白的配件列不會存入訂單，建立後也能在訂單頁「訂車與配件」補上。</p>{% endif %}
     <div class="subsection accessory-section">
       <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
@@ -146,7 +149,7 @@
   </details>
 
   <details class="form-section" id="tradein" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="tradein" {% if wizard.current != 'tradein' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">4</span><span><strong>汰舊與補助</strong><small>是否汰舊、申請哪些補助，以及舊車主是否為新車主本人</small></span></summary>
+    <summary><span class="step-number">{% if order_workspace %}3{% else %}4{% endif %}</span><span><strong>汰舊與補助</strong><small>是否汰舊、申請哪些補助，以及舊車主是否為新車主本人</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
       {% if "subsidy_programs" in form.fields %}<fieldset class="span-2 subsidy-program-picker field" data-subsidy-picker>
@@ -169,94 +172,29 @@
   </details>
 
   <details class="form-section" id="delivery" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="delivery" {% if wizard.current != 'delivery' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">5</span><span><strong>選號與交車</strong><small>{% if wizard %}車牌號碼的選法與交車方式{% else %}車牌號碼的選法、交車方式與其他備註{% endif %}</small></span></summary>
-    <div class="form-grid">
-      {% include "sales/_field.html" with field=form.plate_choice %}
-      <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
-      <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
-      <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
-      {% include "sales/_field.html" with field=form.delivery_method %}
-      <div class="delivery-destination-field" id="delivery-destination-field" data-conditional="delivery-destination">
-        {% include "sales/_field.html" with field=form.delivery_destination %}
+    <summary><span class="step-number">{% if order_workspace %}4{% else %}5{% endif %}</span><span><strong>選號與交車</strong><small>{% if wizard %}車牌號碼的選法與交車方式{% else %}車牌號碼的選法、交車方式與其他備註{% endif %}</small></span></summary>
+    {# 兩欄各自往下排（使用者 2026-10-21）：左欄選號方式→指定號碼／偏好→備註，右欄選號費→交車方式→送達地點；手機單欄、備註排最後。精靈的備註在訂金與費用。 #}
+    <div class="form-grid delivery-layout">
+      <div class="delivery-layout__col">
+        {% include "sales/_field.html" with field=form.plate_choice %}
+        <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
+        <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
+        {% if not wizard %}<div class="delivery-layout__note">{% include "sales/_field.html" with field=form.note %}</div>{% endif %}
       </div>
-      {# 精靈把備註放在訂金與費用（使用者 2026-10-17）；訂單頁編輯維持在選號與交車。 #}
-      {% if not wizard %}<div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>{% endif %}
+      <div class="delivery-layout__col">
+        <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
+        {% include "sales/_field.html" with field=form.delivery_method %}
+        <div class="delivery-destination-field" id="delivery-destination-field" data-conditional="delivery-destination">
+          {% include "sales/_field.html" with field=form.delivery_destination %}
+        </div>
+      </div>
     </div>
   </details>
 
-  <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">6</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
-    {% if order_workspace %}{% include "sales/_intake_attachments.html" with intake_attachments=order.owner_area_intake_attachments %}{% endif %}
-    <div class="info-banner" data-conditional="identity-upload">
-      本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
-    </div>
-    <div class="info-banner" data-conditional="corporate" hidden>
-      法人不使用證件自動辨識，請自行填寫公司名稱、統一編號、公司地址與聯絡資料。
-    </div>
-    <div class="ocr-status" id="ocr-status" role="status" aria-live="polite" hidden>
-      <span class="ocr-spinner" aria-hidden="true"></span>
-      <div>
-        <strong id="ocr-status-title">證件辨識狀態</strong>
-        <p id="ocr-message"></p>
-      </div>
-      <button type="button" class="button ghost small" id="run-id-ocr">重新辨識</button>
-    </div>
-    <div class="form-grid owner-form-grid">
-      {% include "sales/_field.html" with field=form.owner_type %}
-      <div class="span-2 capture-instruction" data-conditional="identity-upload">
-        證件為選填；點選欄位後可直接拍照或從手機相簿選擇，系統會自動帶入車主資料。
-      </div>
-      <div class="identity-compare span-2">
-        <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="identity-upload">
-          {% include "sales/_field.html" with field=form.id_front %}
-          <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="證件正面預覽">
-          {% if document_source.id_front %}
-          <div class="saved-photo-state" data-saved-photo="id_front">
-            <span><strong>已暫存正面照片</strong><small>可點擊圖片放大核對</small></span>
-            <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
-            <button type="button" data-select-file="id_id_front">更換</button>
-          </div>
-          {% endif %}
-          <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
-        </div>
-        <div class="identity-compare__fields" data-ocr-confirmation-fields data-front-identity-fields>
-          {% include "sales/_field.html" with field=form.owner_name %}
-          {% include "sales/_field.html" with field=form.owner_id_number %}
-          {% include "sales/_field.html" with field=form.owner_birth_date %}
-        </div>
-      </div>
-      <div class="identity-compare span-2">
-        <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="identity-upload">
-          {% include "sales/_field.html" with field=form.id_back %}
-          <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="證件反面預覽">
-          {% if document_source.id_back %}
-          <div class="saved-photo-state" data-saved-photo="id_back">
-            <span><strong>已暫存反面照片</strong><small>可直接與戶籍地址對照</small></span>
-            <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
-            <button type="button" data-select-file="id_id_back">更換</button>
-          </div>
-          {% endif %}
-          <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
-        </div>
-        <div class="identity-compare__fields" data-ocr-confirmation-fields data-back-identity-fields>
-          {% include "sales/_field.html" with field=form.owner_address %}
-        </div>
-      </div>
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
-      {% include "sales/_field.html" with field=form.owner_phone %}
-      {% include "sales/_field.html" with field=form.owner_email %}
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
-      <div class="span-2 verify-box" id="id-verify-box">{% include "sales/_field.html" with field=form.id_verified %}<small class="verify-lock-hint" id="id-verify-hint" hidden>證件為選填；上傳正反面並辨識完成後才能勾選。</small></div>
-      {% if wizard %}
-      <input type="hidden" name="_id_check" id="id-check" value="{{ wizard.id_check }}">
-      <input type="hidden" name="_id_check_error" id="id-check-error" value="{{ wizard.id_check_error }}">
-      {% endif %}
-    </div>
-  </details>
+  {% if not order_workspace %}{% include "sales/_order_owner_section.html" %}{% endif %}
 
   <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">7</span><span><strong>付款與車價</strong><small>付款方式可多筆，預設現金並帶入現金價；分期預帶車型設定</small></span></summary>
+    <summary><span class="step-number">{% if order_workspace %}5{% else %}7{% endif %}</span><span><strong>付款與車價</strong><small>付款方式可多筆，預設現金並帶入現金價；分期預帶車型設定</small></span></summary>
     <div class="form-grid">
       <div class="span-2 info-banner" data-conditional="platform-payment" hidden>
         網路平台訂單：車款由平台收，不選付款方式也不帶售價；客人只付牌險費、選號費、配件與其他加收項目。車輛成本照常帶入，平台撥款請到收入與支出的「實際撥款」記錄。
@@ -340,7 +278,7 @@
   </details>
 
   <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">8</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用{% if wizard %}、備註{% endif %}與附件</small></span></summary>
+    <summary><span class="step-number">{% if order_workspace %}6{% else %}8{% endif %}</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用{% if wizard %}、備註{% endif %}與附件</small></span></summary>
     {% if wizard %}
     {# 精靈的配件在訂金之前（使用者 2026-10-17）：收訂金前先讓客人看到車價、牌險費、配件與合計；有選號費（指定號碼）時多列一格。 #}
     <section class="subsection intake-totals" data-intake-totals aria-labelledby="intake-totals-title">
@@ -393,6 +331,7 @@
       </div>
       <p class="form-hint">總價含車價、牌險、分期開辦費、配件與其他費用，尚未扣除訂金；畫面數字為試算，送出時依實際明細重新計算。</p>
     </details>
+
     {% endif %}
     <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>
@@ -424,6 +363,8 @@
       {% for error in form.note.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
     </div>{% endif %}
     {% if intake_mode %}<div class="subsection attachment-section"><h3>下訂附件</h3><p>{% site_text 'order_form.06e865b632d7' %}</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}  </details>
+
+  {% if order_workspace %}{% include "sales/_order_owner_section.html" %}{% endif %}
 
   {% if editing_order %}
   <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存，變更紀錄會保留在處理紀錄。</p>

@@ -1626,6 +1626,15 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .field label em { color: var(--red); font-size: var(--text-2xs); font-style: normal; }
 /* 交車頁「送達地點尚未填寫」直接跳到這一欄：留出頁首與訂單固定列的高度（使用者 2026-10-20）。 */
 .delivery-destination-field { scroll-margin-top: 180px; }
+/* 選號與交車（使用者 2026-10-21）：兩欄各自往下排，送達地點緊接交車方式、備註接在左欄，整區不再拉長。 */
+.delivery-layout { align-items: start; }
+.delivery-layout__col { display: grid; min-width: 0; align-content: start; gap: var(--stack-gap-sm); }
+.delivery-layout__col > [hidden] { display: none; }
+.delivery-layout__note textarea { min-height: 96px; }
+@media (max-width: 600px) {
+  .delivery-layout__col { display: contents; }
+  .delivery-layout__note { order: 1; }
+}
 .accessory-row.has-accessory-name .field:nth-of-type(2) label::after,
 .accessory-row.has-accessory-name .field:nth-of-type(3) label::after,
 .accessory-row.has-accessory-name .field:nth-of-type(4) label::after {
@@ -5544,14 +5553,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   padding: 2px 0; color: var(--red); background: transparent; border: 0;
   text-align: left; text-decoration: underline; cursor: pointer;
 }
-.identity-print-panel { margin-top: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-soft); }
-.identity-print-panel > summary { min-height: 48px; padding: 12px 14px; cursor: pointer; font-weight: 800; color: var(--action-text); }
-.identity-print-panel > form { display: grid; padding: 0 14px 14px; gap: 12px; }
-.identity-print-panel select { width: 100%; min-height: 44px; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
-.identity-print-panel fieldset { display: flex; margin: 0; padding: 10px 12px; gap: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); }
-.identity-print-panel legend { padding: 0 5px; color: var(--muted); font-size: var(--text-sm-plus); }
-.identity-print-panel fieldset label { display: flex; min-height: 36px; align-items: center; gap: 6px; }
-.identity-print-panel input[type="checkbox"] { width: 20px; height: 20px; }
 form[aria-busy="true"] { cursor: progress; }
 .button.is-submitting, button.is-submitting { opacity: .8; cursor: progress; }
 /* 送出中的按鈕：文字前加轉圈，按鈕寬度不變。 */

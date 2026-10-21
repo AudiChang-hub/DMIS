@@ -295,8 +295,6 @@ class SalesOrderForm(forms.ModelForm):
             "registration_calculated_total",
             "payment_type",
             "payment_splits",
-            "registration_manual",
-            "registration_adjustment_reason",
             "vehicle_price",
             "vehicle_price_adjustment_reason",
             "plate_insurance_fee",
@@ -754,8 +752,6 @@ class SalesOrderForm(forms.ModelForm):
                 "成交車價與系統售價版本不同，請填寫調整原因。",
             )
 
-        manual_fee_names = ("registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee", "plate_selection_fee", "lien_registration_fee")
-        manual_fee_values = {name: data.get(name) or Decimal("0") for name in manual_fee_names}
         registration_date = data.get("registration_date")
         insurance_period = (
             data.get("compulsory_insurance_period")
@@ -866,7 +862,7 @@ class SalesOrderForm(forms.ModelForm):
                 self.instance.registration_calculated_total = 0
                 data["registration_calculated_total"] = Decimal("0")
                 self.cleaned_data["registration_calculated_total"] = Decimal("0")
-                if is_gas and model.displacement_cc and not data.get("registration_manual"):
+                if is_gas and model.displacement_cc:
                     # 油車強制險只看排氣量與年期，未排領牌日也先帶入，收支的強制險收支才有預設值。
                     try:
                         insurance_fee = compulsory_insurance(model.displacement_cc, int(insurance_period))
@@ -898,25 +894,14 @@ class SalesOrderForm(forms.ModelForm):
             # 照系統試算：牌險費＝試算合計（油車沒有領牌日依訂單日預估；電動類依品牌規則）。
             data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = data["registration_calculated_total"]
             if (
-                self.instance.registration_rate_class == "MANUAL" and not data.get("registration_manual")
+                self.instance.registration_rate_class == "MANUAL"
                 and not plate_field_locked
             ):
                 self.add_error("plate_insurance_fee", "此車款的牌險要依單據計算，請填寫牌險費。")
         self.instance.plate_insurance_auto = plate_auto
 
-        if data.get("registration_manual"):
-            if not (data.get("registration_adjustment_reason") or "").strip():
-                self.add_error("registration_adjustment_reason", "自行調整牌險明細時，請填寫原因。")
-            for name, value in manual_fee_values.items():
-                if value < 0:
-                    self.add_error(name, "金額不可小於零。")
-                data[name] = value
-            itemized_total = sum(
-                value for name, value in manual_fee_values.items()
-                if name not in ("plate_selection_fee", "lien_registration_fee")
-            )
-            if plate_auto:
-                data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = itemized_total
+        # 牌險明細一律由系統試算（使用者 2026-10-21 T-38）：不再自行調整明細、不填調整原因；
+        # 舊資料的 registration_manual／registration_adjustment_reason 保留在資料庫，表單不再讀寫。
 
         # 送達地點／託運目的地建單時不必填：客人可能還沒決定送到哪裡（使用者 2026-10-20）；
         # 交車頁會提醒尚未填寫，實際交付時由交付核對（DeliveryCompletionForm）要求填寫。

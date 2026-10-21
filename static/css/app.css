@@ -1846,6 +1846,9 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .remove-row-button:hover { background: var(--red-soft); }
 .dynamic-row > .field:first-of-type { padding-right: var(--space-8); }
+/* 訂單頁店內財務的牌險（使用者 2026-10-21 T-38）：預設收合、只有一層，試算依據一行小字，下面三格。 */
+.registration-fee-card__basis { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-sm); }
+.registration-fee-card .registration-fee-card__fields { padding: var(--stack-gap-sm) 0 0; }
 .registration-fee-subsection .section-title { margin-bottom: var(--space-1); }
 .registration-fee-subsection .section-title p {
   margin: var(--space-1) 0 0;

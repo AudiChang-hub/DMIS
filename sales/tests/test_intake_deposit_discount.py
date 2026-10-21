@@ -64,7 +64,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertIn('name="deposit_amount"', page)
         self.assertNotIn('name="deposit_amount" disabled', page)
         # 其他財務段落仍隱藏。
-        self.assertIn('<details class="card" open hidden><summary>店內財務・領牌規費與強制險', page)
+        self.assertIn('<details class="card registration-fee-card" open hidden><summary>領牌規費與強制險', page)
         today = timezone.localdate()
         order = self.assert_created(self.submit_to(
             "order_start", deposit_amount="5000", deposit_date=today.isoformat(), deposit_method="transfer",

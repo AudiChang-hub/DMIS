@@ -41,6 +41,7 @@ from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
 from .access.services import is_root
 from .services.inventory_history import change_rows
+from .services.audit_note import balance_summary, discount_summary, note_or_summary, with_note
 from .services.inventory_restore import deletion_review_vehicle_ids, inventory_restore_summary
 from .services.order_attachments import (
     classify_route,
@@ -3350,7 +3351,7 @@ def dealer_volume_bonus_settle(request, pk):
                 rule,
                 _editing_name(request.user),
                 form.cleaned_data["actual_amount"],
-                form.cleaned_data["adjustment_reason"],
+                "",
                 dealer=dealer,
                 period=period,
             )
@@ -3386,7 +3387,7 @@ def dealer_volume_bonus_revise(request, pk):
                 settlement,
                 _editing_name(request.user),
                 form.cleaned_data["actual_amount"],
-                form.cleaned_data["reason"],
+                "",
             )
         except (ValueError, ValidationError) as exc:
             messages.error(request, str(exc))
@@ -4636,7 +4637,6 @@ def reconciliation_update(request, pk):
     was_confirmed = record.confirmed
     before = {
         "預計金額": str(record.expected_amount),
-        "預計金額調整原因": record.expected_amount_override_reason,
         "實際金額": str(record.received_amount),
         "入帳日期": str(record.received_on or ""),
         "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
@@ -4655,7 +4655,6 @@ def reconciliation_update(request, pk):
         refresh_payment_confirmation(record.order_id)
         after = {
             "預計金額": str(record.expected_amount),
-            "預計金額調整原因": record.expected_amount_override_reason,
             "實際金額": str(record.received_amount),
             "入帳日期": str(record.received_on or ""),
             "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
@@ -4999,7 +4998,7 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         OrderEvent.objects.create(
             order=order,
             event_type="discount_decided",
-            description=f"下單時填寫總價優惠並直接生效：{intake_discount_detail(order, form)}；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。",
+            description=f"下單時填寫總價優惠並直接生效：{intake_discount_detail(order, form)}。未變更分期撥款、成本與佣金。",
             actor_name=request.user.get_username(),
         )
     # 建單填了訂金就算已收妥（使用者 2026-10-20 T-29 方案 A）：實收＝訂金，確認人記建單者。
@@ -5665,7 +5664,7 @@ def order_commission_attribution_update(request, pk):
         try:
             changed = change_order_commission_recipient(
                 order_id=pk, recipient_id=recipient.pk if recipient else None,
-                reason=form.cleaned_data["reason"], expected_revision=form.cleaned_data["order_revision"],
+                expected_revision=form.cleaned_data["order_revision"],
                 actor_name=_editing_name(request.user), editing_session=request.session.session_key,
                 presence_timeout=ORDER_PRESENCE_TIMEOUT,
             )
@@ -5863,7 +5862,8 @@ def order_operations(request, pk):
                 profile.legacy_finance_reconciliation = {
                     **profile.legacy_finance_reconciliation, "status": "reviewed",
                     "reviewed_by": _editing_name(request.user), "reviewed_at": timezone.now().isoformat(),
-                    "review_reason": form.cleaned_data["change_reason"], "reviewed_profit": str(profile.net_profit),
+                    "review_reason": note_or_summary(form.cleaned_data.get("change_reason"), "人工確認歷史收支", 250),
+                    "reviewed_profit": str(profile.net_profit),
                 }
                 profile.save(update_fields=["legacy_finance_reconciliation", "updated_at"])
             after = _operations_snapshot(profile)
@@ -5874,8 +5874,8 @@ def order_operations(request, pk):
             }
             OrderChange.objects.create(
                 order=order,
-                reason=form.cleaned_data.get("change_reason")
-                or "更新營運與對帳資料",
+                reason=(note_or_summary(form.cleaned_data.get("change_reason"), "人工確認歷史收支")
+                        if form.cleaned_data.get("confirm_legacy_finance") else "更新營運與對帳資料"),
                 changes=changes,
                 actor_name=_editing_name(request.user),
             )
@@ -5912,7 +5912,7 @@ def order_operations(request, pk):
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,
             "discount_request_form": DiscountRequestForm(
-                initial={"amount": order.discount_requested_amount or None, "reason": order.discount_reason}
+                initial={"amount": order.discount_requested_amount or None}
             ),
             "discount_decision_form": DiscountDecisionForm(initial={"decision": "approve"}),
         },
@@ -5938,20 +5938,21 @@ def order_discount_request(request, pk):
         # 有核定權限的人送出即生效，與金額收支頁、下單優惠一致；不再留下沒有畫面可核准、會擋交車的待確認申請。
         from sales.services.order_discount import approve_discount_now
         before = order.approved_discount_amount
-        approve_discount_now(order, amount=form.cleaned_data["amount"], reason=form.cleaned_data["reason"],
+        approve_discount_now(order, amount=form.cleaned_data["amount"], reason="",
                              actor_name=_editing_name(request.user), note="申請人具核定權限，送出即生效")
         order.save()
         sync_order_operations(order.pk, update_receivables=True)
-        OrderChange.objects.create(order=order, actor_name=_editing_name(request.user), reason=order.discount_reason,
+        OrderChange.objects.create(order=order, actor_name=_editing_name(request.user),
+            reason=discount_summary(before, order.approved_discount_amount),
             changes={"approved_discount_amount": {"before": str(before), "after": str(order.approved_discount_amount)}})
         OrderEvent.objects.create(order=order, actor_name=_editing_name(request.user), event_type="discount_decided",
-            description=f"直接核定折扣 {order.approved_discount_amount:,.0f} 元；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。")
+            description=f"直接核定折扣 {order.approved_discount_amount:,.0f} 元。未變更分期撥款、成本與佣金。")
         messages.success(request, "折扣已套用並重算應收。")
         return redirect("order_operations", pk=pk)
     order.discount_requested_amount = form.cleaned_data["amount"]
     order.discount_basis_total = order.pre_discount_total
     discount_detail = (f"總價 {order.pre_discount_total:,.0f} 元 × {form.cleaned_data['rate']} 折；" if form.cleaned_data.get("mode") == "rate" else f"總價 {order.pre_discount_total:,.0f} 元減少 {form.cleaned_data['amount']:,.0f} 元；")
-    order.discount_reason = form.cleaned_data["reason"]
+    order.discount_reason = ""
     order.discount_status = SalesOrder.DiscountStatus.PENDING
     order.discount_requested_at = timezone.now()
     order.discount_requested_by = _editing_name(request.user)
@@ -5968,7 +5969,7 @@ def order_discount_request(request, pk):
     OrderEvent.objects.create(
         order=order,
         event_type="discount_requested",
-        description=f"{discount_detail}申請原因：{order.discount_reason}",
+        description=discount_detail.rstrip("；"),
         actor_name=_editing_name(request.user),
     )
     messages.success(request, "折扣申請已送出；核准前不會改變應收金額。")
@@ -6261,7 +6262,7 @@ def order_edit(request, pk):
                 order.actual_balance != order.calculate_balance()
                 and not order.balance_adjustment_reason
             ):
-                order.balance_adjustment_reason = form.cleaned_data.get("change_reason") or "未填寫說明"
+                order.balance_adjustment_reason = balance_summary("修改訂單資料")
             order.revision += 1
             order.editing_session = ""
             order.editing_by = ""
@@ -6315,17 +6316,16 @@ def order_edit(request, pk):
             if not completed_correction:
                 refresh_unlocked_financials(order.pk)
             changes = _snapshot_changes(before, after)
-            reason = form.cleaned_data["change_reason"]
             OrderChange.objects.create(
                 order=order,
-                reason=reason,
+                reason="修改訂單資料",
                 changes=changes,
                 actor_name=_editing_name(request.user),
             )
             OrderEvent.objects.create(
                 order=order,
                 event_type="updated",
-                description=f"{'完成後修正' if completed_correction else '修改訂單'}{'：' + reason if reason else ''}（{len(changes)} 個項目）",
+                description=f"{'完成後修正' if completed_correction else '修改訂單'}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
             if completed_correction:
@@ -6735,18 +6735,18 @@ def allocate_vehicle(request, pk):
         return redirect("order_detail", pk=pk)
     form = AllocationForm(order, request.POST)
     if form.is_valid():
-        skip_reason = (form.cleaned_data.get("skip_reason") or "").strip()
+        skip_notes = "；".join(form.cleaned_data.get("skip_notes") or [])
         try:
             order.allocate(
                 form.cleaned_data["vehicle"], actor_name=_editing_name(request.user),
-                skip_reason=skip_reason if form.cleaned_data.get("skip_notes") else "",
+                skip_reason=f"系統摘要：{skip_notes}" if skip_notes else "",
             )
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
             description = f"已配車：{order.allocated_vehicle}"
-            if form.cleaned_data.get("skip_notes"):
-                description += f"（{'；'.join(form.cleaned_data['skip_notes'])}；原因：{skip_reason or '未填寫'}）"
+            if skip_notes:
+                description += f"（{skip_notes}）"
             OrderEvent.objects.create(
                 order=order,
                 event_type="allocated",
@@ -6797,10 +6797,10 @@ def reallocate_vehicle(request, pk):
         messages.error(request, " ".join(exc.messages))
         return redirect(detail_url)
 
-    reason = form.cleaned_data["reason"]
+    note = form.cleaned_data["reason"]
     OrderChange.objects.create(
         order=order,
-        reason=reason,
+        reason=note_or_summary(note, f"改配車輛 {original} → {replacement}"),
         changes={
             "已配車輛": {
                 "before": str(original),
@@ -6812,7 +6812,7 @@ def reallocate_vehicle(request, pk):
     OrderEvent.objects.create(
         order=order,
         event_type="reallocated",
-        description=f"改配車輛：{original} → {replacement}；原因：{reason}",
+        description=with_note(f"改配車輛：{original} → {replacement}", note and f"備註：{note}"),
         actor_name=_editing_name(request.user),
     )
     messages.success(request, f"改配完成，新配車輛為 {replacement}。")
@@ -7293,15 +7293,11 @@ def cancellation_request(request, pk):
         order.allocated_vehicle.identifier if order.allocated_vehicle_id else ""
     )
     try:
-        order.request_cancellation(
-            _editing_name(request.user),
-            form.cleaned_data["reason"],
-            form.cleaned_data["note"],
-        )
+        order.request_cancellation(_editing_name(request.user), form.cleaned_data["reason"])
     except ValidationError as exc:
         messages.error(request, "取消未登記：" + " ".join(exc.messages))
         return redirect(detail_url)
-    description = f"登記取消：{order.cancellation_reason}"
+    description = with_note("登記取消", form.cleaned_data["reason"], "：")
     if released_identifier:
         description += f"；已解除配車 {released_identifier}"
     if order.status == SalesOrder.Status.CANCELLED:
@@ -8106,7 +8102,7 @@ def subsidy_data_update(request, pk):
     else:
         order.actual_balance = previous_actual_balance
         if order.actual_balance != order.calculated_balance:
-            order.balance_adjustment_reason = form.cleaned_data.get("change_reason") or "未填寫說明"
+            order.balance_adjustment_reason = balance_summary("修改補助資料")
     order.save()
     if items_submitted:
         item_formset.instance = order
@@ -8121,17 +8117,16 @@ def subsidy_data_update(request, pk):
 
     after = _order_snapshot(order)
     changes = _snapshot_changes(before, after)
-    reason = form.cleaned_data["change_reason"]
     OrderChange.objects.create(
         order=order,
-        reason=reason,
+        reason="修改補助資料",
         changes=changes,
         actor_name=_editing_name(request.user),
     )
     OrderEvent.objects.create(
         order=order,
         event_type="subsidy_data_updated",
-        description=f"修改補助資料：{reason}（{len(changes)} 個項目）",
+        description=f"修改補助資料（{len(changes)} 個項目）",
         actor_name=_editing_name(request.user),
     )
     if order_workspace.is_workspace_save(request):

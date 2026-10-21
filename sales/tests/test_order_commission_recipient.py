@@ -451,7 +451,7 @@ class OrderCommissionRecipientTests(TestCase):
         order = self.make_order()
         self.client.force_login(self.user)
         url = reverse("order_commission_attribution_update", args=[order.pk])
-        for overrides in ({"attribution-reason": "  "}, {"attribution-order_revision": "invalid"},
+        for overrides in ({"attribution-order_revision": "invalid"},
                           {"attribution-order_revision": str(order.revision + 1)},
                           {"attribution-commission_recipient": self.platform.pk},
                           {"attribution-commission_recipient": "99999999"}):

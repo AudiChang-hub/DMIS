@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from sales.models import SalesOrder
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL
 from sales.services.order_deletion import change_deletion, deletion_blockers, is_order_delivered, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
 from sales.services.order_intake import scoped_orders
@@ -16,7 +17,8 @@ from django.core.exceptions import PermissionDenied
 
 
 class DeletionForm(forms.Form):
-    reason = forms.CharField(label="操作原因", max_length=500, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=500, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
     confirmed = forms.BooleanField(label="我已確認訂單與影響，確定執行此操作")
     expected_updated_at = forms.CharField(widget=forms.HiddenInput)
     force = forms.BooleanField(label="我確認作廢此訂單的影響，不移轉到新單；刪除不代表已退款或已退車。", required=False)

@@ -41,7 +41,7 @@
       <dl class="confirm-facts">
         <div><dt>刪除人員</dt><dd>{{ review_order.deleted_by|default:"未記錄" }}</dd></div>
         <div><dt>刪除時間</dt><dd>{{ review_order.deleted_at|date:"Y/m/d H:i" }}</dd></div>
-        <div class="is-wide"><dt>刪除原因</dt><dd>{{ review_order.deletion_reason|default:"未填寫" }}</dd></div>
+        <div class="is-wide"><dt>刪除說明</dt><dd>{{ review_order.deletion_reason|default:"未填寫" }}</dd></div>
       </dl>
     </div></div>
     {% endif %}

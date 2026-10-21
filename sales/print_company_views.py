@@ -7,12 +7,14 @@ from django.views.decorators.http import require_http_methods
 
 from sales.access.views import root_required
 from sales.models import PrintCompany, PrintCompanyChange
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
 from sales.services.print_company import FIELDS, company_data
 
 
 class CompanyForm(forms.ModelForm):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
-    reason = forms.CharField(label="設定／修改原因", max_length=500, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=500, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
 
     class Meta:
         model = PrintCompany
@@ -39,7 +41,8 @@ def company_settings(request):
                 current.full_clean()
                 current.save()
                 PrintCompanyChange.objects.create(company=current, actor=request.user,
-                    reason=form.cleaned_data["reason"], before=before, after=company_data(current))
+                    reason=note_or_summary(form.cleaned_data["reason"], "設定訂購單公司資料"), before=before,
+                    after=company_data(current))
                 messages.success(request, "公司資料已儲存。僅供之後產生的訂購單帶入，已保留公司資料的訂單及已簽文件不會改變。")
                 return redirect("print_company_settings")
     changes = PrintCompanyChange.objects.filter(company=company, order_number="").select_related("actor").order_by("-pk")[:10] if company else []

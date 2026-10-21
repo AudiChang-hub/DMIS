@@ -206,8 +206,7 @@
   <form method="post" action="{% url 'allocate_vehicle' order.pk %}" data-allocation-priority-form data-priority-count="{{ allocation_form.priority_vehicle_count }}">
     {% csrf_token %}{{ allocation_form.vehicle }}
     {% if allocation_form.suggested_vehicle %}<p class="muted allocation-suggested">已預選建議車輛 {{ allocation_form.suggested_vehicle.identifier }}；確認無誤直接按「確認配車並鎖定」，要換車再從清單另選。</p>{% endif %}
-    {% if allocation_form.priority_vehicle_count %}<p class="allocation-priority-hint" data-allocation-priority-hint role="status" hidden>這台不是優先配車；仍有 {{ allocation_form.priority_vehicle_count }} 台優先配車可選。建議在下方填寫原因，不填也可以配車。</p>{% endif %}
-    <label for="{{ allocation_form.skip_reason.id_for_label }}">{{ allocation_form.skip_reason.label }}</label>{{ allocation_form.skip_reason }}<small class="muted">{{ allocation_form.skip_reason.help_text }}</small>
+    {% if allocation_form.priority_vehicle_count %}<p class="allocation-priority-hint" data-allocation-priority-hint role="status" hidden>這台不是優先配車；仍有 {{ allocation_form.priority_vehicle_count }} 台優先配車可選。仍可直接配車，系統會記下這次的選擇。</p>{% endif %}
     {% if allocation_form.vehicle.field.queryset %}
       <button class="button primary block" type="submit">確認配車並鎖定</button>
     {% else %}
@@ -269,8 +268,8 @@
           {{ reallocation_form.vehicle }}
         </div>
         <div>
-          <label for="{{ reallocation_form.reason.id_for_label }}">改配原因 <span class="required-inline">必填</span></label>
-          {{ reallocation_form.reason }}
+          <label for="{{ reallocation_form.reason.id_for_label }}">{{ reallocation_form.reason.label }}</label>
+          {{ reallocation_form.reason }}<small class="muted">{{ reallocation_form.reason.help_text }}</small>
         </div>
         {% if reallocation_form.vehicle.field.queryset %}
           <button class="button primary" type="submit">確認更換配車</button>
@@ -818,7 +817,7 @@
 {% if order.status == "cancel_refund_pending" %}
 <section class="section-block cancellation-panel urgent-panel">
   <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>取消待退款結算</h2></div><span>已收 ${{ refund_form.received|number_with_commas }}</span></div>
-  <p>取消原因：{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
+  <p>{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
   {% if refund_form.unconfirmed_amount %}<p class="note-box">尚有 ${{ refund_form.unconfirmed_amount|number_with_commas }} 已登記但未確認的實收，請先到金額收支確認或清除，才能結算退款。</p>{% endif %}
   <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid" data-inplace-form data-inplace-success="reload">
     {% csrf_token %}
@@ -828,7 +827,7 @@
   {% if_access 'cancellation_withdraw' order.pk %}
   <form method="post" action="{% url 'cancellation_withdraw' order.pk %}" class="form-grid compact-grid">
     {% csrf_token %}
-    <div class="wide"><label for="withdraw-reason">客戶改變心意？撤銷原因 <span class="required-inline">必填</span></label><input id="withdraw-reason" class="form-control" name="reason" maxlength="250" required></div>
+    <div class="wide"><label for="withdraw-reason">客戶改變心意？備註（選填）</label><input id="withdraw-reason" class="form-control" name="reason" maxlength="250"></div>
     <div class="wide"><button class="button ghost" type="submit" data-confirm="撤銷取消後訂單回到待處理，原配車已釋回，需要重新配車。確定撤銷嗎？">撤銷取消</button></div>
   </form>
   {% endif_access %}
@@ -837,10 +836,10 @@
 <section class="section-block cancellation-panel">
   <div class="section-title"><h2>訂單已取消</h2><span>{{ order.cancellation_completed_at|date:"Y/m/d H:i" }}</span></div>
   <dl class="data-list">
-    <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
+    <div><dt>取消說明</dt><dd>{{ order.cancellation_reason }}</dd></div>
     <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
     <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
-    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
+    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收說明</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
     {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
     {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
   </dl>
@@ -873,10 +872,10 @@
 <section class="section-block cancellation-panel">
   <div class="section-title"><h2>{% if order.is_returned_after_delivery %}交車後退車{% else %}例外結案（領牌後棄單）{% endif %}</h2><span>{{ order.exception_closed_at|date:"Y/m/d H:i" }}</span></div>
   <dl class="data-list">
-    <div><dt>{% if order.is_returned_after_delivery %}退車原因{% else %}結案原因{% endif %}</dt><dd>{{ order.exception_reason }}</dd></div>
+    <div><dt>{% if order.is_returned_after_delivery %}退車說明{% else %}結案說明{% endif %}</dt><dd>{{ order.exception_reason }}</dd></div>
     <div><dt>登記人員</dt><dd>{{ order.exception_closed_by }}</dd></div>
     <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
-    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
+    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收說明</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
     {% if order.exception_vehicle %}<div class="wide"><dt>釋回車輛</dt><dd>{{ order.exception_vehicle.identifier }}（{{ order.exception_vehicle.registered_plate_number }}），已領牌車再售價 ${{ order.exception_vehicle.resale_price|number_with_commas }}</dd></div>{% elif order.is_returned_after_delivery %}<div class="wide"><dt>車輛</dt><dd>不在庫存，只記錄退車</dd></div>{% endif %}
     {% if order.is_returned_after_delivery and order.signed_contract %}<div class="wide"><dt>已簽署訂購單</dt><dd>保留原檔，不要求重簽</dd></div>{% endif %}
   </dl>
@@ -966,7 +965,7 @@
       <time datetime="{{ change.created_at|date:'c' }}">{{ change.created_at|date:"Y/m/d H:i" }}</time>
       <span class="change-toggle ui-chevron" aria-hidden="true"></span>
     </summary>
-    <div class="change-reason"><span>變更原因</span><strong>{{ change.reason }}</strong></div>
+    {% if change.reason %}<div class="change-reason"><span>說明</span><strong>{{ change.reason }}</strong></div>{% endif %}
     {% for group in change.groups %}
     <div class="change-group">
       <h3>{{ group.name }}</h3>

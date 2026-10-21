@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from sales.models import OrderAccountProfile, OrderCustomerAccessGrant, OrderEvent, SalesOrder
+from sales.services.audit_note import note_or_summary, optional_note
 
 
 def customer_orders(user, queryset=None, *, printing=False):
@@ -26,9 +27,7 @@ def set_customer_access(*, actor, order_id, account_id, expected_revision, expec
     from sales.access.services import is_root
     if not is_root(actor):
         raise PermissionDenied
-    reason = (reason or "").strip()
-    if not reason or len(reason) > 500:
-        raise ValidationError("請填寫授權／撤銷原因，最多 500 字。")
+    note = optional_note(reason, 500)  # 備註選填（使用者 2026-10-21 T-39）
     order = SalesOrder.objects.select_for_update().get(pk=order_id)
     account = OrderAccountProfile.objects.select_for_update(of=("self",)).select_related("user", "source").get(pk=account_id)
     if active and account.identity_epoch != expected_identity_epoch:
@@ -63,9 +62,9 @@ def set_customer_access(*, actor, order_id, account_id, expected_revision, expec
     grant.can_view, grant.can_print, grant.active = can_view, can_print, active
     grant.is_override = is_override
     grant.identity_epoch = account.identity_epoch
-    grant.reason, grant.changed_by = reason, actor
+    grant.reason, grant.changed_by = note_or_summary(note, f"{before} → {state(grant)}"), actor
     grant.revision += 1
     grant.save()
     OrderEvent.objects.create(order=order, event_type="customer_access_updated", actor_name=actor.get_username(),
-        description=f"客戶文件授權：{account.user.get_username()}；{before} → {state(grant)}；原因：{reason}")
+        description=f"客戶文件授權：{account.user.get_username()}；{before} → {state(grant)}" + (f"；備註：{note}" if note else ""))
     return grant

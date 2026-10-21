@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from sales.access.services import is_root
 from sales.models import OrderOperationsProfile, SalesOrder
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL
 from sales.services.order_return import (
     CONFIRM_FALLBACK, REASON_LIMIT, confirm_tail, has_subsidy, lender_disbursed, manual_refund_cap, return_after_delivery,
     return_blockers, return_impacts, return_vehicle, tail_matches,
@@ -22,11 +23,11 @@ class OrderReturnForm(forms.Form):
     expected_updated_at = forms.CharField(widget=forms.HiddenInput)
     forfeited_amount = forms.IntegerField(label="沒收金額", required=False, min_value=0,
         widget=forms.NumberInput(attrs={**MONEY_ATTRS, "placeholder": "不沒收留空"}))
-    forfeit_reason = forms.CharField(label="沒收原因", required=False, max_length=250,
-        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "有沒收金額時必填"}))
+    forfeit_reason = forms.CharField(label="沒收備註（選填）", required=False, max_length=250,
+        widget=forms.TextInput(attrs={"class": "form-control"}))
     manual_refund = forms.IntegerField(label="手填應退金額", required=False, min_value=1,
         widget=forms.NumberInput(attrs={**MONEY_ATTRS, "placeholder": "依帳本計算時留空"}))
-    manual_refund_reason = forms.CharField(label="手填原因", required=False, max_length=200,
+    manual_refund_reason = forms.CharField(label="手填備註（選填）", required=False, max_length=200,
         widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "例如：Excel 收款價 85,000，已現金退還客戶"}))
     refund_method = forms.ChoiceField(label="退款方式", required=False,
         choices=(("", "請選擇"), *SalesOrder.PaymentMethod.choices), widget=forms.Select(attrs={"class": "form-control"}))
@@ -40,8 +41,8 @@ class OrderReturnForm(forms.Form):
     resale_price = forms.IntegerField(label="領牌車再售價", required=False, min_value=1,
         widget=forms.NumberInput(attrs={**MONEY_ATTRS, "placeholder": "例如 52000"}))
     subsidy_handled = forms.BooleanField(label="我已確認汰舊／政府補助已撤回或另行處理", required=False)
-    reason = forms.CharField(label="退車原因", max_length=REASON_LIMIT, widget=forms.Textarea(attrs={
-        "class": "form-control", "rows": 3, "placeholder": "例如：交車後車況爭議，客戶退車並解除分期"}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=REASON_LIMIT, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
     confirm_identifier = forms.CharField(label="輸入引擎／車身號碼末 4 碼確認", max_length=12,
         widget=forms.TextInput(attrs={"class": "form-control restore-confirm-input", "autocomplete": "off",
                                       "autocapitalize": "characters", "spellcheck": "false", "placeholder": "末 4 碼"}))
@@ -83,14 +84,10 @@ class OrderReturnForm(forms.Form):
         forfeited = data.get("forfeited_amount") or 0
         if forfeited and forfeited > self.received:
             self.add_error("forfeited_amount", f"沒收金額不能超過客戶已確認淨實收 {self.received:,.0f} 元。")
-        if forfeited and not (data.get("forfeit_reason") or "").strip():
-            self.add_error("forfeit_reason", "有沒收金額時，請填寫沒收原因。")
         manual = data.get("manual_refund")
         if manual:
             if manual > self.manual_cap:
                 self.add_error("manual_refund", f"最多 {self.manual_cap:,.0f} 元（Excel 歷史收款與帳本淨實收的較大者）。")
-            if not (data.get("manual_refund_reason") or "").strip():
-                self.add_error("manual_refund_reason", "手填應退金額時，請填寫原因。")
             if forfeited:
                 self.add_error("forfeited_amount", "手填應退金額時不另計沒收，請留空。")
         refund = manual or (self.received - forfeited)

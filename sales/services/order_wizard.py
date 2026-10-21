@@ -34,7 +34,7 @@ STEP_FIELDS = {
     "vehicle": {
         "vehicle_energy_type", "vehicle_model", "color", "transaction_type", "catalog_selection",
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
-        "payment_type", "payment_splits", "vehicle_price", "vehicle_price_adjustment_reason", "registration_date",
+        "payment_type", "payment_splits", "vehicle_price", "registration_date",
         "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
         "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
         "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
@@ -53,7 +53,7 @@ STEP_FIELDS = {
     },
     "deposit": {
         "deposit_amount", "deposit_date", "deposit_method", "intake_discount_mode", "intake_discount_amount",
-        "intake_discount_rate", "intake_discount_reason", "note",
+        "intake_discount_rate", "note",
     },
 }
 FORMSET_STEPS = {"accessories": "accessories", "other_fees": "deposit"}

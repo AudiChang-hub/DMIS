@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 
 from sales.models import LegacyImportBatch, LegacyImportCorrection
 from sales.services import import_order_review
+from sales.services.audit_note import note_or_summary
 from sales.services.legacy_import import apply_import_row_decision
 
 DONE = {
@@ -30,9 +31,8 @@ def legacy_import_order_review(request, pk, row_pk):
     actor = request.user.get_full_name() or request.user.get_username()
     try:
         if decision == "exclude":
-            if len(reason.strip()) < 2:
-                raise ValueError("請填寫處理原因。")
-            apply_import_row_decision(row, {}, LegacyImportCorrection.Decision.EXCLUDE, reason.strip(), actor)
+            apply_import_row_decision(row, {}, LegacyImportCorrection.Decision.EXCLUDE,
+                                      note_or_summary(reason, f"不匯入此列（{row.sheet_name}第 {row.source_row} 列）"), actor)
         elif decision in DONE:
             import_order_review.decide(
                 row, decision=decision, order_id=request.POST.get("order"),

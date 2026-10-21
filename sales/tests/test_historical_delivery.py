@@ -81,8 +81,6 @@ class HistoricalDeliveryTests(TestCase):
         order = SalesOrder.objects.get()
         with self.assertRaisesMessage(ValueError, "請填寫車牌號碼"):
             historical_delivery.complete_imported_order(order.pk, plate="", delivered_on=date(2026, 10, 1), actor="a", reason="原因")
-        with self.assertRaisesMessage(ValueError, "請填寫原因"):
-            historical_delivery.complete_imported_order(order.pk, plate="X-1", delivered_on=date(2026, 10, 1), actor="a", reason="")
         staff = get_user_model().objects.create_user("staff", password="Test-Only-123")
         UserAccessState.objects.create(user=staff, configured=True)
         ScreenAccessGrant.objects.create(user=staff, screen_key="orders", view=True, operate=True)

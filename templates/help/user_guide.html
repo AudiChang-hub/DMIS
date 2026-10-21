@@ -165,7 +165,7 @@
     {% help_visible 'allocation' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="allocation" data-guide-topic>
       <div class="guide-topic-heading"><span>07</span><div><p class="eyebrow">內部協調</p><h2>配車與更換配車</h2></div></div>
       <ol class="guide-steps"><li><strong>進入「配車」。</strong><span>清單只顯示符合車型與車色且可售的車；「★ 優先配車」排最上面，同級再依出廠年月由舊到新。選項會顯示出廠年月與存放位置。</span></li><li><strong>核對識別號碼與實際位置。</strong><span>油車是引擎號碼；電動車、輕型電動車與微型電動車是車身號碼。</span></li><li><strong>按確認配車並鎖定。</strong><span>配車只代表保留，不代表實體車已移到交車地點。</span></li></ol>
-      <div class="guide-tip"><strong>未依順序要填原因</strong><span>本單不是排第一位，或沒選同級最早出廠的車，必須填「未依順序配車原因」。仍有優先配車卻選一般車時會提醒，建議填寫但不強制，內容記在配車紀錄。出廠超過 3 個月自動優先，其餘可在車輛庫存手動開啟。</span></div>
+      <div class="guide-tip"><strong>未依順序只提醒</strong><span>本單不是排第一位、沒選同級最早出廠的車，或仍有優先配車卻選一般車時會提醒，不必填原因，內容記在配車紀錄。出廠超過 3 個月自動優先，其餘可在車輛庫存手動開啟。</span></div>
       <div class="guide-exception"><strong>不能更換配車</strong><p>若已有車牌、領牌完成紀錄或任何領牌文件，系統會拒絕直接更換。請先由行政確認並處理領牌資料，避免車輛與文件對錯。</p></div>
       <div class="guide-tip"><strong>沒有可選車</strong><span>檢查訂單是否已接單、庫存是否已進車、車型與車色是否一致、車輛是否被其他訂單保留或標為車況異常。</span></div>
     </article>{% endif %}
@@ -192,7 +192,7 @@
 
     {% help_visible 'cancel-refund' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="cancel-refund" data-guide-topic>
       <div class="guide-topic-heading"><span>11</span><div><p class="eyebrow">尚未領牌／交付</p><h2>取消訂單、退款與沒收</h2></div></div>
-      <ol class="guide-steps"><li><strong>展開取消流程。</strong><span>在訂單最下方「取消與結案」的「訂單取消與退款」按「展開取消流程」，填取消原因與說明，按「登記取消訂單」；展開本身不會取消訂單。</span></li><li><strong>系統解除配車。</strong><span>車輛恢復可售。</span></li><li><strong>有已確認收款時進入「取消待退款」。</strong><span>填沒收金額（不沒收填 0，有沒收須填原因），系統算出應退＝已確認實收－沒收；填退款日期、方式與證明，按「確認結算並完成取消」。沒有收款則直接完成取消。</span></li><li><strong>客人改變心意。</strong><span>取消待退款期間可填原因按「撤銷取消」，訂單回到待配車，需重新配車。</span></li></ol>
+      <ol class="guide-steps"><li><strong>展開取消流程。</strong><span>在訂單最下方「取消與結案」的「訂單取消與退款」按「展開取消流程」，需要時填備註，按「登記取消訂單」；展開本身不會取消訂單。</span></li><li><strong>系統解除配車。</strong><span>車輛恢復可售。</span></li><li><strong>有已確認收款時進入「取消待退款」。</strong><span>填沒收金額（不沒收填 0，沒收備註選填），系統算出應退＝已確認實收－沒收；填退款日期、方式與證明，按「確認結算並完成取消」。沒有收款則直接完成取消。</span></li><li><strong>客人改變心意。</strong><span>取消待退款期間可按「撤銷取消」（備註選填），訂單回到待配車，需重新配車。</span></li></ol>
       <div class="guide-exception"><strong>系統拒絕取消</strong><p>已交付、分期公司已撥款，或仍有未確認收款時不能取消。已領牌但客人不交車，請改用「領牌後棄單（例外結案）」：結算沒收與退款，車輛以已領牌車（填再售價）釋回，只能配給領牌車交易。沒收過訂金的訂單一律不能刪除，admin 也不能略過。</p></div>
     </article>{% endif %}
 
@@ -228,7 +228,7 @@
       <div class="guide-two-column"><section><h3>快速進車</h3><ol><li>每一列填一台車。</li><li>車型、年份與車色用下拉選擇。</li><li>油車填引擎號碼，電動車類填車身號碼；填進車日。出廠年月（如 2026/08）可不填，但沒填的車在配車時排最後。</li><li>選擇車輛來源：公司進車或車行調車（調車要填跟誰調）。</li><li>車況說明選填。</li><li>按「建立全部車輛」。快速進車一律放在本店；要放在車行，建立後到「查看／編輯」改實際位置，或改用「新增單台」。</li></ol></section><section><h3>清單操作</h3><ul><li>搜尋識別號碼、車型、車色、位置或車況。</li><li>依狀態、機種、車色、實際位置與車輛來源篩選。</li><li>依進車日期、車型、車色、識別號碼、狀態、實際位置或優先配車排序。</li><li>變更位置會自動產生調車歷程。</li><li>現有庫存可直接切換「優先配車」開關，切換會留在庫存異動紀錄。</li><li>已售出、已交車的車不列入庫存；停用的車放在「停用車輛」分頁。</li><li>未配車的車可在編輯頁勾「標記車況異常（暫停配車）」並填車況說明；處理完取消勾選即恢復可銷售。</li></ul></section></div>
       <div class="guide-exception"><strong>整批進車失敗</strong><p>任一列重複、缺少資料或車色不屬於該車型時，整批都不建立。依畫面指出的列修正後再送出，避免只進一半。</p></div>
       <div class="guide-tip"><strong>先進先出</strong><span>機車以出廠年月判斷新舊；先確認月份，不要只看車型主檔的年份。</span></div>
-      <div class="guide-tip"><strong>優先配車</strong><span>出廠年月超過 3 個月的車自動開啟優先配車且不能關閉；未滿 3 個月的車可手動開啟（標示「人工」）。訂單配車時優先配車排最上面；選了其他車會提醒填原因，但不強制。</span></div>
+      <div class="guide-tip"><strong>優先配車</strong><span>出廠年月超過 3 個月的車自動開啟優先配車且不能關閉；未滿 3 個月的車可手動開啟（標示「人工」）。訂單配車時優先配車排最上面；選了其他車只會提醒，不必填原因。</span></div>
     </article>{% endif %}
 
     {% help_visible 'master-data' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="master-data" data-guide-topic>
@@ -269,14 +269,14 @@
       <div class="guide-tip"><strong>刪除規則：先核對影響，再確認</strong><span>規則管理或編輯頁可按「刪除規則」。確認頁列出車行範圍、期間、門檻及目前符合條件的訂單數；勾選確認後才刪除。刪除只移除本規則及所屬設定，不刪訂單、不改既有收支，也不影響其他規則。系統保留操作人員、時間與設定快照供稽核，畫面不提供一鍵復原。若任一期已結算，只能停用；確認期間若規則被修改或結算，必須重新檢查，不能用舊確認直接刪除。</span></div>
       <div class="guide-tip"><strong>車型跟著品牌、能源篩選</strong><span>「指定車型」只列符合所選品牌與能源的車型；複選品牌會顯示這些品牌的車型，沒有符合結果時不會顯示其他車型。變更條件若影響已選車型，請先確認移除或按「還原品牌與能源」，再儲存。若全部移除，會明確提示將變成「不限車型」；未按儲存不會更改規則。</span></div>
       <div class="guide-example"><strong>同規則取最高門檻，不同規則累加</strong><p>A 車行達 3 台，每台 500 元，該規則即為 1,500 元，不再加低門檻金額。同一台另符合能源 300 元及車型 200 元，則該台獎金共 1,000 元。</p></div>
-      <div class="guide-tip"><strong>試算不是付款，原傭金只計一次</strong><span>每個「規則＋期間＋車行」只能結算一次。逐單明細會標示其他獎金是試算或已結算；本次不要再輸入其他規則或原傭金。正式結算／更正才更新獎金分攤、成本及淨利，並非新增付款。更正須填原因，且保留其他規則獎金；人工覆寫傭金總額須另外核對，系統不擅自拆分。</span></div>
+      <div class="guide-tip"><strong>試算不是付款，原傭金只計一次</strong><span>每個「規則＋期間＋車行」只能結算一次。逐單明細會標示其他獎金是試算或已結算；本次不要再輸入其他規則或原傭金。正式結算／更正才更新獎金分攤、成本及淨利，並非新增付款。更正不必填原因，仍保留其他規則獎金；人工覆寫傭金總額須另外核對，系統不擅自拆分。</span></div>
       <p>只計歸屬車行的訂單；本店單須明確指定車行才計入，平台單、取消單、未完成領牌及期間外訂單不計入。收款車行及統計期間依已保存的歸屬與領牌資料，不因新增規則而更動。</p>
     </article>{% endif %}
 
     {% help_visible 'sales-sources' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="sales-sources" data-guide-topic>
       <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>車行、網路平台與本店人員</h2></div></div>
       <p>三種來源各有獨立清單，不會混在同一個畫面；通路類別也從資料維護區進入。</p>
-      <div class="guide-example"><strong>這一台要算給另一間車行</strong><p>新訂單在「訂單來源」點「這台算給其他車行」，選好後隨訂單儲存。已儲存、已交付或已完成的訂單，到訂單頁右上角的小卡按「變更車行」，選車行、填原因、按「儲存歸屬」；選回「原銷售車行」可恢復預設。</p><p>例如 B 的一台指定給 A：這台台數、基礎傭金與台數獎金歸 A，原銷售來源仍是 B。本店單也能指定車行，保留本店來源與承辦人，不新增基礎傭金；選「不指定車行」可取消。網路平台維持原限制。</p><p>只更新歸屬與未結算試算，不重算原車價、原傭金及其他收支，也不變更交付紀錄；台數沿用原領牌期間。獎金在正式結算後才分攤到成本與淨利。已取消或已結算的訂單不能直接調整，也不能直接加入目標車行已結算的期間。此操作不等於付款，修改人、時間、原因與前後值會保留。</p></div>
+      <div class="guide-example"><strong>這一台要算給另一間車行</strong><p>新訂單在「訂單來源」點「這台算給其他車行」，選好後隨訂單儲存。已儲存、已交付或已完成的訂單，到訂單頁右上角的小卡按「變更車行」，選車行、按「儲存歸屬」；選回「原銷售車行」可恢復預設。</p><p>例如 B 的一台指定給 A：這台台數、基礎傭金與台數獎金歸 A，原銷售來源仍是 B。本店單也能指定車行，保留本店來源與承辦人，不新增基礎傭金；選「不指定車行」可取消。網路平台維持原限制。</p><p>只更新歸屬與未結算試算，不重算原車價、原傭金及其他收支，也不變更交付紀錄；台數沿用原領牌期間。獎金在正式結算後才分攤到成本與淨利。已取消或已結算的訂單不能直接調整，也不能直接加入目標車行已結算的期間。此操作不等於付款，修改人、時間與前後值會保留。</p></div>
       <div class="guide-two-column">
         <section><h3>車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。列表可直接按「Google Maps 導航」規劃路線。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li><li>掛帳額度：空白不設上限但仍追蹤，0 表示收清才能交車，超過額度不能交車。</li><li>停止合作請停用；永久刪除見下方說明。</li></ul></section>
         <section><h3>平台與本店人員</h3><ul><li>網路平台維護來源代碼、聯絡窗口、電話、分機、手機、Email 與備註；新資料由系統配置來源代碼。</li><li>本店人員維護姓名、所在店（永湛／馭盛）、電話與每筆傭金。</li><li>列表的「啟用中」是快速開關；車行的「年節送禮」也可直接切換，畫面會留在原位。</li><li>停用資料保留歷史訂單使用，但建立新訂單時不再提供選用。</li></ul></section>
@@ -328,13 +328,13 @@
         <div class="guide-screen-body"><b>② 預計金額</b><span>③ 填實際金額</span><span>④ 差額會立即辨識</span></div>
         <div class="guide-screen-footer"><span>⑤ 入帳日與帳戶</span><b>確認後儲存</b></div>
       </div>
-      <ol class="guide-steps"><li><strong>從「營運總表 → 統一撥款對帳」進入，選對帳對象與「尚未入帳」。</strong></li><li><strong>方案是「本單另填」或有特殊撥款時，展開「本單特殊撥款」。</strong><span>填調整後預計金額與調整原因。</span></li><li><strong>依對方帳本填實際金額與入帳日，按「入帳」。</strong><span>不必另外勾確認，訂單收支的實際撥款與淨利立即同步。</span></li><li><strong>看預計、實際與差額。</strong><span>入帳後鎖定；登記錯了到訂單收款明細取消「已確認」後修改。</span></li></ol>
+      <ol class="guide-steps"><li><strong>從「營運總表 → 統一撥款對帳」進入，選對帳對象與「尚未入帳」。</strong></li><li><strong>方案是「本單另填」或有特殊撥款時，展開「本單特殊撥款」。</strong><span>填調整後預計金額，不必填原因。</span></li><li><strong>依對方帳本填實際金額與入帳日，按「入帳」。</strong><span>不必另外勾確認，訂單收支的實際撥款與淨利立即同步。</span></li><li><strong>看預計、實際與差額。</strong><span>入帳後鎖定；登記錯了到訂單收款明細取消「已確認」後修改。</span></li></ol>
       <div class="guide-exception"><strong>差額不是 0</strong><p>先不要確認。回訂單核對付款方式、分期期數、平台／車行與預計金額；本頁只核對實際有沒有撥款與金額是否正確，不需處理批次總額。</p></div>
     </article>{% endif %}
 
     {% help_visible 'import-data' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="import-data" data-guide-topic>
       <div class="guide-topic-heading"><span>16</span><div><p class="eyebrow">Excel 平行期</p><h2>歷史資料匯入</h2></div></div>
-      <ol class="guide-steps"><li><strong>選匯入類型並上傳正式檔。</strong><span>系統只建立預覽，不會立即寫入。「車行／網路平台名冊」只讀「車行」工作表，店名有刪除線的車行不匯入，預覽頁會列出被略過的列。</span></li><li><strong>先看處理摘要。</strong><span>確認可新增、已存在、人工排除、衝突、錯誤與未對應資料。</span></li><li><strong>在同頁補齊主檔。</strong><span>未對應車型或通路可直接對應既有、快速新增，或保留為歷史文字；下次會自動沿用。</span></li><li><strong>先核對來源車輛。</strong><span>車型不確定時展開相關資料，用車牌、車色、引擎／車身號碼、車主與日期判斷；對應彈窗也會同步顯示。</span></li><li><strong>處理衝突與錯誤。</strong><span>按「處理 N 筆問題」，衝突在「重複資料比較」按「檢查並處理這一列」，錯誤列按「修正／排除」。選「修正後匯入」或「不匯入此列」，填原因後按「儲存並重新驗證」。</span></li><li><strong>重新驗證後再確認。</strong><span>問題全部處理完，按「確認匯入 N 筆資料」，系統改在背景寫入，可以先離開。個別失敗的列按「修正並補匯」只處理該列；顯示「背景匯入暫時中止」時按「繼續背景匯入」，不要重新上傳。</span></li><li><strong>原始檔保持不變。</strong><span>人工修正只作用於本次匯入暫存值，並保留處理人與時間。</span></li></ol>
+      <ol class="guide-steps"><li><strong>選匯入類型並上傳正式檔。</strong><span>系統只建立預覽，不會立即寫入。「車行／網路平台名冊」只讀「車行」工作表，店名有刪除線的車行不匯入，預覽頁會列出被略過的列。</span></li><li><strong>先看處理摘要。</strong><span>確認可新增、已存在、人工排除、衝突、錯誤與未對應資料。</span></li><li><strong>在同頁補齊主檔。</strong><span>未對應車型或通路可直接對應既有、快速新增，或保留為歷史文字；下次會自動沿用。</span></li><li><strong>先核對來源車輛。</strong><span>車型不確定時展開相關資料，用車牌、車色、引擎／車身號碼、車主與日期判斷；對應彈窗也會同步顯示。</span></li><li><strong>處理衝突與錯誤。</strong><span>按「處理 N 筆問題」，衝突在「重複資料比較」按「檢查並處理這一列」，錯誤列按「修正／排除」。選「修正後匯入」或「不匯入此列」（備註選填），按「儲存並重新驗證」。</span></li><li><strong>重新驗證後再確認。</strong><span>問題全部處理完，按「確認匯入 N 筆資料」，系統改在背景寫入，可以先離開。個別失敗的列按「修正並補匯」只處理該列；顯示「背景匯入暫時中止」時按「繼續背景匯入」，不要重新上傳。</span></li><li><strong>原始檔保持不變。</strong><span>人工修正只作用於本次匯入暫存值，並保留處理人與時間。</span></li></ol>
       <div class="guide-troubleshooting"><div><strong>同一台車後來賣中古車</strong><span>兩筆都保留，把後續交易的交易類型改成「中古車交易」；系統不會再次扣新車庫存。</span></div><div><strong>這次檔案不想匯入</strong><span>待確認或處理失敗的批次可直接刪除；正式資料不會受影響。</span></div><div><strong>已經完成匯入</strong><span>只能封存紀錄，不能直接刪除已建立的訂單與庫存。</span></div><div><strong>疑似已匯入</strong><span>沒有引擎／車身號碼的銷貨列，型號、日期、車主都和已匯入的資料相同（只有車牌欄不同）時會列為衝突；請排除或補上號碼，避免重複建單。</span></div></div>
       <div class="guide-exception"><strong>第一次正式匯入</strong><p>請由管理者陪同。Excel 少一列不代表要刪除系統資料；不要為了通過預覽而任意改車牌、證號或識別號碼。</p></div>
       <div class="guide-tip"><strong>同號碼資料全部核對</strong><span>修正頁列出全部相關訂單，包含新車、中古與已取消紀錄，並標示目前配車占用；本批其他同號碼來源列也會列出。進貨與銷貨同號碼不代表重複，不會自動覆寫或排除。</span></div>

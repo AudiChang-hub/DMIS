@@ -92,7 +92,8 @@ class AllocationPriorityTests(TestCase):
         self.assertEqual(order.allocated_vehicle_id, normal.pk)
         description = OrderEvent.objects.get(order=order, event_type="allocated").description
         self.assertIn("尚有優先配車車輛 SI-PRI", description)
-        self.assertIn("原因：未填寫", description)
+        self.assertNotIn("原因", description)
+        self.assertEqual(order.allocation_skip_reason, "系統摘要：尚有優先配車車輛 SI-PRI")
         self.assertEqual(priority.pk, AllocationForm(order).fields["vehicle"].queryset.first().pk)
 
     def test_allocation_preselects_suggested_vehicle(self):
@@ -106,13 +107,14 @@ class AllocationPriorityTests(TestCase):
         self.assertNotEqual(form.initial["vehicle"], newer.pk)
         self.assertTrue(AllocationForm(order, {"vehicle": form.initial["vehicle"]}).is_valid())
 
-    def test_fifo_within_priority_tier_still_requires_reason(self):
+    def test_fifo_within_priority_tier_is_noted_without_reason(self):
+        # 未依順序不再要求填原因（2026-10-21 T-39），系統偵測到的情形照舊記入配車事件。
         order = self.clean_pending_order()
         oldest = self.vehicle("P-OLD", months_ago(9))
         newer = self.vehicle("P-NEW", months_ago(5))
         form = AllocationForm(order, {"vehicle": newer.pk})
-        self.assertFalse(form.is_valid())
-        self.assertIn("較早出廠的車輛 SI-P-OLD", str(form.errors))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIn("較早出廠的車輛 SI-P-OLD", "；".join(form.cleaned_data["skip_notes"]))
         self.assertTrue(AllocationForm(order, {"vehicle": oldest.pk}).is_valid())
 
     def test_choosing_manual_priority_over_older_normal_vehicle_needs_no_reason(self):

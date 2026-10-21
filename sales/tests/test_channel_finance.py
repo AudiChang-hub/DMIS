@@ -206,7 +206,7 @@ class ChannelFinanceTests(TestCase):
             payment.item_name, "分期公司撥款（含額外獎金 300 元）"
         )
 
-    def test_manual_expected_amount_override_requires_reason_and_is_preserved(self):
+    def test_manual_expected_amount_override_needs_no_reason_and_is_preserved(self):
         order = self.make_order()
         apply_order_installment_snapshot(order)
         sync_order_operations(order.pk)
@@ -217,26 +217,10 @@ class ChannelFinanceTests(TestCase):
         self.client.force_login(self.user)
         url = reverse("reconciliation_update", args=[payment.pk])
 
-        rejected = self.client.post(
-            url,
-            {
-                "expected_amount": "65000",
-                "expected_amount_override_reason": "",
-                "received_amount": "0",
-                "received_on": "",
-                "receiving_account": "",
-                "note": "",
-            },
-        )
-        payment.refresh_from_db()
-        self.assertEqual(rejected.status_code, 302)
-        self.assertEqual(payment.expected_amount, Decimal("65750"))
-
         accepted = self.client.post(
             url,
             {
                 "expected_amount": "65000",
-                "expected_amount_override_reason": "本案特殊撥款",
                 "received_amount": "0",
                 "received_on": "",
                 "receiving_account": "",

@@ -62,6 +62,12 @@ docker compose -f docker-compose.django.yml \
 `deployment/nginx/tunnel-proxy.conf` 必須轉送 `Upgrade`／`Connection`，訂單草稿即時共編
 （`/ws/orders/drafts/…`）才能建立 WebSocket；少了會回 404，畫面一直顯示重新連線。
 
+查慢用的存取紀錄在 `/srv/dmis-data/dmis-next/logs/nginx/access.log`（容器外，部署重建不會消失）：
+每行一筆 JSON，`rt` 是總耗時（含使用者上傳／下載），`urt` 是 Django 處理時間，`rid` 對應畫面上的
+查修編號；只記路徑，不記查詢字串與來源 IP，`/health/` 不記。tunnel-proxy 每次啟動時把上一段改名
+壓縮為 `access-日期.log.gz`，保留 30 天。Django 處理超過 3 秒的請求另記 `slow_request` 到 web 日誌。
+不需要時移除 compose 的兩行掛載與 `tunnel-proxy.conf` 的 `access_log /var/log/dmis/…` 即回復。
+
 Tunnel token 只存於 `secrets/cloudflare-tunnel.token`，檔案權限設為 `600`；不得提交
 至 Git，也不得放進 `.env.django`。Google Vision 金鑰同樣只能以唯讀 secret mount
 提供。

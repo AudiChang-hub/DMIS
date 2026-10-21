@@ -61,6 +61,8 @@ services:
         condition: service_healthy
     volumes:
       - ./deployment/nginx/tunnel-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deployment/nginx/40-dmis-access-log.sh:/docker-entrypoint.d/40-dmis-access-log.sh:ro
+      - ${DMIS_PROXY_LOG_PATH:-/srv/dmis-data/dmis-next/logs/nginx}:/var/log/dmis
     networks:
       default:
         aliases:

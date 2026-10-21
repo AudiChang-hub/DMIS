@@ -12,7 +12,8 @@ def account_profile(user):
 
 def can_edit_finance(user):
     from sales.access.services import AccessPolicy
-    return AccessPolicy(user).screen("order_finance", "operate")
+    policy = getattr(user, "_request_access_policy", None) or AccessPolicy(user)
+    return policy.screen("order_finance", "operate")
 
 
 def scoped_orders(user, queryset=None, *, apply_overrides=True):

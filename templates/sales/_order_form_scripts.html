@@ -144,6 +144,10 @@
   let applyingRemoteValue = false;
   const photoDirty = {id_front: false, id_back: false};
   const photoVersion = {id_front: 0, id_back: 0};
+  // 其他附件（存摺、舊車主證件、分期表、補充檔案）：選檔後只隨草稿上傳一次，存好就不再重送。
+  const intakeFileVersion = new Map();
+  const heldFileInputs = new Set();
+  let resumingSubmit = false;
   const collaborativeFields = new Map();
   const collaborativeTimers = new Map();
   const remotePresences = new Map();
@@ -859,11 +863,10 @@
     );
     payload.append("photo_token", photoToken);
     try {
-      const response = await fetch("{% url 'id_card_ocr' %}", {
-        method: "POST",
-        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
-        body: payload,
-      });
+      const headers = {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value};
+      const response = window.dmisBusy
+        ? await window.dmisBusy.upload("{% url 'id_card_ocr' %}", payload, {headers})
+        : await fetch("{% url 'id_card_ocr' %}", {method: "POST", headers, body: payload});
       const data = await response.json().catch(() => ({ok: false, error: "辨識服務暫時無法使用。"}));
       if (requestVersion !== ocrRequestVersion) return;
       if (!response.ok || !data.ok) throw new Error(data.error || "無法排入辨識工作");
@@ -1704,16 +1707,22 @@
       id_front: byId("remove-id-front").value === "1",
       id_back: byId("remove-id-back").value === "1",
     };
+    const requestIntakeVersion = new Map(intakeFileVersion);
     const payload = new FormData(orderForm);
     if (!requestPhotoDirty.id_front) payload.delete("id_front");
     if (!requestPhotoDirty.id_back) payload.delete("id_back");
+    orderForm.querySelectorAll('input[type="file"]').forEach(input => {
+      if (!(input.name in photoDirty) && !intakeFileVersion.has(input.name)) payload.delete(input.name);
+    });
+    const hasFiles = [...payload.values()].some(value => value instanceof File && value.size > 0);
+    if (hasFiles) setDraftStatus("saving", "附件上傳中…");
     try {
-      const response = await fetch("{% url draft_save_route|default:'draft_save' %}", {
-        busy: false,
-        method: "POST",
-        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
-        body: payload,
-      });
+      const draftUrl = "{% url draft_save_route|default:'draft_save' %}";
+      const headers = {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value};
+      // 有檔案時改用可回報進度的上傳，畫面顯示百分比；只有文字時維持背景儲存、不打擾。
+      const response = hasFiles && window.dmisBusy
+        ? await window.dmisBusy.upload(draftUrl, payload, {headers})
+        : await fetch(draftUrl, {busy: false, method: "POST", headers, body: payload});
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "草稿儲存失敗");
       draftId.value = data.id;
@@ -1726,6 +1735,9 @@
           byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "0";
         }
         showSavedPhoto(fieldName, data.photos[fieldName]);
+      });
+      requestIntakeVersion.forEach((version, name) => {
+        if (intakeFileVersion.get(name) === version) intakeFileVersion.delete(name);
       });
       history.replaceState(null, "", wizardStep ? `${data.edit_url}&step=${wizardStep}` : data.edit_url);
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
@@ -1740,11 +1752,66 @@
         draftQueued = false;
         saveDraft();
       }
+      document.dispatchEvent(new CustomEvent("draft-save-finished"));
     }
   }
 
   orderForm.addEventListener("input", scheduleDraft);
   orderForm.addEventListener("change", scheduleDraft);
+  orderForm.addEventListener("change", event => {
+    const input = event.target;
+    if (editingOrderId || !(input instanceof HTMLInputElement) || input.type !== "file" || input.name in photoDirty) return;
+    intakeFileVersion.set(input.name, (intakeFileVersion.get(input.name) || 0) + 1);
+    if (!input.files.length) return;
+    // 選好檔案就開始上傳，填寫其他欄位時檔案已在背景傳送。
+    clearTimeout(draftTimer);
+    draftTimer = window.setTimeout(saveDraft, 300);
+  });
+
+  // 送出這一步前，尚未存進草稿的檔案先以草稿上傳（畫面顯示百分比）；已存好的檔案不再隨表單重送。
+  function hasPendingUploads() {
+    return Object.values(photoDirty).some(Boolean) || intakeFileVersion.size > 0;
+  }
+  function holdStoredFiles() {
+    orderForm.querySelectorAll('input[type="file"]').forEach(input => {
+      const pending = input.name in photoDirty ? photoDirty[input.name] : intakeFileVersion.has(input.name);
+      if (pending || !input.files.length || input.disabled) return;
+      input.disabled = true;
+      heldFileInputs.add(input);
+    });
+  }
+  function releaseStoredFiles() {
+    heldFileInputs.forEach(input => { input.disabled = false; });
+    heldFileInputs.clear();
+  }
+  async function flushDraftUploads() {
+    for (let attempt = 0; attempt < 3 && hasPendingUploads(); attempt += 1) {
+      while (draftSaving) await new Promise(resolve => document.addEventListener("draft-save-finished", resolve, {once: true}));
+      if (hasPendingUploads()) await saveDraft();
+    }
+    return !hasPendingUploads();
+  }
+  window.addEventListener("submit", async event => {
+    if (event.target !== orderForm || editingOrderId || resumingSubmit) return;
+    if (!hasPendingUploads()) {
+      holdStoredFiles();
+      window.setTimeout(() => { if (event.defaultPrevented) releaseStoredFiles(); }, 0);
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    clearTimeout(draftTimer);
+    const submitter = event.submitter?.form === orderForm ? event.submitter : undefined;
+    // 草稿上傳失敗時照舊連同檔案一起送出，不讓使用者卡住。
+    if (await flushDraftUploads()) holdStoredFiles();
+    resumingSubmit = true;
+    try {
+      orderForm.requestSubmit(submitter);
+    } finally {
+      resumingSubmit = false;
+    }
+  }, true);
+  window.addEventListener("pageshow", releaseStoredFiles);
   if (editingOrderId) {
     orderForm.addEventListener("input", () => { editFormDirty = true; });
     orderForm.addEventListener("change", () => { editFormDirty = true; });

@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 
 from django.shortcuts import redirect
@@ -6,6 +7,8 @@ from django.urls import reverse
 
 
 logger = logging.getLogger("dmis.request")
+SLOW_REQUEST_SECONDS = 3
+DOWNLOAD_COOKIE = "dmis_download"
 
 
 class RequestIdMiddleware:
@@ -16,8 +19,19 @@ class RequestIdMiddleware:
 
     def __call__(self, request):
         request.request_id = uuid.uuid4().hex[:12].upper()
+        started = time.monotonic()
         response = self.get_response(request)
+        elapsed = time.monotonic() - started
         response["X-Request-ID"] = request.request_id
+        if elapsed >= SLOW_REQUEST_SECONDS:
+            logger.warning(
+                "slow_request request_id=%s method=%s path=%s status=%s seconds=%.2f",
+                request.request_id,
+                request.method,
+                request.path,
+                response.status_code,
+                elapsed,
+            )
         if response.status_code >= 500:
             logger.error(
                 "request_failed request_id=%s method=%s path=%s status=%s",
@@ -26,6 +40,19 @@ class RequestIdMiddleware:
                 request.path,
                 response.status_code,
             )
+        return response
+
+
+class DownloadStartedMiddleware:
+    """下載檔回應帶短效 cookie，讓 busy-indicator.js 知道下載已開始、頁面不會換頁而收起處理中提示。"""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.get("Content-Disposition", "").lower().startswith("attachment"):
+            response.set_cookie(DOWNLOAD_COOKIE, "1", max_age=60, samesite="Lax", secure=request.is_secure())
         return response
 
 

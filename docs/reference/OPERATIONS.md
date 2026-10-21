@@ -55,12 +55,14 @@ docker compose -f docker-compose.django.yml \
 並同步更新 `DJANGO_DB_PASSWORD`。不要只改 `POSTGRES_PASSWORD` 就假設既有 volume 的管理
 角色密碼已變更。
 
-`19999` 是 T470P 上的本機健康檢查入口，不應直接暴露給區網或 Internet。正式使用者
+`19999` 是 T470P 上的本機健康檢查入口（綁在 `tunnel-proxy`），不應直接暴露給區網或 Internet。正式使用者
 只經 `https://dmis.moto-core.com/` 與 Cloudflare Tunnel 進入；
-`docker-compose.django.prod.yml` 的 `tunnel-proxy` 保留舊來源名稱 `odoo:8069`，但實際
-轉送到 Django `web:8000`。Tunnel connector 固定使用 HTTP/2。
+`docker-compose.django.prod.yml` 的 `tunnel-proxy` 保留舊來源名稱 `odoo:8069`，轉送到
+目前接流量的 `web-blue:8000` 或 `web-green:8000`（見下方「藍綠部署」）。Tunnel connector 固定使用 HTTP/2。
 `deployment/nginx/tunnel-proxy.conf` 必須轉送 `Upgrade`／`Connection`，訂單草稿即時共編
 （`/ws/orders/drafts/…`）才能建立 WebSocket；少了會回 404，畫面一直顯示重新連線。
+正式站的 `web` 服務不接流量，只當管理指令容器：`compose exec -T web python manage.py …`
+（systemd 排程、本文件的維運指令）照舊可用，image 與上線版本同一次建置。
 
 查慢用的存取紀錄在 `/srv/dmis-data/dmis-next/logs/nginx/access.log`（容器外，部署重建不會消失）：
 每行一筆 JSON，`rt` 是總耗時（含使用者上傳／下載），`urt` 是 Django 處理時間，`rid` 對應畫面上的
@@ -89,16 +91,34 @@ curl --fail --silent --show-error https://dmis.moto-core.com/health/
 看容器是否 `Up`，還要確認本機與正式網域健康檢查、背景 workers，以及實際登入後的
 關鍵頁面。
 
-### 安全部署腳本
+### 安全部署腳本（藍綠部署，零停機）
 
 ```bash
-chmod +x scripts/deploy_django.sh scripts/backup_django_data.sh
-./scripts/deploy_django.sh
+chmod +x scripts/deploy_django.sh scripts/deploy_web_bluegreen.sh scripts/backup_django_data.sh
+./scripts/deploy_django.sh             # 部署 origin/main
+./scripts/deploy_django.sh --rollback  # 秒退：切回上一色
 ```
 
-腳本會確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體（部署前備份
-只新增、不清理過期檔，以免部署帳號刪不掉 root 擁有的備份而中止），再重建
-web／OCR／搜尋／匯入服務、重建 tunnel proxy、驗證 HTTP/2 connector 與正式網域。
+`deploy_django.sh` 確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體（部署前備份
+只新增、不清理過期檔，以免部署帳號刪不掉 root 擁有的備份而中止），核對發布標籤，再交給
+`scripts/deploy_web_bluegreen.sh`：
+
+1. 建置新版 image（靜態檔在建置時整理），舊版照常服務。
+2. `check_migration_compat` 檢查待套用 migration；相容就先套用（`lock_timeout` 10 秒），舊版仍在服務。
+3. 在閒置的那色（`web-blue`／`web-green`）啟動新版，healthcheck 通過才繼續；起不來就停在這裡，流量不動。
+4. 把 `/srv/dmis-data/dmis-next/proxy/active.conf` 改成新色並 `nginx -s reload`：手上的請求由舊 worker 處理完，新請求進新版。
+5. 等 15 秒排空後**停止但保留**舊的那色（仍是上一版 image，供秒退），再更新管理指令容器與背景工作。
+6. 照舊驗證 HTTP/2 connector、正式網域、`record_release` 與部署標記。
+
+- `tunnel-proxy` 只在 compose 設定改變時重建；重建時先起同 alias 的暫代 nginx（`dmis-next-proxy-bridge`）接手，不出現 502。設定檔改了只需 reload（掛整個 `deployment/nginx` 目錄）。
+- WebSocket 共編在切換時會斷一次，瀏覽器 1 秒後自動重連到新版。
+- 有不相容 migration（刪除／改名欄位等，規則見 [開發驗證](DEVELOPMENT.md)）時自動改用短暫停機部署：先停舊版再遷移，使用者看到約 15～20 秒「系統更新中」頁（與改版前的中斷時間相當；nginx 在連不到 Django 時回 503 並自動重新整理），log 會標明。
+- `--rollback` 用 `docker start` 啟動上一色、就緒後切回並停止目前那色；只切 web 流量，管理容器與背景工作仍是新版，資料庫不倒退，所以只適用於相容 migration 的版本，之後應盡快發修正版（部署標記改成上一版，下次部署會重新套用 main）。
+- 第一次從單一 web 改成藍綠時（1.86.x 過渡版），舊腳本不認得新流程，必須用新版腳本執行：
+  `git fetch origin main && git show origin/main:scripts/deploy_django.sh > /tmp/dmis-deploy.sh && bash /tmp/dmis-deploy.sh`。
+  它照常備份、合併，再把舊 web 換成管理指令容器、以暫代代理重建 tunnel-proxy（綁 19999）。之後腳本有更新會在合併後自動改用新版繼續。
+- 查目前顏色：`./scripts/deploy_web_bluegreen.sh active`；兩色與暫代代理都只在本專案的 compose network 內。
+
 資料庫與 Redis 不會因應用更新而重啟。任一檢查失敗時不得用 `docker compose down`
 繞過保護，應依 log 修正或回復前一個已驗證版本。
 

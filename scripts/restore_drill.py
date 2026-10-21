@@ -135,6 +135,7 @@ def main():
         if actual != expected:
             raise ValueError("還原資料筆數與備份不一致")
         stage = "application"
+        # 藍綠部署後 web 是管理指令容器，image 與上線中的 web-blue／web-green 同一次建置。
         image = run(["docker", "inspect", "dmis-next-web-1", "--format", "{{.Image}}"],
                     capture_output=True, text=True).stdout.strip()
         env = ["POSTGRES_HOST=" + database, "POSTGRES_DB=drill", "DJANGO_DB_USER=postgres",

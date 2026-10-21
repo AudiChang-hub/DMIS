@@ -1,5 +1,37 @@
+x-production-logging: &production_logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+# 藍綠部署：web-blue／web-green 輪流接流量，tunnel-proxy 依 dmis-upstream/active.conf 決定送往哪一色。
+# 部署腳本 scripts/deploy_web_bluegreen.sh 會先在閒置的那色啟動新版、就緒後切換，舊的那色停止但保留供秒退。
+x-web-color: &web_color
+  environment:
+    RESTORE_DRILL_STATUS_PATH: /run/dmis-restore/latest.json
+    # migration 由部署腳本在切換前先套用；新版啟動只跑 daphne。
+    DMIS_RUN_MIGRATIONS: "0"
+  volumes:
+    - /srv/dmis-data/dmis-next/restore-drills:/run/dmis-restore:ro
+  env_file:
+    - path: .env.django
+      required: true
+  mem_limit: 768m
+  cpus: 0.75
+  pids_limit: 256
+  # 停止前讓 daphne 有時間結束手上的請求。
+  stop_grace_period: 30s
+  logging: *production_logging
+
 services:
+  # 正式站的 web 不接流量，只當「管理指令容器」：systemd 排程、維運文件與部署腳本照舊
+  # 用 `compose exec -T web python manage.py …`，還原演練也取它的 image（與上線版本相同）。
   web:
+    command: ["sleep", "infinity"]
+    init: true
+    ports: !reset []
+    healthcheck:
+      disable: true
     environment:
       RESTORE_DRILL_STATUS_PATH: /run/dmis-restore/latest.json
     volumes:
@@ -10,11 +42,21 @@ services:
     mem_limit: 768m
     cpus: 0.75
     pids_limit: 256
-    logging: &production_logging
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
+    logging: *production_logging
+
+  web-blue:
+    extends:
+      file: docker-compose.django.yml
+      service: web
+    <<: *web_color
+    ports: !reset []
+
+  web-green:
+    extends:
+      file: docker-compose.django.yml
+      service: web
+    <<: *web_color
+    ports: !reset []
 
   ocr-worker:
     env_file:
@@ -56,11 +98,13 @@ services:
 
   tunnel-proxy:
     image: nginx:1.27-alpine
-    depends_on:
-      web:
-        condition: service_healthy
+    # 本機健康檢查入口（smoke_django.sh）改經代理，量到的就是使用者實際走的路徑。
+    ports:
+      - "127.0.0.1:${DJANGO_PORT:-19999}:8069"
     volumes:
-      - ./deployment/nginx/tunnel-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      # 掛整個目錄而不是單一檔案：git 更新設定檔會換 inode，單檔掛載看不到新內容（nginx 只讀 *.conf）。
+      - ./deployment/nginx:/etc/nginx/conf.d:ro
+      - "${DMIS_PROXY_STATE_DIR:-/srv/dmis-data/dmis-next/proxy}:/etc/nginx/dmis-upstream:ro"
       - ./deployment/nginx/40-dmis-access-log.sh:/docker-entrypoint.d/40-dmis-access-log.sh:ro
       - ${DMIS_PROXY_LOG_PATH:-/srv/dmis-data/dmis-next/logs/nginx}:/var/log/dmis
     networks:
@@ -73,6 +117,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+      start_interval: 1s
     mem_limit: 96m
     cpus: 0.10
     pids_limit: 64

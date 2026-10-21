@@ -27,6 +27,16 @@ python manage.py test <受影響測試> --noinput
 - 財務稽核 `python manage.py audit_financial_consistency --sample-limit 30` 是唯讀；仍須確認目標與授權。
 - 純文件／AI 設定修改跑 `python -m unittest discover -s tests/context -v` 與 `python scripts/check_release.py`，不需啟動應用或升應用版號。
 
+## Migration：先擴充、後收斂（2026-10-21 使用者同意）
+
+正式站採藍綠部署：先套用 migration、新版就緒才切換，這幾秒舊版仍在讀寫資料庫。所以 migration 必須讓**上一版程式**照常運作：
+
+- 可以直接做：新增資料表、索引、約束；新增可空（`null=True`）或有 `db_default` 的欄位；放寬欄位（改成可空、加長、改選項文字或說明）；RunPython 資料修正。
+- 新增必填欄位一律加 `db_default`（例如 `CharField(blank=True, default="", db_default="")`），只有 `default` 的話舊版新增資料會失敗。
+- 刪除／改名欄位或資料表要拆兩版：第一版程式不再使用，model 用 `SeparateDatabaseAndState` 只移除狀態（必填欄位同時在資料庫改成可空或補 `db_default`）；下一版才真正刪除，並在該 Migration 類別加 `zero_downtime_safe = True` 表示已確認上一版不再使用。改名＝新增新欄位、回填、改用新欄位，下一版刪舊欄位。
+- 檢查：`python manage.py check_migration_compat sales.<migration 名稱>`（不指定時查資料庫尚未套用的）。CI 對新增的 migration 自動檢查並標出警告。
+- 違反時不會出錯：部署腳本偵測到不相容 migration，自動改用短暫停機部署（先停舊版再遷移，使用者看到約 15～20 秒「系統更新中」），並在部署紀錄標明。能拆兩版就拆，不把降級當常態。
+
 ## UI 驗收
 
 桌機 1440×900、平板 820×1180、手機 390×844；網址加 `?ui_audit=1` 時檢查根元素 `data-ui-layout-issues=0`。

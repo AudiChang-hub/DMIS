@@ -154,6 +154,26 @@ jobs:
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
 
+      # 藍綠部署「先擴充、後收斂」：不相容的 migration 不擋 CI，但部署會自動改成短暫停機，這裡先提醒。
+      - name: Check new migrations for zero-downtime compatibility
+        shell: bash
+        env:
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -Eeuo pipefail
+          [[ -n "$CHANGE_BASE" && ! "$CHANGE_BASE" =~ ^0+$ ]] || { echo "沒有比較基準，略過"; exit 0; }
+          git fetch --no-tags --depth=1 origin "$CHANGE_BASE" || { echo "取不到比較基準，略過"; exit 0; }
+          mapfile -t NEW < <(git diff --name-only --diff-filter=A "$CHANGE_BASE" HEAD -- 'sales/migrations/0*.py' \
+            | sed -E 's#^sales/migrations/(.*)\.py$#sales.\1#')
+          [[ ${#NEW[@]} -gt 0 ]] || { echo "沒有新增 migration"; exit 0; }
+          status=0
+          python manage.py check_migration_compat "${NEW[@]}" | tee compat.txt || status=$?
+          if [[ "$status" == "3" ]]; then
+            echo "::warning title=部署會短暫停機::$(tr '\n' ' ' < compat.txt)"
+          elif [[ "$status" != "0" ]]; then
+            exit "$status"
+          fi
+
       - name: Verify frontend behavior checks
         run: node --test tests/frontend/*.test.cjs
 
@@ -319,6 +339,8 @@ jobs:
             test "$(id -u)" -ne 0
             test -f /app/manage.py
             test -f /app/scripts/start_django.sh
+            # 靜態檔在建置時整理好，新版容器啟動不必再跑 collectstatic。
+            test -f /app/staticfiles/staticfiles.json
             test ! -e /app/.git
             test ! -e /app/.env
             test ! -e /app/.env.django

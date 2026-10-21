@@ -1,13 +1,11 @@
-{% load sales_format %}<div class="payment-record-row receipt-row{% if payment.payment_locked %} is-locked{% endif %}" data-payment-row{% if payment.payment_locked %} data-payment-locked{% endif %}{% if payment.instance.system_key %} data-payment-system{% endif %}>
+<div class="payment-record-row receipt-row{% if payment.payment_locked %} is-locked{% endif %}" data-payment-row{% if payment.payment_locked %} data-payment-locked{% endif %}{% if payment.instance.system_key %} data-payment-system{% endif %}>
   {{ payment.id }}{{ payment.non_field_errors }}{{ payment.expected_amount.as_hidden }}
   <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill" data-payment-locked-only>已入帳</span>{% endif %}</div>
   <div class="receipt-name">
     {% include "sales/_field.html" with field=payment.item_name %}
     {% include "sales/_field.html" with field=payment.receipt_kind %}
   </div>
-  <div class="receipt-amount">{% include "sales/_field.html" with field=payment.received_amount %}{% if payment.instance.system_key == "balance" %}
-    {# 系統尾款列標出應收尾款（唯讀文字，使用者 2026-10-21 T-56）：收到尾款就填在這一列，不另外新增同名收款；應收設定區與可覆寫欄位維持拿掉（T-46）。 #}
-    <small class="receipt-due-hint" data-balance-due>應收尾款 $<span data-balance-due-amount>{{ payment.instance.expected_amount|number_with_commas }}</span>，收到尾款填在這一列</small>{% endif %}</div>
+  <div class="receipt-amount">{% include "sales/_field.html" with field=payment.received_amount %}</div>
   <div class="receipt-date">{% include "sales/_field.html" with field=payment.received_on %}</div>
   {% comment %}收款明細只留「向客戶收取手續費」（使用者 2026-10-21 T-54），放在收款方式下方，只有刷卡才顯示；
   其他欄位與「更多資料」都拿掉，確認人與時間改成列下方小字，刪除移到列尾。{% endcomment %}
@@ -17,7 +15,7 @@
   </div>
   <div class="receipt-actions">
     <span hidden>{{ payment.DELETE }}</span>
-    {% if not payment.payment_reversed and not payment.instance.is_receivable_only %}<button type="button" class="button danger-outline small" data-delete-payment aria-label="刪除此筆收款">刪除</button>{% endif %}
+    {% if not payment.payment_reversed %}<button type="button" class="button danger-outline small" data-delete-payment aria-label="刪除此筆收款">刪除</button>{% endif %}
   </div>
   {% if not payment.payment_locked %}<div class="receipt-duplicate{% if payment.duplicate_confirmed.errors %} is-shown{% endif %}">{% include "sales/_field.html" with field=payment.duplicate_confirmed %}</div>{% endif %}
   {% if payment.instance.confirmed_at or payment.instance.proof %}<p class="receipt-meta">

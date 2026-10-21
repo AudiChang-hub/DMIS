@@ -302,13 +302,6 @@
         list.hidden = ready;
       });
     }
-    // 系統尾款列的應收提示跟著最新應收更新（使用者 2026-10-21 T-56）。
-    if (payload.payment_values) root.querySelectorAll('[data-balance-due]').forEach(hint => {
-      const id = hint.closest('[data-payment-row]')?.querySelector('[name$="-id"]')?.value;
-      const expected = id && payload.payment_values[id]?.expected_amount;
-      const amount = hint.querySelector('[data-balance-due-amount]');
-      if (amount && expected != null && expected !== '') amount.textContent = Number(expected).toLocaleString('zh-TW');
-    });
     forms.forEach(form => {
       const updates = payload.sync?.[form.dataset.workspaceSave] || {};
       if (form.dataset.workspaceSave === 'operations' && payload.payment_values) {

@@ -7,6 +7,15 @@
   const rows = document.getElementById("payment-records");
   const total = document.getElementById("id_payments-TOTAL_FORMS");
   function bind(row) {
+    // 向客戶收取手續費只在收款方式為刷卡時顯示（使用者 2026-10-21 T-54）；改成其他方式就清空，避免存成非刷卡的手續費。
+    const method = row.querySelector('[name$="-payment_method"]'), fee = row.querySelector("[data-card-fee]");
+    method?.addEventListener("change", () => {
+      if (!fee) return;
+      const card = method.value === "刷卡";
+      fee.hidden = !card;
+      const input = fee.querySelector("input");
+      if (!card && input && input.value) { input.value = ""; input.dispatchEvent(new Event("input", {bubbles: true})); }
+    });
     const button = row.querySelector("[data-delete-payment]");
     if (!button) return;
     button.addEventListener("click", () => {

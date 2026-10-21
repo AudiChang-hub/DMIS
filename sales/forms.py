@@ -1877,6 +1877,8 @@ class AccessoryLineForm(forms.ModelForm):
             Q(active=True) | Q(pk=self.instance.accessory_product_id)
         ).order_by("name")
         self.fields["accessory_product"].label = "配件名稱"
+        # 精簡列在寬版把欄名收進表頭，自填名稱靠提示字辨識（使用者 2026-10-21 T-50）。
+        self.fields["custom_name"].widget.attrs.setdefault("placeholder", "填寫配件名稱")
         self.fields["accessory_product"].choices = [*self.fields["accessory_product"].choices, ("other", "其他（自行填寫名稱）")]
         if self.instance.name and not self.instance.accessory_product_id:
             self.initial["accessory_product"] = "other"

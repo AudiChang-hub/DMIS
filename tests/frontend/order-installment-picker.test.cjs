@@ -230,3 +230,11 @@ test('自訂分期時期數選單即使被改值也不覆寫下方期數與每�
   assert.equal(elements.id_installment_opening_fee.value,'0');
   assert.equal(elements['id_installment_custom'].checked,true);
 });
+
+// 自訂分期不留半邊空白（使用者 2026-10-21 T-51）：按鈕併在選單列右側；期數選單隱藏時公司選單延伸到按鈕前。
+test('分期方案選擇列：按鈕同列、自訂分期時單欄延伸，窄版上下排', () => {
+  const css = require('node:fs').readFileSync('static/css/app.css', 'utf8');
+  assert.match(css, /\.installment-picker \{ display: grid; grid-template-columns: minmax\(0, 1fr\) auto; align-items: end;/);
+  assert.match(css, /\.installment-picker \.form-grid:has\(> #installment-period-field\[hidden\]\) \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(css, /\.installment-picker \{ padding: var\(--inset-pad\); grid-template-columns: minmax\(0, 1fr\); \}/);
+});

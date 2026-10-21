@@ -1083,7 +1083,10 @@
     const total = Number(row.querySelector('[name$="-amount"]').value || 0) + Number(row.querySelector('[name$="-labor_fee"]').value || 0);
     row.querySelector('[data-accessory-total]').textContent = total.toLocaleString('zh-TW');
     const quantity = Number(row.querySelector('[name$="-quantity"]').value || 0);
-    row.querySelector('[data-accessory-quantity-total]').textContent = `數量 ${quantity}，本列合計 $${(total * quantity).toLocaleString('zh-TW')}`;
+    // 數量 1 時本列合計就是單件總額，不再多一行（使用者 2026-10-21 T-50）。
+    const quantityTotal = row.querySelector('[data-accessory-quantity-total]');
+    quantityTotal.textContent = quantity === 1 ? "" : `本列 ×${quantity}＝$${(total * quantity).toLocaleString("zh-TW")}`;
+    quantityTotal.hidden = quantity === 1;
   }
 
   function bindAccessoryRow(row) {
@@ -1094,6 +1097,17 @@
     });
     row.querySelector('[name$="-line_type"]').addEventListener('change', () => { refreshAccessoryRequired(row, true); scheduleDraft(); });
     row.addEventListener('input', () => refreshAccessoryRequired(row));
+    // 備註需要時才展開；已有備註的列預設展開（使用者 2026-10-21 T-50）。
+    const noteToggle = row.querySelector('[data-accessory-note-toggle]');
+    const notePanel = row.querySelector('[data-accessory-note]');
+    const noteInput = notePanel?.querySelector('[name$="-note"]');
+    noteToggle?.addEventListener('click', () => {
+      const open = notePanel.hidden;
+      notePanel.hidden = !open;
+      noteToggle.setAttribute('aria-expanded', String(open));
+      if (open) noteInput?.focus();
+    });
+    noteInput?.addEventListener('input', () => noteToggle?.classList.toggle('has-note', Boolean(noteInput.value.trim())));
     refreshAccessoryRequired(row);
     bindRemoveRow(row);
   }

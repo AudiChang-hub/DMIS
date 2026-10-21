@@ -4261,7 +4261,7 @@ def _vehicle_rate_data():
             "electric_registration_class": model.electric_registration_class,
         }
         for model in VehicleModel.objects.filter(active=True).only(
-            "id", "energy_type", "displacement_cc"
+            "id", "energy_type", "displacement_cc", "electric_registration_class"
         )
     }
 
@@ -7780,10 +7780,12 @@ def registration_document_file(request, document_pk):
     return _private_file_response(request, document.file)
 
 
-def _recognize_old_owner_documents(order, actor_name):
+def _recognize_old_owner_documents(order_pk, actor_name):
+    """舊車主證件 OCR：辨識時不持有訂單鎖（外部服務可能要數十秒），辨識完才短暫鎖住訂單寫回結果。"""
     documents = {
         document.document_type: document
-        for document in order.subsidy_documents.filter(
+        for document in SubsidyDocument.objects.filter(
+            order_id=order_pk,
             document_type__in={
                 SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
                 SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
@@ -7809,7 +7811,12 @@ def _recognize_old_owner_documents(order, actor_name):
     except Exception:
         logger.exception("舊車主身分證 OCR 發生未預期錯誤")
         return "證件已保存；辨識服務暫時無法使用，請稍後重傳或人工填寫。"
+    with transaction.atomic():
+        order = SalesOrder.objects.select_for_update().get(pk=order_pk)
+        return _apply_old_owner_ocr(order, result, actor_name)
 
+
+def _apply_old_owner_ocr(order, result, actor_name):
     fields = result.get("fields", {})
     recognized_name = (fields.get("name") or "").strip()
     recognized_id = (fields.get("id_number") or "").strip().upper()
@@ -7932,11 +7939,37 @@ def subsidy_toggle(request, pk):
 
 
 @login_required
-@transaction.atomic
 def subsidy_document_upload(request, pk):
+    # 先在交易內保存文件並放開訂單鎖，再做舊車主證件 OCR；辨識期間同一張訂單的自動儲存不必排隊等。
+    with transaction.atomic():
+        response, document = _store_subsidy_document(request, pk)
+    if response is not None:
+        return response
+    ocr_message = None
+    if document.document_type in {
+        SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
+        SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
+    }:
+        ocr_message = _recognize_old_owner_documents(
+            pk, _editing_name(request.user)
+        )
+    return _document_upload_response(
+        request,
+        order_pk=pk,
+        tab="subsidy",
+        ok=True,
+        message=(
+            ocr_message
+            or f"{document.name or document.get_document_type_display()}已上傳。"
+        ),
+    )
+
+
+def _store_subsidy_document(request, pk):
+    """回傳（錯誤回應, None）或（None, 已保存的文件）。"""
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
-        return redirect("order_detail", pk=pk)
+        return redirect("order_detail", pk=pk), None
     if not order.can_manage_subsidy:
         return _document_upload_response(
             request,
@@ -7945,7 +7978,7 @@ def subsidy_document_upload(request, pk):
             ok=False,
             message="已取消訂單無法修改補助文件。",
             status=409,
-        )
+        ), None
     if not order.is_trade_in_subsidy:
         return _document_upload_response(
             request,
@@ -7954,7 +7987,7 @@ def subsidy_document_upload(request, pk):
             ok=False,
             message="此訂單未勾選汰舊／政府補助。",
             status=400,
-        )
+        ), None
     form = SubsidyDocumentUploadForm(request.POST, request.FILES)
     if not form.is_valid():
         return _document_upload_response(
@@ -7968,7 +8001,7 @@ def subsidy_document_upload(request, pk):
                 for error in errors
             ),
             status=400,
-        )
+        ), None
 
     document = form.save(commit=False)
     document.order = order
@@ -8001,14 +8034,6 @@ def subsidy_document_upload(request, pk):
         document = existing
     else:
         document.save()
-    ocr_message = None
-    if document.document_type in {
-        SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
-        SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
-    }:
-        ocr_message = _recognize_old_owner_documents(
-            order, _editing_name(request.user)
-        )
     OrderEvent.objects.create(
         order=order,
         event_type="subsidy_document_uploaded",
@@ -8018,16 +8043,7 @@ def subsidy_document_upload(request, pk):
         ),
         actor_name=_editing_name(request.user),
     )
-    return _document_upload_response(
-        request,
-        order_pk=pk,
-        tab="subsidy",
-        ok=True,
-        message=(
-            ocr_message
-            or f"{document.name or document.get_document_type_display()}已上傳。"
-        ),
-    )
+    return None, document
 
 
 @login_required

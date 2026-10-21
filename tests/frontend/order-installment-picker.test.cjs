@@ -14,13 +14,13 @@ class Control {
   replaceChildren() { this.children=[]; this.value=''; }
   setAttribute(name,value) { this.attrs[name]=value; }
 }
-function setup(fetcher, values={}, extra=[]) {
+function setup(fetcher, values={}, extra=[], extraConfig={}) {
   const elements={};
   for (const id of ['installment-company-choice','installment-period-choice','installment-manual-toggle',
     'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee', ...extra]) elements[id]=new Control(values[id] || '');
   const manualFields=[{},{}];
   const doc={getElementById:id=>elements[id],querySelectorAll:()=>manualFields,createElement:()=>new Control()};
-  const config={document:doc,fetcher,endpoint:'/api/plans/',orderId:'41',vehicleModel:new Control('7'),paymentType:new Control('installment'),hint:new Control()};
+  const config={document:doc,fetcher,endpoint:'/api/plans/',orderId:'41',vehicleModel:new Control('7'),paymentType:new Control('installment'),hint:new Control(),...extraConfig};
   return {elements,config,manualFields,picker:create(config)};
 }
 const response = (items=options) => ({ok:true,json:async()=>({options:items,order_date:'2025-09-01',version:{effective_from:'2025-01-01'}})});
@@ -128,5 +128,56 @@ test('既有自訂分期訂單載入時直接是人工模式，公司選單標�
   assert.ok(manualFields.every(field=>!field.hidden));
   assert.equal(elements['installment-company-choice'].value,'__custom__');
   assert.equal(elements.id_installment_company.value,'其他融資');
+  assert.equal(elements.id_installment_monthly.value,'5900');
+});
+
+test('自訂分期每期金額＝分期價格÷期數四捨五入，並跟著期數與分期價格更新（使用者 2026-10-21）', async()=>{
+  let price=100000;
+  const {picker,elements}=setup(async()=>response(),{}, ['id_installment_custom'], {installmentPrice:()=>price});
+  elements['id_installment_custom'].checked=false;
+  await picker.load();
+  elements['installment-manual-toggle'].dispatchEvent(new Event('click'));
+  assert.equal(elements['id_installment_custom'].checked,true);
+  assert.equal(elements.id_installment_monthly.value,'');
+  const periods=elements.id_installment_periods;
+  periods.value='24'; periods.dispatchEvent(new Event('input'));
+  assert.equal(elements.id_installment_monthly.value,'4167');
+  periods.value='36'; periods.dispatchEvent(new Event('input'));
+  assert.equal(elements.id_installment_monthly.value,'2778');
+  price=90000; picker.syncCustomMonthly();
+  assert.equal(elements.id_installment_monthly.value,'2500');
+});
+
+test('自訂分期每期金額手動改過就保留，清空後恢復自動帶入', async()=>{
+  let price=100000;
+  const {picker,elements}=setup(async()=>response(),{'id_installment_periods':'24'}, ['id_installment_custom'], {installmentPrice:()=>price});
+  elements['id_installment_custom'].checked=false;
+  await picker.load();
+  const company=elements['installment-company-choice'];
+  company.value='__custom__'; company.dispatchEvent(new Event('change'));
+  assert.equal(elements.id_installment_monthly.value,'4167');
+  elements.id_installment_monthly.value='4000';
+  const periods=elements.id_installment_periods;
+  periods.value='12'; periods.dispatchEvent(new Event('input'));
+  price=120000; picker.syncCustomMonthly();
+  assert.equal(elements.id_installment_monthly.value,'4000');
+  elements.id_installment_monthly.value='';
+  picker.syncCustomMonthly();
+  assert.equal(elements.id_installment_monthly.value,'10000');
+});
+
+test('既有自訂分期訂單載入時保留原本的每期金額，不套用公式', async()=>{
+  const {picker,elements}=setup(async()=>response(),{...original,'id_installment_company':'其他融資'}, ['id_installment_custom'], {installmentPrice:()=>100000});
+  elements['id_installment_custom'].checked=true;
+  await picker.load();
+  picker.syncCustomMonthly();
+  assert.equal(elements.id_installment_monthly.value,'5900');
+});
+
+test('車型方案模式不套用自訂分期公式', async()=>{
+  const {picker,elements}=setup(async()=>response(),original, ['id_installment_custom'], {installmentPrice:()=>100000});
+  elements['id_installment_custom'].checked=false;
+  await picker.load();
+  picker.syncCustomMonthly();
   assert.equal(elements.id_installment_monthly.value,'5900');
 });

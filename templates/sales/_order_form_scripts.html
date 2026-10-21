@@ -351,9 +351,16 @@
     return Number(input?.value || 0);
   }
 
+  // 分期價格＝付款方式明細裡「分期」各筆的合計；舊單沒有明細時就是車價（同 SalesOrder.installment_split_amount）。
+  function installmentPrice() {
+    let rows = [];
+    try { rows = JSON.parse(byId("id_payment_splits")?.value || "[]"); if (typeof rows === "string") rows = JSON.parse(rows); } catch (error) { rows = []; }
+    if (!Array.isArray(rows) || !rows.length) return Number(vehiclePrice.value || 0);
+    return rows.filter(row => row && row.method === "installment").reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+  }
   const installmentPicker = DmisInstallmentPicker.create({
     endpoint: installmentPlanEndpoint, vehicleModel, paymentType,
-    orderId: editingOrderId, hint: installmentPlanHint,
+    orderId: editingOrderId, hint: installmentPlanHint, installmentPrice,
   });
   const loadInstallmentPlanOptions = options => installmentPicker.load(options);
 
@@ -469,15 +476,7 @@
   }
 
   function calculateRegistrationFee() {
-    const manual = byId("id_registration_manual")?.checked;
-    const manualFields = ["registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"];
-    manualFields.forEach(name => { if (byId(`id_${name}`)) byId(`id_${name}`).readOnly = !manual; });
-    if (manual) {
-      // 牌險不含選號與動保設定；留空的牌險費照自行調整的明細合計，已填的金額不覆蓋。
-      setPlateEstimate(manualFields.reduce((sum, name) => sum + (Number(byId(`id_${name}`)?.value) || 0), 0));
-      rateSummary.textContent = "自行調整：牌險明細可修改，儲存時需填寫原因";
-      return;
-    }
+    // 牌險明細一律由系統試算、只顯示試算合計（使用者 2026-10-21 T-38）。
     if (completedRegistrationBasis !== null && completedRegistrationBasis === JSON.stringify(completedRegistrationInputs.map(input => input.value))) {
       const followedCalculation = actualPlateInsuranceFee.value === calculatedRegistrationTotal.value;
       completedFeeFields.forEach((id, index) => { byId(id).value = completedFeeValues[index]; });
@@ -647,6 +646,7 @@
     }
     function write({notify = true} = {}) {
       store.value = JSON.stringify(rows.map(row => ({method: row.method, amount: amountOf(row)})));
+      installmentPicker.syncCustomMonthly();
       if (isPlatformOrder()) return;
       const amounts = rows.map(amountOf);
       const total = amounts.includes(null) ? null : amounts.reduce((sum, value) => sum + value, 0);
@@ -768,8 +768,6 @@
     .forEach(el => el.addEventListener("change", calculateRegistrationFee));
   [plateSelectionFee, lienRegistrationFee]
     .forEach(el => el.addEventListener("input", calculateRegistrationFee));
-  ["registration_manual", "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"]
-    .forEach(name => byId(`id_${name}`)?.addEventListener("input", calculateRegistrationFee));
   filterVehicleModels();
   calculateRegistrationFee();
   refresh();

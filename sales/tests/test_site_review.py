@@ -169,7 +169,9 @@ class SiteReviewTests(TestCase):
     def test_reception_cannot_select_gift_or_override_registration(self):
         from sales.intake_forms import IntakeOrderForm
         form = IntakeOrderForm(user=self.root, reception=True)
-        self.assertTrue(form.fields['registration_manual'].disabled)
+        # 1.86.32 起沒有「自行調整牌險明細」（使用者 2026-10-21 T-38）。
+        self.assertNotIn('registration_manual', form.fields)
+        self.assertTrue(form.fields['registration_plate_fee'].disabled)
         self.assertEqual(list(AccessoryLineForm(purchase_only=True).fields['line_type'].choices), [('purchase', '加購')])
 
     def test_print_copy_length_and_injection_guard(self):
@@ -180,23 +182,30 @@ class SiteReviewTests(TestCase):
         response = self.client.post(url, {'text':'<b>自訂確認文字</b>', 'version':0})
         self.assertEqual(response.status_code, 302)
 
-    def test_manual_registration_amount_requires_reason_and_is_preserved(self):
+    def test_registration_detail_is_system_calculated_and_legacy_manual_is_preserved(self):
         from sales.intake_forms import IntakeOrderForm
         from sales.forms import RegistrationStageForm
         data = self.complete_data()
-        # 油車牌險費留空時以人工明細合計帶入；有輸入實收則照輸入（2026-10-15）。
-        data.update(registration_manual='on', registration_plate_fee='999', compulsory_insurance_fee='1234', plate_insurance_fee='')
+        # 1.86.32（使用者 2026-10-21 T-38）：不再自行調整牌險明細、不填調整原因；偽造送出也不採用。
+        data.update(registration_manual='on', registration_adjustment_reason='偽造', plate_insurance_fee='')
         files = {'id_front':self.image('front.png'), 'id_back':self.image('back.png')}
         form = IntakeOrderForm(data, files, user=self.root)
-        self.assertFalse(form.is_valid())
-        self.assertIn('registration_adjustment_reason', form.errors)
-        data['registration_adjustment_reason'] = '依實際單據核定'
-        form = IntakeOrderForm(data, files, user=self.root)
+        self.assertNotIn('registration_manual', form.fields)
+        self.assertNotIn('registration_adjustment_reason', form.fields)
         self.assertTrue(form.is_valid(), form.errors)
         order = form.save(commit=False)
         order.actual_balance = order.calculate_balance()
         order.save()
-        self.assertEqual(order.plate_insurance_fee, 2233)
+        self.assertFalse(order.registration_manual)
+        self.assertEqual(order.registration_adjustment_reason, '')
+        self.assertEqual(order.plate_insurance_fee, order.registration_calculated_total)
+        # 舊資料若曾自行調整（正式站 0 張），欄位保留，領牌重算仍不覆寫人工明細。
+        order.registration_manual = True
+        order.registration_plate_fee = 999
+        order.plate_insurance_fee = 2233
+        order.plate_insurance_auto = False
+        order.actual_balance = order.calculate_balance()
+        order.save()
         operation = RegistrationStageForm(instance=order)
         operation.cleaned_data = {}
         saved = operation.save(commit=False)

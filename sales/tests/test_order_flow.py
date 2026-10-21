@@ -6011,12 +6011,12 @@ class OrderOperationsTests(TestCase):
         self.assertNotContains(response, 'class="system-payment-records" open')
         self.assertContains(response, 'aria-label="收款明細"')
         visible_rows = html.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
-        # 未收的系統尾款列也列出並標出應收尾款（使用者 2026-10-21 T-56）。
-        self.assertEqual(visible_rows.count('data-payment-row'), 2)
+        # 未收的系統尾款列不列在收款明細，尾款在「交車與收尾款」登記（使用者 2026-10-21 T-60）。
+        self.assertEqual(visible_rows.count('data-payment-row'), 1)
         self.assertIn('value="訂金"', visible_rows)
-        self.assertIn('data-balance-due>', visible_rows)
+        self.assertNotIn('data-balance-due', visible_rows)
         # 不額外預填人工列；新增按鈕使用單一空白 template。1.86.3x（T-47）起訂金等系統列也能刪除，
-        # 未收的系統尾款列沒有可刪的收款，不放刪除鈕；所以刪除按鈕＝訂金列 1 個＋空白 template 1 個。
+        # 所以刪除按鈕＝訂金列 1 個＋空白 template 1 個。
         self.assertEqual(
             html.count(
                 '<button type="button" class="button danger-outline small" '

@@ -4001,9 +4001,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-row input, .receipt-row select { max-width: 100%; min-width: 0; }
 .receipt-row .field { margin: 0; gap: var(--space-2); }
 .receipt-name .field + .field { margin-top: var(--space-2); }
-/* 系統尾款列的應收提示（使用者 2026-10-21 T-56）：唯讀小字，接在實收金額下方。 */
-.receipt-row.is-locked .receipt-due-hint { display: none; }
-.receipt-due-hint { display: block; margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
 .receipt-name .help-text { display: none; }
 .receipt-name select { min-height: 36px; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .receipt-confirm .checkbox-label { min-height: 44px; white-space: nowrap; }
@@ -4021,9 +4018,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-duplicate, .receipt-meta { grid-column: 1 / -1; }
 .receipt-duplicate:not(.is-shown):not(:has(input:checked, input[aria-invalid="true"])) { display: none; }
 .receipt-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: calc(var(--space-2) * -1) 0 0; color: var(--muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
-.receipt-summary { display: flex; flex-wrap: wrap; gap: var(--stack-gap-sm) var(--space-6); margin: var(--stack-gap); padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.receipt-summary strong { display: block; margin-top: var(--space-2); }
-.receipt-summary .is-overpaid strong { color: var(--amber-ink); }
 /* Excel 匯入、未完成訂單的尾款：未收清琥珀、已收清綠。 */
 .imported-balance {
   display: grid; margin: 0 var(--stack-gap) var(--stack-gap); padding: var(--inset-pad); gap: var(--space-2);
@@ -4041,7 +4035,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .payment-ledger__table { min-width: 0; }
 .payment-ledger__gap { margin-bottom: var(--stack-gap-sm); }
 .payment-ledger__form { margin-top: var(--stack-gap); padding-top: var(--space-5); border-top: 1px solid var(--line); }
-.payment-list-help, .receipt-expectations { margin: var(--stack-gap); }
+.receipt-expectations { margin: var(--stack-gap); }
 .receipt-expectations summary { cursor: pointer; min-height: 44px; padding: var(--space-3) 0; }
 .receipt-expectation-row { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: var(--stack-gap-sm); padding: var(--space-4) 0; align-items: center; }
 @media (max-width: 1100px) {
@@ -4049,7 +4043,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .payment-record-row.receipt-row { grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
-  .receipt-list, .receipt-summary, .receipt-expectations, .payment-list-help { margin: var(--stack-gap-sm); }
+  .receipt-list, .receipt-expectations { margin: var(--stack-gap-sm); }
   .payment-record-row.receipt-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); padding: var(--inset-pad); }
   .receipt-confirm, .receipt-name, .receipt-date, .receipt-method, .receipt-amount, .receipt-actions { grid-column: 1 / -1; }
   .receipt-expectation-row { grid-template-columns: minmax(0, 1fr); padding: var(--space-3) 0; }

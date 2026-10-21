@@ -93,6 +93,13 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-django.txt
 
+      # PDF 服務載入時即檢查繁體中文字型，任何執行 manage.py 的 job 都需要。
+      - name: Install PDF font dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
+          test -r /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
+
       - name: Install Django dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-django.txt
 
@@ -266,6 +273,12 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements-django.txt
+
+      - name: Install PDF font dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
+          test -r /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
 
       - name: Install Django dependencies
         run: |

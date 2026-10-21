@@ -4001,6 +4001,9 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-row input, .receipt-row select { max-width: 100%; min-width: 0; }
 .receipt-row .field { margin: 0; gap: var(--space-2); }
 .receipt-name .field + .field { margin-top: var(--space-2); }
+/* 系統尾款列的應收提示（使用者 2026-10-21 T-56）：唯讀小字，接在實收金額下方。 */
+.receipt-row.is-locked .receipt-due-hint { display: none; }
+.receipt-due-hint { display: block; margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
 .receipt-name .help-text { display: none; }
 .receipt-name select { min-height: 36px; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .receipt-confirm .checkbox-label { min-height: 44px; white-space: nowrap; }

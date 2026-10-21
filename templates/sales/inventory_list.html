@@ -31,43 +31,37 @@
   </a>
 </nav>
 
-<form method="get" class="inventory-filters inventory-filters--stock{% if selected.scope == 'sold' %} inventory-filters--sold{% endif %}"aria-label="庫存篩選與排序">
+{# 狀態、車輛來源篩選取消（使用者 2026-10-21 T-63），後端仍接受 status／acquisition 參數；下拉提示只寫「全部」（上方已有欄名），手機兩欄也放得下。 #}
+<form method="get" class="inventory-filters inventory-filters--stock{% if selected.scope == 'sold' %} inventory-filters--sold{% endif %}" aria-label="庫存篩選與排序">
   <input type="hidden" name="scope" value="{{ selected.scope }}">
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
-    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行、車況或備註">
-  </div>
-  <div class="inventory-filter">
-    <label for="inventory-status">狀態</label>
-    <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
-      <option value="">{% if selected.scope == 'history' %}全部停用車輛{% elif selected.scope == 'sold' %}全部已售出／已調出{% else %}全部現有狀態{% endif %}</option>
-      {% for value, label, count in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
-    </select>
+    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行或備註">
   </div>
   <div class="inventory-filter">
     <label for="inventory-brand">品牌</label>
-    <select id="inventory-brand" name="brand" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋品牌">
+    <select id="inventory-brand" name="brand" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部品牌</option>
       {% for item in brands %}<option value="{{ item.value }}" {% if item.value|lower in selected.brands %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-model">機種</label>
-    <select id="inventory-model" name="vehicle_family" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋品牌或機種">
+    <select id="inventory-model" name="vehicle_family" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部機種</option>
       {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if item.pk in selected.vehicle_family_ids %}selected{% endif %}>{{ item.brand }} {{ item.name }}（{{ item.filter_count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-color">車色</label>
-    <select id="inventory-color" name="color" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車色">
+    <select id="inventory-color" name="color" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部車色</option>
       {% for item in colors %}<option value="{{ item.value }}" {% if item.value in selected.colors %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
-    <select id="inventory-location" name="location" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋本店或車行">
+    <select id="inventory-location" name="location" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部位置</option>
       {% if store_count or selected.store_selected %}<option value="store" {% if selected.store_selected %}selected{% endif %}>本店（{{ store_count }}）</option>{% endif %}
       {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}（{{ dealer.filter_count }}）</option>{% endfor %}
@@ -76,7 +70,7 @@
   {% if selected.scope == 'sold' %}
   <div class="inventory-filter">
     <label for="inventory-disposition">去向</label>
-    <select id="inventory-disposition" name="disposition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋去向">
+    <select id="inventory-disposition" name="disposition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部去向</option>
       {% for value, label, count in disposition_choices %}<option value="{{ value }}" {% if selected.disposition == value %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
       {% if disposition_none_count or selected.disposition == 'none' %}<option value="none" {% if selected.disposition == 'none' %}selected{% endif %}>未記錄去向（{{ disposition_none_count }}）</option>{% endif %}
@@ -84,22 +78,15 @@
   </div>
   <div class="inventory-filter">
     <label for="inventory-disposition-dealer">去向車行</label>
-    <select id="inventory-disposition-dealer" name="disposition_dealer" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車行">
+    <select id="inventory-disposition-dealer" name="disposition_dealer" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="全部">
       <option value="">全部車行</option>
       {% for dealer in disposition_dealers %}<option value="{{ dealer.pk }}" {% if selected.disposition_dealer == dealer.pk|stringformat:'s' %}selected{% endif %}>{{ dealer.name }}（{{ dealer.filter_count }}）</option>{% endfor %}
     </select>
   </div>
   {% endif %}
-  <div class="inventory-filter">
-    <label for="inventory-acquisition">車輛來源</label>
-    <select id="inventory-acquisition" name="acquisition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車輛來源">
-      <option value="">全部來源</option>
-      {% for value, label, count in acquisition_choices %}<option value="{{ value }}" {% if selected.acquisition == value %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
-    </select>
-  </div>
-  <div class="inventory-filter">
+  <div class="inventory-filter inventory-filter--sort">
     <label for="inventory-sort">排序</label>
-    <select id="inventory-sort" name="sort" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋排序方式">
+    <select id="inventory-sort" name="sort" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="輸入排序方式">
       <option value="received_desc" {% if selected.sort == "received_desc" %}selected{% endif %}>進車日期：新到舊</option>
       <option value="received_asc" {% if selected.sort == "received_asc" %}selected{% endif %}>進車日期：舊到新</option>
       <option value="priority" {% if selected.sort == "priority" %}selected{% endif %}>優先配車在前</option>

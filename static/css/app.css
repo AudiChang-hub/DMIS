@@ -1673,8 +1673,9 @@ input[type="file"].form-control { padding: var(--space-3); }
   color: var(--ink); background: var(--surface-subtle); border: 1px solid var(--line); border-radius: var(--radius-md); outline: 0;
 }
 .searchable-select.has-search-icon .searchable-select__input { padding-left: var(--space-7); }
+/* 放大鏡對齊搜尋框本身（48px 高的一半），複選時下方多出已選標籤也不會往下掉。 */
 .searchable-select__search-icon {
-  position: absolute; z-index: 2; top: 50%; left: 15px; width: 14px; height: 14px;
+  position: absolute; z-index: 2; top: 24px; left: 15px; width: 14px; height: 14px;
   border: 2px solid var(--muted); border-radius: 50%; pointer-events: none; transform: translateY(-58%);
 }
 .searchable-select__search-icon::after {
@@ -2744,6 +2745,11 @@ input[type="file"].form-control { padding: var(--space-3); }
   border-radius: var(--radius-md); background: var(--surface); color: var(--ink);
 }
 .inventory-filter select { padding-right: var(--space-6); }
+/* 篩選列裡的可搜尋下拉（T-63）：與搜尋框同高，右側留給箭頭、左側留給放大鏡，文字放不下時以刪節號收尾，不再壓到箭頭。 */
+.inventory-filter .searchable-select__input { min-height: 42px; padding-block: 0; padding-right: calc(var(--space-6) + var(--space-2)); text-overflow: ellipsis; }
+.inventory-filter .searchable-select.has-search-icon .searchable-select__input { padding-left: calc(var(--space-6) + var(--space-1)); }
+.inventory-filter .searchable-select__toggle { width: 40px; height: 42px; }
+.inventory-filter .searchable-select__search-icon { top: 21px; }
 .inventory-filter-actions { display: flex; gap: var(--space-2); }
 /* 中等寬度（筆電、平板橫向）：篩選列改為四欄，搜尋佔兩欄，操作按鈕靠右，不超出卡片。 */
 @media (min-width: 860.02px) and (max-width: 1360px) {
@@ -2834,10 +2840,19 @@ div.acquisition-choice label:has(input:checked) {
 }
 div.acquisition-choice label:has(input:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
 input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.inventory-filters--stock { grid-template-columns: minmax(220px, 1.4fr) repeat(7, minmax(112px, 1fr)) auto; }
-/* 已售出／調出多兩個去向篩選：排成兩列各六格，避免擠成一列。 */
-.inventory-filters--sold { grid-template-columns: minmax(220px, 1.6fr) repeat(5, minmax(140px, 1fr)); }
-.inventory-filters--sold .inventory-filter-actions { justify-content: flex-end; }
+/* 車輛庫存篩選列（T-63）：欄數依可用寬度自動決定（每欄至少 196px），放不下就換到下一列；
+   搜尋與排序（選項字較長）各佔兩欄，清除／套用固定在最右一欄。已售出／調出多兩個去向篩選也照同一套排。 */
+.inventory-filters.inventory-filters--stock { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }
+.inventory-filters.inventory-filters--stock > :is(.inventory-filter--search, .inventory-filter--sort) { grid-column: span 2; }
+.inventory-filters.inventory-filters--stock > .inventory-filter-actions { grid-column: -2 / -1; justify-self: end; justify-content: flex-end; flex-wrap: wrap; }
+/* 欄位對齊頂端：複選後下方多出已選標籤的欄位變高，同列其他搜尋框仍在同一水平；按鈕前補一行與欄名同高的空白，與搜尋框齊平。 */
+.inventory-filters.inventory-filters--stock { align-items: start; }
+.inventory-filters.inventory-filters--stock > .inventory-filter-actions::before { flex-basis: 100%; font-size: var(--text-sm); font-weight: 900; content: "\00a0"; }
+@media (max-width: 860px) {
+  .inventory-filters.inventory-filters--stock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-filters.inventory-filters--stock > :is(.inventory-filter--sort, .inventory-filter-actions) { grid-column: 1 / -1; }
+  .inventory-filters.inventory-filters--stock > .inventory-filter-actions::before { display: none; }
+}
 /* 已售出／調出：去向用色相區分（調出紫、車行領車青、一般售出灰），下方接對象與日期。 */
 .inventory-table .inventory-disposition {
   display: inline-flex; width: fit-content; margin-bottom: 2px; padding: 1px var(--space-2);

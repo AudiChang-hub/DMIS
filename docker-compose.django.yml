@@ -32,6 +32,8 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+      # 啟動期間每 2 秒檢查一次，藍綠部署才能在新版一就緒時就切換。
+      start_interval: 2s
     volumes:
       - "${DJANGO_MEDIA_PATH:-django_media}:/app/media"
       - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro

@@ -2,9 +2,10 @@ from datetime import date
 
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class SalesSourceContactProfileMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0087_consolidate_sales_source_notes")
     migrate_to = ("sales", "0088_sales_source_contact_and_cooperation_profiles")

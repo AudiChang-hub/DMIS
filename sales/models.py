@@ -3918,8 +3918,7 @@ class SalesOrder(TimeStampedModel):
         profile = getattr(self, "operations", None) if include_prep else None
         if include_prep and self.is_electric_vehicle and not (profile and profile.vehicle_control_confirmed_at):
             blockers.append("電動車須先在「交車前確認」勾選「車控與電池合約已確認」。")
-        if include_prep and not (profile and profile.fulfillment_confirmed_at):
-            blockers.append("請先在「交車前確認」勾選「贈品與履約已確認」。")
+        # 「贈品與履約已確認」不再是交車條件（使用者 2026-10-21 T-57）；配件與贈品在交付核對一起勾選。
         from sales.services.payment_summary import payment_summary
         summary = summary or payment_summary(self)
         if self.source_type != self.SourceType.DEALER:

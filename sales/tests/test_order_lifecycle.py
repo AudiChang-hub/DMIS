@@ -154,8 +154,8 @@ class OrderLifecycleTests(TestCase):
             fulfillment_confirmed_at=None, fulfillment_confirmed_by="",
         )
         order = SalesOrder.objects.get(pk=order.pk)
-        self.assertIn("請先在「交車前確認」勾選「贈品與履約已確認」。", order.delivery_blockers())
-        self.assertNotIn("請先在「交車前確認」勾選「贈品與履約已確認」。", order.delivery_blockers(include_prep=False))
+        # 贈品與履約不再是交車條件（使用者 2026-10-21 T-57）。
+        self.assertFalse(any("贈品與履約" in item for item in order.delivery_blockers()))
         form = DeliveryCompletionForm(order, self.delivery_payload())
         self.assertNotIn("vehicle_control_checked", form.fields)
         self.assertTrue(form.is_valid(), form.errors)

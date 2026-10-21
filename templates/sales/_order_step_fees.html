@@ -1,0 +1,18 @@
+{% load sales_format %}
+{% comment %}其他費用從訂單表單的「訂金與費用」區搬到左側「訂金與費用」步驟（使用者 2026-10-21 T-44）。
+欄位以 form="order-form" 併入訂單表單，沿用原本的驗證、處理紀錄與自動儲存；沒有修改權限時只列已存的費用。{% endcomment %}
+<div class="order-step-fees" id="other-fees">
+  {% if fee_formset %}
+  {% include "sales/_order_other_fees.html" %}
+  <p class="autosave-status" data-autosave-mirror="order-form" role="status" aria-live="polite">修改後會自動儲存</p>
+  {% else %}
+  <div class="section-title"><h3>其他費用</h3></div>
+  {% with fees=order.other_fees.all %}
+  {% if fees %}
+  <dl class="data-list">
+    {% for fee in fees %}<div><dt>{{ fee.name }}</dt><dd>${{ fee.amount|number_with_commas }}</dd></div>{% endfor %}
+  </dl>
+  {% else %}<p class="muted">沒有其他費用</p>{% endif %}
+  {% endwith %}
+  {% endif %}
+</div>

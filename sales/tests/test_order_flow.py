@@ -2241,7 +2241,8 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, delivered.identifier)
         self.assertNotContains(response, self.vehicle.identifier)
         self.assertContains(response, 'name="scope" value="history"')
-        self.assertContains(response, "全部停用車輛")
+        # 狀態篩選已取消（T-63），停用範圍只靠分頁切換。
+        self.assertNotContains(response, 'id="inventory-status"')
         self.assertNotContains(response, "調車中（含待調車）")
 
     def test_sold_vehicles_only_listed_in_sold_scope(self):
@@ -2319,14 +2320,13 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("inventory_list"))
 
         self.assertEqual(response.status_code, 200)
+        # 使用者 2026-10-21 T-63：取消「狀態」「車輛來源」篩選；其餘都能打字搜尋，提示只寫「全部」（上方已有欄名）。
         searchable_filters = {
-            "inventory-status": "搜尋狀態",
-            "inventory-brand": "搜尋品牌",
-            "inventory-model": "搜尋品牌或機種",
-            "inventory-color": "搜尋車色",
-            "inventory-location": "搜尋本店或車行",
-            "inventory-acquisition": "搜尋車輛來源",
-            "inventory-sort": "搜尋排序方式",
+            "inventory-brand": "全部",
+            "inventory-model": "全部",
+            "inventory-color": "全部",
+            "inventory-location": "全部",
+            "inventory-sort": "輸入排序方式",
         }
         for element_id, placeholder in searchable_filters.items():
             with self.subTest(element_id=element_id):
@@ -2334,18 +2334,29 @@ class OrderFlowTests(TestCase):
                     response,
                     f'id="{element_id}"',
                 )
-                self.assertContains(
-                    response,
-                    f'data-search-placeholder="{placeholder}"',
+                self.assertRegex(
+                    response.content.decode(),
+                    rf'id="{element_id}"[^>]*data-search-placeholder="{placeholder}"',
                 )
-        # 1.72.7：新增品牌篩選（可複選）。
-        self.assertContains(response, 'data-searchable-select="1"', count=7)
-        self.assertContains(response, 'data-searchable-multiple="1"', count=5)
-        self.assertContains(response, ' multiple data-searchable-select="1"', count=5)
-        self.assertContains(response, 'data-searchable-search-icon="1"', count=7)
+        self.assertNotContains(response, 'id="inventory-status"')
+        self.assertNotContains(response, 'id="inventory-acquisition"')
+        self.assertContains(response, 'data-searchable-select="1"', count=5)
+        self.assertContains(response, 'data-searchable-multiple="1"', count=4)
+        self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
+        self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
         self.assertNotContains(response, "實際位置／車行")
+
+    def test_inventory_list_accepts_removed_filter_parameters(self):
+        # 舊網址或書籤仍帶 status／acquisition 時照常開啟，不報錯。
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_list"), {"status": "available", "acquisition": "new"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'name="status"')
+        self.assertNotContains(response, 'name="acquisition"')
 
     def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
         other_model = VehicleModel.objects.create(

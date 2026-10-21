@@ -9,12 +9,12 @@ from pypdf import PdfWriter
 
 from sales.forms import (
     DeliveryCompletionForm,
-    PaymentRecordForm,
+    DeliveryPaymentForm,
     PrivacyConsentForm,
     RegistrationDocumentUploadForm,
     SignedContractForm,
 )
-from sales.models import RegistrationDocument, SalesOrder
+from sales.models import PaymentRecord, RegistrationDocument, SalesOrder
 from sales.services.upload_validation import (
     DOCUMENT_MAX_BYTES,
     IMAGE_MAX_BYTES,
@@ -224,20 +224,17 @@ class UploadFormIntegrationTests(SimpleTestCase):
         self.assertIn("有效的 PDF", form.errors["file"][0])
 
     def test_payment_proof_rejects_corrupted_image(self):
-        form = PaymentRecordForm(
+        # 收支頁收款明細不再上傳收款證明（使用者 2026-10-21 T-54）；交車「尾款收妥」仍可上傳，驗證照舊。
+        form = DeliveryPaymentForm(
             data={
-                "item_name": "尾款",
-                "expected_amount": "1000",
                 "received_amount": "1000",
-                "card_principal": "0",
-                "card_fee_charged": "0",
-                "bank_card_fee": "0",
                 "received_on": "2026-08-06",
                 "payment_method": "匯款",
                 "receiving_account": "公司帳戶",
                 "confirmed": "",
                 "note": "",
             },
+            instance=PaymentRecord(order=SalesOrder(owner_name="測試車主"), expected_amount=1000),
             files={
                 "proof": SimpleUploadedFile(
                     "proof.png", b"broken", content_type="image/png"

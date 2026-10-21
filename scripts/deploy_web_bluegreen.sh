@@ -190,6 +190,22 @@ migrate_with() {
 finish_support_services() {
     log "更新管理指令容器與背景工作"
     "${compose[@]}" up -d --no-deps web "${WORKERS[@]}"
+    rotate_proxy_log
+}
+
+# 存取紀錄原本靠 tunnel-proxy 每次重建時輪替（40-dmis-access-log.sh）；藍綠部署後代理很少重建，
+# 改在每次部署時輪替：先改名、reopen 讓 nginx 寫新檔，再壓縮並清掉 30 天前的。失敗不影響部署。
+rotate_proxy_log() {
+    "${compose[@]}" exec -T tunnel-proxy sh -c '
+        dir=/var/log/dmis
+        [ -s "$dir/access.log" ] || exit 0
+        rotated="$dir/access-$(date +%Y%m%d-%H%M%S).log"
+        mv "$dir/access.log" "$rotated"
+        nginx -s reopen
+        sleep 1
+        gzip -f "$rotated"
+        find "$dir" -name "access-*.log.gz" -mtime +30 -delete
+    ' || log "WARNING: 存取紀錄輪替失敗（不影響部署）"
 }
 
 deploy() {

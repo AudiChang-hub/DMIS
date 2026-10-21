@@ -66,7 +66,11 @@
     form.addEventListener('submit', event => { event.preventDefault(); load(filterUrl()); });
     form.querySelector('[data-catalog-clear]')?.addEventListener('click', event => {
       event.preventDefault();
-      if (energy) energy.value = '';
+      // 篩選是可打字的搜尋下拉（searchable-select.js）：值改了要送 change，搜尋框才會跟著顯示「全部…」。
+      if (energy) {
+        energy.value = '';
+        energy.dispatchEvent(new Event('change'));
+      }
       brand.value = '';
       brand.dispatchEvent(new Event('change', {bubbles: true}));
     });

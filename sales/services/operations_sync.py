@@ -113,7 +113,9 @@ def sync_payment_financials(order_id, *, adopt_payment_id=None, touch_revision=F
         if not snapshot:
             snapshot = {"previous": str(profile.actual_disbursement),
                         "was_manual": "actual_disbursement" in protected}
-        profile.actual_disbursement = sum((p.received_amount for p in payments), Decimal("0"))
+        # 統一撥款對帳入帳只改寫分期那部分（使用者 2026-10-21 T-62）：實際車價收入＝分期公司實收＋客人自付車款。
+        customer_part = order.customer_vehicle_split_amount if order.payment_type == SalesOrder.PaymentType.INSTALLMENT else Decimal("0")
+        profile.actual_disbursement = sum((p.received_amount for p in payments), Decimal("0")) + customer_part
         protected.add("actual_disbursement")
         snapshot.update(payment_id=payments[0].pk, payment_ids=[p.pk for p in payments], applied=str(profile.actual_disbursement))
     elif not payments and snapshot:

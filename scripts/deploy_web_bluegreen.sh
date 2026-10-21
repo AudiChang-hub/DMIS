@@ -11,6 +11,8 @@ set -Eeuo pipefail
 
 PROJECT_DIR=${DMIS_NEXT_PROJECT_DIR:-/home/audi/project/DMIS-next}
 STATE_DIR=${DMIS_PROXY_STATE_DIR:-/srv/dmis-data/dmis-next/proxy}
+# compose 檔用同一個變數掛載狀態目錄，兩邊必須一致。
+export DMIS_PROXY_STATE_DIR="$STATE_DIR"
 DRAIN_SECONDS=${DMIS_DEPLOY_DRAIN_SECONDS:-15}
 MIGRATE_LOCK_TIMEOUT=${DMIS_MIGRATE_LOCK_TIMEOUT:-10s}
 read -r -a COMPOSE_FILES <<<"${DMIS_COMPOSE_FILES:-docker-compose.django.yml docker-compose.django.prod.yml}"
@@ -33,7 +35,6 @@ for file in "${COMPOSE_FILES[@]}"; do
 done
 project=$("${compose[@]}" config 2>/dev/null | sed -n 's/^name: //p' | head -1)
 [[ -n "$project" ]] || fail "讀不到 compose 專案名稱"
-NETWORK="${project}_default"
 BRIDGE="${project}-proxy-bridge"
 
 other_color() {
@@ -111,15 +112,12 @@ local_health() {
 # 的暫代 nginx，cloudflared 連不到正在停止的那台時會改連暫代的，使用者不會看到 502。
 # $1：舊代理停下後、新代理啟動前要做的事（改版過渡時用來把 19999 從舊 web 讓出來）。
 recreate_proxy_bridged() {
-    local before_start=${1:-} image old
-    image=$("${compose[@]}" config --images tunnel-proxy | head -1)
+    local before_start=${1:-} old
     docker rm -f "$BRIDGE" >/dev/null 2>&1 || true
     log "啟動暫代代理 $BRIDGE，接手重建 tunnel-proxy 的空檔"
-    docker run -d --name "$BRIDGE" --network "$NETWORK" --network-alias odoo \
-        --memory 96m --restart no \
-        -v "$PROJECT_DIR/deployment/nginx:/etc/nginx/conf.d:ro" \
-        -v "$STATE_DIR:/etc/nginx/dmis-upstream:ro" \
-        "$image" >/dev/null
+    # 沿用 compose 裡 tunnel-proxy 的完整設定（掛載、entrypoint、log 目錄、alias odoo），
+    # 只是不綁 host port（run 預設不發布 port），所以能和舊代理並存。
+    "${compose[@]}" run -d --no-deps --use-aliases --name "$BRIDGE" tunnel-proxy >/dev/null
     for _ in $(seq 1 30); do
         docker exec "$BRIDGE" wget -qO- http://127.0.0.1:8069/health/ >/dev/null 2>&1 && break
         sleep 1

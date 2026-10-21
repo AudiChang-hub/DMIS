@@ -102,7 +102,7 @@ class BlueGreenDeploymentTests(SimpleTestCase):
         self.assertEqual(positions, sorted(positions))
         self.assertIn("nginx -s reload", script)
         self.assertIn('docker start "$id"', script)
-        self.assertIn("--network-alias odoo", script)
+        self.assertIn('run -d --no-deps --use-aliases --name "$BRIDGE" tunnel-proxy', script)
         for forbidden in ('}" down', "prune", "rm -rf", "restart db", "restart redis"):
             self.assertNotIn(forbidden, script)
 

@@ -75,22 +75,17 @@ class DeliveryGateTests(TestCase):
         # 按鈕文字與頁面一致：在交車表單收尾款時是「收尾款並完成交車」。
         self.assertIn("canCollect && payload.delivery_collect_balance ? '收尾款並完成交車' : '確認完成交付'", script)
 
-    def test_system_balance_row_shows_receivable_as_text_only(self):
+    def test_system_balance_row_stays_out_of_receipt_list(self):
+        # T-60（使用者 2026-10-21）：尾款只在「交車與收尾款」登記，收款明細不列未收的系統尾款列，回到隱藏的應收列。
         order, _vehicle = self.registered_v2()
         balance = PaymentRecord.objects.get(order=order, system_key="balance")
         self.assertGreater(balance.expected_amount, Decimal("0"))
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
         receipts = page.split('id="payment-records"', 1)[1].split('id="payment-empty-row"', 1)[0]
-        # 未收的系統尾款列也列在收款明細（原本是隱藏的應收列），標出應收尾款、沒有刪除鈕。
-        self.assertEqual(receipts.count("data-balance-due>"), 1)
-        row = receipts[receipts.rindex("data-payment-row", 0, receipts.index("data-balance-due>")):]
-        row = row[:row.index("receipt-actions") + 200]
-        self.assertNotIn("data-delete-payment", row)
+        self.assertNotIn("data-balance-due", page)
+        self.assertNotIn("應收尾款 $", page)
+        self.assertNotRegex(receipts, rf'name="payments-\d+-id" value="{balance.pk}"')
         hidden_expectations = page.split('id="payment-empty-row"', 1)[1]
-        self.assertNotIn(f'value="{balance.pk}"', "".join(re.findall(r"<div data-payment-expectation>.*?</div>", hidden_expectations, re.S)))
-        self.assertIn(f"應收尾款 $<span data-balance-due-amount>{balance.expected_amount:,.0f}</span>，收到尾款填在這一列", receipts)
-        # 應收仍不可在畫面上修改（T-46）：只有隱藏欄位，沒有可輸入的應收金額。
-        self.assertNotRegex(receipts, r'<input type="(?:number|text)" name="[^"]*-expected_amount"')
-        empty_row = page.split('id="payment-empty-row"', 1)[1].split("</template>", 1)[0]
-        self.assertNotIn("data-balance-due", empty_row)
+        self.assertIn(f'value="{balance.pk}"', "".join(re.findall(r"<div data-payment-expectation>.*?</div>", hidden_expectations, re.S)))
+        self.assertNotRegex(page, r'<input type="(?:number|text)" name="payments-[^"]*-expected_amount"')

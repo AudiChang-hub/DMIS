@@ -79,16 +79,8 @@
       {% include "sales/_field.html" with field=form.payment_confirmed %}
     </div>
     {% endif %}
-    <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。實際撥款金額列在上方「收入」。</p>
-    <div class="receipt-summary" data-receipt-summary>
-      <span>客戶應收 <strong>$<output data-receipt-value="customer_expected">{{ receipt_summary.customer_expected|floatformat:0 }}</output></strong></span>
-      <span>客戶已確認 <strong>$<output data-receipt-value="customer_received">{{ receipt_summary.customer_received|floatformat:0 }}</output></strong></span>
-      <span>客戶尚欠 <strong>$<output data-receipt-value="customer_due">{{ receipt_summary.customer_due|floatformat:0 }}</output></strong></span>
-      <span>分期公司應收 <strong>$<output data-receipt-value="lender_expected">{{ receipt_summary.lender_expected|floatformat:0 }}</output></strong></span>
-      <span>分期公司已確認 <strong>$<output data-receipt-value="lender_received">{{ receipt_summary.lender_received|floatformat:0 }}</output></strong></span>
-      <span{% if receipt_summary.customer_overpaid %} class="is-overpaid"{% endif %}>客戶溢收 <strong>$<output data-receipt-value="customer_overpaid">{{ receipt_summary.customer_overpaid|floatformat:0 }}</output></strong></span>
-      <span>已登記待確認 <strong>$<output data-receipt-value="unconfirmed_received">{{ receipt_summary.unconfirmed_received|floatformat:0 }}</output></strong></span>
-    </div>
+    {% comment %}收款區只留表頭、收款列與新增收款（使用者 2026-10-21 T-61）：說明、應收摘要與「收款明細」小標都拿掉；
+    尾款只在「交車與收尾款」登記，未收的系統尾款列不列在收款明細（T-60）。{% endcomment %}
     {% with imported=order.imported_balance %}{% if imported %}
     <aside class="imported-balance{% if imported.paid_in_excel or not imported.remaining %} is-settled{% endif %}" aria-label="匯入訂單尾款">
       <div class="imported-balance__main">
@@ -96,17 +88,15 @@
         <strong>${{ imported.remaining|floatformat:0 }}</strong>
         {% if imported.paid_in_excel %}<em>Excel「車行收款」已打 V，視為已收清</em>{% elif imported.remaining %}<em>交車前需收清</em>{% else %}<em>已收清</em>{% endif %}
       </div>
-      <p>總應付 ${{ imported.total|floatformat:0 }}（Excel 收款價 ${{ imported.price|floatformat:0 }} ＋ 強制險 ${{ imported.insurance|floatformat:0 }}）{% if not imported.paid_in_excel %}－ 已確認客戶收款 ${{ imported.received|floatformat:0 }}{% endif %}。匯入訂單的尾款依 Excel 計算，下方「應收設定」的尾款不影響。</p>
+      <p>總應付 ${{ imported.total|floatformat:0 }}（Excel 收款價 ${{ imported.price|floatformat:0 }} ＋ 強制險 ${{ imported.insurance|floatformat:0 }}）{% if not imported.paid_in_excel %}－ 已確認客戶收款 ${{ imported.received|floatformat:0 }}{% endif %}。匯入訂單的尾款依 Excel 計算。</p>
     </aside>
     {% endif %}{% endwith %}
-    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款會鎖定；勾錯取消「已確認」即可修改，登記錯的可按列尾「刪除」（無法復原）。</p>{% endif %}
+    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
-      <h3>收款明細</h3>
       <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span></span></div>
       <div class="payment-records" id="payment-records">
         {% for payment in payment_formset %}
-          {# 未收的系統尾款列也列在收款明細，標出應收尾款，收到尾款直接填這一列（使用者 2026-10-21 T-56）。 #}
-          {% if not payment.instance.is_receivable_only or payment.instance.system_key == "balance" %}
+          {% if not payment.instance.is_receivable_only %}
             {% include "sales/_payment_receipt_row.html" %}
           {% endif %}
         {% endfor %}
@@ -118,7 +108,7 @@
     </section>
     {% comment %}應收一律照系統計算、畫面不顯示（使用者 2026-10-21 T-46）；應收列仍隨表單送出（全部隱藏），維持表單組的列數。{% endcomment %}
     <div hidden>
-      {% for payment in payment_formset %}{% if payment.instance.is_receivable_only and payment.instance.system_key != "balance" %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
+      {% for payment in payment_formset %}{% if payment.instance.is_receivable_only %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
     </div>
   </details>
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}

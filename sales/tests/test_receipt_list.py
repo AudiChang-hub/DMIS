@@ -36,11 +36,11 @@ class ReceiptListTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[self.order.pk]))
         markup = response.content.decode()
         receipt_markup = markup.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
-        # 未收的系統尾款列也列在收款明細並標出應收尾款（使用者 2026-10-21 T-56），不再藏成應收列。
-        self.assertEqual(receipt_markup.count('data-payment-row'), 2)
+        # 尾款只在「交車與收尾款」登記，未收的系統尾款列不列在收款明細（使用者 2026-10-21 T-60），回到隱藏的應收列。
+        self.assertEqual(receipt_markup.count('data-payment-row'), 1)
         self.assertIn('value="訂金"', receipt_markup)
-        self.assertIn('應收尾款 $<span data-balance-due-amount>70,000</span>', receipt_markup)
-        self.assertEqual(markup.count('data-payment-expectation'), 0)
+        self.assertNotIn('data-balance-due', markup)
+        self.assertEqual(markup.count('data-payment-expectation'), 1)
         self.assertNotContains(response, "訂金、客戶收款與分期撥款")
         self.assertEqual(self.order.payment_records.get(system_key="balance").expected_amount, 70000)
 

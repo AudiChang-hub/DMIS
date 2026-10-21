@@ -97,4 +97,5 @@ class PaymentRowTests(TestCase):
         self.assertIn('aria-label="刪除此筆收款">刪除</button>', rows)
         self.assertRegex(rows, r'<p class="receipt-meta">\s*<span>確認：')
         self.assertIn("查看收款附件", rows)
-        self.assertIn("登記錯的可按列尾「刪除」", page)
+        # 收款區上方說明拿掉（T-61），刪除鈕在列尾即可。
+        self.assertNotIn("登記錯的可按列尾「刪除」", page)

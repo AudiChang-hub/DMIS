@@ -1,6 +1,6 @@
 """訂單「收入與支出」的版面分組：只決定欄位放在哪一側、哪一組，不改任何計算。
 
-收入合計＝實際撥款＋收入欄位＋獎勵與補助；支出合計＝車輛成本＋支出欄位；
+收入合計＝實際車價收入（欄位 actual_disbursement）＋收入欄位＋獎勵與補助；支出合計＝車輛成本＋支出欄位；
 兩者相減即為 OrderOperationsProfile.net_profit。
 """
 from decimal import Decimal
@@ -10,7 +10,7 @@ from sales.models import OrderOperationsProfile
 ZERO = Decimal("0")
 
 INCOME_GROUPS = (
-    ("撥款", "現金單為車價；分期單為分期公司撥款", ("actual_disbursement",)),
+    ("車價收入", "訂單車價；分期那筆依期數撥款比例計算，現金、刷卡、匯款全額", ("actual_disbursement",)),
     ("領牌相關", "客戶支付的牌險與選號；牌險多收的部分記在「牌險手續費收入」", ("registration_tax_income", "compulsory_insurance_income", "plate_selection_income")),
     ("手續費", "", ("agency_fee_income", "installment_fee_income", "card_fee_income", "other_income")),
     ("中古與報廢", "", ("used_vehicle_income", "scrap_agency_income", "scrap_vehicle_income")),
@@ -29,7 +29,7 @@ EXPENSE_GROUPS = (
     )),
 )
 LABELS = {
-    "actual_disbursement": "實際撥款",
+    "actual_disbursement": "實際車價收入",
     # 欄位沿用 agency_fee_income；Excel 匯入單仍稱「代辦費收入」（使用者 2026-10-19）。
     "agency_fee_income": "牌險手續費收入",
     "dealer_commission_expense": "傭金支出（車行／本店人員）",

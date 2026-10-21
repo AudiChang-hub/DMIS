@@ -107,10 +107,11 @@ def has_subsidy(order):
 
 
 def lender_disbursed(order, ledger, profile):
-    """分期公司已撥款：帳本分期淨撥款，或營運收支的實際撥款（統一撥款對帳、匯入單）。"""
+    """分期公司已撥款：帳本分期淨撥款，或營運收支的實際車價收入扣掉客人自付車款（統一撥款對帳、匯入單；T-62）。"""
     if order.payment_type != SalesOrder.PaymentType.INSTALLMENT:
         return ZERO
-    return max(ledger["lender"]["net"], (profile.actual_disbursement if profile else ZERO) or ZERO, ZERO)
+    recorded = ((profile.actual_disbursement if profile else ZERO) or ZERO) - order.customer_vehicle_split_amount
+    return max(ledger["lender"]["net"], recorded, ZERO)
 
 
 def return_blockers(order, ledger=None):

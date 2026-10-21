@@ -39,7 +39,8 @@ def audit_financial_consistency(sample_limit=30):
             if getattr(profile, field) != value:
                 report("card_fee_mismatch", order, f"{field}：保存 {getattr(profile, field)}／收款 {value}")
         primary = disbursement_receipts(order, payments)
-        if primary and profile.actual_disbursement != sum(p.received_amount for p in primary):
+        customer_part = order.customer_vehicle_split_amount if order.payment_type == "installment" else 0
+        if primary and profile.actual_disbursement != sum(p.received_amount for p in primary) + customer_part:
             report("confirmed_disbursement_mismatch", order, "已確認撥款與營運實際撥款不同，需核對人工覆寫")
         if primary and not profile.payment_disbursement_snapshot:
             report("legacy_disbursement_no_snapshot", order, "舊確認資料無撤回快照，不自動推測原值")

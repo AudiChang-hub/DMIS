@@ -803,8 +803,13 @@
       color.disabled = true;
       return;
     }
-    color.innerHTML = '<option value="">車色載入中…</option>';
-    color.disabled = true;
+    // 進頁核對已選車色時不停用、不清空（T-52）：伺服器已帶好選項，停用的欄位不會送出，
+    // 精靈在其他步驟按「下一步」就會把草稿的車色洗掉，被退回「車款與車價」並跳到車色。
+    const refreshing = Boolean(previousColor);
+    if (!refreshing) {
+      color.innerHTML = '<option value="">車色載入中…</option>';
+      color.disabled = true;
+    }
     colorRequestController = new AbortController();
     try {
       const response = await fetch(`{% url 'vehicle_colors' %}?model=${requestedModel}`, {signal: colorRequestController.signal});
@@ -821,7 +826,7 @@
         color.innerHTML = '<option value="">此車型尚未設定可用車色</option>';
       }
     } catch (error) {
-      if (error.name === "AbortError") return;
+      if (error.name === "AbortError" || refreshing) return;
       color.innerHTML = '<option value="">載入失敗，請重新選擇車型</option>';
       color.disabled = true;
     }
@@ -1745,7 +1750,7 @@
       event.returnValue = "";
     });
   }
-  function showValidationSummary(firstInvalid = null) {
+  function showValidationSummary(firstInvalid = null, {instant = false} = {}) {
     const invalidFields = [...orderForm.querySelectorAll(".has-error, :invalid")]
       .filter(node => !node.closest(".is-pending-delete") && !node.closest("[data-wizard-panel][hidden]"));
     const labels = [];
@@ -1766,12 +1771,12 @@
     `;
     const target = firstInvalid || invalidFields[0];
     window.setTimeout(() => {
-      target?.scrollIntoView({behavior: "smooth", block: "center"});
-      if (target?.matches("input, select, textarea, button")) {
-        target.focus({preventScroll: true});
-      } else {
-        target?.querySelector("input, select, textarea")?.focus({preventScroll: true});
-      }
+      // 進頁就帶錯誤（伺服器退回某一步）時瞬間定位；全站 html 是 smooth，要明講 instant。
+      target?.scrollIntoView({behavior: instant ? "instant" : "smooth", block: "center"});
+      const control = target?.matches("input, select, textarea, button") ? target : target?.querySelector("input, select, textarea");
+      // 可搜尋下拉的原生 select 藏在搜尋框後面，焦點給看得到、能打字的搜尋框。
+      const visible = control?.matches(".searchable-select__native") ? byId(`${control.id}-search`) || control : control;
+      visible?.focus({preventScroll: true});
     }, 80);
   }
 
@@ -1918,6 +1923,37 @@
         event.preventDefault();
       }
     });
+    // 伺服器把「下一步」退回前面某一步時是直接回這一步的畫面，網址仍是原本那步；改成實際顯示的步驟，重新整理才不會跑掉。
+    const pageUrl = new URL(window.location.href);
+    if (pageUrl.searchParams.get("draft") && pageUrl.searchParams.get("step") !== wizardStep) {
+      pageUrl.searchParams.set("step", wizardStep);
+      history.replaceState(history.state, "", pageUrl);
+    }
+    // 換步後停在這一步區塊的頂端（T-52，比照訂單頁 order-workspace.js land()）：不帶到區塊裡的欄位。
+    // 只處理從上一個步驟換過來的進頁；第一次從選車進來留在頁首，重新整理／返回交給瀏覽器還原；有錯誤時由 showValidationSummary 定位。
+    const [navigation] = performance.getEntriesByType?.("navigation") || [];
+    const cameFromStep = document.referrer && new URL(document.referrer, pageUrl).pathname === pageUrl.pathname;
+    const stepPanel = orderForm.querySelector("[data-wizard-panel]:not([hidden])");
+    if (cameFromStep && (navigation?.type || "navigate") === "navigate" && stepPanel
+        && !orderForm.querySelector(".has-error") && !document.querySelector(".wizard-errors")) {
+      const landOnStep = () => {
+        const headerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--app-header-height")) || 72;
+        const top = Math.max(0, Math.round(window.scrollY + stepPanel.getBoundingClientRect().top - headerHeight - 16));
+        const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo({top: Math.min(top, max), behavior: "instant"});
+      };
+      landOnStep();
+      // 上方的編輯中提示、草稿狀態是進頁後才非同步出現，會把區塊往下推：使用者動手前跟著校正。
+      // 從畫面真正開始繪製（第一次 ResizeObserver 回呼）起算 1.5 秒，換頁轉場或分頁在背景時不會提早結束。
+      let settleTimer = null;
+      const settle = new ResizeObserver(() => {
+        landOnStep();
+        settleTimer ??= window.setTimeout(stopSettling, 1500);
+      });
+      settle.observe(orderForm);
+      function stopSettling() { settle.disconnect(); }
+      ["wheel", "touchstart", "pointerdown", "keydown"].forEach(type => window.addEventListener(type, stopSettling, {once: true, passive: true}));
+    }
   }
   orderForm.addEventListener("submit", () => {
     submittingOrder = true;
@@ -1925,7 +1961,7 @@
   });
   orderForm.addEventListener('workspace-saved', () => { editFormDirty = false; });
   orderForm.addEventListener('workspace-save-finished', () => { submittingOrder = false; });
-  if (orderForm.querySelector(".has-error")) showValidationSummary();
+  if (orderForm.querySelector(".has-error")) showValidationSummary(null, {instant: true});
   refreshDraftPresence();
   window.setInterval(refreshDraftPresence, 30000);
   window.addEventListener("pagehide", () => {

@@ -17,7 +17,7 @@ class Control {
 function setup(fetcher, values={}, extra=[], extraConfig={}) {
   const elements={};
   for (const id of ['installment-company-choice','installment-period-choice','installment-manual-toggle',
-    'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee', ...extra]) elements[id]=new Control(values[id] || '');
+    'id_installment_company','id_installment_periods','id_installment_monthly','id_installment_opening_fee','installment-period-field', ...extra]) elements[id]=new Control(values[id] || '');
   const manualFields=[{},{}];
   const doc={getElementById:id=>elements[id],querySelectorAll:()=>manualFields,createElement:()=>new Control()};
   const config={document:doc,fetcher,endpoint:'/api/plans/',orderId:'41',vehicleModel:new Control('7'),paymentType:new Control('installment'),hint:new Control(),...extraConfig};
@@ -180,4 +180,53 @@ test('車型方案模式不套用自訂分期公式', async()=>{
   await picker.load();
   picker.syncCustomMonthly();
   assert.equal(elements.id_installment_monthly.value,'5900');
+});
+
+test('選其他／自訂分期時隱藏期數與每期金額選單，切回車型方案再出現（使用者 2026-10-21 T-49）', async()=>{
+  const {picker,elements}=setup(async()=>response(),{}, ['id_installment_custom']);
+  elements['id_installment_custom'].checked=false;
+  await picker.load();
+  const company=elements['installment-company-choice'], field=elements['installment-period-field'];
+  assert.equal(field.hidden,false);
+  company.value='__custom__'; company.dispatchEvent(new Event('change'));
+  assert.equal(field.hidden,true);
+  assert.equal(elements['installment-period-choice'].disabled,true);
+  company.value='甲公司'; company.dispatchEvent(new Event('change'));
+  assert.equal(field.hidden,false);
+  assert.equal(elements['installment-period-choice'].disabled,false);
+  const toggle=elements['installment-manual-toggle'];
+  toggle.dispatchEvent(new Event('click'));
+  assert.equal(company.value,'__custom__');
+  assert.equal(field.hidden,true);
+  toggle.dispatchEvent(new Event('click'));
+  assert.equal(field.hidden,false);
+});
+
+test('既有自訂分期訂單的公司與期數剛好跟方案相同，也不顯示方案的期數與每期金額', async()=>{
+  const values={...original,'id_installment_periods':'24','id_installment_monthly':'1250'};
+  const {picker,elements}=setup(async()=>response(),values, ['id_installment_custom']);
+  elements['id_installment_custom'].checked=true;
+  await picker.load();
+  const periods=elements['installment-period-choice'];
+  assert.equal(elements['installment-company-choice'].value,'__custom__');
+  assert.equal(elements['installment-period-field'].hidden,true);
+  assert.equal(periods.value,'');
+  assert.equal(periods.disabled,true);
+  assert.equal(periods.required,false);
+  assert.equal(elements.id_installment_periods.value,'24');
+  assert.equal(elements.id_installment_monthly.value,'1250');
+});
+
+test('自訂分期時期數選單即使被改值也不覆寫下方期數與每期金額', async()=>{
+  const values={...original,'id_installment_periods':'24','id_installment_monthly':'1250'};
+  const {picker,elements}=setup(async()=>response(),values, ['id_installment_custom']);
+  elements['id_installment_custom'].checked=true;
+  await picker.load();
+  const periods=elements['installment-period-choice'];
+  periods.value='24'; periods.dispatchEvent(new Event('change'));
+  assert.equal(elements.id_installment_company.value,'甲公司');
+  assert.equal(elements.id_installment_periods.value,'24');
+  assert.equal(elements.id_installment_monthly.value,'1250');
+  assert.equal(elements.id_installment_opening_fee.value,'0');
+  assert.equal(elements['id_installment_custom'].checked,true);
 });

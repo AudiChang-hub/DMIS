@@ -123,15 +123,20 @@ class OrderPageSectionTests(TestCase):
         self.assertNotIn("新車主資料", page)
 
     # T-37：送達地點緊接交車方式，備註在左欄往上移。
-    def test_delivery_section_puts_destination_under_method_and_note_up(self):
+    def test_delivery_section_is_compact_and_ordered(self):
+        # T-58（使用者 2026-10-21）：選號方式→選號費→指定號碼／偏好→交車方式→送達地點→備註，依內容寬度往右排。
         page = self.page(self.make_order())
         section = page[page.index('id="delivery"'):]
         section = section[:section.index("</details>")]
-        left, right = section.split('<div class="delivery-layout__col">')[1:3]
-        self.assertIn('name="plate_choice"', left)
-        self.assertIn('name="note"', left)
-        self.assertLess(right.index('name="delivery_method"'), right.index('name="delivery_destination"'))
-        self.assertIn('name="plate_selection_fee"', right)
+        order = [section.index(f'name="{name}"') for name in (
+            "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note",
+            "delivery_method", "delivery_destination", "note")]
+        self.assertEqual(order, sorted(order))
+        self.assertNotIn("delivery-layout__col", section)
+        self.assertNotIn("{#", section)
+        css = open("static/css/app.css", encoding="utf-8").read()
+        self.assertIn(".delivery-layout { display: flex; flex-wrap: wrap;", css)
+        self.assertIn(".delivery-layout textarea.form-control { field-sizing: content; min-height: 48px;", css)
 
 
 class OrderSourceInCardTests(TestCase):

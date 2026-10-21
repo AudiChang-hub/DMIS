@@ -1627,13 +1627,20 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 /* 交車頁「送達地點尚未填寫」直接跳到這一欄：留出頁首與訂單固定列的高度（使用者 2026-10-20）。 */
 .delivery-destination-field { scroll-margin-top: 180px; }
 /* 選號與交車（使用者 2026-10-21）：兩欄各自往下排，送達地點緊接交車方式、備註接在左欄，整區不再拉長。 */
-.delivery-layout { align-items: start; }
-.delivery-layout__col { display: grid; min-width: 0; align-content: start; gap: var(--stack-gap-sm); }
-.delivery-layout__col > [hidden] { display: none; }
-.delivery-layout__note textarea { min-height: 96px; }
+/* 選號與交車精簡排版（使用者 2026-10-21 T-58）：依內容寬度往右排，放不下才換行；條件欄位隱藏時不佔位。 */
+.delivery-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--stack-gap-sm) var(--space-4); }
+.delivery-layout > div { min-width: 0; }
+.delivery-layout > [hidden] { display: none; }
+.delivery-layout__choice, .delivery-layout__method { flex: 0 1 13rem; }
+.delivery-layout__fee { flex: 0 1 9rem; }
+.delivery-layout__numbers, .delivery-layout__destination { flex: 1 1 16rem; }
+.delivery-layout__note { flex: 1 1 100%; }
+/* 文字框單行起跳、依內容長高（不支援 field-sizing 的瀏覽器由 _order_form_scripts 補上）。 */
+.delivery-layout textarea.form-control { field-sizing: content; min-height: 48px; max-height: 12rem; resize: vertical; }
 @media (max-width: 600px) {
-  .delivery-layout__col { display: contents; }
-  .delivery-layout__note { order: 1; }
+  .delivery-layout > div { flex-basis: 100%; }
+  .delivery-layout > .delivery-layout__fee { flex-basis: calc(50% - var(--space-2)); }
+  .delivery-layout > .delivery-layout__choice:has(+ .delivery-layout__fee:not([hidden])) { flex-basis: calc(50% - var(--space-2)); }
 }
 .accessory-row.has-accessory-name :is(.accessory-row__quantity, .accessory-row__type) label::after {
   content: "必填"; color: var(--red); font-size: var(--text-2xs); font-weight: 800;

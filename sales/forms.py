@@ -3043,8 +3043,11 @@ class OrderOperationsForm(forms.ModelForm):
     }
     FULFILLMENT_SECTION_FIELDS = {
         "vehicle_control_account", "vehicle_control_password", "battery_plan", "battery_activated_on",
-        "battery_account", "battery_password", "battery_rate_plan", "helmet", "company_gift_or_remittance", "platform_gift",
-        "other_fulfillment", "customer_service_phone", "vehicle_control_confirmed", "fulfillment_confirmed",
+        "battery_account", "battery_password", "battery_rate_plan", "vehicle_control_confirmed",
+    }
+    # 贈品與履約拿掉（使用者 2026-10-21 T-57）：欄位與既有值保留在資料庫，任何區段都不再顯示或寫入。
+    RETIRED_FULFILLMENT_FIELDS = {
+        "helmet", "company_gift_or_remittance", "platform_gift", "other_fulfillment", "customer_service_phone",
     }
     SECTION_COMMON_FIELDS = {"financial_revision", "change_reason"}
 
@@ -3054,8 +3057,6 @@ class OrderOperationsForm(forms.ModelForm):
         # 交車前確認：承辦人勾選即完成，確認人與時間由畫面送出時記錄。
         self.fields["vehicle_control_confirmed"] = forms.BooleanField(
             label="車控與電池合約已確認", required=False, initial=bool(self.instance.vehicle_control_confirmed_at))
-        self.fields["fulfillment_confirmed"] = forms.BooleanField(
-            label="贈品與履約已確認（沒有贈品也請勾選）", required=False, initial=bool(self.instance.fulfillment_confirmed_at))
         if section == "subsidy":
             keep = self.SUBSIDY_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
         elif section == "old_vehicle":
@@ -3069,6 +3070,7 @@ class OrderOperationsForm(forms.ModelForm):
             keep = set(self.fields)
         # 分期資訊由訂單同步、訂單與配件已看得到，收支頁不再顯示也不從表單寫入（使用者 2026-10-21 T-48）。
         keep.discard("installment_info")
+        keep -= self.RETIRED_FULFILLMENT_FIELDS
         for name in list(self.fields):
             if name not in keep:
                 self.fields.pop(name)
@@ -3319,18 +3321,14 @@ class DeliveryPaymentForm(forms.ModelForm):
         label="確認此筆尾款已收妥",
         required=False,
     )
-    duplicate_confirmed = forms.BooleanField(
-        label="確認非重複收款", required=False,
-        help_text="與另一筆已確認收款同日同額時，確認這是另一筆實際收到的款項。",
-    )
-
+    # 交車收尾款不再要求「確認非重複收款」，也不填收款帳戶（使用者 2026-10-21 T-64，與 T-29 訂金步驟一致）；
+    # 既有的收款帳戶值保留在資料庫。
     class Meta:
         model = PaymentRecord
         fields = [
             "received_amount",
             "received_on",
             "payment_method",
-            "receiving_account",
             "proof",
             "note",
             "confirmed",
@@ -3341,7 +3339,6 @@ class DeliveryPaymentForm(forms.ModelForm):
             ),
         }
         labels = {
-            "receiving_account": "收款帳戶／末五碼",
             "proof": "收款證明",
             "note": "收款備註",
         }
@@ -3383,7 +3380,6 @@ class DeliveryPaymentForm(forms.ModelForm):
                 "confirmed",
                 f"尚差 {shortage:,.0f} 元，不可標記為已收清。",
             )
-        check_duplicate_receipt(self, cleaned, order=self.instance.order, kind=self.instance.effective_receipt_kind)
         return cleaned
 
     def clean_proof(self):
@@ -4309,7 +4305,7 @@ class DeliveryCompletionForm(forms.Form):
     condition_checked = forms.BooleanField(label="已核對車況")
     documents_checked = forms.BooleanField(label="已核對交付文件")
     keys_checked = forms.BooleanField(label="已核對鑰匙")
-    accessories_checked = forms.BooleanField(label="已核對配件、贈品與履約")
+    accessories_checked = forms.BooleanField(label="已核對配件與贈品")
     handover_photo = forms.ImageField(label="交付照片", required=False)
 
     def __init__(self, order, *args, **kwargs):

@@ -146,21 +146,18 @@
 
   <details class="form-section" id="delivery" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="delivery" {% if wizard.current != 'delivery' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">{% if order_workspace %}4{% else %}5{% endif %}</span><span><strong>選號與交車</strong><small>{% if wizard %}車牌號碼的選法與交車方式{% else %}車牌號碼的選法、交車方式與其他備註{% endif %}</small></span></summary>
-    {# 兩欄各自往下排（使用者 2026-10-21）：左欄選號方式→指定號碼／偏好→備註，右欄選號費→交車方式→送達地點；手機單欄、備註排最後。精靈的備註在訂金與費用。 #}
+    {% comment %}精簡排版（使用者 2026-10-21 T-58）：欄位依內容寬度往右排、放不下才換行，條件欄位隱藏時不佔位；
+    指定號碼、選號偏好與備註是單行起跳、依內容長高的文字框。手機每欄一列，備註排最後。精靈的備註在訂金與費用。{% endcomment %}
     <div class="form-grid delivery-layout">
-      <div class="delivery-layout__col">
-        {% include "sales/_field.html" with field=form.plate_choice %}
-        <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
-        <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
-        {% if not wizard %}<div class="delivery-layout__note">{% include "sales/_field.html" with field=form.note %}</div>{% endif %}
+      <div class="delivery-layout__choice">{% include "sales/_field.html" with field=form.plate_choice %}</div>
+      <div class="delivery-layout__fee" data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
+      <div class="delivery-layout__numbers" data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
+      <div class="delivery-layout__numbers" data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
+      <div class="delivery-layout__method">{% include "sales/_field.html" with field=form.delivery_method %}</div>
+      <div class="delivery-layout__destination delivery-destination-field" id="delivery-destination-field" data-conditional="delivery-destination">
+        {% include "sales/_field.html" with field=form.delivery_destination %}
       </div>
-      <div class="delivery-layout__col">
-        <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
-        {% include "sales/_field.html" with field=form.delivery_method %}
-        <div class="delivery-destination-field" id="delivery-destination-field" data-conditional="delivery-destination">
-          {% include "sales/_field.html" with field=form.delivery_destination %}
-        </div>
-      </div>
+      {% if not wizard %}<div class="delivery-layout__note">{% include "sales/_field.html" with field=form.note %}</div>{% endif %}
     </div>
   </details>
 

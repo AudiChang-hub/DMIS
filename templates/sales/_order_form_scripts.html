@@ -1094,6 +1094,17 @@
     quantityTotal.hidden = quantity === 1;
   }
 
+  // 選號與交車的文字框依內容長高（使用者 2026-10-21 T-58）；支援 field-sizing 的瀏覽器交給 CSS。
+  if (!(window.CSS && CSS.supports("field-sizing", "content"))) {
+    document.querySelectorAll(".delivery-layout textarea").forEach(area => {
+      area.rows = 1;
+      const fit = () => { if (!area.offsetParent) return; area.style.height = "auto"; area.style.height = `${area.scrollHeight + 2}px`; };
+      area.addEventListener("input", fit);
+      area.addEventListener("focus", fit);
+      fit();
+    });
+  }
+
   function bindAccessoryRow(row) {
     const productInput = row.querySelector('[name$="-accessory_product"]');
     productInput?.addEventListener("change", () => {

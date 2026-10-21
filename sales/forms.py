@@ -388,7 +388,8 @@ class SalesOrderForm(forms.ModelForm):
         source_copy = SOURCE_FIELD_COPY[source_copy_kind]
         self.fields["source"].label = source_copy["label"]
         self.fields["source"].help_text = source_copy["help"]
-        self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
+        # 選項文字含車型名稱：一次帶出車型，避免每個車色各查一次（T-59）。
+        self.fields["color"].queryset = VehicleColor.objects.filter(active=True).select_related("vehicle_model")
         self.fields["registration_date"].required = False
         self.fields["compulsory_insurance_period"].initial = (
             SalesOrder.CompulsoryInsurancePeriod.ONE_YEAR
@@ -2133,7 +2134,7 @@ class VehicleInventoryForm(forms.ModelForm):
             self.fields["color"].queryset = VehicleColor.objects.filter(
                 vehicle_model_id=model_id,
                 active=True,
-            ).order_by("name")
+            ).select_related("vehicle_model").order_by("name")
         else:
             self.fields["color"].queryset = VehicleColor.objects.none()
         self.fields["vehicle_model"].label_from_instance = lambda model: (
@@ -2183,7 +2184,7 @@ class VehicleInventoryForm(forms.ModelForm):
         if self.instance.pk and self.instance.color_id:
             self.fields["color"].queryset = VehicleColor.objects.filter(
                 vehicle_model_id=model_id or self.instance.vehicle_model_id,
-            ).filter(Q(active=True) | Q(pk=self.instance.color_id)).order_by("name")
+            ).filter(Q(active=True) | Q(pk=self.instance.color_id)).select_related("vehicle_model").order_by("name")
         if self.core_fields_locked:
             locked_fields = list(self.CORE_FIELDS)
             if self.final_fields_locked:
@@ -3918,7 +3919,7 @@ class QuickInventoryEntryForm(forms.Form):
             self.fields["color"].queryset = VehicleColor.objects.filter(
                 active=True,
                 vehicle_model_id=model_id,
-            ).order_by("name")
+            ).select_related("vehicle_model").order_by("name")
             self.fields["color"].empty_label = "請選擇車色"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")

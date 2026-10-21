@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const {isTrackedLink, isTrackedForm, isActivationKey, messageFor} = require('../../static/js/busy-indicator.js');
+const {isTrackedLink, isTrackedForm, isActivationKey, messageFor, hasDownloadCookie} = require('../../static/js/busy-indicator.js');
 
 const page = 'https://dmis.example/orders/?page=2';
 
@@ -60,11 +60,37 @@ test('打字不算按下功能，只有在按鈕、連結、開關上按 Enter�
 
 test('定時輪詢、上線狀態與自動儲存不顯示操作中提示', () => {
   const order = fs.readFileSync('templates/sales/_order_form_scripts.html', 'utf8');
-  for (const endpoint of ['/api/id-card-ocr/${jobId}/`', '/edit/presence/`', '/presence/`', "draft_save' %}\""]) {
+  for (const endpoint of ['/api/id-card-ocr/${jobId}/`', '/edit/presence/`', '/presence/`', 'fetch(draftUrl, {']) {
     const at = order.indexOf(endpoint);
     assert.ok(at > 0, endpoint);
     assert.match(order.slice(at, at + 120), /busy: false/, endpoint);
   }
   assert.match(fs.readFileSync('static/js/app-update.js', 'utf8'), /busy: false/);
   assert.match(fs.readFileSync('static/js/legacy-import-master-workspace.js', 'utf8'), /busy: false/);
+});
+test('上傳顯示百分比與 MB；有進度就不出現請勿關閉，傳完改成處理中', () => {
+  assert.equal(messageFor('upload', false, {loaded: 0, total: 0}), '正在上傳檔案…');
+  assert.equal(messageFor('upload', false, {loaded: 1.3 * 1024 * 1024, total: 2.6 * 1024 * 1024}), '正在上傳 50%（1.3／2.6 MB）…');
+  assert.doesNotMatch(messageFor('upload', false, {loaded: 10, total: 100}), /不要關閉/);
+  assert.equal(messageFor('upload', false, {loaded: 100, total: 100}), '檔案已上傳，系統處理中…');
+  assert.match(messageFor('upload', true, {loaded: 10, total: 100}), /網路較慢，仍在上傳.*不要關閉/);
+  assert.match(messageFor('upload', true, {loaded: 100, total: 100}), /^仍在處理.*不要關閉/);
+});
+
+test('伺服器回傳下載檔時帶短效 cookie，看到就收起換頁提示', () => {
+  assert.equal(hasDownloadCookie('csrftoken=abc; dmis_download=1'), true);
+  assert.equal(hasDownloadCookie('dmis_download=1'), true);
+  assert.equal(hasDownloadCookie('csrftoken=abc; not_dmis_download=1'), false);
+  assert.equal(hasDownloadCookie(''), false);
+  const busy = fs.readFileSync('static/js/busy-indicator.js', 'utf8');
+  assert.match(busy, /hasDownloadCookie\(document\.cookie\)/);
+  assert.match(fs.readFileSync('config/middleware.py', 'utf8'), /DOWNLOAD_COOKIE = "dmis_download"/);
+});
+
+test('建單附件只隨草稿上傳一次：未變更的檔案不重送，送出這一步前先上傳並顯示進度', () => {
+  const order = fs.readFileSync('templates/sales/_order_form_scripts.html', 'utf8');
+  assert.match(order, /if \(!\(input\.name in photoDirty\) && !intakeFileVersion\.has\(input\.name\)\) payload\.delete\(input\.name\)/);
+  assert.match(order, /hasFiles && window\.dmisBusy\s*\? await window\.dmisBusy\.upload\(draftUrl, payload, \{headers\}\)/);
+  assert.match(order, /window\.addEventListener\("submit", async event => \{[\s\S]*?flushDraftUploads\(\)[\s\S]*?orderForm\.requestSubmit\(submitter\)/);
+  assert.match(order, /window\.dmisBusy\.upload\("\{% url 'id_card_ocr' %\}"/);
 });

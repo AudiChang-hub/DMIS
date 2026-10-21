@@ -137,6 +137,9 @@ class AccessPolicy:
 def policy_for(request):
     if not hasattr(request, "_screen_access_policy"):
         request._screen_access_policy = AccessPolicy(request.user)
+        # 同一請求內以使用者物件查權限（can_edit_finance 等）時沿用這份，不再每次重查（T-59）。
+        if request.user.is_authenticated:
+            request.user._request_access_policy = request._screen_access_policy
     return request._screen_access_policy
 
 

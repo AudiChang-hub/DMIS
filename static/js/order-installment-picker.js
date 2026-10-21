@@ -41,6 +41,26 @@
       syncRequired();
     }
     custom?.addEventListener('change', () => { setManual(custom.checked); if (custom.checked) company.value = '__custom__'; });
+    // 自訂分期的每期金額（使用者 2026-10-21 T-34）：分期價格（付款方式「分期」那筆）÷期數，四捨五入到整數。
+    // 沒有手動改過就跟著期數與分期價格更新；改過就保留人工值，清空可恢復自動帶入。
+    const CUSTOM_HINT = '自訂分期：請填公司、期數與開辦費；每期金額＝分期價格÷期數（四捨五入），可直接修改。';
+    let autoMonthly = null;
+    function suggestedMonthly() {
+      const price = Number(config.installmentPrice?.() || 0);
+      const count = Number(inputs.periods.value || 0);
+      return price > 0 && count > 0 ? String(Math.round(price / count)) : null;
+    }
+    function syncCustomMonthly({force = false} = {}) {
+      if (!manual || !custom?.checked || inputs.monthly_amount.disabled) return;
+      const next = suggestedMonthly();
+      if (next === null) return;
+      const current = inputs.monthly_amount.value;
+      const following = force || current === '' || current === autoMonthly || (autoMonthly === null && current === next);
+      if (!following) return;
+      autoMonthly = next;
+      if (current !== next) emit(inputs.monthly_amount, next);
+    }
+    ['input', 'change'].forEach(type => inputs.periods.addEventListener(type, () => syncCustomMonthly()));
     function renderPeriods(selected = '') {
       reset(periods, company.value ? '請選擇期數' : '請先選擇分期公司');
       companyOptions(options, company.value).forEach(option => {
@@ -80,7 +100,8 @@
         renderPeriods();
         periods.disabled = true;
         setManual(true);
-        config.hint.textContent = '自訂分期：請填公司、期數、每期金額與開辦費，不會自動套用車型方案。';
+        syncCustomMonthly({force: true});
+        config.hint.textContent = CUSTOM_HINT;
         inputs.company.focus?.();
         return;
       }
@@ -103,7 +124,8 @@
         // 與公司選單選「其他／自訂分期」一致：選單標示自訂、期數選單停用，已填的公司與金額保留。
         if ([...company.children].some(option => option.value === '__custom__')) { company.value = '__custom__'; renderPeriods(); periods.disabled = true; }
         setManual(true);
-        config.hint.textContent = `${versionHint}人工調整模式：保留現有內容，不自動套用車型方案。`;
+        syncCustomMonthly({force: true});
+        config.hint.textContent = CUSTOM_HINT;
       }
     });
     async function load({force = false} = {}) {
@@ -137,7 +159,7 @@
       }
     }
     root.addEventListener?.('pagehide', () => { ++ticket; controller?.abort(); });
-    return {load, syncRequired};
+    return {load, syncRequired, syncCustomMonthly};
   }
   const api = {companyNames, companyOptions, create};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

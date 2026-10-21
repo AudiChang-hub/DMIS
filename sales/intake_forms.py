@@ -17,7 +17,6 @@ from sales.services.upload_validation import validate_document_upload
 DEPOSIT_FIELDS = ("deposit_amount", "deposit_date", "deposit_method")
 
 FINANCE_FIELDS = (
-    "registration_manual", "registration_adjustment_reason",
     "commission_recipient", "assign_commission_to_other", "vehicle_price", "vehicle_price_adjustment_reason",
     "registration_date", "compulsory_insurance_period",
     "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee",

@@ -1,6 +1,5 @@
-{# 牌險試算欄位：訂單頁店內財務顯示；建立訂單只放在隱藏區給前端試算（使用者 2026-10-20）。 #}
+{# 牌險試算明細（號牌～強制險）：畫面不顯示，留在隱藏區給前端試算、後端照舊驗算（使用者 2026-10-21 T-38）。 #}
 {{ form.registration_date.as_hidden }}
-{% include "sales/_field.html" with field=form.compulsory_insurance_period %}
 {% include "sales/_field.html" with field=form.registration_plate_fee %}
 {% include "sales/_field.html" with field=form.registration_license_fee %}
 {% include "sales/_field.html" with field=form.registration_inspection_fee %}
@@ -8,4 +7,3 @@
 {% include "sales/_field.html" with field=form.license_tax_fee %}
 {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
 {{ form.lien_registration_fee }}
-{% include "sales/_field.html" with field=form.registration_calculated_total %}

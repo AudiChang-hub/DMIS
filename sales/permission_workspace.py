@@ -14,6 +14,7 @@ from django.views.decorators.http import require_http_methods
 from sales.access.services import AccessPolicy, is_root
 from sales.access.views import root_required
 from sales.models import OrderAccountProfile, OrderCustomerAccessGrant, OrderEvent, SalesOrder
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL
 from sales.services.order_customer_access import customer_orders, set_customer_access
 
 
@@ -32,7 +33,8 @@ class OrderPermissionForm(forms.Form):
     can_print = forms.BooleanField(label="可以列印訂購單與客戶簽署文件", required=False)
     expected_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
     expected_identity_epoch = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
-    reason = forms.CharField(label="修改原因", max_length=500, widget=forms.Textarea(attrs={"rows": 3, "class": "form-control", "placeholder": "請說明開放、禁止或恢復一般設定的原因"}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=500, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"rows": 3, "class": "form-control"}))
 
 
 @root_required

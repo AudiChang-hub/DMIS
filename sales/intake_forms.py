@@ -17,7 +17,7 @@ from sales.services.upload_validation import validate_document_upload
 DEPOSIT_FIELDS = ("deposit_amount", "deposit_date", "deposit_method")
 
 FINANCE_FIELDS = (
-    "commission_recipient", "assign_commission_to_other", "vehicle_price", "vehicle_price_adjustment_reason",
+    "commission_recipient", "assign_commission_to_other", "vehicle_price",
     "registration_date", "compulsory_insurance_period",
     "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee",
     "license_tax_fee", "compulsory_insurance_fee", "plate_selection_fee", "lien_registration_fee",
@@ -26,7 +26,7 @@ FINANCE_FIELDS = (
 )
 
 PRICING_FIELDS = {
-    "vehicle_price", "vehicle_price_adjustment_reason", "installment_opening_fee", "installment_monthly",
+    "vehicle_price", "installment_opening_fee", "installment_monthly",
     "plate_insurance_fee", "plate_selection_fee", "lien_registration_fee",
 }
 
@@ -44,9 +44,6 @@ class IntakeOrderForm(SalesOrderForm):
     intake_discount_rate = forms.DecimalField(
         label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2,
         min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False,
-    )
-    intake_discount_reason = forms.CharField(
-        label="優惠原因", max_length=250, required=False, widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
     )
 
     class Meta(SalesOrderForm.Meta):
@@ -89,7 +86,6 @@ class IntakeOrderForm(SalesOrderForm):
         self.fields["intake_discount_mode"].widget.attrs = {"class": "discount-mode__input"}
         self.fields["intake_discount_amount"].widget.attrs.update(inputmode="numeric", min="1", placeholder="例如 2000")
         self.fields["intake_discount_rate"].widget.attrs.update(inputmode="decimal", step="0.01", placeholder="例如 9.5")
-        self.fields["intake_discount_reason"].widget.attrs.update(placeholder="例如：老客戶回購、展示車")
         self.catalog_summary = None
         token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
         if token:
@@ -160,9 +156,6 @@ class IntakeOrderForm(SalesOrderForm):
             data["intake_discount_amount"] = None
         else:
             data["intake_discount_rate"] = None
-        data["intake_discount_reason"] = (data.get("intake_discount_reason") or "").strip()
-        if (data.get("intake_discount_amount") or data.get("intake_discount_rate")) and not data["intake_discount_reason"]:
-            self.add_error("intake_discount_reason", "有總價優惠時，請填寫優惠原因。")
 
 
 def validated_intake_uploads(files):

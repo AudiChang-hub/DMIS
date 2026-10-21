@@ -25,6 +25,7 @@ from sales.models import (
     DealerVolumeBonusAllocation, OrderChange, OrderEvent, OrderOperationsProfile, SalesOrder, VehicleInventory,
     VehicleInventoryHistory, normalize_vehicle_identifier,
 )
+from sales.services.audit_note import SUMMARY_PREFIX, note_or_summary, optional_note, with_note
 from sales.services.inventory_history import STATUS_LABELS, status_change
 from sales.services.inventory_restore import CONFIRM_FALLBACK as _RESTORE_FALLBACK, identifier_tail as vehicle_tail
 from sales.services.order_deletion import _locked_order, _sync_settlements, is_order_delivered
@@ -192,7 +193,7 @@ def _record_vehicle(vehicle, order, *, actor_name, reason, price):
                                 "disposition_dealer", "disposition_dealer_name", "disposition_on", "updated_at"])
     VehicleInventoryHistory.objects.create(
         vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED, actor_name=actor_name,
-        reason=f"訂單 {order.number} 交車後退車，以已領牌車回到庫存（原為{STATUS_LABELS.get(before['status'], before['status'])}）：{reason}",
+        reason=f"訂單 {order.number} 交車後退車，以已領牌車回到庫存（原為{STATUS_LABELS.get(before['status'], before['status'])}）" + (f"：{reason}" if reason else ""),
         changes={
             "status": status_change(before["status"], vehicle.status),
             "order": {"label": "訂單", "value": order.number},
@@ -223,9 +224,8 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
         raise ValidationError("找不到這張訂單，請重新整理。") from exc
     if expected_updated_at != order.updated_at.isoformat():
         raise ValidationError("訂單已被更新，請重新載入後再確認。")
-    reason = (reason or "").strip()
-    if not reason or len(reason) > REASON_LIMIT:
-        raise ValidationError(f"請填寫退車原因，最多 {REASON_LIMIT} 字。")
+    # 退車、沒收、手填應退的備註都選填（使用者 2026-10-21 T-39），空白時由系統描述代替。
+    reason = optional_note(reason, REASON_LIMIT)
     list(order.payment_records.select_for_update().order_by("pk"))
     ledger = ledger_totals(order)
     blockers = return_blockers(order, ledger)
@@ -245,7 +245,7 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
         raise ValidationError(f"沒收金額須介於 0 至客戶已確認淨實收 {_money(received)} 元之間。")
     forfeit_reason = (forfeit_reason or "").strip()
     if forfeited and not forfeit_reason:
-        raise ValidationError("有沒收金額時，請填寫沒收原因。")
+        forfeit_reason = f"{SUMMARY_PREFIX}交車後退車沒收 {_money(forfeited)} 元"
     refund = received - forfeited
     manual_note = ""
     if manual_refund not in (None, ""):
@@ -255,13 +255,12 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
         manual = _parse_amount(manual_refund, allow_zero=False)
         if manual is None or manual > cap:
             raise ValidationError(f"手填應退金額須為 1～{_money(cap)} 元的整數（不超過 Excel 歷史收款與帳本淨實收的較大者）。")
-        manual_refund_reason = (manual_refund_reason or "").strip()
-        if not manual_refund_reason:
-            raise ValidationError("手填應退金額時，請填寫手填原因。")
+        manual_refund_reason = (manual_refund_reason or "").strip()[:200]
         if forfeited:
             raise ValidationError("手填應退金額時不另計沒收，請把沒收金額留空。")
         refund = manual
-        manual_note = f"手填應退 {_money(manual)} 元（帳本計算 {_money(received)} 元），原因：{manual_refund_reason[:200]}"
+        manual_note = with_note(f"手填應退 {_money(manual)} 元（帳本計算 {_money(received)} 元）",
+                                manual_refund_reason and f"備註：{manual_refund_reason}", "，")
     if refund > 0 and not method:
         raise ValidationError("有應退金額時，請選擇退款方式。")
     if not refunded_on:
@@ -319,7 +318,7 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
     now = timezone.now()
     if allocation_ids:
         DealerVolumeBonusAllocation.all_objects.filter(pk__in=allocation_ids).update(voided_at=now)
-        _sync_settlements(settlements, user, f"訂單 {order.number} 交車後退車：{reason}")
+        _sync_settlements(settlements, user, with_note(f"訂單 {order.number} 交車後退車", reason, "："))
     if vehicle is not None:
         _record_vehicle(vehicle, order, actor_name=actor_name, reason=reason, price=price)
 
@@ -327,7 +326,7 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
     order.ensure_transition(Status.EXCEPTION_CLOSED)
     order.allocated_vehicle = None
     order.exception_vehicle = vehicle
-    order.exception_reason = f"交車後退車：{reason}"[:250]
+    order.exception_reason = with_note("交車後退車", reason, "：")[:250]
     order.exception_closed_at = now
     order.exception_closed_by = actor_name
     order.refund_amount = refund
@@ -349,10 +348,10 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
         summary += f"、分期公司沖回 {_money(clawback)}"
     vehicle_text = (f"車輛 {vehicle.identifier}（{order.final_plate_number}）以已領牌車回到庫存，再售價 {_money(price)} 元"
                     if vehicle is not None else "車輛不在庫存，只記錄")
-    OrderChange.objects.create(order=order, reason=reason, actor_name=actor_name, changes={
+    OrderChange.objects.create(order=order, reason=note_or_summary(reason, f"交車後退車；{summary}"), actor_name=actor_name, changes={
         "訂單狀態": {"before": before_label, "after": "已退車（例外結案）"},
         "結算": {"before": "", "after": summary},
-        **({"應退金額（手填）": {"before": f"帳本計算 {_money(received)}", "after": f"{_money(refund)}；{manual_refund_reason[:200]}"}}
+        **({"應退金額（手填）": {"before": f"帳本計算 {_money(received)}", "after": with_note(_money(refund), manual_refund_reason)}}
            if manual_note else {}),
         **finance_changes,
         **({"確認結案": {"before": f"{snapshot['closed_by']} {snapshot['closed_at']}".strip(), "after": "撤回"}}
@@ -360,11 +359,11 @@ def return_after_delivery(*, user, order_id, reason, expected_updated_at, refund
         **({"台數獎金": {"before": f"{len(allocation_ids)} 筆分配", "after": "已扣除"}} if allocation_ids else {}),
     })
     OrderEvent.objects.create(order=order, event_type=EVENT_TYPE, actor_name=actor_name, description=(
-        f"交車後退車：{reason}；{summary}；{vehicle_text}。"
+        f"{with_note('交車後退車', reason, '：')}；{summary}；{vehicle_text}。"
         f"\n退車前：淨利 {snapshot['net_profit'] or '未計算'}、車行傭金 {snapshot['dealer_commission_expense']}、"
         f"訂購單 {snapshot['signed_contract']}"
         + ("；補助已確認撤回或另行處理" if has_subsidy(order) else "")
         + (f"\n{manual_note}" if manual_note else "")
     ))
-    notify("exception_closed", order, f"訂單 {order.number} 已辦理交車後退車", f"{reason}；{summary}。")
+    notify("exception_closed", order, f"訂單 {order.number} 已辦理交車後退車", f"{reason or '交車後退車'}；{summary}。")
     return order

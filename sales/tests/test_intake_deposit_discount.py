@@ -145,7 +145,8 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertEqual(order.calculated_balance, 80500 - 2000 - 1800)
         self.assertEqual(order.actual_balance, order.calculated_balance)
         self.assertEqual((order.discount_requested_by, order.discount_decided_by), (self.user.username, self.user.username))
-        self.assertEqual((order.discount_reason, order.discount_decision_note), ("老客戶回購", "下單時填寫"))
+        # 不再填優惠原因（2026-10-21 T-39）：訂購單項目欄印「已核准優惠」。
+        self.assertEqual((order.discount_reason, order.discount_decision_note), ("", "下單時填寫"))
         self.assertIsNotNone(order.discount_decided_at)
         self.assertEqual(contract_terms(order)["approved_discount_amount"], "1800")
         event = OrderEvent.objects.get(order=order, event_type="discount_decided")
@@ -173,7 +174,6 @@ class IntakeDepositDiscountTests(IntakeFixtures):
     def test_invalid_discounts_are_rejected_without_creating_order(self):
         cases = (
             ({"intake_discount_amount": "80501", "intake_discount_reason": "超過總價"}, "intake_discount_amount"),
-            ({"intake_discount_amount": "1000", "intake_discount_reason": ""}, "intake_discount_reason"),
             ({"intake_discount_mode": "rate", "intake_discount_rate": "10", "intake_discount_reason": "無效折數"}, "intake_discount_rate"),
             ({"intake_discount_amount": "0", "intake_discount_reason": "零元"}, "intake_discount_amount"),
         )
@@ -215,18 +215,18 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.grant_intake_only()
         result = self.client.post(reverse("intake_draft_save"), {
             "owner_name": "草稿客戶", "deposit_amount": "1200", "deposit_method": "card",
-            "intake_discount_mode": "rate", "intake_discount_rate": "9", "intake_discount_reason": "週年慶",
+            "intake_discount_mode": "rate", "intake_discount_rate": "9",
         })
         self.assertEqual(result.status_code, 200)
         draft = OrderDraft.objects.get(pk=result.json()["id"])
         self.assertEqual(
-            {key: draft.data.get(key) for key in ("deposit_amount", "intake_discount_mode", "intake_discount_rate", "intake_discount_reason")},
-            {"deposit_amount": "1200", "intake_discount_mode": "rate", "intake_discount_rate": "9", "intake_discount_reason": "週年慶"},
+            {key: draft.data.get(key) for key in ("deposit_amount", "intake_discount_mode", "intake_discount_rate")},
+            {"deposit_amount": "1200", "intake_discount_mode": "rate", "intake_discount_rate": "9"},
         )
         page = self.client.get(reverse("order_start"), {"draft": draft.pk, "classic": "1"})
         form = page.context["form"]
         self.assertEqual(str(form["intake_discount_rate"].value()), "9")
-        self.assertEqual(form["intake_discount_reason"].value(), "週年慶")
+        self.assertNotIn("intake_discount_reason", form.fields)
         self.assertEqual(str(form["deposit_amount"].value()), "1200")
         self.assertContains(page, 'data-intake-discount')
 

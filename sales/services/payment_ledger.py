@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from sales.services.audit_note import SUMMARY_PREFIX, note_or_summary, with_note
+
 ZERO = Decimal("0")
 KINDS = ("customer", "lender")
 
@@ -81,11 +83,9 @@ def _audit(order, *, actor_name, reason, changes, event_type, description):
     OrderEvent.objects.create(order=order, event_type=event_type, description=description, actor_name=actor_name)
 
 
-def _require_reason(reason):
-    reason = (reason or "").strip()
-    if not reason:
-        raise ValidationError("請填寫原因。")
-    return reason[:250]
+def _note(reason):
+    """沖銷、退款的備註選填（使用者 2026-10-21 T-39）；空白時各流程寫系統摘要。"""
+    return (reason or "").strip()[:250]
 
 
 @transaction.atomic
@@ -93,12 +93,13 @@ def reverse_payment(*, order_id, payment_id, actor_name, reason):
     """整筆沖銷登記錯誤的已確認收款；正確金額另行新增收款。"""
     from sales.models import PaymentRecord, SalesOrder
 
-    reason = _require_reason(reason)
+    note = _note(reason)
     order, payment = _locked(order_id, payment_id)
     if order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
         raise ValidationError("已取消或結案的訂單帳務已結算，不能再沖銷。")
     if not is_reversible(payment):
         raise ValidationError("只能沖銷已確認且尚未沖銷的收款。")
+    reason = note_or_summary(note, f"沖銷 {payment.item_name} {payment.received_amount:,.0f} 元", 250)
     reversal = PaymentRecord.objects.create(
         order=order,
         entry_type=PaymentRecord.EntryType.REVERSAL,
@@ -116,7 +117,7 @@ def reverse_payment(*, order_id, payment_id, actor_name, reason):
     _audit(
         order, actor_name=actor_name, reason=reason, event_type="payment_reversed",
         changes={"沖銷收款": {"before": f"{payment.item_name} {payment.received_amount:,.0f} 元", "after": "已沖銷"}},
-        description=f"沖銷 {payment.item_name} ${payment.received_amount:,.0f}；原因：{reason}",
+        description=with_note(f"沖銷 {payment.item_name} ${payment.received_amount:,.0f}", note and f"備註：{note}"),
     )
     return reversal
 
@@ -143,7 +144,7 @@ def create_refund_entry(order, *, kind, amount, actor_name, reason, method_label
 @transaction.atomic
 def refund_overpayment(*, order_id, kind, amount, actor_name, reason, method_label, refunded_on, reference=""):
     """退還溢收；金額不得超過目前已確認淨實收超出應收的部分。"""
-    reason = _require_reason(reason)
+    note = _note(reason)
     if kind not in KINDS:
         raise ValidationError("款項分類不正確。")
     order, _payment = _locked(order_id)
@@ -153,6 +154,7 @@ def refund_overpayment(*, order_id, kind, amount, actor_name, reason, method_lab
     limit = refundable_overpayment(order, kind)
     if amount <= 0 or amount > limit:
         raise ValidationError(f"退款金額須大於 0 且不超過溢收 {limit:,.0f} 元。")
+    reason = note_or_summary(note, f"退還溢收 {amount:,.0f} 元（{method_label}）", 250)
     record = create_refund_entry(
         order, kind=kind, amount=amount, actor_name=actor_name, reason=reason, method_label=method_label,
         refunded_on=refunded_on, reference=reference,
@@ -161,7 +163,7 @@ def refund_overpayment(*, order_id, kind, amount, actor_name, reason, method_lab
     _audit(
         order, actor_name=actor_name, reason=reason, event_type="overpayment_refunded",
         changes={"退還溢收": {"before": f"{limit:,.0f}", "after": f"{limit - amount:,.0f}"}},
-        description=f"退還溢收 ${amount:,.0f}（{method_label}）；原因：{reason}",
+        description=with_note(f"退還溢收 ${amount:,.0f}（{method_label}）", note and f"備註：{note}"),
     )
     return record
 
@@ -186,7 +188,7 @@ def complete_cancellation_refund(order, *, actor_name, forfeited_amount, complet
         raise ValidationError(f"沒收金額須介於 0 至已收 {received:,.0f} 元之間。")
     forfeit_reason = (forfeit_reason or "").strip()
     if forfeited and not forfeit_reason:
-        raise ValidationError("有沒收金額時，請填寫沒收原因。")
+        forfeit_reason = f"{SUMMARY_PREFIX}取消沒收 {forfeited:,.0f} 元"
     refund = received - forfeited
     method_label = dict(SalesOrder.PaymentMethod.choices).get(method, method or "")
     if refund > 0:
@@ -214,7 +216,7 @@ def complete_cancellation_refund(order, *, actor_name, forfeited_amount, complet
     ])
     description = f"取消結算：已收 ${received:,.0f}、沒收 ${forfeited:,.0f}、退款 ${refund:,.0f}"
     if forfeited:
-        description += f"（沒收原因：{locked.forfeit_reason}）"
+        description += f"（{locked.forfeit_reason}）"
     _audit(
         locked, actor_name=actor_name, reason="完成取消退款結算", event_type="refund_completed",
         changes={"取消結算": {"before": f"已收 {received:,.0f}", "after": f"沒收 {forfeited:,.0f}／退款 {refund:,.0f}"}},

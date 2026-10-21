@@ -308,7 +308,6 @@ class OrderFlowTests(TestCase):
             self.inventory_payload(
                 condition_note="右側車殼刮傷",
                 condition_resolution="已安排補漆",
-                change_reason="到店複檢",
             ),
         )
 
@@ -318,7 +317,7 @@ class OrderFlowTests(TestCase):
             history.event_type,
             VehicleInventoryHistory.EventType.UPDATED,
         )
-        self.assertEqual(history.reason, "到店複檢")
+        self.assertEqual(history.reason, "")
         self.assertEqual(history.changes["condition_note"]["label"], "車況說明")
         self.assertEqual(history.changes["condition_note"]["after"], "右側車殼刮傷")
 
@@ -2790,7 +2789,6 @@ class OrderFlowTests(TestCase):
             "delivery_method": "store_pickup",
             "delivery_destination": "",
             "note": "",
-            "change_reason": "客戶要求更正公司名稱",
             "accessories-TOTAL_FORMS": "1",
             "accessories-INITIAL_FORMS": "0",
             "accessories-MIN_NUM_FORMS": "0",
@@ -2817,9 +2815,9 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.owner_name, "王小明有限公司")
         self.assertEqual(order.revision, 2)
         self.assertEqual(order.actual_balance, Decimal("75400"))
-        self.assertEqual(order.balance_adjustment_reason, "客戶要求更正公司名稱")
+        self.assertEqual(order.balance_adjustment_reason, "系統摘要：修改訂單資料時保留人工尾款")
         change = order.changes.get()
-        self.assertEqual(change.reason, "客戶要求更正公司名稱")
+        self.assertEqual(change.reason, "修改訂單資料")
         self.assertEqual(
             change.changes["車主姓名／公司名稱"],
             {"before": "王小明", "after": "王小明有限公司"},
@@ -2828,7 +2826,7 @@ class OrderFlowTests(TestCase):
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, "tester")
         self.assertContains(detail, "修改了")
-        self.assertContains(detail, "客戶要求更正公司名稱")
+        self.assertContains(detail, "修改訂單資料")
         self.assertContains(detail, "王小明有限公司")
         self.assertNotContains(
             detail,
@@ -3156,7 +3154,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.revision, 2)
         change = order.changes.latest("created_at")
         self.assertEqual(change.actor_name, "tester")
-        self.assertEqual(change.reason, "客戶提供舊車資料")
+        self.assertEqual(change.reason, "修改補助資料")
         self.assertIn("舊車車牌", change.changes)
         self.assertIn("舊車主身分證字號", change.changes)
         self.assertIn("舊車估價", change.changes)
@@ -3365,7 +3363,7 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.actual_balance, Decimal("76000"))
         self.assertEqual(order.calculated_balance, Decimal("70200"))
-        self.assertEqual(order.balance_adjustment_reason, "新增舊車估價")
+        self.assertEqual(order.balance_adjustment_reason, "系統摘要：修改補助資料時保留人工尾款")
 
     def test_disabling_subsidy_preserves_uploaded_documents(self):
         order = self.make_order()
@@ -5165,7 +5163,7 @@ class OrderOperationsTests(TestCase):
         # 有核定權限者送出即生效（2026-10-14），不再留下沒有畫面可核准、會擋交車的待確認申請。
         request_response = self.client.post(
             reverse("order_discount_request", args=[self.order.pk]),
-            {"amount": "500", "reason": "最終成交抹零"},
+            {"amount": "500"},
         )
         self.order.refresh_from_db()
 
@@ -5180,8 +5178,8 @@ class OrderOperationsTests(TestCase):
         from pypdf import PdfReader
         pdf_bytes = b"".join(contract.streaming_content)
         text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
-        self.assertIn("最終成交抹零", text)
-        self.assertNotIn("已核准優惠", text)
+        # 不再填折扣原因（2026-10-21 T-39），項目欄印「已核准優惠」。
+        self.assertIn("已核准優惠", text)
 
     def test_contract_discount_reason_wraps_and_grows_row(self):
         # 折扣原因太長時自動換行並撐高該列，不超出格子（2026-10-15）。
@@ -5859,7 +5857,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(installment["recommended_price"], "74980")
         self.assertEqual(installment["recommended_label"], "分期總價")
 
-    def test_manual_vehicle_price_requires_specific_adjustment_reason(self):
+    def test_manual_vehicle_price_needs_no_adjustment_reason(self):
         VehiclePriceVersion.objects.create(
             vehicle_model=self.model,
             cash_price=Decimal("70000"),
@@ -5884,13 +5882,9 @@ class OrderOperationsTests(TestCase):
             "delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP,
         }
 
-        form = SalesOrderForm(data=data)
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("vehicle_price_adjustment_reason", form.errors)
-        data["vehicle_price_adjustment_reason"] = "客戶議價"
         accepted = SalesOrderForm(data=data)
         self.assertTrue(accepted.is_valid(), accepted.errors)
+        self.assertNotIn("vehicle_price_adjustment_reason", accepted.fields)
 
     def test_blank_vehicle_price_is_filled_from_current_price_version(self):
         VehiclePriceVersion.objects.create(

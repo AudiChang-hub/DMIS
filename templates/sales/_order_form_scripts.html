@@ -64,7 +64,6 @@
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
   const vehiclePrice = byId("id_vehicle_price");
-  const vehiclePriceAdjustment = byId("vehicle-price-adjustment");
   const vehiclePriceGuidanceTitle = byId("vehicle-price-guidance-title");
   const vehiclePriceGuidanceDetail = byId("vehicle-price-guidance-detail");
   const vehicleEnergyType = byId("id_vehicle_energy_type");
@@ -369,17 +368,14 @@
   }
 
   function updateVehiclePriceAdjustmentState() {
-    if (!vehiclePriceAdjustment) return;
+    // 成交價與建議不同時不再提示相差金額或要求原因（使用者 2026-10-21 T-39），只留標題。
     const entered = vehiclePrice.value === "" ? null : Number(vehiclePrice.value);
     const differs = currentPriceRecommendation !== null
       && entered !== null
       && entered !== Number(currentPriceRecommendation.price);
-    vehiclePriceAdjustment.hidden = !differs;
-    if (differs) {
-      const difference = Math.abs(entered - Number(currentPriceRecommendation.price));
-      vehiclePriceGuidanceDetail.textContent = `目前輸入 ${formatMoney(entered)}，與系統建議相差 ${formatMoney(difference)}；請留下調整原因。`;
-    } else if (currentPriceRecommendation) {
-      vehiclePriceGuidanceDetail.textContent = vehiclePrice.disabled ? "已套用車型售價；如需調整成交條件，請在備註說明，由店內人員核對。" : "已套用售價版本；如人工修改成交價，系統會要求記錄原因。";
+    vehiclePriceGuidanceDetail.hidden = differs;
+    if (!differs && currentPriceRecommendation) {
+      vehiclePriceGuidanceDetail.textContent = vehiclePrice.disabled ? "已套用車型售價；如需調整成交條件，請在備註說明，由店內人員核對。" : "已套用售價版本；成交價不同時直接修改即可。";
     }
   }
 
@@ -1833,7 +1829,6 @@
     const discountModes = [...discountBox.querySelectorAll('[name="intake_discount_mode"]')];
     const discountAmount = byId("id_intake_discount_amount");
     const discountRate = byId("id_intake_discount_rate");
-    const discountReason = byId("id_intake_discount_reason");
     const preview = discountBox.querySelector("[data-discount-preview]");
     const beforeOutput = discountBox.querySelector("[data-discount-before]");
     const afterOutput = discountBox.querySelector("[data-discount-after]");
@@ -1870,7 +1865,6 @@
         : Number(discountAmount?.value || 0) || 0;
       const entered = mode === "rate" ? rate > 0 : discount > 0;
       const invalid = entered && (discount <= 0 || discount > before);
-      if (discountReason) discountReason.required = entered;
       beforeOutput.textContent = before > 0 ? money(before) : "—";
       afterOutput.textContent = before > 0 ? money(entered && !invalid ? before - discount : before) : "—";
       preview.classList.toggle("is-active", entered && !invalid);

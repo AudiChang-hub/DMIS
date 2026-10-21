@@ -58,8 +58,8 @@ class InventoryRestoreTests(TestCase):
         vehicle = self.vehicle("inactive")
         with self.assertRaises(PermissionDenied):
             restore_to_stock(user=self.staff, vehicle_id=vehicle.pk, reason="x", expected_updated_at=vehicle.updated_at.isoformat())
-        with self.assertRaisesMessage(ValidationError, "請填寫改回庫存的原因"):
-            self.restore(vehicle, reason="  ")
+        with self.assertRaisesMessage(ValidationError, "備註最多 500 字"):
+            self.restore(vehicle, reason="x" * 501)
         with self.assertRaisesMessage(ValidationError, "車輛資料已被更新"):
             self.restore(vehicle, expected_updated_at="2000-01-01T00:00:00+00:00")
         vehicle.refresh_from_db()

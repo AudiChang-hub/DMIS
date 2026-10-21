@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from sales.services.audit_note import SUMMARY_PREFIX, note_or_summary, with_note
+
 
 def exception_close_blockers(order, ledger=None):
     from sales.models import SalesOrder
@@ -37,9 +39,9 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
     from .payment_ledger import create_refund_entry, ledger_totals
 
     order = SalesOrder.objects.select_for_update().get(pk=order_id)
-    reason = (reason or "").strip()
-    if not reason:
-        raise ValidationError("請填寫結案原因。")
+    # 結案、沒收備註選填（使用者 2026-10-21 T-39）。
+    note = (reason or "").strip()
+    reason = with_note("領牌後棄單", note, "：")
     ledger = ledger_totals(order)
     blockers = exception_close_blockers(order, ledger)
     if blockers:
@@ -50,7 +52,7 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
         raise ValidationError(f"沒收金額須介於 0 至已收 {received:,.0f} 元之間。")
     forfeit_reason = (forfeit_reason or "").strip()
     if forfeited and not forfeit_reason:
-        raise ValidationError("有沒收金額時，請填寫沒收原因。")
+        forfeit_reason = f"{SUMMARY_PREFIX}領牌後棄單沒收 {forfeited:,.0f} 元"
     if resale_price is None or Decimal(resale_price) <= 0:
         raise ValidationError("請填寫領牌車再售價。")
     order.ensure_transition(SalesOrder.Status.EXCEPTION_CLOSED)
@@ -68,7 +70,7 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
     vehicle.save(update_fields=["status", "registered_plate_number", "registered_on", "resale_price", "updated_at"])
     VehicleInventoryHistory.objects.create(
         vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED, actor_name=actor_name,
-        reason=f"訂單 {order.number} 領牌後棄單，釋回為已領牌車：{reason}",
+        reason=with_note(f"訂單 {order.number} 領牌後棄單，釋回為已領牌車", note, "："),
         changes={
             "庫存狀態": {"before": before_status, "after": vehicle.status},
             "已領牌車牌": {"before": "", "after": vehicle.registered_plate_number},
@@ -107,13 +109,13 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
     ])
     summary = f"已收 {received:,.0f}、沒收 {forfeited:,.0f}、退款 {refund:,.0f}"
     OrderChange.objects.create(
-        order=order, reason=reason, actor_name=actor_name,
+        order=order, reason=note_or_summary(note, f"領牌後棄單例外結案；{summary}"), actor_name=actor_name,
         changes={"訂單狀態": {"before": "已領牌待交車", "after": "例外結案"}, "結算": {"before": "", "after": summary}},
     )
     OrderEvent.objects.create(
         order=order, event_type="exception_closed", actor_name=actor_name,
         description=(
-            f"領牌後棄單例外結案：{reason}；{summary}；車輛 {vehicle.identifier}"
+            f"{with_note('領牌後棄單例外結案', note, '：')}；{summary}；車輛 {vehicle.identifier}"
             f"（{vehicle.registered_plate_number}）以已領牌車釋回，再售價 {vehicle.resale_price:,.0f} 元"
         ),
     )

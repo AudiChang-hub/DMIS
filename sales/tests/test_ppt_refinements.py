@@ -34,13 +34,12 @@ def pdf_document(name='document.pdf'):
 
 
 class PptRefinementTests(TestCase):
-    def test_discount_reason_label_ids_and_required_error_are_specific(self):
+    def test_discount_form_ids_are_specific_and_needs_no_reason(self):
         from sales.forms import DiscountRequestForm
-        form = DiscountRequestForm(data={'mode': 'amount', 'amount': '900', 'reason': ''}, total=91900)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(form['reason'].id_for_label, 'discount_request_reason')
-        self.assertEqual(form['reason'].html_name, 'reason')
-        self.assertEqual(form.errors['reason'], ['請填寫「申請原因」。'])
+        form = DiscountRequestForm(data={'mode': 'amount', 'amount': '900'}, total=91900)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn('reason', form.fields)
+        self.assertEqual(form['amount'].id_for_label, 'discount_request_amount')
 
     setUpTestData = classmethod(workspace_fixtures.OrderWorkspaceTests.setUpTestData.__func__)
     operations_data = workspace_fixtures.OrderWorkspaceTests.operations_data

@@ -130,7 +130,7 @@ class HistoricalDateChangeTests(DateChangeFixture, TestCase):
         self.assertEqual(SalesOrder.objects.count(), 1)
 
     def test_all_confirmations_required_and_service_revalidates(self):
-        for key in ("date_kind", "same_buyer_confirmed", "facts_confirmed", "impact_confirmed", "reason"):
+        for key in ("date_kind", "same_buyer_confirmed", "facts_confirmed", "impact_confirmed"):
             data = self.data()
             data.pop(key)
             with self.assertRaises(ValidationError):

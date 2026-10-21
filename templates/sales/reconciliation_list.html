@@ -37,7 +37,6 @@
             {% if record.reconciliation_receipt_only %}
             <small>依訂單應收設定<br>本列僅記錄實收</small>
             <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount" value="0">
-            <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount_override_reason" value="{{ record.expected_amount_override_reason }}">
             {% else %}
             <strong>${{ record.expected_amount|number_with_commas }}</strong>
             {% if record.expected_amount_overridden %}<small class="manual-value-badge">人工調整</small>{% endif %}
@@ -45,7 +44,6 @@
             <details class="reconciliation-expected-adjustment"{% if record.expected_amount_overridden %} open{% endif %}>
               <summary>{% if record.expected_amount_overridden %}修改特殊金額{% else %}本單特殊撥款{% endif %}</summary>
               <label>調整後預計金額<input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="expected_amount" value="{{ record.expected_amount|floatformat:0 }}"></label>
-              <label>調整原因<input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="expected_amount_override_reason" value="{{ record.expected_amount_override_reason }}" placeholder="例如：本案特殊撥款"></label>
             </details>
             {% endif %}
             {% endif %}

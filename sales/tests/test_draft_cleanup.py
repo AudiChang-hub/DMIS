@@ -62,11 +62,13 @@ class DraftCleanupTests(TestCase):
         self.assertTrue(OrderDraft.objects.filter(pk=self.draft.pk).exists())
         self.assertNotContains(self.client.get(reverse("order_list")), reverse("draft_cleanup_list"))
 
-    def test_delete_needs_reason_and_confirmation(self):
+    def test_delete_needs_confirmation_but_note_is_optional(self):
         self.client.force_login(self.root)
-        self.assertContains(self.delete(reason=""), "請填寫刪除原因")
         self.assertContains(self.delete(confirmed=""), "請勾選確認")
         self.assertTrue(OrderDraft.objects.filter(pk=self.draft.pk).exists())
+        self.delete(reason="")
+        self.assertFalse(OrderDraft.objects.filter(pk=self.draft.pk).exists())
+        self.assertNotIn("備註", UserAccountAuditLog.objects.latest("pk").description)
 
     def test_delete_removes_draft_and_photo_and_writes_audit_log(self):
         from pathlib import Path

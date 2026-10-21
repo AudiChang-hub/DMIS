@@ -216,7 +216,6 @@ def _discount_rows(form, formset, fee_formset):
         ("優惠前總價", f"{preview['before']:,.0f} 元"),
         ("總價優惠", f"−{preview['amount']:,.0f} 元{rate}，送出即生效"),
         ("優惠後總價", f"{preview['after']:,.0f} 元"),
-        (form.fields["intake_discount_reason"].label, form.cleaned_data.get("intake_discount_reason", "")),
     ]
 
 
@@ -245,7 +244,7 @@ def build_summary(form, formset, fee_formset, draft):
                              bool(getattr(form, "cleaned_data", {}).get("id_verified")))
     if status:
         owner_rows.append(("證件檢查", status))
-    payment_rows = _payment_split_rows(form) + _rows(form, ("vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
+    payment_rows = _payment_split_rows(form) + _rows(form, ("vehicle_price", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
     if form.finance_editable:
         # 牌險費留空＝照系統試算（使用者 2026-10-19）；確認頁客人看得到，不列試算金額（使用者 2026-10-20）。

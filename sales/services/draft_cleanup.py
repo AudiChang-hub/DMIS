@@ -37,9 +37,7 @@ def cleanup_rows(session_key):
 @transaction.atomic
 def delete_draft_as_admin(*, draft_id, actor, reason, session_key):
     """刪除草稿與暫存證件照片，寫入帳號稽核紀錄；回傳寫入的說明文字。"""
-    reason = (reason or "").strip()
-    if len(reason) < 2:
-        raise ValueError("請填寫刪除原因。")
+    reason = (reason or "").strip()  # 備註選填（使用者 2026-10-21 T-39）
     draft = (
         OrderDraft.objects.select_for_update(of=("self",))
         .select_related("owner_account")
@@ -56,8 +54,8 @@ def delete_draft_as_admin(*, draft_id, actor, reason, session_key):
     photos = "有暫存證件照片" if (draft.id_front or draft.id_back) else "沒有暫存證件照片"
     description = (
         f"admin 刪除{kind} {str(draft.pk)[:8]}（建立人 {draft.created_by or '未記錄'}，"
-        f"建立於 {timezone.localtime(draft.created_at):%Y/%m/%d %H:%M}，車型 {draft.display_vehicle}，{photos}）；"
-        f"原因：{reason}"
+        f"建立於 {timezone.localtime(draft.created_at):%Y/%m/%d %H:%M}，車型 {draft.display_vehicle}，{photos}）"
+        + (f"；備註：{reason}" if reason else "")
     )[:500]
     draft.delete_with_files()
     UserAccountAuditLog.objects.create(

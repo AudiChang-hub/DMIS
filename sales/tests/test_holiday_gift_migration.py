@@ -3,11 +3,12 @@ from importlib import import_module
 from django.apps import apps
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, tag
 
 from sales.models import SalesSource
 
 
+@tag("migration")
 class HolidayGiftFieldMigrationTests(TransactionTestCase):
     migrate_from = (
         "sales",

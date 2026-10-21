@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings, tag
 from django.urls import reverse
 
 from config.middleware import RequestIdMiddleware
@@ -798,6 +798,7 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, "請 15 分鐘後再試")
 
 
+@tag("docs")
 class UserDocumentationTests(TestCase):
     def test_end_user_manual_is_current_django_workflow(self):
         manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")

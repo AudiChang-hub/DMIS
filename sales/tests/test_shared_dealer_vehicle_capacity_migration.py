@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class SharedDealerVehicleCapacityMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0098_salessource_region")
     migrate_to = ("sales", "0099_shared_dealer_vehicle_capacity")

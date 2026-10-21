@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class SalesSourceMergeMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0089_remove_salessource_line_group_scope")
     migrate_to = ("sales", "0090_merge_yijun_sales_sources")

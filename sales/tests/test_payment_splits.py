@@ -3,7 +3,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, tag
 from django.urls import reverse
 from django.utils import timezone
 
@@ -160,6 +160,7 @@ class PaymentSplitTests(TestCase):
                          [{"method": "cash", "amount": 20000}, {"method": "card", "amount": 5000}])
         self.assertIn("&quot;method&quot;: &quot;cash&quot;", str(form["payment_splits"]))
 
+    @tag("docs")
     def test_user_guide_explains_multi_payment_like_manual(self):
         # 線上使用說明與使用手冊第 1 步一致（1.85.4）。
         from pathlib import Path

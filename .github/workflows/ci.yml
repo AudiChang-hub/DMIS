@@ -5,31 +5,26 @@ on:
     branches: [ main ]
   pull_request:
     types: [opened, synchronize, reopened]
+  # migration 測試平常只在 migration 相關檔案變動時跑；每週與手動觸發時完整補跑一次。
+  schedule:
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  DJANGO_DEBUG: "1"
+  DJANGO_SECRET_KEY: ci-only-not-for-production
+
 jobs:
-  django-quality:
-    name: Django 品質檢查
+  basics:
+    name: 版本與文件檢查
     runs-on: ubuntu-latest
-    # 完整測試加多組 PostgreSQL 驗證約需 28 分鐘，保留餘裕避免逾時取消。
-    timeout-minutes: 45
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: finance_ci
-          POSTGRES_USER: finance_ci
-          POSTGRES_PASSWORD: ci-isolated-only
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U finance_ci -d finance_ci"
-          --health-interval 5s --health-timeout 5s --health-retries 12
-    env:
-      DJANGO_DEBUG: "1"
-      DJANGO_SECRET_KEY: ci-only-not-for-production
+    timeout-minutes: 10
+    outputs:
+      app: ${{ steps.changes.outputs.app }}
+      migrations: ${{ steps.changes.outputs.migrations }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,22 +35,92 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-          cache-dependency-path: requirements-django.txt
 
       - name: Validate release history and version increment
         env:
           RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: python scripts/check_release.py --base "$RELEASE_BASE"
 
+      - name: Verify AI context policy and documentation
+        run: python -m unittest discover -s tests/context -v
+
+      - name: Detect changed areas
+        id: changes
+        shell: bash
+        env:
+          CHANGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -Eeuo pipefail
+          full_run() {
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          # 排程、手動觸發或找不到比較基準（新分支、force push）時一律完整驗證。
+          case "$GITHUB_EVENT_NAME" in schedule|workflow_dispatch) full_run ;; esac
+          [[ -n "$CHANGE_BASE" && ! "$CHANGE_BASE" =~ ^0+$ ]] || full_run
+          CHANGED="$(git diff --name-only "$CHANGE_BASE" HEAD)" || full_run
+          printf 'Changed files:\n%s\n' "$CHANGED"
+          # 只改文件／規格／AI 說明時不重跑 Django 測試；其餘任何檔案都視為程式異動。
+          DOCS_ONLY='^(docs/|specs/|PR/|\.github/(copilot-instructions\.md|pull_request_template\.md|prompts/)|[^/]+\.md$)'
+          if printf '%s\n' "$CHANGED" | grep -Evq "$DOCS_ONLY"; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+          # migration 測試要倒退重跑上百個 migration，只在 migration、其引用的服務或測試本身變動時跑。
+          MIGRATION_PATHS='^(sales/migrations/|sales/services/(inventory_location_note|taiwan_address)\.py$|sales/tests/(test_.*migration.*|test_old_owner_markers|test_transaction_type_only|test_volume_bonus_conditions)\.py$|requirements-django\.txt$|\.github/workflows/ci\.yml$)'
+          if printf '%s\n' "$CHANGED" | grep -Eq "$MIGRATION_PATHS"; then
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "migrations=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  docs-tests:
+    name: 使用手冊對照測試
+    needs: basics
+    if: needs.basics.outputs.app == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-django.txt
+
+      - name: Install Django dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-django.txt
+
+      - name: Run tests that read the user manual
+        run: python manage.py test sales --tag docs --noinput
+
+  django-sqlite:
+    name: Django 品質檢查
+    needs: basics
+    if: needs.basics.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-django.txt
+
       - name: Install PDF font dependency
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
           test -r /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
-
-      - name: Verify AI context policy and documentation
-        run: python -m unittest discover -s tests/context -v
 
       - name: Install Django dependencies
         run: |
@@ -79,6 +144,63 @@ jobs:
       - name: Run Django system checks
         run: python manage.py check
 
+      - name: Verify migrations are committed
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Verify frontend behavior checks
+        run: node --test tests/frontend/*.test.cjs
+
+      - name: Run Django tests with SQLite
+        run: |
+          python -m unittest discover -s tests/ops
+          # migration 測試另由 django-migrations job 依變更範圍執行。
+          python manage.py test sales --noinput --parallel auto --exclude-tag migration
+
+  django-postgres:
+    name: Django PostgreSQL 檢查
+    needs: basics
+    if: needs.basics.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finance_ci -d finance_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_DB: finance_ci
+      POSTGRES_USER: finance_ci
+      POSTGRES_PASSWORD: ci-isolated-only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-django.txt
+
+      - name: Install PDF font dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
+          test -r /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
+
+      - name: Install Django dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-django.txt
+          python -m pip install --disable-pip-version-check tblib
+
       - name: Run Django production deployment checks
         env:
           DJANGO_DEBUG: "0"
@@ -87,68 +209,87 @@ jobs:
           DJANGO_ALLOWED_HOSTS: dmis.example.test,localhost,127.0.0.1
           DJANGO_CSRF_TRUSTED_ORIGINS: https://dmis.example.test
           DJANGO_SECURE_SSL_REDIRECT: "1"
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_DB: finance_ci
-          POSTGRES_USER: finance_ci
-          POSTGRES_PASSWORD: ci-isolated-only
           DJANGO_DB_USER: finance_app_ci
           DJANGO_DB_PASSWORD: ci-runtime-only
         run: python manage.py check --deploy
 
-      - name: Verify existing frontend behavior checks
-        run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs tests/frontend/order-installment-picker.test.cjs tests/frontend/header-layout.test.cjs
+      - name: Verify finance, orders, concurrency and locking with PostgreSQL
+        # 財務、佣金、台數歸屬、結算、併發與鎖定必須在 PostgreSQL 驗證；平行執行，每個 worker 各自一份測試 DB。
+        run: >-
+          python manage.py test --noinput --parallel auto --exclude-tag migration
+          sales.tests.test_home_favorites
+          sales.tests.test_order_intake sales.tests.test_reception_entry sales.tests.test_intake_deposit_discount
+          sales.tests.test_catalog_accounts sales.tests.test_catalog_selection sales.tests.test_profit_privacy_ux
+          sales.tests.test_catalog_color_list sales.tests.test_catalog_management sales.tests.test_order_deletion
+          sales.tests.test_legacy_import.LegacyImportTests.test_deleted_import_is_not_recreated_by_stale_row_commit
+          sales.tests.test_order_workspace sales.tests.test_ppt_refinements sales.tests.test_print_company
+          sales.tests.test_customer_order_access sales.tests.test_assisted_orders sales.tests.test_permission_workspace
+          sales.tests.test_historical_delivery sales.tests.test_old_owner_markers sales.tests.test_import_order_review
+          sales.tests.test_installment_batch sales.tests.test_draft_cleanup sales.tests.test_audit_log_draft_deletion_migration
+          sales.tests.test_order_sorting sales.tests.test_command_center sales.tests.test_system_home
+          sales.tests.test_allocation_priority sales.tests.test_document_signing sales.tests.test_inventory_disposition
+          sales.tests.test_transfer_signoff sales.tests.test_inventory_restore sales.tests.test_order_return
+          sales.tests.test_transaction_type_only
+          sales.tests.test_receipt_list sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient
+          sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods
+          sales.tests.test_bonus_model_filter sales.tests.test_bonus_rule_deletion sales.tests.test_reporting
+          sales.tests.test_report_classification sales.tests.test_historical_replacement sales.tests.test_historical_date_change
+          sales.tests.test_screen_access sales.tests.test_collaboration sales.tests.test_completed_order_corrections
+          sales.tests.test_order_installment_picker sales.tests.test_legacy_finance sales.tests.test_site_review
+          sales.tests.test_site_review_followup
 
-      - name: Verify home favorites frontend
-        run: node --test tests/frontend/home-favorites.test.cjs tests/frontend/catalog-manage.test.cjs tests/frontend/catalog-payment.test.cjs tests/frontend/catalog-image-preview.test.cjs tests/frontend/catalog-photo-board.test.cjs tests/frontend/inplace-regions.test.cjs tests/frontend/site-review.test.cjs tests/frontend/order-workspace.test.cjs tests/frontend/form-feedback.test.cjs tests/frontend/busy-indicator.test.cjs tests/frontend/back-navigation.test.cjs tests/frontend/side-nav.test.cjs
-
-      - name: Verify home favorites with PostgreSQL
+  django-migrations:
+    name: Django migration 資料轉換測試
+    needs: basics
+    if: needs.basics.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
         env:
-          POSTGRES_HOST: 127.0.0.1
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_home_favorites --noinput
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finance_ci -d finance_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Verify migrations are committed
-        run: python manage.py makemigrations --check --dry-run
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-django.txt
 
-      - name: Verify unified order intake and concurrent receipt with PostgreSQL
-        env:
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_DB: finance_ci
-          POSTGRES_USER: finance_ci
-          POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_order_intake sales.tests.test_reception_entry sales.tests.test_intake_deposit_discount sales.tests.test_catalog_accounts sales.tests.test_catalog_selection sales.tests.test_profit_privacy_ux sales.tests.test_catalog_color_list sales.tests.test_catalog_management sales.tests.test_order_deletion sales.tests.test_legacy_import.LegacyImportTests.test_deleted_import_is_not_recreated_by_stale_row_commit sales.tests.test_order_workspace sales.tests.test_ppt_refinements sales.tests.test_print_company sales.tests.test_customer_order_access sales.tests.test_assisted_orders sales.tests.test_permission_workspace --noinput
-
-      - name: Verify order sorting interactions
+      - name: Install Django dependencies
         run: |
-          node --test tests/frontend/order-sorting.test.cjs
-          python manage.py test sales.tests.test_order_sorting sales.tests.test_command_center sales.tests.test_system_home --noinput
+          python -m pip install --disable-pip-version-check -r requirements-django.txt
+          python -m pip install --disable-pip-version-check tblib
 
-      - name: Verify order sorting with PostgreSQL
+      - name: Run migration tests with SQLite
+        run: python manage.py test sales --noinput --parallel auto --tag migration
+
+      - name: Run migration tests with PostgreSQL
         env:
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_historical_delivery sales.tests.test_old_owner_markers sales.tests.test_import_order_review sales.tests.test_installment_batch sales.tests.test_draft_cleanup sales.tests.test_audit_log_draft_deletion_migration sales.tests.test_order_sorting sales.tests.test_command_center sales.tests.test_system_home sales.tests.test_allocation_priority sales.tests.test_document_signing sales.tests.test_inventory_disposition sales.tests.test_transfer_signoff sales.tests.test_inventory_restore sales.tests.test_order_return sales.tests.test_transaction_type_only --noinput
-
-      - name: Run Django tests with SQLite
-        run: |
-          python -m unittest discover -s tests/ops
-          # 以 runner 的全部核心平行執行（本機 4 核約 5～6 分鐘，依序執行約 16 分鐘）。
-          python manage.py test sales --noinput --parallel auto
-
-      - name: Verify financial transactions with PostgreSQL
-        env:
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_DB: finance_ci
-          POSTGRES_USER: finance_ci
-          POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_receipt_list sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods sales.tests.test_bonus_model_filter sales.tests.test_bonus_rule_deletion sales.tests.test_reporting sales.tests.test_report_classification sales.tests.test_historical_replacement sales.tests.test_historical_date_change sales.tests.test_screen_access sales.tests.test_collaboration sales.tests.test_completed_order_corrections sales.tests.test_order_installment_picker sales.tests.test_legacy_finance sales.tests.test_site_review sales.tests.test_site_review_followup --noinput
+        run: >-
+          python manage.py test --noinput --parallel auto --tag migration
+          sales.tests.test_old_owner_markers sales.tests.test_audit_log_draft_deletion_migration
+          sales.tests.test_transaction_type_only sales.tests.test_volume_bonus_conditions
 
   django-image:
     name: Django 正式映像檢查
+    needs: basics
+    if: needs.basics.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

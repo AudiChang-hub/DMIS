@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class NetworkPlatformContactMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0103_network_platform_contacts")
     migrate_to = ("sales", "0104_import_network_platform_contacts")

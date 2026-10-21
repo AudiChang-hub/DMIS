@@ -1,9 +1,10 @@
 """資料遷移 0167：既有的 admin 刪除草稿紀錄改為「刪除草稿」，其他「修改帳號」紀錄不動；可反向還原。"""
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class AuditLogDraftDeletionMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0166_audit_log_delete_draft_action")
     migrate_to = ("sales", "0167_audit_log_mark_draft_deletions")

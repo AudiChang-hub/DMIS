@@ -77,21 +77,21 @@ class OrderStepTests(TestCase):
     def test_step_sections_save_only_their_own_fields(self):
         from sales.models import OrderOperationsProfile
         order, _vehicle = self.make_order()
-        OrderOperationsProfile.objects.filter(order=order).update(vehicle_cost=Decimal("50000"), helmet="舊安全帽")
+        OrderOperationsProfile.objects.filter(order=order).update(vehicle_cost=Decimal("50000"), battery_plan="舊方案")
         self.client.force_login(self.user)
         url = reverse("order_operations", args=[order.pk])
-        response = self.client.post(url, self.section_payload(order, "fulfillment", helmet="新安全帽"),
+        response = self.client.post(url, self.section_payload(order, "fulfillment", battery_plan="新方案"),
                                     HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content)
         profile = OrderOperationsProfile.objects.get(order=order)
-        self.assertEqual(profile.helmet, "新安全帽")
+        self.assertEqual(profile.battery_plan, "新方案")
         self.assertEqual(profile.vehicle_cost, Decimal("50000"))
         self.assertEqual(profile.manual_financial_fields, [])
         response = self.client.post(url, self.section_payload(order, "subsidy", bank_name="測試銀行"),
                                     HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content)
         profile.refresh_from_db()
-        self.assertEqual((profile.bank_name, profile.helmet), ("測試銀行", "新安全帽"))
+        self.assertEqual((profile.bank_name, profile.battery_plan), ("測試銀行", "新方案"))
 
     def test_finance_step_splits_income_and_expense_blocks(self):
         order, _vehicle = self.make_order()
@@ -106,7 +106,8 @@ class OrderStepTests(TestCase):
         delivery = page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0]
         # 交車前確認放在交車表單上方；油車不顯示車控與電池合約。
         self.assertIn("交車前確認", delivery)
-        self.assertIn("贈品與履約", delivery)
+        # 贈品與履約整區拿掉（使用者 2026-10-21 T-57）。
+        self.assertNotIn("贈品與履約", delivery)
         self.assertNotIn("車控與電池合約", delivery)
         self.assertLess(delivery.index("交車前確認"), delivery.index("車輛交付"))
         self.assertIn("本單沒有配件", delivery)

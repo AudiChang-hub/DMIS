@@ -35,8 +35,25 @@
 .order-sticky-hero.is-stuck .order-owner-facts,
 .order-sticky-hero.is-stuck .order-origin-line { display: none; }
 .order-sticky-hero.is-stuck .hero-actions .button { min-height: 40px; }
-.order-owner-facts { display: flex; flex-wrap: wrap; margin: var(--space-1) 0 0; gap: var(--space-1) var(--space-5); color: var(--ink-soft); font-size: var(--text-sm); }
-.order-owner-facts strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+/* 新車主資料列（使用者 2026-10-21）：證號 → 生日 → 電話 → Email → 地址往右排，長的地址與 Email 自然換行。 */
+.order-owner-facts {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-5);
+  margin: var(--space-2) 0 0; padding: 0; list-style: none; color: var(--ink-soft); font-size: var(--text-sm);
+}
+.order-owner-facts li { display: inline-flex; align-items: baseline; gap: var(--space-2); min-width: 0; white-space: nowrap; }
+.order-owner-facts span { color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
+.order-owner-facts strong { color: var(--ink); font-weight: 750; font-variant-numeric: tabular-nums; }
+.order-owner-facts small { color: var(--muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.order-owner-facts__mono { letter-spacing: .02em; }
+.order-owner-facts__email, .order-owner-facts__address strong { white-space: normal; overflow-wrap: anywhere; }
+.order-owner-facts__address { flex: 1 1 24ch; max-width: 52ch; white-space: normal; }
+@media (max-width: 600px) {
+  .order-owner-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--space-1) var(--space-3); }
+  .order-owner-facts li { display: contents; }
+  .order-owner-facts li > strong, .order-owner-facts li > small { grid-column: 2; }
+  .order-owner-facts li > small { margin-top: calc(-1 * var(--space-1)); }
+  .order-owner-facts__address { max-width: none; }
+}
 @media (max-width: 860px) {
   .order-sticky-hero { margin-inline: calc(-1 * var(--space-2)); padding: var(--space-2); }
   .order-sticky-hero.is-stuck .hero-actions { flex-wrap: nowrap; overflow-x: auto; }

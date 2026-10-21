@@ -1,0 +1,71 @@
+{% load site_copy %}
+  <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
+    {# 訂單頁叫「新車主資料」、排在最後，附件改到左側「附件」處理；建單精靈維持「車主與證件」（使用者 2026-10-21）。 #}
+    <summary><span class="step-number">{% if order_workspace %}7{% else %}6{% endif %}</span><span><strong>{% if order_workspace %}新車主資料{% else %}車主與證件{% endif %}</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
+    <div class="info-banner" data-conditional="identity-upload">
+      本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
+    </div>
+    <div class="info-banner" data-conditional="corporate" hidden>
+      法人不使用證件自動辨識，請自行填寫公司名稱、統一編號、公司地址與聯絡資料。
+    </div>
+    <div class="ocr-status" id="ocr-status" role="status" aria-live="polite" hidden>
+      <span class="ocr-spinner" aria-hidden="true"></span>
+      <div>
+        <strong id="ocr-status-title">證件辨識狀態</strong>
+        <p id="ocr-message"></p>
+      </div>
+      <button type="button" class="button ghost small" id="run-id-ocr">重新辨識</button>
+    </div>
+    <div class="form-grid owner-form-grid">
+      {% include "sales/_field.html" with field=form.owner_type %}
+      <div class="span-2 capture-instruction" data-conditional="identity-upload">
+        證件為選填；點選欄位後可直接拍照或從手機相簿選擇，系統會自動帶入車主資料。
+      </div>
+      <div class="identity-compare span-2">
+        <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="identity-upload">
+          {% include "sales/_field.html" with field=form.id_front %}
+          <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="證件正面預覽">
+          {% if document_source.id_front %}
+          <div class="saved-photo-state" data-saved-photo="id_front">
+            <span><strong>已暫存正面照片</strong><small>可點擊圖片放大核對</small></span>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
+            <button type="button" data-select-file="id_id_front">更換</button>
+          </div>
+          {% endif %}
+          <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
+        </div>
+        <div class="identity-compare__fields" data-ocr-confirmation-fields data-front-identity-fields>
+          {% include "sales/_field.html" with field=form.owner_name %}
+          {% include "sales/_field.html" with field=form.owner_id_number %}
+          {% include "sales/_field.html" with field=form.owner_birth_date %}
+        </div>
+      </div>
+      <div class="identity-compare span-2">
+        <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="identity-upload">
+          {% include "sales/_field.html" with field=form.id_back %}
+          <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="證件反面預覽">
+          {% if document_source.id_back %}
+          <div class="saved-photo-state" data-saved-photo="id_back">
+            <span><strong>已暫存反面照片</strong><small>可直接與戶籍地址對照</small></span>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
+            <button type="button" data-select-file="id_id_back">更換</button>
+          </div>
+          {% endif %}
+          <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
+        </div>
+        <div class="identity-compare__fields" data-ocr-confirmation-fields data-back-identity-fields>
+          {% include "sales/_field.html" with field=form.owner_address %}
+        </div>
+      </div>
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
+      {% include "sales/_field.html" with field=form.owner_phone %}
+      {% include "sales/_field.html" with field=form.owner_email %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
+      <div class="span-2 verify-box" id="id-verify-box">{% include "sales/_field.html" with field=form.id_verified %}<small class="verify-lock-hint" id="id-verify-hint" hidden>證件為選填；上傳正反面並辨識完成後才能勾選。</small></div>
+      {% if wizard %}
+      <input type="hidden" name="_id_check" id="id-check" value="{{ wizard.id_check }}">
+      <input type="hidden" name="_id_check_error" id="id-check-error" value="{{ wizard.id_check_error }}">
+      {% endif %}
+    </div>
+  </details>

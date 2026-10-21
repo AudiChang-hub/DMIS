@@ -36,7 +36,7 @@ class OrderHeaderTests(TestCase):
         self.assertContains(response, "民國 81 年 1 月 21 日")
         self.assertContains(response, "西元 1992/01/21")
         self.assertContains(response, "1992/01/21")
-        self.assertContains(response, "電話 <strong>0912345678</strong>", html=False)
+        self.assertContains(response, '<span>電話</span><strong class="order-owner-facts__mono">0912345678</strong>', html=False)
         self.assertContains(response, "A123456789")
         self.assertNotContains(response, "A1＊")
 

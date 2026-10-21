@@ -400,8 +400,9 @@
   }
   function setStatus(form, text, state) {
     const node = statusOf(form);
-    node.textContent = text;
-    node.dataset.state = state;
+    // 表單外、以 form 屬性併入的欄位（例如頁首小卡的訂單來源）旁也顯示同一則儲存狀態。
+    const mirrors = form.id ? [...document.querySelectorAll(`[data-autosave-mirror="${form.id}"]`)] : [];
+    [node, ...mirrors].forEach(target => { target.textContent = text; target.dataset.state = state; });
   }
   function schedule(form, delay = AUTOSAVE_DELAY) {
     if (!autosaving(form)) return;
@@ -435,6 +436,29 @@
   const touched = new Set();
   const rebase = () => forms.forEach(form => { if (!touched.has(form) && !timers.has(form)) bases.set(form, capture(form)); });
   window.addEventListener('load', () => { setTimeout(rebase, 0); setTimeout(() => { rebase(); indicators(); }, 2000); }, {once: true});
+  function onAutosaveInput(form, event) {
+    if (event.isTrusted) touched.add(form);
+    indicators();
+    event.target.removeAttribute('aria-invalid');
+    if (event.target.type !== 'file') schedule(form);
+  }
+  function onAutosaveChange(form, event) {
+    const field = event.target;
+    if (event.isTrusted) touched.add(form);
+    if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm && !confirm(field.dataset.autosaveConfirm)) {
+      field.checked = false; indicators(); return;
+    }
+    indicators();
+    if (field.type === 'file') return;
+    schedule(form, field.matches('select, [type="checkbox"], [type="radio"], [type="date"]') ? 250 : AUTOSAVE_DELAY);
+  }
+  // 放在表單外、以 form 屬性併入的欄位，事件不會冒泡到表單：改由文件層轉給所屬表單的自動儲存（使用者 2026-10-21）。
+  const ownedOutside = event => {
+    const form = event.target?.form;
+    return form && forms.includes(form) && autosaving(form) && !form.contains(event.target) ? form : null;
+  };
+  document.addEventListener('input', event => { const form = ownedOutside(event); if (form) onAutosaveInput(form, event); });
+  document.addEventListener('change', event => { const form = ownedOutside(event); if (form) onAutosaveChange(form, event); });
   forms.forEach(form => {
     bases.set(form, capture(form));
     if (!autosaving(form)) {
@@ -442,22 +466,8 @@
     } else {
       form.noValidate = true;
       form.dataset.autosave = '';
-      form.addEventListener('input', event => {
-        if (event.isTrusted) touched.add(form);
-        indicators();
-        event.target.removeAttribute('aria-invalid');
-        if (event.target.type !== 'file') schedule(form);
-      });
-      form.addEventListener('change', event => {
-        const field = event.target;
-        if (event.isTrusted) touched.add(form);
-        if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm && !confirm(field.dataset.autosaveConfirm)) {
-          field.checked = false; indicators(); return;
-        }
-        indicators();
-        if (field.type === 'file') return;
-        schedule(form, field.matches('select, [type="checkbox"], [type="radio"], [type="date"]') ? 250 : AUTOSAVE_DELAY);
-      });
+      form.addEventListener('input', event => onAutosaveInput(form, event));
+      form.addEventListener('change', event => onAutosaveChange(form, event));
       form.addEventListener('focusout', () => { if (timers.has(form)) schedule(form, 0); });
     }
     form.addEventListener('submit', async event => {

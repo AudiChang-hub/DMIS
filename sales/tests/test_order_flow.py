@@ -4610,9 +4610,9 @@ class OrderFlowTests(TestCase):
             ).exists()
         )
 
+        # 使用者 2026-10-21：訂單頁不再顯示浮水印證件入口；列印服務本身照舊可用。
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(detail, "列印／下載浮水印證件")
-        self.assertContains(detail, "限申請補助使用")
+        self.assertNotContains(detail, "列印／下載浮水印證件")
 
     def test_privacy_consent_can_be_uploaded_separately(self):
         order = self.make_order()

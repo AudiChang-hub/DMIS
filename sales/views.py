@@ -6175,6 +6175,10 @@ def _inline_order_form_context(request, order, form=None, formset=None, fee_form
     form = form or OrderEditForm(instance=order)
     for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
         form.fields.pop(field, None)
+    # 訂單來源改在頁首右上角的小卡編輯（使用者 2026-10-21）：欄位放在表單外，以 form 屬性併入同一張訂單表單自動儲存。
+    for field in ("source_type", "source"):
+        if field in form.fields:
+            form.fields[field].widget.attrs["form"] = "order-form"
     return {
         "form": form,
         "formset": formset or AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}),

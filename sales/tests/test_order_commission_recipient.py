@@ -152,7 +152,9 @@ class OrderCommissionRecipientTests(TestCase):
             self.assertEqual(preview["original_commission_total"], 4000)
             self.assertEqual(preview["expected_amount"], 1500)
             self.assertEqual(order.effective_commission_recipient, self.a)
-            self.assertContains(self.client.get(reverse("order_operations", args=[order.pk])), "原來源保留本店")
+            # 收支頁不再重複列傭金說明（使用者 2026-10-21 T-45）；歸屬看訂單頁頁首的台數歸屬小卡。
+            self.assertNotContains(self.client.get(reverse("order_operations", args=[order.pk])), "原來源保留本店")
+            self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), self.a.name)
             self.assertEqual(self.client.post(url, self.attribution_data(order)).status_code, 302)
             order.refresh_from_db()
             self.assertIsNone(order.effective_commission_recipient)
@@ -327,7 +329,7 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertContains(preview_page, "bonus-settlement-layout")
         self.assertContains(preview_page, "dealer-volume-bonus.css")
         self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), "台數與傭金歸屬")
-        self.assertContains(self.client.get(reverse("order_operations", args=[order.pk])), "傭金收款車行")
+        self.assertNotContains(self.client.get(reverse("order_operations", args=[order.pk])), "傭金收款車行")
         response = self.client.get(reverse("operations_report_export"))
         sheet = load_workbook(BytesIO(response.content)).active
         rows = list(sheet.values)

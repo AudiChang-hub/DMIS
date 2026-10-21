@@ -3040,6 +3040,8 @@ class OrderOperationsForm(forms.ModelForm):
                     - self.FULFILLMENT_SECTION_FIELDS)
         else:
             keep = set(self.fields)
+        # 分期資訊由訂單同步、訂單與配件已看得到，收支頁不再顯示也不從表單寫入（使用者 2026-10-21 T-48）。
+        keep.discard("installment_info")
         for name in list(self.fields):
             if name not in keep:
                 self.fields.pop(name)
@@ -3236,6 +3238,8 @@ class PaymentRecordForm(forms.ModelForm):
                 if self.initial.get(name) in (None, 0, Decimal("0")):
                     self.initial[name] = ""
         lock_confirmed_payment_fields(self, read_only=read_only)
+        # 應收一律照系統計算（使用者 2026-10-21 T-46）：畫面不顯示、後端也不接受修改應收金額。
+        self.fields["expected_amount"].disabled = True
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
@@ -3254,10 +3258,8 @@ class PaymentRecordForm(forms.ModelForm):
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         if any(card_values) and cleaned.get("payment_method") != "刷卡":
             self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
-        if self.instance.system_key and cleaned.get("DELETE"):
-            self.add_error(None, "系統收款項目不可刪除；請改為調整金額。")
-        if self.instance.pk and self.instance.confirmed and cleaned.get("DELETE"):
-            self.add_error(None, "已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
+        # 收款明細可直接刪除（使用者 2026-10-21 T-47 方案 A）：檢查在表單組 clean（刪除列不跑單列驗證）；
+        # 刪除寫入處理紀錄快照、不能還原，系統列（訂金、尾款、分期撥款）刪除後由同步重建為未收的應收列。
         if self.read_only and self.has_changed():
             self.add_error(None, "已取消訂單的收款已結算，不能修改。")
         if not cleaned.get("DELETE"):
@@ -3266,8 +3268,6 @@ class PaymentRecordForm(forms.ModelForm):
 
     def save(self, commit=True):
         payment = super().save(commit=False)
-        if payment.expected_amount != self.original_expected_amount:
-            payment.expected_amount_overridden = True
         if commit:
             payment.save()
         return payment
@@ -3813,11 +3813,10 @@ class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
 
     def clean(self):
         super().clean()
-        if any(form.instance.system_key and form.cleaned_data.get("DELETE") for form in self.forms):
-            raise forms.ValidationError("系統收款項目不可刪除；請改為調整金額。")
-        # 標記刪除的列不跑單列驗證，須在此攔下已入帳收款。
-        if any(form.instance.pk and form.instance.confirmed and self._should_delete_form(form) for form in self.forms):
-            raise forms.ValidationError("已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
+        # 收款明細可直接刪除，含已確認與系統列（使用者 2026-10-21 T-47）。標記刪除的列不跑單列驗證，
+        # 在此只攔下已被沖銷的舊收款（帳本要保留沖銷關係）。
+        if any(form.instance.pk and self._should_delete_form(form) and form.instance.reversal_entries.exists() for form in self.forms):
+            raise forms.ValidationError("這筆收款已沖銷，不能刪除。")
         seen = {}
         for form in self.forms:
             data = getattr(form, "cleaned_data", None) or {}

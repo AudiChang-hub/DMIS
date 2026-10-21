@@ -10,6 +10,11 @@
     const button = row.querySelector("[data-delete-payment]");
     if (!button) return;
     button.addEventListener("click", () => {
+      // 收款可直接刪除（使用者 2026-10-21 T-47）：刪除後無法復原，處理紀錄會留下這筆的內容。
+      const saved = row.querySelector('[name$="-id"]')?.value;
+      if (saved && !window.confirm("刪除這筆收款？刪除後無法復原，處理紀錄會留下這筆的內容。")) return;
+      // 訂金、尾款、分期撥款刪除後由系統重建為未收的應收列：存好後重新載入，畫面才看得到新列與各步驟狀態。
+      if (saved && row.hasAttribute("data-payment-system")) row.closest("form")?.addEventListener("workspace-saved", () => location.reload(), {once: true});
       row.querySelector('[name$="-DELETE"]').checked = true;
       row.hidden = true;
       row.querySelector('[name$="-DELETE"]').dispatchEvent(new Event('change', {bubbles: true}));

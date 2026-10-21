@@ -82,10 +82,10 @@ class FinancialConsistencyTests(TestCase):
         payment.received_amount = 65000
         payment.confirmed = True
         payment.save()
-        with self.assertRaises(ValidationError):
-            payment.delete()
         reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="撥款退回")
         self.assertEqual(self.profile(order).actual_disbursement, 63000)
+        with self.assertRaises(ValidationError):
+            payment.delete()
         self.assertIn("actual_disbursement", self.profile(order).manual_financial_fields)
 
     def test_read_sync_does_not_adopt_old_confirmed_manual_disbursement(self):

@@ -72,14 +72,13 @@
     <p class="finance-ledger__legend"><span class="ledger-tag ledger-tag--system">系統帶入</span>由訂單、主檔或領牌資料自動計算；修改並儲存後改為<span class="ledger-tag ledger-tag--manual">已人工調整</span>，不再被同步覆蓋。<span class="ledger-tag ledger-tag--synced">自動同步</span>由收款紀錄或訂單同步，不能在此修改。</p>
   </div>
 
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section finance-receipts" id="finance-receipts" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與應收設定</span></summary>
+  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section finance-receipts" id="finance-receipts" open><summary><strong>收款</strong><span>客戶收款與分期公司撥款</span></summary>
+    {% if order.source_type != "store" %}{# 本店單沒有車行，也不需另看車行收款確認 #}
     <div class="operation-grid">
-      {% if order.source_type != "store" %}{# 本店單沒有車行，也不需另看車行收款確認 #}
       {% include "sales/_field.html" with field=form.dealer_name %}
       {% include "sales/_field.html" with field=form.payment_confirmed %}
-      {% endif %}
-      {% include "sales/_field.html" with field=form.installment_info %}
     </div>
+    {% endif %}
     <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。實際撥款金額列在上方「收入」。</p>
     <div class="receipt-summary" data-receipt-summary>
       <span>客戶應收 <strong>$<output data-receipt-value="customer_expected">{{ receipt_summary.customer_expected|floatformat:0 }}</output></strong></span>
@@ -100,7 +99,7 @@
       <p>總應付 ${{ imported.total|floatformat:0 }}（Excel 收款價 ${{ imported.price|floatformat:0 }} ＋ 強制險 ${{ imported.insurance|floatformat:0 }}）{% if not imported.paid_in_excel %}－ 已確認客戶收款 ${{ imported.received|floatformat:0 }}{% endif %}。匯入訂單的尾款依 Excel 計算，下方「應收設定」的尾款不影響。</p>
     </aside>
     {% endif %}{% endwith %}
-    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款即為入帳，金額與日期會鎖定；勾錯直接取消勾選「已確認」即可再修改。已沖銷的收款不能取消，請重新登記。</p>{% endif %}
+    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款會鎖定；勾錯取消「已確認」即可修改，登記錯的可在「更多資料」刪除（無法復原）。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
       <h3>收款明細</h3>
       <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span>其他資料</span></div>
@@ -116,23 +115,10 @@
       <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款</button>
       {% endif %}
     </section>
-    <details class="receipt-expectations" open>
-      <summary>應收設定（不是實收紀錄）</summary>
-      <p class="muted">保存訂單原有應收依據；調整須填原因，不會自動新增實收，也不會刪除歷史資料。</p>
-      {% for payment in payment_formset %}
-        {% if payment.instance.is_receivable_only %}
-          <div class="receipt-expectation-row" data-payment-expectation>
-            <strong>{{ payment.instance.item_name }}</strong>
-            {% for field in payment %}
-              {% if field.name == 'expected_amount' %}
-                {% include "sales/_field.html" %}
-              {% else %}{{ field.as_hidden }}{% endif %}
-            {% endfor %}
-            {{ payment.non_field_errors }}
-          </div>
-        {% endif %}
-      {% endfor %}
-    </details>
+    {% comment %}應收一律照系統計算、畫面不顯示（使用者 2026-10-21 T-46）；應收列仍隨表單送出（全部隱藏），維持表單組的列數。{% endcomment %}
+    <div hidden>
+      {% for payment in payment_formset %}{% if payment.instance.is_receivable_only %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
+    </div>
   </details>
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
   {% if order_workspace %}
@@ -146,7 +132,7 @@
   {% endif %}
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
-{% include "sales/_payment_ledger.html" %}
+{% comment %}沖銷與退款整區拿掉，收款明細可直接刪除（使用者 2026-10-21 T-47）；取消訂單的退款在「取消與結案」。{% endcomment %}
 {% if order_workspace %}
 <details class="finance-amounts" data-workspace-section="finance" open>
   <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與尾款</small></span></summary>

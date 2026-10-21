@@ -160,14 +160,15 @@ class PptRefinementTests(TestCase):
         balance = self.order.payment_records.get(system_key="balance")
         self.assertEqual(balance.expected_amount, 2000)
         self.assertEqual(balance.received_amount, 0)
+        # 1.86.3x（使用者 2026-10-21 T-46）：應收一律照系統計算，表單不接受人工覆寫。
         data = {"expected_amount": "1800", "expected_amount_override_reason": "核定優惠", "received_amount": ""}
         form = PaymentRecordForm(data, instance=balance)
         self.assertTrue(form.is_valid(), form.errors)
         form.save()
         sync_order_operations(self.order.pk, update_receivables=True)
         balance.refresh_from_db()
-        self.assertEqual(balance.expected_amount, 1800)
-        self.assertTrue(balance.expected_amount_overridden)
+        self.assertEqual(balance.expected_amount, 2000)
+        self.assertFalse(balance.expected_amount_overridden)
 
     def test_inline_discount_authority_revision_and_no_finance_side_effects(self):
         before = self.order.operations.actual_disbursement
@@ -186,24 +187,26 @@ class PptRefinementTests(TestCase):
         data = self.operations_data()
         deposit = self.order.payment_records.get(system_key="deposit")
         index = next(i for i in range(int(data['payments-TOTAL_FORMS'])) if data.get(f'payments-{i}-id') == str(deposit.pk))
+        # 1.86.3x（T-46）：收支頁不能改應收；訂金請在「訂金」步驟修改。
         data[f'payments-{index}-expected_amount'] = '1000'
         data[f'payments-{index}-expected_amount_override_reason'] = '另收訂金'
         response = self.post('order_operations', data)
         self.assertEqual(response.status_code, 200, response.content)
         self.order.refresh_from_db()
         deposit.refresh_from_db()
-        self.assertEqual(self.order.actual_balance, 69000)
-        self.assertEqual(deposit.received_amount, 0)
-        self.assertEqual(self.order.payment_records.get(system_key='balance').expected_amount, 69000)
-        from sales.models import OrderChange
-        audit = OrderChange.objects.filter(order=self.order).latest('pk')
-        self.assertIn('payment_records', audit.changes)
+        self.assertEqual(self.order.actual_balance, 70000)
+        self.assertEqual((deposit.expected_amount, deposit.received_amount), (0, 0))
+        self.assertEqual(self.order.payment_records.get(system_key='balance').expected_amount, 70000)
 
-    def test_finance_cannot_delete_system_payment(self):
+    def test_deleting_system_payment_rebuilds_it_as_unreceived(self):
+        # 1.86.3x（使用者 2026-10-21 T-47）：系統收款列也能刪，刪除後由同步重建為未收的應收列。
         data = self.operations_data()
+        removed = data['payments-0-id']
         data['payments-0-DELETE'] = 'on'
         response = self.post('order_operations', data)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertFalse(self.order.payment_records.filter(pk=removed).exists())
+        self.assertTrue(self.order.payment_records.filter(system_key='deposit', confirmed=False).exists())
 
     def test_confirming_lender_receipt_updates_financial_single_source(self):
         self.order.payment_type = 'installment'

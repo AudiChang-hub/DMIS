@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class EmployeePurchasePlatformToStoreMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0101_merge_special_platform_sources")
     migrate_to = ("sales", "0102_convert_employee_purchase_platforms_to_store")

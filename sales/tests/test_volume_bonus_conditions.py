@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.test import Client, TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase, tag
 from django.urls import reverse
 from django.utils import timezone
 
@@ -323,6 +323,7 @@ class VolumeBonusConditionsTests(TestCase):
         self.assertEqual([(item['amount'], item['settled']) for item in details], [(600, True), (300, False)])
 
 
+@tag("migration")
 class VolumeBonusMigrationTests(TransactionTestCase):
     def test_old_settlement_recipient_and_amounts_are_preserved(self):
         from django.db import connection

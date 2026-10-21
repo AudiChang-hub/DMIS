@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class BaifuSalesSourceMergeMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0099_shared_dealer_vehicle_capacity")
     migrate_to = ("sales", "0100_merge_baifu_sales_sources")

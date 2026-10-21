@@ -16,7 +16,10 @@ python manage.py makemigrations --check --dry-run
 python manage.py test <受影響測試> --noinput
 ```
 
-- 合併／正式部署前跑完整 Django 測試；財務、佣金、台數歸屬、結算、併發與鎖定須保留 PostgreSQL 測試，不能只用 SQLite。
+- 合併／正式部署前跑完整 Django 測試：`python manage.py test sales --noinput --parallel auto --exclude-tag migration`；財務、佣金、台數歸屬、結算、併發與鎖定須保留 PostgreSQL 測試，不能只用 SQLite。
+- 驗證資料轉換的 migration 測試標記 `@tag("migration")`，每個要倒退重跑上百個 migration（單個 1–2 分鐘），預設排除。新增或修改 migration、或改到 migration 引用的服務時才跑 `--tag migration`；CI 依變更範圍自動執行，另每週日完整補跑。
+- 測試套件（`sales/tests/__init__.py`）改用 MD5 密碼雜湊，只影響測試；正式環境仍為 PBKDF2。
+- 讀取 `docs/USER_MANUAL.md` 的測試標記 `@tag("docs")`；只改文件時 CI 只跑版本／context 檢查與這些測試，不重跑整套 Django 測試。
 - 前端測試依受影響 `tests/frontend/*.test.cjs` 執行；完整清單看 CI，不維護另一份易失效列表。
 - 依賴變更跑 `python -m pip_audit -r requirements-django.txt`。
 - 設定／容器變更跑 `python manage.py check --deploy`、建置 `Dockerfile.django`、檢查 runtime allowlist 與非 root 使用者。只用測試專用 secret 與 DB，CI 不能使用正式密碼。

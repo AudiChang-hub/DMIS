@@ -4,7 +4,7 @@ from io import BytesIO
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase, TransactionTestCase, tag
 from django.urls import reverse
 from django.utils import timezone
 from pypdf import PdfReader
@@ -100,6 +100,7 @@ class TransactionTypeOnlyTests(TestCase):
                 self.assertNotContains(response, "車輛類別")
 
 
+@tag("migration")
 class VehicleCategoryRemovalMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0193_plate_insurance_auto")
     migrate_to = ("sales", "0194_remove_salesorder_vehicle_category")

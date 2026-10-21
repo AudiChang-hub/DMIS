@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings, tag
 from django.urls import reverse
 from openpyxl import load_workbook
 
@@ -94,6 +94,7 @@ class OldOwnerDisplayTests(TestCase):
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).old_vehicle_brand, "三陽")
 
 
+@tag("migration")
 class OldOwnerMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0168_sales_order_old_owner_contact")
     migrate_to = ("sales", "0169_old_owner_markers_and_contact_backfill")

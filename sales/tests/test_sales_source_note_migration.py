@@ -1,8 +1,9 @@
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, tag
 
 
+@tag("migration")
 class SalesSourceNoteMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0086_sales_source_line_group")
     migrate_to = ("sales", "0087_consolidate_sales_source_notes")

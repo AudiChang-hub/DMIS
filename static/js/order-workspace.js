@@ -77,37 +77,23 @@
     scroller.scrollTo({left: Math.max(0, left), behavior: smooth ? behavior() : 'auto'});
   }
   const headerHeight = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-height')) || 72;
-  // 固定頁首縮成精簡列後的高度；尚未縮起時暫時套用精簡樣式量測（同步還原，不觸發 sticky-hero 的觀察器）。
-  function compactHeroHeight() {
-    const hero = root.querySelector('[data-sticky-hero]');
-    if (!hero) return 0;
-    if (hero.classList.contains('is-stuck')) return hero.offsetHeight;
-    const transition = hero.style.transition;
-    hero.style.transition = 'none';
-    hero.classList.add('is-stuck');
-    const height = hero.offsetHeight;
-    hero.classList.remove('is-stuck');
-    hero.style.transition = transition;
-    return height;
-  }
-  // 固定停點：頁首縮成精簡列，下方從建議下一步開始，接著是步驟內容；進頁與切換步驟都停在同一處（使用者 2026-10-14）。
+  // 精簡列疊在內容上（order-compact-bar.js），停點要扣掉它的高度；隱藏時仍保有版面尺寸可量測。
+  const compactBarHeight = () => root.querySelector('[data-order-compact-bar]')?.offsetHeight || 0;
+  // 停點＝目前步驟區塊的頂端（使用者 2026-10-21）：進頁與從左側切換步驟，一律把該區最上方停在標頭與精簡列下方，
+  // 不帶到區塊裡的欄位；頁面不夠長時捲到底即可，不在下方補空白。
   function stageTop() {
-    const marker = root.querySelector('[data-order-stage-start]');
-    if (!marker || !root.querySelector('[data-sticky-hero]')) return null;
-    let node = marker.nextElementSibling;
-    while (node && !node.getBoundingClientRect().height) node = node.nextElementSibling;
-    if (!node) return null;
-    return Math.max(0, Math.round(window.scrollY + node.getBoundingClientRect().top - headerHeight() - compactHeroHeight() - 24));
+    const panel = tabbed ? panelOf(activeKey) : null;
+    if (!panel || panel.hidden) return null;
+    return Math.max(0, Math.round(window.scrollY + panel.getBoundingClientRect().top - headerHeight() - compactBarHeight() - 16));
   }
   function land(smooth) {
+    // 原地更新後為了回到原位補的下方空間（見下方 restore）在換步驟時清掉。
     const room = root.querySelector('.order-steps');
     if (room) room.style.paddingBottom = '';
     const top = stageTop();
     if (top === null) return false;
-    // 內容較短的步驟（如訂金）在下方補足空白，才捲得到同一個停點。
-    const short = top - (document.documentElement.scrollHeight - window.innerHeight);
-    if (room && short > 0) room.style.paddingBottom = `${Math.ceil(short)}px`;
-    window.scrollTo({top, behavior: smooth ? behavior() : 'instant'});
+    const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    window.scrollTo({top: Math.min(top, max), behavior: smooth ? behavior() : 'instant'});
     return true;
   }
   // 步驟在左側側邊列：切換後回到固定停點；舊的上方分頁列則捲到分頁列。
@@ -193,7 +179,8 @@
     const go = event.target.closest('[data-workspace-go]');
     if (go && panelOf(go.dataset.workspaceGo)) { event.preventDefault(); goTo(go.dataset.workspaceGo); return; }
     const tab = event.target.closest('[role="tab"][data-step-link]');
-    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(); return; }
+    // 左側步驟：直接停在該區最上方（瞬間定位，不播捲動動畫；使用者 2026-10-21）。
+    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(false); return; }
     const link = event.target.closest('a[data-target-tab]');
     if (link && link.hasAttribute('href') && panelOf(link.dataset.targetTab)) {
       event.preventDefault();

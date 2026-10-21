@@ -14,14 +14,36 @@ class RocDateTests(SimpleTestCase):
         self.assertEqual(roc_date(None), "")
 
 
-class StickyHeroScriptTests(SimpleTestCase):
-    def test_collapsed_height_is_reserved_to_avoid_scroll_anchoring_loop(self):
-        # 1.74.4：頁首縮小若改變頁面高度，瀏覽器捲動錨定會把位置拉回門檻內，形成無限切換。
+class CompactBarScriptTests(SimpleTestCase):
+    def test_compact_bar_never_changes_layout_height(self):
+        # 1.86.34（使用者 2026-10-21）：頁首不再縮放、也不墊高補位（舊做法往下捲時會露出一段空白）；
+        # 精簡列疊在高度為 0 的 sticky 定位點上，顯示與否不影響版面高度。
         from pathlib import Path
         from django.conf import settings
-        script = (Path(settings.BASE_DIR) / "static/js/sticky-hero.js").read_text(encoding="utf-8")
-        self.assertIn("sticky-hero-spacer", script)
-        self.assertIn("fullHeight - height", script)
+        base = Path(settings.BASE_DIR)
+        self.assertFalse((base / "static/js/sticky-hero.js").exists())
+        script = (base / "static/js/order-compact-bar.js").read_text(encoding="utf-8")
+        self.assertIn("IntersectionObserver", script)
+        self.assertNotIn("spacer", script)
+        styles = (base / "static/css/order-workspace.css").read_text(encoding="utf-8")
+        anchor = styles.split(".order-compact-anchor {", 1)[1].split("}", 1)[0]
+        self.assertIn("height: 0", anchor)
+        self.assertIn("position: sticky", anchor)
+        bar = styles.split(".order-compact-bar {", 1)[1].split("}", 1)[0]
+        self.assertIn("position: absolute", bar)
+        self.assertNotIn("order-sticky-hero", styles)
+
+    def test_left_steps_land_on_section_top_without_padding(self):
+        # 左側步驟一律停在該區最上方（瞬間定位）；不再在下方補空白來湊停點。
+        from pathlib import Path
+        from django.conf import settings
+        script = (Path(settings.BASE_DIR) / "static/js/order-workspace.js").read_text(encoding="utf-8")
+        END = chr(10) + "  }" + chr(10)
+        land = script.split("function land(smooth) {", 1)[1].split(END, 1)[0]
+        self.assertNotIn("paddingBottom = `", land)
+        self.assertIn("Math.min(top, max)", land)
+        self.assertIn("panelOf(activeKey)", script.split("function stageTop() {", 1)[1].split(END, 1)[0])
+        self.assertIn("showBar(false); return; }", script)
 
 
 class OrderHeaderTests(TestCase):
@@ -32,7 +54,9 @@ class OrderHeaderTests(TestCase):
     def test_detail_shows_phone_birthdays_and_full_id(self):
         order = self.order(owner_birth_date=date(1992, 1, 21))
         response = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(response, "data-sticky-hero")
+        self.assertContains(response, "data-order-hero")
+        self.assertContains(response, "data-order-compact-bar")
+        self.assertNotContains(response, "data-sticky-hero")
         self.assertContains(response, "民國 81 年 1 月 21 日")
         self.assertContains(response, "西元 1992/01/21")
         self.assertContains(response, "1992/01/21")

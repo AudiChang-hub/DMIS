@@ -99,21 +99,21 @@ class OrderDetailTabTests(TestCase):
         page = self.detail(order)
         self.assertIn(f'href="{order_step_url(order.pk, "documents")}" data-step-link="documents"', page)
         self.assertIn(f'href="{order_step_url(order.pk, "finance")}" data-step-link="finance"', page)
-        # 整個頁首元素：歸屬小卡本身也是 <section>，不能切到第一個 </section> 為止；頁首結束在固定停點之前。
-        # 捲動後的精簡頁首是同一個元素加上 is-stuck，內容相同，只由樣式隱藏部分欄位。
-        start = page.rindex("<section", 0, page.index("data-sticky-hero"))
+        # 整個頁首元素：歸屬小卡本身也是 <section>，不能切到第一個 </section> 為止；頁首結束在步驟內容起點之前。
+        start = page.rindex("<section", 0, page.index("data-order-hero"))
         hero = page[start:page.index("data-order-stage-start")]
         self.assertIn('id="commission-attribution"', hero)
         self.assertIn('class="hero-actions detail-hero__actions"', hero)  # 範圍涵蓋到小卡下方的處置按鈕區
         for label in ("簽署與列印文件", "收入與支出", "調整台數歸屬", "管理本單權限"):
             self.assertNotIn(label, hero)
-        styles = Path("static/css/order-commission-recipient.css").read_text(encoding="utf-8")
-        self.assertIn(".order-sticky-hero.is-stuck .detail-hero__actions", styles)
+        # 捲動後的精簡列（1.86.34）只有姓名、狀態、編號與歸屬，沒有刪除等處置按鈕。
+        bar = page[page.index("data-order-compact-bar"):page.index("data-order-stage-start")]
+        self.assertNotIn("刪除訂單", bar)
         # admin 看得到刪除：在小卡下方，仍在同一個頁首範圍內。
         from django.contrib.auth import get_user_model
         self.client.force_login(get_user_model().objects.create_superuser("admin", password="test-only"))
         admin_page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
-        start = admin_page.rindex("<section", 0, admin_page.index("data-sticky-hero"))
+        start = admin_page.rindex("<section", 0, admin_page.index("data-order-hero"))
         admin_hero = admin_page[start:admin_page.index("data-order-stage-start")]
         self.assertLess(admin_hero.index('id="commission-attribution"'), admin_hero.index("刪除訂單"))
         for label in ("簽署與列印文件", "收入與支出", "調整台數歸屬", "管理本單權限"):
@@ -150,7 +150,7 @@ class OrderDetailTabTests(TestCase):
         self.assertIn("order-tabpanel-reveal", feedback)
 
     def test_entry_and_step_switch_land_on_same_stage(self):
-        # 進頁、重新整理、點步驟都停在同一個停點（精簡頁首下方，從步驟內容開始），使用者 2026-10-14；1.84.0 起沒有接單紀錄卡。
+        # 進頁、重新整理、點步驟都停在目前步驟區塊的最上方（標頭與精簡列下方），使用者 2026-10-14、10-21；1.84.0 起沒有接單紀錄卡。
         order, _vehicle = self.make_order()
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
@@ -161,7 +161,7 @@ class OrderDetailTabTests(TestCase):
         # html 設了 scroll-behavior: smooth，'auto' 仍會平滑捲動；進頁定位必須用 'instant'，否則載入中被打斷而停在半路。
         self.assertIn("behavior: smooth ? behavior() : 'instant'", script)
         self.assertIn("history.scrollRestoration = 'manual'", script)
-        self.assertIn("[data-order-stage-start]", script)
+        self.assertIn("panelOf(activeKey)", script)
         self.assertNotIn("'.errorlist, .field-error,", script)
 
     def test_edit_page_links_back_to_tabs(self):

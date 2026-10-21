@@ -312,6 +312,12 @@
     input.addEventListener("input", () => {
       openList(input.value);
     });
+    // 有「全部…」空白選項的單選篩選：按搜尋框的 × 清掉文字就等於清除這一欄，不必再從清單點「全部」。
+    input.addEventListener("search", () => {
+      if (isMultiple || !includeEmptyOption || input.value || !select.value) return;
+      const emptyOption = [...select.options].find(option => !option.value);
+      if (emptyOption) choose(emptyOption);
+    });
     input.addEventListener("keydown", event => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();

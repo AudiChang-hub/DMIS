@@ -58,31 +58,31 @@ class StateIntegrityTests(TestCase):
             completed.ensure_transition(SalesOrder.Status.CANCELLED)
 
     # M5：排隊順序與先進先出
-    def test_allocation_queue_and_fifo_require_reason(self):
+    def test_allocation_queue_and_fifo_are_noted_without_reason(self):
         first_order = self.pending_order()
         second_order = self.pending_order()
         SalesOrder.objects.filter(pk=second_order.pk).update(accepted_at=timezone.now() + timedelta(minutes=5))
         second_order.refresh_from_db()
-        # 兩台都未滿優先配車門檻（相對今天），驗證同級先進先出仍強制填原因；跳過優先配車見 test_allocation_priority。
+        # 兩台都未滿優先配車門檻（相對今天）；未依順序不必填原因，系統記下偵測到的情形（2026-10-21 T-39）。
         today = timezone.localdate()
         older_index, newer_index = today.year * 12 + today.month - 3, today.year * 12 + today.month - 2
         old = self.vehicle("OLD", f"{older_index // 12:04d}/{older_index % 12 + 1:02d}")
         new = self.vehicle("NEW", f"{newer_index // 12:04d}/{newer_index % 12 + 1:02d}")
         form = AllocationForm(second_order, {"vehicle": old.pk})
         self.assertEqual(form.queue_position, 2)
-        self.assertFalse(form.is_valid())
-        self.assertIn("skip_reason", form.errors)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIn("本單排第 2 位", form.cleaned_data["skip_notes"])
         form = AllocationForm(first_order, {"vehicle": new.pk})
         self.assertEqual(form.queue_position, 1)
-        self.assertFalse(form.is_valid())
-        self.assertIn("較早出廠", str(form.errors))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIn("較早出廠", "；".join(form.cleaned_data["skip_notes"]))
         self.assertTrue(AllocationForm(first_order, {"vehicle": old.pk}).is_valid())
         self.client.force_login(self.user)
-        self.client.post(reverse("allocate_vehicle", args=[second_order.pk]), {"vehicle": old.pk, "skip_reason": "客戶先付清"})
+        self.client.post(reverse("allocate_vehicle", args=[second_order.pk]), {"vehicle": old.pk})
         second_order.refresh_from_db()
         self.assertEqual(second_order.allocated_vehicle_id, old.pk)
-        self.assertEqual(second_order.allocation_skip_reason, "客戶先付清")
-        self.assertIn("客戶先付清", OrderEvent.objects.filter(order=second_order, event_type="allocated").get().description)
+        self.assertEqual(second_order.allocation_skip_reason, "系統摘要：本單排第 2 位")
+        self.assertIn("本單排第 2 位", OrderEvent.objects.filter(order=second_order, event_type="allocated").get().description)
 
     def test_stale_allocation_is_flagged(self):
         order, _vehicle = self.make_order()
@@ -99,9 +99,7 @@ class StateIntegrityTests(TestCase):
         order.request_cancellation("測試", "客戶考慮")
         SalesOrder.objects.filter(pk=order.pk).update(accepted_at=timezone.now())
         order.refresh_from_db()
-        with self.assertRaisesMessage(ValidationError, "撤銷原因"):
-            order.withdraw_cancellation("測試", " ")
-        order.withdraw_cancellation("測試", "客戶決定照買")
+        order.withdraw_cancellation("測試", " ")  # 備註選填（2026-10-21 T-39）
         order.refresh_from_db()
         vehicle.refresh_from_db()
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATION_PENDING)

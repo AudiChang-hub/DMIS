@@ -80,7 +80,7 @@ class OrderDeletionTests(TestCase):
         url = reverse("order_delete", args=[self.order.pk])
         self.assertEqual(self.client.get(url).status_code, 200)
         self.assertIsNone(SalesOrder.objects.get(pk=self.order.pk).deleted_at)
-        for data in [self.payload(reason=" "), self.payload(confirmed=""), self.payload(expected_updated_at="old")]:
+        for data in [self.payload(confirmed=""), self.payload(expected_updated_at="old")]:
             self.assertEqual(self.client.post(url, data).status_code, 200)
             self.assertTrue(SalesOrder.objects.filter(pk=self.order.pk).exists())
         self.assertEqual(self.client.delete(url).status_code, 405)

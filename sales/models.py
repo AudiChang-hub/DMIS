@@ -1499,8 +1499,6 @@ class DealerVolumeBonusSettlement(TimeStampedModel):
             previous = type(self).objects.get(pk=self.pk)
             if (self.rule_id, self.period_id, self.dealer_id) != (previous.rule_id, previous.period_id, previous.dealer_id):
                 raise ValidationError("已結算的規則、期間與收款車行不可變更。")
-        if self.actual_amount != self.expected_amount and not self.adjustment_reason.strip():
-            raise ValidationError({"adjustment_reason": "實際金額不同時必須填寫原因。"})
 
     def save(self, *args, **kwargs):
         if not self.period_id and self.rule_id:
@@ -3982,6 +3980,9 @@ class SalesOrder(TimeStampedModel):
             raise ValidationError("尚有已登記但未確認的實收金額，請先確認或清除後再取消。")
         # 退款依帳本上已確認的淨實收計算，不再依約定訂金欄位。
         new_status = self.Status.CANCEL_REFUND_PENDING if ledger["customer"]["net"] > 0 else self.Status.CANCELLED
+        # 取消備註選填（使用者 2026-10-21 T-39），沒填時寫系統摘要。
+        from sales.services.audit_note import money, note_or_summary
+        reason = note_or_summary(reason, f"登記取消（已確認實收 {money(ledger['customer']['net'])}）", 250)
         self.ensure_transition(new_status)
         if self.allocated_vehicle_id:
             vehicle = VehicleInventory.objects.select_for_update().get(
@@ -4002,7 +4003,7 @@ class SalesOrder(TimeStampedModel):
             self.status = self.Status.CANCEL_REFUND_PENDING
             from sales.services.notifications import notify
             notify("cancellation_refund_pending", self, f"訂單 {self.number} 已登記取消，待退款結算",
-                   f"取消原因：{reason}。請確認已收款項並完成沒收／退款結算。",
+                   f"{reason}。請確認已收款項並完成沒收／退款結算。",
                    dedupe_suffix=str(int(self.cancellation_requested_at.timestamp())))
         else:
             self.status = self.Status.CANCELLED
@@ -4032,8 +4033,6 @@ class SalesOrder(TimeStampedModel):
         if self.status != self.Status.CANCEL_REFUND_PENDING:
             raise ValidationError("只有「取消待退款」的訂單可以撤銷取消。")
         reason = (reason or "").strip()
-        if not reason:
-            raise ValidationError("請填寫撤銷原因。")
         new_status = self.Status.ALLOCATION_PENDING
         self.ensure_transition(new_status)
         previous_reason = self.cancellation_reason
@@ -4048,7 +4047,8 @@ class SalesOrder(TimeStampedModel):
         ])
         OrderEvent.objects.create(
             order=self, event_type="cancellation_withdrawn", actor_name=actor_name,
-            description=f"撤銷取消（原取消原因：{previous_reason}）；撤銷原因：{reason}。原配車已釋回，需重新配車。",
+            description=(f"撤銷取消（原取消：{previous_reason}）" + (f"；備註：{reason}" if reason else "")
+                         + "。原配車已釋回，需重新配車。"),
         )
 
     def complete_refund(
@@ -4252,12 +4252,7 @@ class SalesOrder(TimeStampedModel):
         if self.color_id and self.vehicle_model_id:
             if self.color.vehicle_model_id != self.vehicle_model_id:
                 errors["color"] = "此車色不屬於選定車型。"
-        if (
-            self.pk
-            and self.actual_balance != self.calculated_balance
-            and not self.balance_adjustment_reason
-        ):
-            errors["balance_adjustment_reason"] = "修改系統試算尾款時必須填寫原因。"
+        # 不再要求填尾款調整原因（使用者 2026-10-21 T-39）；各流程算完尾款後由系統寫摘要。
         if errors:
             raise ValidationError(errors)
 

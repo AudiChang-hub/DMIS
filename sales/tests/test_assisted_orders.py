@@ -82,8 +82,8 @@ class CustomerGrantTests(TestCase):
             self.authorize(expected_revision=1, expected_identity_epoch=999)
         with self.assertRaises(PermissionDenied):
             self.authorize(actor=self.user, expected_revision=1)
-        with self.assertRaises(ValidationError):
-            self.authorize(expected_revision=1, reason=' ')
+        # 備註選填（2026-10-21 T-39）：留白也能儲存，系統寫前後設定。
+        self.assertTrue(self.authorize(expected_revision=1, reason=' ').reason.startswith("系統摘要："))
 
     def test_revoke_and_audit_failure_do_not_leave_access(self):
         with patch('sales.services.order_customer_access.OrderEvent.objects.create', side_effect=RuntimeError('audit failed')):

@@ -5,6 +5,7 @@ from django.template.loader import render_to_string
 from sales.access.services import policy_for
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm
 from sales.models import OrderOperationsProfile
+from sales.services.audit_note import discount_summary
 from sales.services.order_intake import can_edit_finance
 from sales.services.order_origin import current_order_origin
 from sales.services.payment_summary import payment_summary
@@ -99,7 +100,7 @@ def finance_context(request, order):
         'receipt_summary': summary,
         'manual_financial_fields': profile.manual_financial_fields or [],
         'is_electric': order.vehicle_model.energy_type != 'gas',
-        'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None, 'reason': order.discount_reason}),
+        'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None}),
         'discount_decision_form': DiscountDecisionForm(initial={'decision': 'approve'}),
     }
 
@@ -146,11 +147,12 @@ def apply_inline_discount(request, order, form):
         return save_error('折扣未儲存，請修正欄位。', forms=(form,))
     from sales.services.order_discount import approve_discount_now
     before = order.approved_discount_amount
-    approve_discount_now(order, amount=form.cleaned_data['amount'], reason=form.cleaned_data['reason'],
+    approve_discount_now(order, amount=form.cleaned_data['amount'], reason='',
                          actor_name=request.user.get_username(), note='金額收支頁直接核定')
     order.save()
     sync_order_operations(order.pk, update_receivables=True)
-    OrderChange.objects.create(order=order, actor_name=request.user.get_username(), reason=order.discount_reason,
+    OrderChange.objects.create(order=order, actor_name=request.user.get_username(),
+        reason=discount_summary(before, order.approved_discount_amount),
         changes={'approved_discount_amount': {'before': str(before), 'after': str(order.approved_discount_amount)}})
     OrderEvent.objects.create(order=order, actor_name=request.user.get_username(), event_type='discount_decided', description='在金額收支頁核定折扣，未變更分期撥款、成本與佣金。')
     return saved(request, order)

@@ -124,7 +124,7 @@
           <div class="receipt-expectation-row" data-payment-expectation>
             <strong>{{ payment.instance.item_name }}</strong>
             {% for field in payment %}
-              {% if field.name == 'expected_amount' or field.name == 'expected_amount_override_reason' %}
+              {% if field.name == 'expected_amount' %}
                 {% include "sales/_field.html" %}
               {% else %}{{ field.as_hidden }}{% endif %}
             {% endfor %}
@@ -140,7 +140,7 @@
   <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
   {% else %}
   <div class="finance-submit">
-    <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
+    {% if form.confirm_legacy_finance %}<div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>{% endif %}
     <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">儲存營運資料</button></div>
   </div>
   {% endif %}

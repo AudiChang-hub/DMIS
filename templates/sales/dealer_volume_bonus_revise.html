@@ -32,10 +32,10 @@
     <div class="inventory-list-summary"><strong>歷次調整</strong></div>
     <div class="inventory-table-wrap">
       <table class="inventory-table">
-        <thead><tr><th>時間</th><th>人員</th><th>金額</th><th>原因</th></tr></thead>
+        <thead><tr><th>時間</th><th>人員</th><th>金額</th><th>說明</th></tr></thead>
         <tbody>
           {% for adjustment in settlement.adjustments.all %}
-            <tr><td data-label="時間">{{ adjustment.created_at|date:'Y/m/d H:i' }}</td><td data-label="人員">{{ adjustment.adjusted_by }}</td><td data-label="金額">${{ adjustment.previous_amount|floatformat:0 }} → ${{ adjustment.revised_amount|floatformat:0 }}</td><td data-label="原因">{{ adjustment.reason }}</td></tr>
+            <tr><td data-label="時間">{{ adjustment.created_at|date:'Y/m/d H:i' }}</td><td data-label="人員">{{ adjustment.adjusted_by }}</td><td data-label="金額">${{ adjustment.previous_amount|floatformat:0 }} → ${{ adjustment.revised_amount|floatformat:0 }}</td><td data-label="說明">{{ adjustment.reason }}</td></tr>
           {% empty %}<tr><td colspan="4">尚無調整紀錄</td></tr>{% endfor %}
         </tbody>
       </table>

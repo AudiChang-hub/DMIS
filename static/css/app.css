@@ -1871,13 +1871,6 @@ input[type="file"].form-control { padding: var(--space-3); }
   border-radius: var(--radius-md);
 }
 .vehicle-price-guidance span { color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
-.vehicle-price-adjustment {
-  padding: var(--inset-pad);
-  background: var(--amber-soft);
-  border: 1px solid var(--amber-border);
-  border-radius: var(--radius-md);
-}
-.vehicle-price-adjustment .field { margin: 0; }
 /* 付款方式明細（2026-10-16）：逐筆新增，左側色條區分方式，合計即車價。 */
 .payment-splits { display: grid; gap: var(--space-3); }
 .payment-splits__head.field { display: grid; gap: 2px; margin: 0; }

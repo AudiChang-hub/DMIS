@@ -63,8 +63,9 @@
         <summary class="button ghost small">作廢…</summary>
         <form method="post" action="{% url 'transfer_signoff_void' signoff.pk %}" data-confirm="確定作廢這張調車簽收單？車輛會改回庫存。">
           {% csrf_token %}
-          <label for="void-reason">作廢原因</label>
-          <textarea class="form-control" id="void-reason" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：選錯車、車行取消調車"></textarea>
+          <label for="void-reason">備註（選填）</label>
+          <textarea class="form-control" id="void-reason" name="reason" rows="2" maxlength="300" aria-describedby="void-reason-help"></textarea>
+          <small class="muted" id="void-reason-help">可留白，系統會自動記下作廢的簽收單與操作人。</small>
           <button type="submit" class="button danger-outline small">作廢簽收單</button>
         </form>
       </details>

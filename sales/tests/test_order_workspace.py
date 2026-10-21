@@ -117,13 +117,13 @@ class OrderWorkspaceTests(TestCase):
     def test_subsidy_ajax_validation_preserves_data(self):
         data = {**form_data(SubsidyDataForm(instance=self.order)), '_order_revision': self.order.revision,
                 **formset_data(SubsidyItemFormSet(instance=self.order, prefix='subsidy_items'))}
-        # 變更說明自 1.62.2 起選填；用超過長度的說明觸發驗證錯誤，確認資料不被寫入。
-        data.update(change_reason='x' * 251, trade_in_plate='TEST123')
+        # 用超過長度的舊車車牌觸發驗證錯誤，確認其他欄位也不被寫入。
+        data.update(trade_in_plate='T' * 21, old_owner_name='不應寫入')
         response = self.post('subsidy_data_update', data)
         self.assertEqual(response.status_code, 400)
-        self.assertIn('change_reason', response.json()['errors'])
+        self.assertIn('trade_in_plate', response.json()['errors'])
         self.order.refresh_from_db()
-        self.assertNotEqual(self.order.trade_in_plate, 'TEST123')
+        self.assertNotEqual(self.order.old_owner_name, '不應寫入')
 
     def test_subsidy_ajax_save_and_stale_revision(self):
         data = {**form_data(SubsidyDataForm(instance=self.order)), '_order_revision': self.order.revision,

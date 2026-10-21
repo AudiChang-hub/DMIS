@@ -144,12 +144,10 @@ class SiteReviewTests(TestCase):
         line = SalesOrder.objects.get().accessories.get()
         self.assertEqual((line.amount, line.labor_fee, line.quantity), (1200,100,2))
 
-    def test_manual_accessory_requires_reason_and_preserves_entered_price(self):
+    def test_manual_accessory_price_needs_no_note_and_is_preserved(self):
         product = AccessoryProduct.objects.create(name="後架", sale_price=1200, labor_fee=100)
         data = {"accessory_product":product.pk,"quantity":1,"line_type":"purchase","amount":900,"labor_fee":50}
         form = AccessoryLineForm(data, allow_manual=True)
-        self.assertFalse(form.is_valid())
-        form = AccessoryLineForm({**data,"note":"活動優惠"}, allow_manual=True)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['amount'], 900)
 

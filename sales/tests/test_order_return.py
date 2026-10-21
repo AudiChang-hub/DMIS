@@ -118,8 +118,8 @@ class OrderReturnTests(ReturnFixtures, TestCase):
         order = self.delivered_order(self.vehicle())
         with self.assertRaises(PermissionDenied):
             self.do_return(order, user=self.staff)
-        with self.assertRaisesMessage(ValidationError, "請填寫退車原因"):
-            self.do_return(order, reason=" ")
+        with self.assertRaisesMessage(ValidationError, "備註最多"):
+            self.do_return(order, reason="x" * 501)
         with self.assertRaisesMessage(ValidationError, "訂單已被更新"):
             self.do_return(order, expected_updated_at="2000-01-01T00:00:00+00:00")
         with self.assertRaisesMessage(ValidationError, "末 4 碼"):
@@ -142,8 +142,6 @@ class OrderReturnTests(ReturnFixtures, TestCase):
         unconfirmed.delete()
         with self.assertRaisesMessage(ValidationError, "沒收金額須介於"):
             self.do_return(order, forfeited_amount=30001, forfeit_reason="x", method="cash")
-        with self.assertRaisesMessage(ValidationError, "沒收原因"):
-            self.do_return(order, forfeited_amount=1000, method="cash")
         with self.assertRaisesMessage(ValidationError, "退款方式"):
             self.do_return(order)
         SubsidyItem.objects.create(order=order, category=SubsidyItem.Category.LOCAL, item_name="汰舊", expected_amount=1000)
@@ -199,8 +197,6 @@ class OrderReturnTests(ReturnFixtures, TestCase):
         self.receipt(order, "20000")
         with self.assertRaisesMessage(ValidationError, "手填應退金額須為 1～85,000"):
             self.do_return(order, confirm_identifier="0042", manual_refund=85001, manual_refund_reason="x", method="cash")
-        with self.assertRaisesMessage(ValidationError, "手填原因"):
-            self.do_return(order, confirm_identifier="0042", manual_refund=60000, method="cash")
         with self.assertRaisesMessage(ValidationError, "不另計沒收"):
             self.do_return(order, confirm_identifier="0042", manual_refund=60000, manual_refund_reason="x",
                            forfeited_amount=1000, forfeit_reason="y", method="cash")
@@ -217,7 +213,7 @@ class OrderReturnTests(ReturnFixtures, TestCase):
         self.assertIn("手填應退 60,000", refund.adjustment_reason)
         change = OrderChange.objects.get(order=order)
         self.assertEqual(change.changes["應退金額（手填）"], {"before": "帳本計算 20,000", "after": "60,000；Excel 收款價扣折舊"})
-        self.assertIn("手填應退 60,000 元（帳本計算 20,000 元），原因：Excel 收款價扣折舊",
+        self.assertIn("手填應退 60,000 元（帳本計算 20,000 元），備註：Excel 收款價扣折舊",
                       OrderEvent.objects.get(order=order, event_type=EVENT_TYPE).description)
 
     def test_system_order_cannot_use_manual_refund(self):

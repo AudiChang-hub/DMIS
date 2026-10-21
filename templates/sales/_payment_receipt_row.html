@@ -13,8 +13,7 @@
     <div class="receipt-more-fields">
       {% if payment.instance.system_key or payment.instance.expected_amount %}
         {% include "sales/_field.html" with field=payment.expected_amount %}
-        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
-      {% else %}{{ payment.expected_amount.as_hidden }}{{ payment.expected_amount_override_reason.as_hidden }}{% endif %}
+      {% else %}{{ payment.expected_amount.as_hidden }}{% endif %}
       {% include "sales/_field.html" with field=payment.card_principal %}
       {% include "sales/_field.html" with field=payment.card_fee_charged %}
       {% include "sales/_field.html" with field=payment.bank_card_fee %}

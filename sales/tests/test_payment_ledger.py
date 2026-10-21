@@ -66,8 +66,9 @@ class PaymentLedgerTests(TestCase):
             reverse_payment(order_id=self.order.pk, payment_id=pending.pk, actor_name="測試", reason="未確認")
         with self.assertRaises(ValidationError):
             reverse_payment(order_id=self.order.pk, payment_id=reversal.pk, actor_name="測試", reason="沖銷列")
-        with self.assertRaisesMessage(ValidationError, "請填寫原因"):
-            reverse_payment(order_id=self.order.pk, payment_id=self.receipt(1000).pk, actor_name="測試", reason=" ")
+        # 備註選填（2026-10-21 T-39），留白時寫系統摘要。
+        blank = reverse_payment(order_id=self.order.pk, payment_id=self.receipt(1000).pk, actor_name="測試", reason=" ")
+        self.assertTrue(blank.adjustment_reason.startswith("系統摘要：沖銷"))
         self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="payment_reversed").exists())
 
     def test_adjustments_are_immutable_and_constrained(self):

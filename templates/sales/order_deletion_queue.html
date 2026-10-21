@@ -20,7 +20,7 @@
       <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
     </div>
     <figure class="deletion-review-card__reason">
-      <blockquote>{{ order.deletion_request_reason|default:"未填寫原因" }}</blockquote>
+      <blockquote>{{ order.deletion_request_reason|default:"未填備註" }}</blockquote>
       <figcaption><strong>{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by }}</strong> 申請<span aria-hidden="true">・</span><time datetime="{{ order.deletion_requested_at|date:'c' }}" title="{{ order.deletion_requested_at|date:'Y/m/d H:i' }}">{{ order.review_waited }}前</time></figcaption>
     </figure>
     <div class="deletion-review-card__side">

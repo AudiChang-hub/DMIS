@@ -346,7 +346,7 @@
       </div>
       {% else %}<p class="muted">主要欄位與這張訂單相同。</p>{% endif %}
       {% if batch.status == 'preview' and review.can_update %}
-      <label class="import-order-review-reason"><span>處理原因</span><textarea class="form-control" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：Excel 更正了車架號碼，是同一筆交易">{{ review.decision.reason|default:'' }}</textarea></label>
+      <label class="import-order-review-reason"><span>備註（選填）</span><textarea class="form-control" name="reason" rows="2" maxlength="300" placeholder="例如：Excel 更正了車架號碼，是同一筆交易">{{ review.decision.reason|default:'' }}</textarea></label>
       <div class="form-actions"><button class="button primary" type="submit" name="decision" value="update">用 Excel 更新這張訂單</button></div>
       {% endif %}
     </form>
@@ -354,7 +354,7 @@
     {% if batch.status == 'preview' %}
     <form method="post" action="{% url 'legacy_import_order_review' batch.pk review.row.pk %}" class="import-order-review-other">
       {% csrf_token %}
-      <label class="import-order-review-reason"><span>{% if review.kind == 'changed' %}不更新的原因{% else %}其他處理方式的原因{% endif %}</span><textarea class="form-control" name="reason" rows="2" minlength="2" maxlength="300" placeholder="{% if review.kind == 'changed' %}例如：系統資料較新，不用 Excel 覆蓋{% else %}例如：同一人買了兩台車，是不同交易{% endif %}"></textarea></label>
+      <label class="import-order-review-reason"><span>備註（選填）</span><textarea class="form-control" name="reason" rows="2" maxlength="300" placeholder="{% if review.kind == 'changed' %}例如：系統資料較新，不用 Excel 覆蓋{% else %}例如：同一人買了兩台車，是不同交易{% endif %}"></textarea></label>
       <div class="form-actions">
         {% if review.decision %}<button class="button ghost" type="submit" name="decision" value="clear">取消決定</button>{% endif %}
         {% if review.kind == 'changed' %}<button class="button secondary" type="submit" name="decision" value="keep">維持略過、不更新</button>

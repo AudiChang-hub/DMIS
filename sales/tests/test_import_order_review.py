@@ -65,8 +65,6 @@ class ImportOrderReviewTests(TestCase):
         states = {field["key"]: field["state"] for field in item["orders"][0]["fields"]}
         self.assertEqual(states["identifier_raw"], "update")
 
-        with self.assertRaises(ValueError):
-            review.decide(row, decision="update", order_id=order.pk, fields=["identifier_raw"], reason="", actor_name="admin")
         review.decide(row, decision="update", order_id=order.pk, fields=["identifier_raw"],
                       reason="Excel 更正車架號碼", actor_name="admin")
         row.refresh_from_db()

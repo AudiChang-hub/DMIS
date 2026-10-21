@@ -58,6 +58,8 @@
 .commission-attribution__status[data-state="error"] { color: var(--red); }
 .commission-attribution__fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--stack-gap-sm); }
 .commission-attribution__fields .field { min-width: 0; }
+/* 歸屬只剩車行一欄（2026-10-21 T-39 拿掉調整原因），占滿整列，車行名稱不被截斷。 */
+.commission-attribution__fields--single { grid-template-columns: 1fr; }
 .commission-attribution__hint { color: var(--muted); font-size: var(--text-sm); line-height: 1.7; }
 .commission-attribution__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 .commission-attribution__actions [hidden] { display: none; }

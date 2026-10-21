@@ -18,6 +18,7 @@ from sales.models import (
     VehicleBrand,
     VehicleModel,
 )
+from sales.services.audit_note import money, note_or_summary
 
 
 def cooperation_scope_for_vehicle_model(vehicle_model):
@@ -364,7 +365,8 @@ def create_volume_bonus_settlement(rule, actor_name, actual_amount=None, reason=
         bonus_per_vehicle=preview["bonus_per_vehicle"],
         expected_amount=expected,
         actual_amount=actual,
-        adjustment_reason=reason,
+        adjustment_reason=(note_or_summary(reason, f"實際 {money(actual)}（系統計算 {money(expected)}）")
+                           if actual != expected else (reason or "").strip()),
         settled_by=actor_name,
     )
     DealerVolumeBonusAllocation.objects.bulk_create(
@@ -391,13 +393,12 @@ def revise_volume_bonus_settlement(settlement, actor_name, actual_amount, reason
         .get(pk=settlement.pk)
     )
     revised = Decimal(actual_amount)
-    reason = (reason or "").strip()
     if revised == settlement.actual_amount:
         raise ValueError("實際金額沒有變更。")
-    if not reason:
-        raise ValueError("調整已結算金額時必須填寫原因。")
 
     previous = settlement.actual_amount
+    # 不再要求填調整原因（使用者 2026-10-21 T-39），沒填時寫系統摘要。
+    reason = note_or_summary(reason, f"台數獎金 {money(previous)} → {money(revised)}")
     allocations = list(settlement.allocations.select_related("order"))
     if not allocations:
         raise ValueError("此結算已無有效訂單，不可調整金額；原紀錄仍保留供稽核。")

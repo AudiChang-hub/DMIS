@@ -67,10 +67,10 @@
       <legend>客戶款項</legend>
       {% if form.manual_refund %}
       <div class="return-manual">
-        <p class="muted">Excel 匯入的單帳上常沒有付款紀錄：依帳本計算時留空；要退客戶款項時手填應退金額（最多 ${{ manual_cap|number_with_commas }}），系統會寫一筆負向退款紀錄並記下手填原因。</p>
+        <p class="muted">Excel 匯入的單帳上常沒有付款紀錄：依帳本計算時留空；要退客戶款項時手填應退金額（最多 ${{ manual_cap|number_with_commas }}），系統會寫一筆負向退款紀錄，並記下手填金額與帳本計算值。</p>
         <div class="return-grid">
           {% include "sales/_field.html" with field=form.manual_refund %}
-          {% include "sales/_field.html" with field=form.manual_refund_reason required_label="手填時必填" %}
+          {% include "sales/_field.html" with field=form.manual_refund_reason %}
         </div>
       </div>
       {% endif %}

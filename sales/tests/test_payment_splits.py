@@ -59,9 +59,9 @@ class PaymentSplitTests(TestCase):
         self.assertEqual(order.payment_type, "card")
         self.assertEqual(order.payment_method_labels, "刷卡")
 
-    def test_changed_total_still_requires_adjustment_reason(self):
-        errors = self.errors(payment_splits=splits(("cash", 50000), ("card", 20000)))
-        self.assertIn("vehicle_price_adjustment_reason", errors)
+    def test_changed_total_needs_no_adjustment_reason(self):
+        order = self.create(payment_splits=splits(("cash", 50000), ("card", 20000)))
+        self.assertEqual((order.vehicle_price, order.vehicle_price_adjustment_reason), (70000, ""))
 
     def test_multiple_rows_need_amounts_and_known_methods(self):
         self.assertIn("payment_splits", self.errors(payment_splits=splits(("cash", 1000), ("card", None))))

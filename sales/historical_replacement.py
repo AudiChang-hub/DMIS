@@ -9,6 +9,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from sales.models import LegacyImportRow, SalesOrder
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
 from sales.services.historical_replacement import (
     preview_token, replacement_preview, replace_historical_buyer, require_admin,
 )
@@ -31,7 +32,11 @@ class HistoricalReplacementForm(forms.Form):
     refund_on = forms.DateField(label="實際退款日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     refund_method = forms.ChoiceField(label="退款方式", required=False, choices=[("", "請選擇")] + list(SalesOrder.PaymentMethod.choices))
     refund_reference = forms.CharField(label="退款憑據／查核依據", max_length=250, required=False)
-    reason = forms.CharField(label="退訂原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
+
+    def clean_reason(self):
+        return note_or_summary(self.cleaned_data.get("reason"), "歷史退訂換買家", 250)
 
     def __init__(self, *args, preview, **kwargs):
         super().__init__(*args, **kwargs)

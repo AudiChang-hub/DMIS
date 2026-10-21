@@ -31,8 +31,8 @@
               <summary class="button ghost small">刪除…</summary>
               <form method="post" action="{% url 'draft_cleanup_delete' draft.pk %}" data-confirm="確定永久刪除這份草稿與暫存證件照片？此動作無法復原。">
                 {% csrf_token %}
-                <label for="reason-{{ draft.pk }}">刪除原因</label>
-                <textarea class="form-control" id="reason-{{ draft.pk }}" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：建立人已離職、測試資料"></textarea>
+                <label for="reason-{{ draft.pk }}">備註（選填）</label>
+                <textarea class="form-control" id="reason-{{ draft.pk }}" name="reason" rows="2" maxlength="300" placeholder="例如：建立人已離職、測試資料"></textarea>
                 <label class="checkbox-label"><input type="checkbox" name="confirmed" value="1" required><span>我確認要永久刪除這份草稿</span></label>
                 <button type="submit" class="button danger-outline small">永久刪除</button>
               </form>

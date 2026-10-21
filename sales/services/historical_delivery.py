@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.models import OrderChange, OrderEvent, SalesOrder
+from sales.services.audit_note import with_note
 
 EVENT_COMPLETED = "historical_delivery_completed"
 EVENT_REOPENED = "historical_delivery_reopened"
@@ -42,8 +43,6 @@ def complete_imported_order(order_id, *, plate, delivered_on, actor, reason, eve
         raise ValueError("請填寫車牌號碼。")
     if not delivered_on:
         raise ValueError("請選擇交車日期。")
-    if len(reason) < 2:
-        raise ValueError("請填寫原因。")
     before = {
         "狀態": order.get_status_display(), "最終車牌號碼": order.final_plate_number,
         "實際領牌日期": str(order.registration_date or ""), "交車時間": "",
@@ -63,9 +62,9 @@ def complete_imported_order(order_id, *, plate, delivered_on, actor, reason, eve
         "實際領牌日期": str(order.registration_date or ""), "交車時間": f"{delivered_on:%Y/%m/%d}",
     }
     changes = {label: {"before": before[label], "after": after[label]} for label in before if before[label] != after[label]}
-    OrderChange.objects.create(order=order, reason=f"歷史匯入單補登車牌並完成交車；{reason}", changes=changes, actor_name=actor)
+    OrderChange.objects.create(order=order, reason=with_note("歷史匯入單補登車牌並完成交車", reason), changes=changes, actor_name=actor)
     OrderEvent.objects.create(order=order, event_type=event_type, actor_name=actor,
-                              description=f"補登車牌 {plate}，{delivered_on:%Y/%m/%d} 完成交車（歷史匯入單，無配車）；{reason}")
+                              description=with_note(f"補登車牌 {plate}，{delivered_on:%Y/%m/%d} 完成交車（歷史匯入單，無配車）", reason))
     from sales.services.order_search import rebuild_order_search_index
     rebuild_order_search_index(order.pk)
     return order
@@ -90,7 +89,7 @@ def reopen_imported_order(order_id, *, actor, reason):
     order.refresh_from_db()
     changes = {label: {"before": value, "after": ""} for label, value in before.items()}
     changes["狀態"]["after"] = order.get_status_display()
-    OrderChange.objects.create(order=order, reason=f"歷史匯入單沒有車牌，改回待交車；{reason}", changes=changes, actor_name=actor)
+    OrderChange.objects.create(order=order, reason=with_note("歷史匯入單沒有車牌，改回待交車", reason), changes=changes, actor_name=actor)
     OrderEvent.objects.create(order=order, event_type=EVENT_REOPENED, actor_name=actor,
-                              description=f"沒有車牌，改回待交車（預計領牌日期與收支保留）；{reason}")
+                              description=with_note("沒有車牌，改回待交車（預計領牌日期與收支保留）", reason))
     return order

@@ -117,7 +117,6 @@ def apply_order_price_snapshot(order, *, force=False):
             ),
             "recommended_price_label": recommended_price_label,
             "entered_vehicle_price": str(order.vehicle_price or 0),
-            "adjustment_reason": order.vehicle_price_adjustment_reason,
         }
         order.price_snapshot_locked_at = timezone.now()
     if order.pk:

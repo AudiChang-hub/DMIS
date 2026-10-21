@@ -5,12 +5,13 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.models import DealerVolumeBonusSettlement, OrderChange, OrderEvent, SalesOrder, SalesSource
+from .audit_note import note_or_summary
 from .dealer_commission import matching_bonus_rules
 
 
 @transaction.atomic
 def change_order_commission_recipient(
-    *, order_id, recipient_id, reason, expected_revision, actor_name, editing_session,
+    *, order_id, recipient_id, expected_revision, actor_name, editing_session, reason="",
     presence_timeout=timedelta(seconds=90),
 ):
     """已交付也能調整歸屬；不可重存整單或重算任何歷史金額。"""
@@ -40,9 +41,6 @@ def change_order_commission_recipient(
     if (order.editing_session and order.editing_session != editing_session
             and order.editing_at and order.editing_at >= now - presence_timeout):
         raise ValidationError("此訂單目前有其他人正在編輯，請稍後再調整歸屬。")
-    reason = (reason or "").strip()
-    if not reason or len(reason) > 500:
-        raise ValidationError("請填寫調整原因，最多 500 字。")
 
     # 選回原車行即恢復預設；既有停用歸屬允許不變，不接受新指定。
     recipient = None
@@ -71,11 +69,11 @@ def change_order_commission_recipient(
         commission_recipient_id=normalized_id, revision=order.revision + 1, updated_at=now,
     )
     OrderChange.objects.create(
-        order=order, reason=reason, actor_name=actor_name,
+        order=order, reason=note_or_summary(reason, f"台數與傭金歸屬 {before} → {after}"), actor_name=actor_name,
         changes={"台數與傭金歸屬車行": {"before": before, "after": after}},
     )
     OrderEvent.objects.create(
         order=order, event_type="commission_attribution_updated", actor_name=actor_name,
-        description=f"調整台數與傭金歸屬：{before} → {after}；原因：{reason}",
+        description=f"調整台數與傭金歸屬：{before} → {after}",
     )
     return True

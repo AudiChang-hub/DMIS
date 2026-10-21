@@ -16,6 +16,8 @@ from datetime import date
 from django.db import transaction
 from django.utils import timezone
 
+from sales.services.audit_note import with_note
+
 from sales.models import (
     LegacyImportBatch,
     LegacyImportCorrection,
@@ -314,9 +316,7 @@ def decide(row, *, decision, order_id=None, fields=(), reason="", actor_name="")
 
     if row.batch.status != LegacyImportBatch.Status.PREVIEW:
         raise ValueError("只有待確認批次可以處理比對結果。")
-    reason = _text(reason)
-    if decision != "clear" and len(reason) < 2:
-        raise ValueError("請填寫處理原因。")
+    reason = _text(reason)  # 備註選填（使用者 2026-10-21 T-39）
     index = ImportedOrders()
     result = classify(row, index, completed_sales_keys())
     current = dict(row.mapped_data or {})
@@ -407,11 +407,11 @@ def commit_update(row, actor_name):
     for target in touched.values():
         target.save()
     reason = review.get("reason", "")
-    OrderChange.objects.create(order=order, reason=f"Excel 匯入更新（{row.sheet_name}第 {row.source_row} 列）；{reason}",
+    OrderChange.objects.create(order=order, reason=with_note(f"Excel 匯入更新（{row.sheet_name}第 {row.source_row} 列）", reason),
                                changes=changes, actor_name=actor_name)
     OrderEvent.objects.create(
         order=order, event_type=EVENT, actor_name=actor_name,
-        description=f"來源列 {row.pk}（Excel 第 {row.source_row} 列）更新：" + "、".join(changes) + f"。其他欄位未變更；{reason}",
+        description=f"來源列 {row.pk}（Excel 第 {row.source_row} 列）更新：" + "、".join(changes) + with_note("。其他欄位未變更", reason),
     )
     from sales.services.order_search import rebuild_order_search_index
     rebuild_order_search_index(order.pk)

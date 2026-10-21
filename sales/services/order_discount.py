@@ -17,7 +17,7 @@ DISCOUNT_FIELDS = (
 INTAKE_DECISION_NOTE = "下單時填寫"
 TOTAL_FIELDS = {
     "vehicle_model", "payment_type", "vehicle_price", "plate_insurance_fee", "installment_opening_fee",
-    "intake_discount_mode", "intake_discount_amount", "intake_discount_rate", "intake_discount_reason",
+    "intake_discount_mode", "intake_discount_amount", "intake_discount_rate",
 }
 
 
@@ -146,8 +146,7 @@ def apply_intake_discount(order, form, actor_name):
     message = discount_error(amount, total)
     if message:
         return message
-    approve_discount_now(order, amount=amount, reason=data["intake_discount_reason"], actor_name=actor_name,
-                         note=INTAKE_DECISION_NOTE)
+    approve_discount_now(order, amount=amount, reason="", actor_name=actor_name, note=INTAKE_DECISION_NOTE)
     return ""
 
 

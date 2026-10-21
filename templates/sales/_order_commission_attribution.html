@@ -36,9 +36,8 @@
       <form method="post" action="{% url 'order_commission_attribution_update' order.pk %}#commission-attribution" data-commission-attribution-form>
         {% csrf_token %}{{ commission_form.order_revision }}
         {% if commission_form.errors %}<div class="note-box warning" role="alert"><strong>尚未儲存，請確認下列提示。</strong>{{ commission_form.non_field_errors }}{{ commission_form.order_revision.errors }}<a href="{% url 'order_detail' order.pk %}#commission-attribution">重新載入最新資料</a></div>{% endif %}
-        <div class="commission-attribution__fields">
+        <div class="commission-attribution__fields commission-attribution__fields--single">
           {% include "sales/_field.html" with field=commission_form.commission_recipient %}
-          {% include "sales/_field.html" with field=commission_form.reason %}
         </div>
         <p class="commission-attribution__hint">{% if order.source_type == 'store' %}原來源保留本店，指定後列入該車行的台數與獎金試算，不新增基礎傭金。選「不指定車行」可取消。{% else %}只調整這一台的台數與傭金歸屬，不變更原車行、交付紀錄或原金額。選回「原銷售車行」即可取消指定。{% endif %}</p>
         <div class="commission-attribution__actions">

@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.access.services import AccessPolicy, is_root
+from sales.services.audit_note import note_or_summary, optional_note, with_note
 from sales.services.inventory_history import status_change
 from sales.models import (OrderEvent, SalesOrder, DealerVolumeBonusAllocation,
     DealerVolumeBonusSettlement, DealerVolumeBonusRule, DealerVolumeBonusAdjustment,
@@ -100,12 +101,11 @@ def review_deletion(*, user, order_id, action, reason, expected_updated_at):
         raise ValidationError("訂單已被處理，請重新整理。") from exc
     if expected_updated_at != order.updated_at.isoformat():
         raise ValidationError("訂單已更新，請重新載入後確認。")
-    reason = (reason or "").strip()
+    # 備註選填（使用者 2026-10-21 T-39）。
+    reason = optional_note(reason, 500)
     if action == "request":
         if order.deletion_requested_at:
             raise ValidationError("此訂單已在刪除確認中，請勿重複申請。")
-        if not reason or len(reason) > 500:
-            raise ValidationError("請說明刪除原因，最多 500 字。")
         if permanent_deletion_blockers(order):
             raise ValidationError(permanent_deletion_blockers(order))
         changes = dict(deletion_requested_at=timezone.now(), deletion_requested_by=user,
@@ -118,15 +118,14 @@ def review_deletion(*, user, order_id, action, reason, expected_updated_at):
             raise PermissionDenied("只有原申請人可以取消刪除申請。")
         if action == "reject" and not is_root(user):
             raise PermissionDenied("只有 admin 可以駁回刪除申請。")
-        if action == "reject" and (not reason or len(reason) > 500):
-            raise ValidationError("請填寫駁回原因，最多 500 字。")
         changes = dict(deletion_requested_at=None, deletion_requested_by=None, deletion_request_reason="")
         label = "取消刪除申請" if action == "cancel" else "admin 駁回刪除申請"
         reason = reason or order.deletion_request_reason
     else:
         raise ValidationError("未知的審核操作。")
     SalesOrder.objects.filter(pk=order.pk).update(**changes, updated_at=timezone.now(), revision=order.revision + 1)
-    OrderEvent.objects.create(order=order, actor_name=user.get_username(), event_type=f"deletion_{action}", description=f"{label}：{reason}")
+    OrderEvent.objects.create(order=order, actor_name=user.get_username(), event_type=f"deletion_{action}",
+                              description=with_note(label, reason, "："))
     return order
 
 
@@ -216,9 +215,8 @@ def change_deletion(*, user, order_id, restore, reason, expected_updated_at, edi
         raise ValidationError("此訂單已被刪除或還原，請重新整理，不需重複操作。")
     if expected_updated_at != order.updated_at.isoformat():
         raise ValidationError("訂單已被更新，請重新載入並確認最新內容。")
-    reason = (reason or "").strip()
-    if not reason or len(reason) > 500:
-        raise ValidationError("請填寫原因，最多 500 字。")
+    reason = note_or_summary(optional_note(reason, 500),
+                             f"{'還原' if restore else '刪除'}訂單 {order.number}（{order.get_status_display()}）")
     now = timezone.now()
     if order.editing_session and order.editing_session != editing_session and order.editing_at and order.editing_at >= now - timedelta(seconds=90):
         raise ValidationError("目前有其他人正在編輯此訂單，請稍後再操作。")

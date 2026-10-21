@@ -78,6 +78,7 @@ from .services.registration_fee import (
     registration_period_for,
 )
 from .services.installment_plan import resolve_installment_plan_option
+from .services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
 from .services.price_version import (
     recommended_price_from_snapshot,
     recommended_vehicle_price,
@@ -205,10 +206,6 @@ class OrderCommissionAttributionForm(forms.Form):
             "data-searchable-include-empty": "1",
         }),
     )
-    reason = forms.CharField(
-        label="調整原因", max_length=500,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
-    )
     order_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
 
     def __init__(self, *args, order, **kwargs):
@@ -296,7 +293,6 @@ class SalesOrderForm(forms.ModelForm):
             "payment_type",
             "payment_splits",
             "vehicle_price",
-            "vehicle_price_adjustment_reason",
             "plate_insurance_fee",
             "installment_opening_fee",
             "deposit_amount",
@@ -324,13 +320,6 @@ class SalesOrderForm(forms.ModelForm):
             "registration_date": DateInput(),
             "owner_address": forms.Textarea(attrs={"rows": 2}),
             "note": forms.Textarea(attrs={"rows": 3}),
-            "vehicle_price_adjustment_reason": forms.Textarea(
-                attrs={
-                    "rows": 2,
-                    "placeholder": "例如：客戶議價、跨月補差額或特殊活動價",
-                }
-            ),
-            "balance_adjustment_reason": forms.Textarea(attrs={"rows": 2}),
             "watched_numbers": forms.Textarea(
                 attrs={
                     "rows": 3,
@@ -352,8 +341,6 @@ class SalesOrderForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.initial.setdefault("old_owner_same_as_owner", False)
-        self._initial_vehicle_price = self.instance.vehicle_price
-        self._initial_payment_type = self.instance.payment_type
         self._initial_vehicle_model_id = self.instance.vehicle_model_id
         if not self.is_bound:
             blank_numeric_fields = (
@@ -485,7 +472,6 @@ class SalesOrderForm(forms.ModelForm):
             [{"value": value, "label": label} for value, label in SalesOrder.PaymentSplitMethod.choices],
             ensure_ascii=False,
         )
-        self.fields["vehicle_price_adjustment_reason"].required = False
         for field_name in (
             "installment_company",
             "installment_periods",
@@ -710,10 +696,8 @@ class SalesOrderForm(forms.ModelForm):
         submitted_price = data.get("vehicle_price")
         if is_platform:
             submitted_price = recommended_price = Decimal("0")
-            for field_name, value in (("vehicle_price", Decimal("0")), ("vehicle_price_adjustment_reason", "")):
-                data[field_name] = value
-                self.cleaned_data[field_name] = value
-                self.errors.pop(field_name, None)
+            data["vehicle_price"] = self.cleaned_data["vehicle_price"] = Decimal("0")
+            self.errors.pop("vehicle_price", None)
         if submitted_price is None:
             if recommended_price is not None:
                 submitted_price = recommended_price
@@ -734,23 +718,7 @@ class SalesOrderForm(forms.ModelForm):
                     f"沒有調價權限：各筆付款金額加總須等於車價 ${int(final_price):,}。",
                 )
         data["payment_splits"] = self.cleaned_data["payment_splits"] = payment_splits
-        price_context_changed = (
-            not self.instance.pk
-            or submitted_price != self._initial_vehicle_price
-            or data.get("payment_type") != self._initial_payment_type
-            or (model.pk if model else None) != self._initial_vehicle_model_id
-        )
-        if (
-            recommended_price is not None
-            and submitted_price is not None
-            and submitted_price != recommended_price
-            and price_context_changed
-            and not (data.get("vehicle_price_adjustment_reason") or "").strip()
-        ):
-            self.add_error(
-                "vehicle_price_adjustment_reason",
-                "成交車價與系統售價版本不同，請填寫調整原因。",
-            )
+        # 成交車價與系統建議不同時不再要求填原因（使用者 2026-10-21 T-39），前後值由異動紀錄保留。
 
         registration_date = data.get("registration_date")
         insurance_period = (
@@ -1612,23 +1580,15 @@ DealerVolumeBonusTierFormSet = inlineformset_factory(
 class DealerVolumeBonusSettlementForm(forms.ModelForm):
     class Meta:
         model = DealerVolumeBonusSettlement
-        fields = ["actual_amount", "adjustment_reason"]
+        fields = ["actual_amount"]
         labels = {"actual_amount": "實際台數獎金（不含原傭金）"}
-        widgets = {
-            "actual_amount": forms.NumberInput(attrs={"class": "form-control"}),
-            "adjustment_reason": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
-        }
+        widgets = {"actual_amount": forms.NumberInput(attrs={"class": "form-control"})}
 
 
 class DealerVolumeBonusAdjustmentForm(forms.Form):
     actual_amount = forms.DecimalField(
         label="修正後台數獎金", max_digits=12, decimal_places=0, min_value=0,
         widget=forms.NumberInput(attrs={"class": "form-control"}),
-    )
-    reason = forms.CharField(
-        label="調整原因",
-        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
-        help_text="必填；此內容會永久保留在調整歷程。",
     )
 
 
@@ -1744,9 +1704,9 @@ class LegacyImportRowCorrectionForm(forms.Form):
         widget=forms.RadioSelect,
     )
     reason = forms.CharField(
-        label="修正／排除原因",
+        label=NOTE_LABEL, required=False,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "例如：Excel 重複列，保留較完整的一筆"}),
-        help_text="此內容會連同處理人員與時間保留在稽核紀錄。",
+        help_text="可留白，系統會記下處理方式、處理人員與時間。",
     )
 
     def __init__(self, *args, row: LegacyImportRow, **kwargs):
@@ -1835,6 +1795,8 @@ class LegacyImportRowCorrectionForm(forms.Form):
                     validate_email(owner_email)
                 except ValidationError:
                     self.add_error("owner_email", "請輸入有效的 Email，或將錯放的電話／地址清空。")
+        action = dict(self.DECISION_CHOICES).get(cleaned.get("decision"), "人工處理")
+        cleaned["reason"] = note_or_summary(cleaned.get("reason"), f"{action}（{self.row.sheet_name}第 {self.row.source_row} 列）")
         return cleaned
 
     def cleaned_mapping(self):
@@ -1849,14 +1811,6 @@ class OrderEditForm(SalesOrderForm):
         label="我確認這是完成後修正，交付狀態不變；金額調整後會核對應收差額。",
         required=False,
     )
-    change_reason = forms.CharField(
-        label="變更說明（選填）",
-        required=False,
-        widget=forms.Textarea(
-            attrs={"rows": 2, "placeholder": "請說明本次修改原因"}
-        ),
-    )
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["trade_in_intent"].required = False
@@ -1875,12 +1829,6 @@ class OrderEditForm(SalesOrderForm):
     def clean(self):
         data = super().clean()
         data["trade_in_intent"] = (data.get("trade_in_intent") or "unknown") if "trade_in_intent" in self.data else self.instance.trade_in_intent
-        if (
-            self.instance.actual_balance != self.instance.calculated_balance
-            and not self.instance.balance_adjustment_reason
-            and data.get("change_reason")
-        ):
-            self.instance.balance_adjustment_reason = data.get("change_reason") or "未填寫說明"
         if self.instance.allocated_vehicle_id:
             if (
                 data.get("vehicle_model")
@@ -2008,9 +1956,6 @@ class AccessoryLineForm(forms.ModelForm):
                     data[key] = getattr(self.instance, key) if self.instance.pk and product.pk == self.original_accessory_product_id else default
                 if data[key] < 0:
                     self.add_error(key, "金額不可小於零。")
-            baseline = {key: getattr(self.instance, key) for key in defaults} if self.instance.pk and product.pk == self.original_accessory_product_id else defaults
-            if any(data.get(key) != default for key, default in baseline.items()) and not data.get("note", "").strip():
-                self.add_error("note", "配件售價或工資與預設不同，請在備註說明調整原因。")
             self.instance.name = product.name
         elif not self.instance.pk or product.pk != self.original_accessory_product_id or data.get("line_type") != self.instance.line_type:
             data["amount"] = product.sale_price
@@ -2075,13 +2020,6 @@ OtherFeeFormSet = inlineformset_factory(
 
 
 class VehicleInventoryForm(forms.ModelForm):
-    change_reason = forms.CharField(
-        label="異動原因（選填）",
-        required=False,
-        widget=forms.Textarea(
-            attrs={"rows": 2, "placeholder": "例如：調度至倉庫、車況複檢、資料更正"}
-        ),
-    )
     CORE_FIELDS = (
         "vehicle_model",
         "color",
@@ -2149,8 +2087,6 @@ class VehicleInventoryForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.instance.pk:
-            self.fields.pop("change_reason", None)
         # 舊頁面或未送出來源時沿用目前值（新增時為公司進車）。
         self.fields["acquisition_type"].required = False
         core_fields_locked = bool(
@@ -3026,8 +2962,9 @@ class OrderOperationsForm(forms.ModelForm):
         help_text="留空表示保留目前密碼。",
     )
     change_reason = forms.CharField(
-        label="本次更新說明（選填）",
+        label=NOTE_LABEL,
         required=False,
+        help_text=NOTE_HELP,
         widget=forms.Textarea(attrs={"rows": 2}),
     )
 
@@ -3180,8 +3117,6 @@ class OrderOperationsForm(forms.ModelForm):
                 cleaned[name] = Decimal("0")
         if cleaned.get("financial_revision") != self.initial.get("financial_revision"):
             raise forms.ValidationError("營運或收款資料已更新，請重新載入頁面再修改，避免覆蓋他人的金額。")
-        if cleaned.get("confirm_legacy_finance") and not cleaned.get("change_reason", "").strip():
-            self.add_error("change_reason", "人工確認歷史收支時，請填寫核對依據或修正說明。")
         return cleaned
 
 
@@ -3249,7 +3184,6 @@ class PaymentRecordForm(forms.ModelForm):
             "item_name",
             "receipt_kind",
             "expected_amount",
-            "expected_amount_override_reason",
             "received_amount",
             "card_principal",
             "card_fee_charged",
@@ -3320,10 +3254,8 @@ class PaymentRecordForm(forms.ModelForm):
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         if any(card_values) and cleaned.get("payment_method") != "刷卡":
             self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
-        if self.instance.pk and cleaned.get("expected_amount") != self.original_expected_amount and not (cleaned.get("expected_amount_override_reason") or "").strip():
-            self.add_error("expected_amount_override_reason", "調整應收時請填寫原因。")
         if self.instance.system_key and cleaned.get("DELETE"):
-            self.add_error(None, "系統收款項目不可刪除；請調整金額並說明原因。")
+            self.add_error(None, "系統收款項目不可刪除；請改為調整金額。")
         if self.instance.pk and self.instance.confirmed and cleaned.get("DELETE"):
             self.add_error(None, "已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
         if self.read_only and self.has_changed():
@@ -3531,7 +3463,6 @@ class ReconciliationRecordForm(forms.ModelForm):
         model = PaymentRecord
         fields = [
             "expected_amount",
-            "expected_amount_override_reason",
             "received_amount",
             "received_on",
             "note",
@@ -3549,10 +3480,6 @@ class ReconciliationRecordForm(forms.ModelForm):
         self.fields["expected_amount"].required = False
         self.fields["expected_amount"].widget.attrs.update(
             {"min": "0", "step": "1", "inputmode": "numeric"}
-        )
-        self.fields["expected_amount_override_reason"].required = False
-        self.fields["expected_amount_override_reason"].widget.attrs.update(
-            {"placeholder": "例如：本案特殊撥款、公司通知調整"}
         )
         self.was_confirmed = bool(self.instance.pk and self.instance.confirmed)
         lock_confirmed_payment_fields(self, read_only=self.instance.is_adjustment)
@@ -3572,15 +3499,6 @@ class ReconciliationRecordForm(forms.ModelForm):
         if expected is None:
             expected = self.original_expected_amount
             cleaned["expected_amount"] = expected
-        reason = (cleaned.get("expected_amount_override_reason") or "").strip()
-        expected_changed = (
-            expected is not None and expected != self.original_expected_amount
-        )
-        if (expected_changed or self.instance.expected_amount_overridden) and not reason:
-            self.add_error(
-                "expected_amount_override_reason",
-                "人工調整預計金額時，請填寫原因。",
-            )
         return cleaned
 
     def save(self, commit=True):
@@ -3896,7 +3814,7 @@ class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super().clean()
         if any(form.instance.system_key and form.cleaned_data.get("DELETE") for form in self.forms):
-            raise forms.ValidationError("系統收款項目不可刪除；請調整金額並說明原因。")
+            raise forms.ValidationError("系統收款項目不可刪除；請改為調整金額。")
         # 標記刪除的列不跑單列驗證，須在此攔下已入帳收款。
         if any(form.instance.pk and form.instance.confirmed and self._should_delete_form(form) for form in self.forms):
             raise forms.ValidationError("已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
@@ -4146,10 +4064,6 @@ class AllocationForm(forms.Form):
     vehicle = AllocationVehicleChoiceField(
         label="實體車輛", queryset=VehicleInventory.objects.none()
     )
-    skip_reason = forms.CharField(
-        label="未依順序配車原因", max_length=250, required=False,
-        help_text="本單不是排在最前面，或未選同級中最早出廠的車輛時必填；仍有優先配車車輛卻選其他車時建議填寫。",
-    )
     CHECK_QUEUE = True
     PRESELECT = True
 
@@ -4184,7 +4098,6 @@ class AllocationForm(forms.Form):
         self.priority_cutoff = allocation_priority_cutoff()
         self.priority_age_months = allocation_priority_age_months()
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
-        self.fields["skip_reason"].widget.attrs["class"] = "form-control"
         queue = allocation_queue(order) if self.CHECK_QUEUE else []
         self.queue_size = len(queue)
         self.queue_position = queue.index(order.pk) + 1 if order.pk in queue else None
@@ -4214,31 +4127,22 @@ class AllocationForm(forms.Form):
             priority_first = candidates.filter(effective_allocation_priority=True).first()
             if priority_first:
                 advisories.append(f"尚有優先配車車輛 {priority_first.identifier}")
+        # 未依順序配車不再要求填原因（使用者 2026-10-21 T-39），系統偵測到的情形照舊記入配車事件。
         cleaned["skip_notes"] = reasons + advisories
-        if reasons and not (cleaned.get("skip_reason") or "").strip() and "reason" not in self.fields:
-            self.add_error("skip_reason", "；".join(reasons) + "，請填寫未依順序配車的原因。")
         return cleaned
 
 
 class ReallocationForm(AllocationForm):
-    # 改配已有原因欄位，不另要求排隊說明；改配是刻意換車，不預選。
+    # 改配是刻意換車：不檢查排隊、不預選；備註選填（使用者 2026-10-21 T-39）。
     CHECK_QUEUE = False
     PRESELECT = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields.pop("skip_reason")
-
     reason = forms.CharField(
-        label="改配原因",
+        label=NOTE_LABEL,
         max_length=250,
-        widget=forms.Textarea(
-            attrs={
-                "rows": 2,
-                "class": "form-control",
-                "placeholder": "例如：原車車況異常，改配其他車輛",
-            }
-        ),
+        required=False,
+        help_text=NOTE_HELP,
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
     )
 
 
@@ -4531,10 +4435,8 @@ class DeliveryCompletionForm(forms.Form):
 
 
 class CancellationRequestForm(forms.Form):
-    reason = forms.CharField(label="取消原因", max_length=250)
-    note = forms.CharField(
-        label="取消說明", required=False, widget=forms.Textarea(attrs={"rows": 3})
-    )
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"rows": 3}))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4549,7 +4451,7 @@ class RefundCompletionForm(forms.Form):
         label="沒收金額", max_digits=12, decimal_places=0, min_value=0, required=False,
         help_text="依約定沒收訂金或扣除手續費；不沒收請填 0。",
     )
-    forfeit_reason = forms.CharField(label="沒收原因", max_length=250, required=False)
+    forfeit_reason = forms.CharField(label="沒收備註（選填）", max_length=250, required=False)
     completed_on = forms.DateField(label="退款完成日期", widget=DateInput())
     method = forms.ChoiceField(
         label="退款方式", choices=[("", "請選擇"), *SalesOrder.PaymentMethod.choices], required=False,
@@ -4585,8 +4487,6 @@ class RefundCompletionForm(forms.Form):
         cleaned["forfeited_amount"] = forfeited
         if forfeited > self.received:
             self.add_error("forfeited_amount", f"沒收金額不可超過已收 {self.received:,.0f} 元。")
-        if forfeited and not (cleaned.get("forfeit_reason") or "").strip():
-            self.add_error("forfeit_reason", "有沒收金額時，請填寫沒收原因。")
         if self.received - forfeited > 0 and not cleaned.get("method"):
             self.add_error("method", "有應退金額時，請選擇退款方式。")
         return cleaned
@@ -4626,12 +4526,12 @@ class InstallmentDecisionForm(forms.ModelForm):
 class ExceptionCloseForm(forms.Form):
     """領牌後棄單：沒收與退款同取消結算，車輛以已領牌車再售價釋回。"""
 
-    reason = forms.CharField(label="結案原因", max_length=250)
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP)
     forfeited_amount = forms.DecimalField(
         label="沒收金額", max_digits=12, decimal_places=0, min_value=0, required=False,
         help_text="通常包含已支出的領牌規費與約定違約金；不沒收請填 0。",
     )
-    forfeit_reason = forms.CharField(label="沒收原因", max_length=250, required=False)
+    forfeit_reason = forms.CharField(label="沒收備註（選填）", max_length=250, required=False)
     resale_price = forms.DecimalField(
         label="領牌車再售價", max_digits=12, decimal_places=0, min_value=1,
         help_text="車輛釋回庫存後只能以「領牌車」交易再售。",
@@ -4672,7 +4572,7 @@ class ExceptionCloseForm(forms.Form):
 
 class PaymentReversalForm(forms.Form):
     payment = forms.ModelChoiceField(label="要沖銷的收款", queryset=PaymentRecord.objects.none())
-    reason = forms.CharField(label="沖銷原因", max_length=250)
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP)
 
     def __init__(self, order, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4698,7 +4598,7 @@ class OverpaymentRefundForm(forms.Form):
     refunded_on = forms.DateField(label="退款日期", widget=DateInput())
     method = forms.ChoiceField(label="退款方式", choices=SalesOrder.PaymentMethod.choices)
     reference = forms.CharField(label="退款帳號／交易資訊", max_length=120, required=False)
-    reason = forms.CharField(label="退款原因", max_length=250)
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP)
 
     def __init__(self, order, summary, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4868,7 +4768,6 @@ class DiscountRequestForm(forms.Form):
     mode = forms.ChoiceField(label="調整方式", choices=[("amount", "總價減少指定金額"), ("rate", "總價乘上自訂折數")], required=False)
     amount = forms.DecimalField(label="總價減少金額（元）", max_digits=12, decimal_places=0, min_value=1, required=False)
     rate = forms.DecimalField(label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False)
-    reason = forms.CharField(label="申請原因", max_length=250, widget=forms.Textarea(attrs={"rows": 2}), error_messages={"required": "請填寫「申請原因」。"})
 
     def __init__(self, *args, total=None, **kwargs):
         self.total = total
@@ -4969,17 +4868,6 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
 
 
 class SubsidyDataForm(forms.ModelForm):
-    change_reason = forms.CharField(
-        label="變更說明（選填）",
-        max_length=250,
-        required=False,
-        widget=forms.Textarea(
-            attrs={
-                "rows": 2,
-                "placeholder": "例如：客戶補充舊車資料",
-            }
-        ),
-    )
 
     class Meta:
         model = SalesOrder

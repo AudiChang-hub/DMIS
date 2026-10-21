@@ -9,6 +9,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from sales.models import LegacyImportRow, SalesOrder
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
 from sales.services.historical_replacement import require_admin
 from sales.services.historical_date_change import date_change_preview, date_preview_token, change_historical_date
 
@@ -20,7 +21,11 @@ class HistoricalDateChangeForm(forms.Form):
     same_buyer_confirmed = forms.BooleanField(label="已核對是同一位買家、同一台車的原訂單，不是退訂換人或另一筆交易")
     facts_confirmed = forms.BooleanField(label="已核對所選進度；若選預計領牌，原領牌及交付完成標記確為歷史匯入誤標")
     impact_confirmed = forms.BooleanField(label="已核對上述跨期與收支影響；本次只改日期及確認的進度，不更新其他 Excel 欄位，也不自動重算金額或發放獎勵")
-    reason = forms.CharField(label="改期原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=250, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
+
+    def clean_reason(self):
+        return note_or_summary(self.cleaned_data.get("reason"), "歷史領牌改期", 250)
 
     def __init__(self, *args, preview, **kwargs):
         super().__init__(*args, **kwargs)

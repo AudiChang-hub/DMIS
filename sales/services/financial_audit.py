@@ -30,8 +30,6 @@ def audit_financial_consistency(sample_limit=30):
         calculated = order.calculate_balance()
         if order.calculated_balance != calculated:
             report("balance_formula_mismatch", order, f"保存 {order.calculated_balance}／公式 {calculated}")
-        if order.actual_balance != order.calculated_balance and not order.balance_adjustment_reason:
-            report("balance_reason_missing", order, "人工尾款與計算值不同但缺原因")
         confirmed = payment_summary(order, payments)["settled"]
         if profile.payment_confirmed != confirmed:
             report("payment_confirmation_mismatch", order, "收清狀態不符逐筆收款")

@@ -1,6 +1,6 @@
 """admin 把車輛改回現有庫存（可銷售）：停用、已售出、已預留、已交車、已調出都適用。
 
-使用者 2026-10-19 選方案 B：只有 admin 能用、原因必填、交易內鎖定並留稽核；
+使用者 2026-10-19 選方案 B：只有 admin 能用、交易內鎖定並留稽核（備註 2026-10-21 起選填，T-39）；
 還掛在訂單或調車單上的車先擋下，請到原流程處理；已售出、已交車要輸入引擎／車身號碼末 4 碼二次確認。
 有領牌痕跡的車（刪單時已領牌）要選「當新車」或「當已領牌車（保留車牌、填再售價）」。
 """
@@ -12,6 +12,7 @@ from django.db import transaction
 from django.urls import reverse
 
 from sales.access.services import is_root
+from sales.services.audit_note import optional_note, with_note
 from sales.models import SalesOrder, VehicleInventory, VehicleInventoryHistory, VehicleTransferSignoff
 from sales.services.inventory_history import STATUS_LABELS, status_change
 from sales.services.order_deletion import DELETION_REVIEW_LABEL, is_order_delivered
@@ -138,9 +139,7 @@ def restore_to_stock(*, user, vehicle_id, reason, expected_updated_at, actor_nam
         raise ValidationError("找不到這台車，請重新整理。") from exc
     if expected_updated_at != vehicle.updated_at.isoformat():
         raise ValidationError("車輛資料已被更新，請重新載入後再確認。")
-    reason = (reason or "").strip()
-    if not reason or len(reason) > REASON_LIMIT:
-        raise ValidationError(f"請填寫改回庫存的原因，最多 {REASON_LIMIT} 字。")
+    reason = optional_note(reason, REASON_LIMIT)
     blockers = restore_blockers(vehicle)
     if blockers:
         raise ValidationError([text for text, _url, _label in blockers])
@@ -192,7 +191,8 @@ def restore_to_stock(*, user, vehicle_id, reason, expected_updated_at, actor_nam
         changes["review"] = {"label": "後續處理", "value": f"{DELETION_REVIEW_LABEL}已處理（刪除的訂單 {review.number}）"}
     VehicleInventoryHistory.objects.create(
         vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED, actor_name=actor_name or user.get_username(),
-        reason=f"改回現有庫存（原為{STATUS_LABELS.get(before['status'], before['status'])}）：{reason}", changes=changes,
+        reason=with_note(f"改回現有庫存（原為{STATUS_LABELS.get(before['status'], before['status'])}）", reason, "："),
+        changes=changes,
         status_snapshot=vehicle.status, location_store_snapshot=vehicle.location_store,
         location_label_snapshot=vehicle.actual_location_label, condition_note_snapshot=vehicle.condition_note,
         condition_resolution_snapshot=vehicle.condition_resolution,

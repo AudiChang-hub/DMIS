@@ -187,15 +187,13 @@ class LegacyFinanceRepairTests(TestCase):
             else:
                 payload[field.html_name] = "" if field.value() is None else str(field.value())
         payload.update({"operations-confirm_legacy_finance": "on", "payments-TOTAL_FORMS": "0", "payments-INITIAL_FORMS": "0"})
-        response = self.client.post(reverse("order_operations", args=[self.order.pk]), payload)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("change_reason", response.context["form"].errors)
+        # 備註選填（2026-10-21 T-39）：留白時系統寫摘要。
         before = list(self.order.payment_records.values())
-        payload["operations-change_reason"] = "已逐項核對原始憑證"
         response = self.client.post(reverse("order_operations", args=[self.order.pk]), payload)
         self.assertEqual(response.status_code, 302, getattr(response, "context", None))
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.legacy_finance_reconciliation["status"], "reviewed")
+        self.assertEqual(self.profile.legacy_finance_reconciliation["review_reason"], "系統摘要：人工確認歷史收支")
         self.assertTrue(self.profile.profit_is_ready)
         self.assertEqual(list(self.order.payment_records.values()), before)
         self.assertEqual(self.preview()["counts"], {"already_reconciled": 1})

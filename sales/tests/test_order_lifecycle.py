@@ -292,8 +292,6 @@ class OrderLifecycleTests(TestCase):
             order.request_cancellation("測試人員", "重複登記")
         with self.assertRaisesMessage(ValidationError, "沒收金額須介於"):
             order.complete_refund("測試人員", Decimal("6000"), date(2026, 8, 5), SalesOrder.PaymentMethod.TRANSFER)
-        with self.assertRaisesMessage(ValidationError, "沒收原因"):
-            order.complete_refund("測試人員", Decimal("1000"), date(2026, 8, 5), SalesOrder.PaymentMethod.TRANSFER)
 
         order.complete_refund(
             "測試人員",

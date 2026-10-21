@@ -242,7 +242,7 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         self.assertEqual(csrf_client.post(self.url, self.data()).status_code, 403)
 
     def test_required_facts_and_number(self):
-        for field in ("original_unregistered", "original_undelivered", "finances_checked", "incoming_status", "reason", "confirm_number"):
+        for field in ("original_unregistered", "original_undelivered", "finances_checked", "incoming_status", "confirm_number"):
             data = self.data()
             data.pop(field)
             self.assertEqual(self.client.post(self.url, data).status_code, 400)

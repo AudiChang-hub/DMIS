@@ -18,7 +18,7 @@
   <fieldset class="permission-mode"><legend>設定方式</legend>{{ form.mode }}{{ form.mode.errors }}</fieldset>
   <fieldset class="permission-options" data-custom-permissions><legend>本筆自訂權限</legend><p class="muted">這裡代表儲存後允許的功能，不是額外增加的權限。</p>
     <div class="permission-check-grid"><label>{{ form.can_view }}<span><strong>查看訂單</strong><small>取消後禁止查看本筆訂單</small></span></label><label>{{ form.can_print }}<span><strong>列印客戶文件</strong><small>取消後連直接開啟列印網址也禁止</small></span></label></div></fieldset>
-  {% include 'sales/_field.html' with field=form.reason %}<footer class="permission-save"><span class="muted">保留修改人、時間與原因</span><button class="button primary">儲存本筆權限</button></footer></form>{% endif %}
+  {% include 'sales/_field.html' with field=form.reason %}<footer class="permission-save"><span class="muted">保留修改人、時間與前後設定</span><button class="button primary">儲存本筆權限</button></footer></form>{% endif %}
 </section>{% endif %}
 <section class="permission-panel"><h2>已設定的訂單</h2><div class="permission-results">{% for item in saved_grants %}<a href="?tab=orders&amp;order={{ item.order_id }}"><strong>{{ item.order.owner_name }}</strong><span>{{ item.order.number }}</span><span>{% if not item.active %}沿用一般設定{% elif item.identity_epoch != request.permission_profile.identity_epoch %}身分已異動，設定失效{% elif item.is_override %}本筆自訂{% else %}既有額外授權{% endif %} →</span></a>{% empty %}<p class="muted">尚無指定訂單設定。一般訂單依「畫面與操作」及「訂單範圍」決定權限。</p>{% endfor %}</div></section>
 {% if events %}<details class="permission-panel"><summary>本筆訂單最近權限異動</summary>{% for event in events %}<div class="permission-audit"><strong>{{ event.created_at|date:'Y/m/d H:i' }} · {{ event.actor_name }}</strong><p>{{ event.description }}</p></div>{% endfor %}</details>{% endif %}

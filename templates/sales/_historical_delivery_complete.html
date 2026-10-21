@@ -10,7 +10,7 @@
     <div class="historical-delivery__fields">
       <label class="field"><span>車牌號碼</span><input class="form-control" name="plate" required maxlength="20" autocapitalize="characters" spellcheck="false" placeholder="例如 ABC-1234"></label>
       <label class="field"><span>交車日期</span><input class="form-control" type="date" name="delivered_on" required value="{{ order.registration_date|date:'Y-m-d'|default:'' }}"></label>
-      <label class="field historical-delivery__reason"><span>原因</span><textarea class="form-control" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：已領牌交車，車牌下來"></textarea></label>
+      <label class="field historical-delivery__reason"><span>備註（選填）</span><textarea class="form-control" name="reason" rows="2" maxlength="300" placeholder="例如：已領牌交車，車牌下來"></textarea></label>
     </div>
     <div class="form-actions"><button class="button primary" type="submit">補登車牌並完成交車</button></div>
   </form>

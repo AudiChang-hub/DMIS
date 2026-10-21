@@ -7,7 +7,7 @@
   {% if ledger_adjustments %}
   <div class="inventory-table-wrap" tabindex="0" aria-label="沖銷與退款紀錄，可水平捲動">
     <table class="inventory-table payment-ledger__table">
-      <thead><tr><th>類型</th><th>項目</th><th>對象</th><th>金額</th><th>日期</th><th>原因</th><th>登記</th></tr></thead>
+      <thead><tr><th>類型</th><th>項目</th><th>對象</th><th>金額</th><th>日期</th><th>說明</th><th>登記</th></tr></thead>
       <tbody>
         {% for entry in ledger_adjustments %}
         <tr>

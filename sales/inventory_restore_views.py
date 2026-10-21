@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 
 from sales.access.services import is_root
 from sales.models import VehicleInventory
+from sales.services.audit_note import NOTE_HELP, NOTE_LABEL
 from sales.services.inventory_restore import (
     ACKNOWLEDGE_STATUSES, CONFIRM_FALLBACK, MODE_NEW, MODE_REGISTERED, REASON_LIMIT, deletion_review_order, identifier_matches,
     identifier_tail, registration_trace, restore_blockers, restore_impacts, restore_to_stock,
@@ -25,8 +26,8 @@ class InventoryRestoreForm(forms.Form):
     confirm_identifier = forms.CharField(label="輸入引擎／車身號碼末 4 碼確認", required=False, max_length=12,
         widget=forms.TextInput(attrs={"class": "form-control restore-confirm-input", "autocomplete": "off", "autocapitalize": "characters",
                                       "spellcheck": "false", "placeholder": "末 4 碼"}))
-    reason = forms.CharField(label="改回原因", max_length=REASON_LIMIT, widget=forms.Textarea(attrs={
-        "class": "form-control", "rows": 3, "placeholder": "例如：刪單後確認車在店內、沒有領牌；匯入時誤標已售出"}))
+    reason = forms.CharField(label=NOTE_LABEL, max_length=REASON_LIMIT, required=False, help_text=NOTE_HELP,
+                             widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
 
     def __init__(self, *args, trace=None, vehicle=None, needs_ack=False, **kwargs):
         super().__init__(*args, **kwargs)

@@ -19,6 +19,7 @@ from sales.models import (
     VehicleTransferSignoff,
     record_vehicle_history,
 )
+from sales.services.audit_note import note_or_summary, with_note
 from sales.services.inventory_location_note import FACTORY_LABEL
 from sales.services.pdf_signature import DocumentSignature
 
@@ -276,9 +277,8 @@ def sign_transfer(*, dealer, dealer_name, vehicle_ids, note, expected_fingerprin
 @transaction.atomic
 def void_signoff(signoff, *, actor_name, reason):
     """作廢保留簽收紀錄；只把仍為已調出、且最後一次調出就是這張簽收單的車改回簽署前狀態。"""
-    reason = (reason or "").strip()
-    if not reason:
-        raise ValidationError("請填寫作廢原因。")
+    # 作廢備註選填（使用者 2026-10-21 T-39）。
+    note = (reason or "").strip()[:300]
     signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=signoff.pk)
     if signoff.is_voided:
         raise ValidationError("這張簽收單已經作廢。")
@@ -310,11 +310,11 @@ def void_signoff(signoff, *, actor_name, reason):
         ])
         record_vehicle_history(
             vehicle, actor_name=actor_name,
-            reason=f"作廢調車簽收 {signoff.number}：{reason}", before_status=before_status,
+            reason=with_note(f"作廢調車簽收 {signoff.number}", note, "："), before_status=before_status,
         )
         restored.append(vehicle.identifier)
     signoff.voided_at = timezone.now()
     signoff.voided_by = actor_name[:150]
-    signoff.void_reason = reason[:300]
+    signoff.void_reason = note_or_summary(note, f"作廢調車簽收 {signoff.number}", 300)
     signoff.save(update_fields=["voided_at", "voided_by", "void_reason", "updated_at"])
     return restored, kept

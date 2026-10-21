@@ -15,7 +15,14 @@
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
     <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
-    <p class="order-owner-facts">{% if order.owner_phone %}<span>電話 <strong>{{ order.owner_phone }}</strong></span>{% endif %}{% if order.owner_birth_date %}<span>生日 <strong>{{ order.owner_birth_date|roc_date }}</strong>（西元 {{ order.owner_birth_date|date:"Y/m/d" }}）</span>{% endif %}</p>
+    {# 新車主資料依序往右排（使用者 2026-10-21）：證號 → 生日 → 電話 → Email → 地址；空白或匯入佔位值不顯示。 #}
+    <ul class="order-owner-facts" id="order-owner-facts" data-inplace-region aria-label="新車主資料">
+      {% if order.owner_id_number and not order.owner_id_number|slice:":5" == "HIST-" %}<li><span>{% if order.owner_type == "company" %}統一編號{% elif order.owner_type == "foreign" %}居留證號{% else %}身分證字號{% endif %}</span><strong class="order-owner-facts__mono">{{ order.owner_id_number }}</strong></li>{% endif %}
+      {% if order.owner_birth_date %}<li><span>生日</span><strong>{{ order.owner_birth_date|roc_date }}</strong><small>西元 {{ order.owner_birth_date|date:"Y/m/d" }}</small></li>{% endif %}
+      {% if order.owner_phone and order.owner_phone != "未提供" %}<li><span>電話</span><strong class="order-owner-facts__mono">{{ order.owner_phone }}</strong></li>{% endif %}
+      {% if order.owner_email %}<li><span>Email</span><strong class="order-owner-facts__email">{{ order.owner_email }}</strong></li>{% endif %}
+      {% if order.owner_address and order.owner_address != "未提供" %}<li class="order-owner-facts__address"><span>{% if order.owner_type == "company" %}公司地址{% else %}戶籍地址{% endif %}</span><strong>{{ order.owner_address }}</strong></li>{% endif %}
+    </ul>
   </div>
   {# 頁首右側（使用者 2026-10-20）：台數歸屬縮成小卡放右上角（調整台數歸屬就是卡上的「變更」）；收入與支出、列印與簽署文件在左側步驟；管理本單權限不再提供入口。只留刪除與退車。 #}
   <div class="detail-hero__side">
@@ -56,7 +63,6 @@
 <div class="order-step__body">
 {% if inline_order_form %}
 {% include "sales/_order_form_content.html" with editing_order=order %}
-{% include "sales/_order_identity_tools.html" %}
 {% else %}
 <div class="detail-grid">
   <section class="card">
@@ -74,28 +80,7 @@
       {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank" data-preview-name="{{ order.id_front.name }}">證件正面</a>{% endif_access %}{% endif %}
       {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank" data-preview-name="{{ order.id_back.name }}">證件反面</a>{% endif_access %}{% endif %}
     </div>
-    {% if order.id_front or order.id_back %}
-    <details class="identity-print-panel">
-      <summary>列印／下載浮水印證件</summary>
-      <form method="post" action="{% url 'identity_documents_print' order.pk %}" target="_blank">
-        {% csrf_token %}
-        <label>這次提供給誰使用
-          <select name="purpose" required>
-            <option value="registration">限領牌使用</option>
-            <option value="subsidy">限申請補助使用</option>
-          </select>
-        </label>
-        <fieldset>
-          <legend>要產生哪些頁面</legend>
-          {% if order.id_front %}<label><input type="checkbox" name="sides" value="id_front" checked> 證件正面</label>{% endif %}
-          {% if order.id_back %}<label><input type="checkbox" name="sides" value="id_back" checked> 證件反面</label>{% endif %}
-        </fieldset>
-        <p class="muted">{% site_text 'order_detail.7811e1f3c290' %}</p>
-        <button class="button ghost block" type="submit">產生浮水印 PDF</button>
-      </form>
-    </details>
-    {% endif %}
-    {% include "sales/_intake_attachments.html" with intake_attachments=order.owner_area_intake_attachments %}
+    {# 浮水印證件與下訂附件不在訂單頁顯示，檔案到左側「附件」查閱（使用者 2026-10-21）。 #}
   </section>
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.source_display }}</span></div>

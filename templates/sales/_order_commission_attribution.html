@@ -1,18 +1,38 @@
-{% if order.source_type == 'dealer' or order.source_type == 'store' %}
-{# 頁首右上角的小卡（使用者 2026-10-20）：平時只佔一行，「變更車行」展開成浮層，不擠到下方填寫區。 #}
-<section class="commission-attribution" id="commission-attribution" aria-label="台數與傭金歸屬">
+{% if inline_order_form or order.source_type != 'platform' %}
+{# 頁首右上角的小卡（使用者 2026-10-20、10-21）：平時只佔一行；「變更」展開浮層，訂單來源與台數歸屬放在一起，不擠到下方填寫區。 #}
+<section class="commission-attribution" id="commission-attribution" aria-label="訂單來源與台數歸屬">
   <div class="commission-attribution__current">
+    {% if order.source_type != 'platform' %}
     <span class="commission-attribution__label">這台目前算給</span>
     <strong class="commission-attribution__recipient">{{ order.effective_commission_recipient|default:'未指定車行' }}</strong>
-    <p class="commission-attribution__meta">原訂單來源：{% if order.source_type == 'store' %}本店{% if order.source %}／{{ order.source }}{% endif %}{% else %}{{ order.source|default:'未設定' }}{% endif %}<span>依原領牌期間計算</span></p>
+    <p class="commission-attribution__meta">原訂單來源：<span data-source-summary="attribution">{% if order.source_type == 'store' %}本店{% if order.source %}／{{ order.source }}{% endif %}{% else %}{{ order.source|default:'未設定' }}{% endif %}</span><span>依原領牌期間計算</span></p>
+    {% else %}
+    <span class="commission-attribution__label">訂單來源</span>
+    <strong class="commission-attribution__recipient" data-source-summary="full">{{ order.get_source_type_display }}{% if order.source %}／{{ order.source }}{% endif %}</strong>
+    <p class="commission-attribution__meta">網路平台訂單不列台數與傭金歸屬</p>
+    {% endif %}
   </div>
-  {% if commission_block_reason %}
-    <p class="commission-attribution__locked">{{ commission_block_reason }}</p>
-  {% elif commission_form %}
-    <details class="commission-attribution__editor"{% if commission_form.is_bound or request.GET.attribution == '1' %} open{% endif %}>
-      <summary aria-label="調整台數與傭金歸屬"><span class="commission-attribution__action">變更車行 <span class="commission-attribution__chevron ui-chevron" aria-hidden="true"></span></span></summary>
+  {% if inline_order_form or commission_form %}
+    <details class="commission-attribution__editor"{% if commission_form.is_bound or request.GET.attribution == '1' or form.source_type.errors or form.source.errors %} open{% endif %}>
+      <summary aria-label="調整訂單來源與台數歸屬"><span class="commission-attribution__action">{% if order.source_type != 'platform' %}變更車行{% else %}變更來源{% endif %} <span class="commission-attribution__chevron ui-chevron" aria-hidden="true"></span></span></summary>
       <div class="commission-attribution__panel">
-      <p class="commission-attribution__panel-title">調整台數與傭金歸屬</p>
+      {% if inline_order_form %}
+      {# 來源兩欄屬於下方的訂單表單（form="order-form"）：改了隨訂單自動儲存、驗證與修改紀錄都沿用訂單儲存。 #}
+      <section class="commission-attribution__group" aria-labelledby="order-source-title" data-order-source-editor>
+        <p class="commission-attribution__panel-title" id="order-source-title">訂單來源</p>
+        <div class="commission-attribution__fields">
+          {% include "sales/_field.html" with field=form.source_type %}
+          <div class="field" data-conditional="source">{% include "sales/_field.html" with field=form.source %}</div>
+        </div>
+        <p class="autosave-status commission-attribution__status" data-autosave-mirror="order-form" role="status" aria-live="polite"></p>
+      </section>
+      {% endif %}
+      {% if order.source_type != 'platform' %}
+      <section class="commission-attribution__group" aria-labelledby="commission-attribution-title">
+      <p class="commission-attribution__panel-title" id="commission-attribution-title">調整台數與傭金歸屬</p>
+      {% if commission_block_reason %}
+      <p class="commission-attribution__hint">{{ commission_block_reason }}</p>
+      {% elif commission_form %}
       <form method="post" action="{% url 'order_commission_attribution_update' order.pk %}#commission-attribution" data-commission-attribution-form>
         {% csrf_token %}{{ commission_form.order_revision }}
         {% if commission_form.errors %}<div class="note-box warning" role="alert"><strong>尚未儲存，請確認下列提示。</strong>{{ commission_form.non_field_errors }}{{ commission_form.order_revision.errors }}<a href="{% url 'order_detail' order.pk %}#commission-attribution">重新載入最新資料</a></div>{% endif %}
@@ -26,8 +46,13 @@
           <button type="submit" class="button primary">儲存歸屬</button>
         </div>
       </form>
+      {% endif %}
+      </section>
+      {% endif %}
       </div>
     </details>
+  {% elif commission_block_reason %}
+    <p class="commission-attribution__locked">{{ commission_block_reason }}</p>
   {% endif %}
 </section>
 {% endif %}

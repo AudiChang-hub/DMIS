@@ -11,7 +11,7 @@ from sales.tests import test_order_flow as flow
 
 
 def hero(page):
-    start = page.rindex("<section", 0, page.index("data-sticky-hero"))
+    start = page.rindex("<section", 0, page.index("data-order-hero"))
     return page[start:page.index("data-order-stage-start")]
 
 
@@ -64,9 +64,11 @@ class OrderPageSectionTests(TestCase):
         order = self.update(order, owner_type=SalesOrder.OwnerType.FOREIGN, owner_id_number="AC01234567")
         self.assertIn("<span>居留證號</span>", owner_facts(self.page(order)))
 
-    def test_compact_header_hides_owner_facts(self):
-        styles = open("static/css/order-workspace.css", encoding="utf-8").read()
-        self.assertIn(".order-sticky-hero.is-stuck .order-owner-facts", styles)
+    def test_compact_bar_does_not_repeat_owner_facts(self):
+        page = self.page(self.make_order())
+        bar = page[page.index("data-order-compact-bar"):page.index("data-order-stage-start")]
+        self.assertNotIn("order-owner-facts", bar)
+        self.assertNotIn("A123456789", bar)
 
     # T-36：新車主資料排最後、不放附件；證件與下訂附件區與浮水印入口移除。
     def test_order_sections_put_new_owner_last_without_attachments(self):

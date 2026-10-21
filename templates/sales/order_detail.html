@@ -9,8 +9,7 @@
 {% url 'order_list' as order_list_url %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
-{# 檢視時固定訂單頁首；編輯時改由表單頁首（取消／儲存／完成編輯）固定，避免兩列重疊。 #}
-<section class="hero-row compact-hero detail-hero{% if not editing_order %} order-sticky-hero{% endif %}"{% if not editing_order %} data-sticky-hero{% endif %}>
+<section class="hero-row compact-hero detail-hero{% if not editing_order %} order-hero{% endif %}" data-order-hero>
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
@@ -34,8 +33,21 @@
   </div>
 </section>
 
+{# 精簡列（使用者 2026-10-21）：完整頁首照常捲走，不再縮放；定位點高度為 0、緊接在頁首後，頁首離開畫面時黏在頂端並浮出精簡列，版面高度不變、不留空白。 #}
+{% if not editing_order %}
+<div class="order-compact-anchor" data-order-compact-anchor>
+  <div class="order-compact-bar" data-order-compact-bar aria-hidden="true" inert>
+    <strong class="order-compact-bar__name">{{ order.owner_name }}</strong>
+    <span class="status-pill status-{{ order.display_status_code }}" data-compact-status>{{ order.display_status }}</span>
+    <span class="order-compact-bar__number">{{ order.number }}</span>
+    <span class="order-compact-bar__recipient">{% if order.source_type == 'platform' %}<small>訂單來源</small> <b data-compact-recipient>{{ order.get_source_type_display }}{% if order.source %}／{{ order.source }}{% endif %}</b>{% else %}<small>這台目前算給</small> <b data-compact-recipient>{{ order.effective_commission_recipient|default:'未指定車行' }}</b>{% endif %}</span>
+    {% if inline_order_form or commission_form %}<button type="button" class="button secondary small" data-compact-change>{% if order.source_type == 'platform' %}變更來源{% else %}變更車行{% endif %}</button>{% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if historical_delivery_pending %}{% if_access 'historical_delivery_complete' %}{% include "sales/_historical_delivery_complete.html" %}{% endif_access %}{% endif %}
-{# 進頁與切換步驟的固定停點：頁首縮成精簡列後，從步驟內容開始顯示（static/js/order-workspace.js）。 #}
+{# 步驟內容的起點（static/js/order-workspace.js 依目前步驟區塊頂端定位）。 #}
 <div class="order-stage-start" data-order-stage-start aria-hidden="true"></div>
 
 {% if request.GET.created == "1" and order.needs_customer_signatures %}
@@ -998,7 +1010,7 @@
 <script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-compact-bar.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}

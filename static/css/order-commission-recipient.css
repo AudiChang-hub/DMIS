@@ -67,13 +67,6 @@
 @keyframes commission-panel-in { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .commission-attribution__panel { animation: none; } }
 
-/* 捲動後的精簡頁首：只留姓名、狀態與歸屬車行；刪除這類處置不跟著固定，避免誤按。 */
-.order-sticky-hero.is-stuck .detail-hero__side { grid-auto-flow: column; align-items: center; }
-.order-sticky-hero.is-stuck .detail-hero__actions,
-.order-sticky-hero.is-stuck .commission-attribution__meta,
-.order-sticky-hero.is-stuck .commission-attribution__locked { display: none; }
-.order-sticky-hero.is-stuck .commission-attribution { padding-block: var(--space-1); box-shadow: none; }
-.order-sticky-hero.is-stuck .commission-attribution__action { min-height: 32px; }
 
 @media (max-width: 600px) {
   .detail-hero { flex-wrap: wrap; }
@@ -86,7 +79,4 @@
   .commission-attribution__editor { margin-left: auto; }
   /* 手機的浮層疊在小卡下方、與小卡同寬，不撐高頁首（頁首有 backdrop-filter，不能用 fixed）。 */
   .commission-attribution__panel { left: 0; right: 0; width: auto; max-height: calc(100dvh - 240px); overflow: auto; overscroll-behavior: contain; padding: var(--space-4); }
-  .order-sticky-hero.is-stuck .detail-hero__side { display: none; }
-  /* 浮層開著時捲動，精簡頁首仍保留小卡與浮層，編輯不會被收掉。 */
-  .order-sticky-hero.is-stuck .detail-hero__side:has(.commission-attribution__editor[open]) { display: grid; }
 }

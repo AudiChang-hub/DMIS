@@ -3207,6 +3207,8 @@ class PaymentRecordForm(forms.ModelForm):
         help_text="與另一筆已確認收款同日同額時，確認這是另一筆實際收到的款項。",
     )
 
+    # 收款明細只留「向客戶收取手續費」（使用者 2026-10-21 T-54）：刷卡本金、銀行實扣手續費、收款帳戶、
+    # 收款證明、備註不在表單裡，儲存時不會寫入，既有值與檔案保留；刷卡手續費支出照舊由收款列加總（以後為 0）。
     class Meta:
         model = PaymentRecord
         fields = [
@@ -3214,21 +3216,13 @@ class PaymentRecordForm(forms.ModelForm):
             "receipt_kind",
             "expected_amount",
             "received_amount",
-            "card_principal",
             "card_fee_charged",
-            "bank_card_fee",
             "received_on",
             "payment_method",
-            "receiving_account",
             "confirmed",
-            "proof",
-            "note",
         ]
         widgets = {
             "received_on": DateInput(),
-            "proof": forms.ClearableFileInput(
-                attrs={"accept": "image/*,application/pdf"}
-            ),
         }
 
     def __init__(self, *args, read_only=False, **kwargs):
@@ -3272,19 +3266,15 @@ class PaymentRecordForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         cleaned["receipt_kind"] = cleaned.get("receipt_kind") or self.instance.effective_receipt_kind
-        card_values = (
-            cleaned.get("card_principal") or Decimal("0"),
-            cleaned.get("card_fee_charged") or Decimal("0"),
-            cleaned.get("bank_card_fee") or Decimal("0"),
-        )
+        card_fee = cleaned.get("card_fee_charged") or Decimal("0")
         for name, field in self.fields.items():
             if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
                 cleaned[name] = Decimal("0")
         for name in ("expected_amount", "received_amount"):
             if cleaned.get(name) is not None and cleaned[name] < 0:
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
-        if any(card_values) and cleaned.get("payment_method") != "刷卡":
-            self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
+        if card_fee and cleaned.get("payment_method") != "刷卡":
+            self.add_error("payment_method", "填寫刷卡手續費時，付款方式必須選擇「刷卡」。")
         # 收款明細可直接刪除（使用者 2026-10-21 T-47 方案 A）：檢查在表單組 clean（刪除列不跑單列驗證）；
         # 刪除寫入處理紀錄快照、不能還原，系統列（訂金、尾款、分期撥款）刪除後由同步重建為未收的應收列。
         if self.read_only and self.has_changed():
@@ -3298,9 +3288,6 @@ class PaymentRecordForm(forms.ModelForm):
         if commit:
             payment.save()
         return payment
-
-    def clean_proof(self):
-        return validate_document_upload(self.cleaned_data.get("proof"))
 
 
 class DeliveryPaymentForm(forms.ModelForm):

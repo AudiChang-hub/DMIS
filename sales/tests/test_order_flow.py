@@ -6019,7 +6019,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(
             html.count(
                 '<button type="button" class="button danger-outline small" '
-                "data-delete-payment>"
+                'data-delete-payment aria-label="刪除此筆收款">刪除</button>'
             ),
             2,
         )

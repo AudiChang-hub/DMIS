@@ -1,5 +1,5 @@
 <div class="payment-record-row receipt-row{% if payment.payment_locked %} is-locked{% endif %}" data-payment-row{% if payment.payment_locked %} data-payment-locked{% endif %}{% if payment.instance.system_key %} data-payment-system{% endif %}>
-  {{ payment.id }}{{ payment.non_field_errors }}
+  {{ payment.id }}{{ payment.non_field_errors }}{{ payment.expected_amount.as_hidden }}
   <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill" data-payment-locked-only>已入帳</span>{% endif %}</div>
   <div class="receipt-name">
     {% include "sales/_field.html" with field=payment.item_name %}
@@ -7,22 +7,19 @@
   </div>
   <div class="receipt-amount">{% include "sales/_field.html" with field=payment.received_amount %}</div>
   <div class="receipt-date">{% include "sales/_field.html" with field=payment.received_on %}</div>
-  <div class="receipt-method">{% include "sales/_field.html" with field=payment.payment_method %}</div>
-  <details class="receipt-more"{% if payment.duplicate_confirmed.errors %} open{% endif %}>
-    <summary>更多資料</summary>
-    <div class="receipt-more-fields">
-      {{ payment.expected_amount.as_hidden }}
-      {% include "sales/_field.html" with field=payment.card_principal %}
-      {% include "sales/_field.html" with field=payment.card_fee_charged %}
-      {% include "sales/_field.html" with field=payment.bank_card_fee %}
-      {% include "sales/_field.html" with field=payment.receiving_account %}
-      {% include "sales/_field.html" with field=payment.proof %}
-      {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
-      {% include "sales/_field.html" with field=payment.note %}
-      {% if not payment.payment_locked %}{% include "sales/_field.html" with field=payment.duplicate_confirmed %}{% endif %}
-      {% if payment.instance.confirmed_at %}<small>確認：{{ payment.instance.confirmed_by }} · {{ payment.instance.confirmed_at|date:"Y/m/d H:i" }}</small>{% endif %}
-      <span hidden>{{ payment.DELETE }}</span>
-      {% if not payment.payment_reversed %}<button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>{% endif %}
-    </div>
-  </details>
+  {% comment %}收款明細只留「向客戶收取手續費」（使用者 2026-10-21 T-54），放在收款方式下方，只有刷卡才顯示；
+  其他欄位與「更多資料」都拿掉，確認人與時間改成列下方小字，刪除移到列尾。{% endcomment %}
+  <div class="receipt-method">
+    {% include "sales/_field.html" with field=payment.payment_method %}
+    <div class="receipt-card-fee" data-card-fee{% if payment.payment_method.value != "刷卡" and not payment.instance.card_fee_charged and not payment.card_fee_charged.errors %} hidden{% endif %}>{% include "sales/_field.html" with field=payment.card_fee_charged %}</div>
+  </div>
+  <div class="receipt-actions">
+    <span hidden>{{ payment.DELETE }}</span>
+    {% if not payment.payment_reversed %}<button type="button" class="button danger-outline small" data-delete-payment aria-label="刪除此筆收款">刪除</button>{% endif %}
+  </div>
+  {% if not payment.payment_locked %}<div class="receipt-duplicate{% if payment.duplicate_confirmed.errors %} is-shown{% endif %}">{% include "sales/_field.html" with field=payment.duplicate_confirmed %}</div>{% endif %}
+  {% if payment.instance.confirmed_at or payment.instance.proof %}<p class="receipt-meta">
+    {% if payment.instance.confirmed_at %}<span>確認：{{ payment.instance.confirmed_by }} · {{ payment.instance.confirmed_at|date:"Y/m/d H:i" }}</span>{% endif %}
+    {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
+  </p>{% endif %}
 </div>

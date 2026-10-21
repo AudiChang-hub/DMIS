@@ -114,9 +114,7 @@ chmod +x scripts/deploy_django.sh scripts/deploy_web_bluegreen.sh scripts/backup
 - WebSocket 共編在切換時會斷一次，瀏覽器 1 秒後自動重連到新版。
 - 有不相容 migration（刪除／改名欄位等，規則見 [開發驗證](DEVELOPMENT.md)）時自動改用短暫停機部署：先停舊版再遷移，使用者看到約 15～20 秒「系統更新中」頁（與改版前的中斷時間相當；nginx 在連不到 Django 時回 503 並自動重新整理），log 會標明。
 - `--rollback` 用 `docker start` 啟動上一色、就緒後切回並停止目前那色；只切 web 流量，管理容器與背景工作仍是新版，資料庫不倒退，所以只適用於相容 migration 的版本，之後應盡快發修正版（部署標記改成上一版，下次部署會重新套用 main）。
-- 第一次從單一 web 改成藍綠時（1.86.x 過渡版），舊腳本不認得新流程，必須用新版腳本執行：
-  `git fetch origin main && git show origin/main:scripts/deploy_django.sh > /tmp/dmis-deploy.sh && bash /tmp/dmis-deploy.sh`。
-  它照常備份、合併，再把舊 web 換成管理指令容器、以暫代代理重建 tunnel-proxy（綁 19999）。之後腳本有更新會在合併後自動改用新版繼續。
+- 從單一 web 改成藍綠已在 1.86.47（2026-10-21）完成：舊 web 換成管理指令容器、tunnel-proxy 以暫代代理重建並綁 19999。腳本本身有更新時，合併後會自動改用新版繼續。
 - 查目前顏色：`./scripts/deploy_web_bluegreen.sh active`；兩色與暫代代理都只在本專案的 compose network 內。
 
 資料庫與 Redis 不會因應用更新而重啟。任一檢查失敗時不得用 `docker compose down`
@@ -205,6 +203,8 @@ python3 scripts/restore_drill.py
 但不連線舊 Odoo；未來報表須重新規劃，不沿用已刪除的 Metabase 資料源。
 
 ## 清除全部業務資料
+
+2026-10-05 已依使用者要求清除一次，清除前備份在 `/srv/dmis-data/dmis-next/backups/pre-reset-20261005/`。
 
 只在使用者明確要求重新開始時執行，且必須先完成可還原的 DB＋媒體備份
 （`scripts/backup_django_data.sh`）。指令預設只預覽各表筆數：

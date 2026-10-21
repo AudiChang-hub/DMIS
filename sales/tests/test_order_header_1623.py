@@ -51,16 +51,15 @@ class OrderHeaderTests(TestCase):
     setUp = correction_tests.CompletedOrderCorrectionTests.setUp
     order = correction_tests.CompletedOrderCorrectionTests.order
 
-    def test_detail_shows_phone_birthdays_and_full_id(self):
+    def test_detail_shows_phone_and_full_id(self):
         order = self.order(owner_birth_date=date(1992, 1, 21))
         response = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(response, "data-order-hero")
         self.assertContains(response, "data-order-compact-bar")
         self.assertNotContains(response, "data-sticky-hero")
-        self.assertContains(response, "民國 81 年 1 月 21 日")
-        self.assertContains(response, "西元 1992/01/21")
-        self.assertContains(response, "1992/01/21")
-        self.assertContains(response, '<span>電話</span><strong class="order-owner-facts__mono">0912345678</strong>', html=False)
+        # 頁首只留電話（使用者 2026-10-21 T-42）；證號與生日在「新車主資料」，證號不遮罩。
+        self.assertContains(response, '<span>電話</span><strong class="order-hero-facts__mono">0912345678</strong>', html=False)
+        self.assertNotContains(response, "民國 81 年 1 月 21 日")
         self.assertContains(response, "A123456789")
         self.assertNotContains(response, "A1＊")
 

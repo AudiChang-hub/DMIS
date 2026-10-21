@@ -1176,6 +1176,8 @@
       });
       row.classList.add("is-pending-delete");
       validationSummary.hidden = true;
+      // 訂單頁按刪除就自動儲存，不必等下一次修改（表單外以 form 屬性併入的列由文件層轉給訂單表單）。
+      deleteInput?.dispatchEvent(new Event("change", {bubbles: true}));
       scheduleDraft();
     });
   }
@@ -1544,7 +1546,8 @@
 
   function setExclusiveEditingLocked(locked) {
     orderForm.classList.toggle("is-editing-locked", locked);
-    orderForm.querySelectorAll("input, select, textarea, button").forEach(control => {
+    // 以 form 屬性併入、放在表單外的欄位（例如其他費用）一併鎖定。
+    new Set([...orderForm.querySelectorAll("input, select, textarea, button"), ...orderForm.elements]).forEach(control => {
       if (control.type === "hidden") return;
       if (locked) {
         if (control.disabled) control.dataset.wasDisabled = "1";

@@ -1,4 +1,4 @@
-"""訂單頁整理（使用者 2026-10-21）：頁首新車主資料列、訂車與配件分區調整、選號與交車排版。"""
+"""訂單頁整理（使用者 2026-10-21）：頁首資料列、訂車與配件分區調整、選號與交車排版。"""
 import re
 from datetime import date
 
@@ -15,8 +15,8 @@ def hero(page):
     return page[start:page.index("data-order-stage-start")]
 
 
-def owner_facts(page):
-    start = page.index('id="order-owner-facts"')
+def hero_facts(page):
+    start = page.index('id="order-hero-facts"')
     return page[start:page.index("</ul>", start)]
 
 
@@ -36,39 +36,43 @@ class OrderPageSectionTests(TestCase):
         SalesOrder.objects.filter(pk=order.pk).update(**fields)
         return SalesOrder.objects.get(pk=order.pk)
 
-    # T-35：頁首依序顯示證號 → 生日 → 電話 → Email → 地址。
-    def test_header_lists_owner_facts_in_requested_order(self):
+    # T-42：頁首只留電話，加上車型、車色、車牌號碼、引擎號碼／車身號碼；證號、生日、Email、地址不再出現在頁首。
+    def test_header_lists_phone_and_vehicle_before_allocation(self):
         order = self.update(self.make_order(), owner_birth_date=date(1988, 2, 23), owner_email="owner@example.com",
                             owner_address="台北市萬華區寶興街115號")
-        facts = owner_facts(self.page(order))
+        facts = hero_facts(self.page(order))
         labels = re.findall(r"<li[^>]*><span>([^<]+)</span>", facts)
-        self.assertEqual(labels, ["身分證字號", "生日", "電話", "Email", "戶籍地址"])
-        for value in ("A123456789", "民國 77 年 2 月 23 日", "西元 1988/02/23", "0912345678", "owner@example.com",
-                      "台北市萬華區寶興街115號"):
+        self.assertEqual(labels, ["電話", "車型", "車色", "車牌號碼・引擎號碼／車身號碼"])
+        for value in ("0912345678", str(order.vehicle_model), order.color.name, "配車後顯示"):
             self.assertIn(value, facts)
+        for removed in ("身分證字號", "A123456789", "生日", "民國 77 年", "Email", "owner@example.com", "戶籍地址", "寶興街", "未填"):
+            self.assertNotIn(removed, facts)
         self.assertIn("data-inplace-region", facts[:200])
 
-    def test_header_skips_blank_email_and_import_placeholders(self):
-        order = self.update(self.make_order(), owner_email="", owner_id_number="HIST-abc-1", owner_phone="未提供",
-                            owner_address="未提供")
-        facts = owner_facts(self.page(order))
-        self.assertNotIn("Email", facts)
-        self.assertNotIn("HIST-", facts)
+    def test_header_shows_allocated_vehicle_and_plate(self):
+        order = self.update(self.make_order(), allocated_vehicle=self.vehicle)
+        facts = hero_facts(self.page(order))
+        labels = re.findall(r"<li[^>]*><span>([^<]+)</span>", facts)
+        self.assertEqual(labels, ["電話", "車型", "車色", "車牌號碼", "引擎號碼／車身號碼"])
+        self.assertIn(">ENG-001</strong>", facts)
+        self.assertIn("尚未領牌", facts)
+        self.assertNotIn("配車後顯示", facts)
+        order = self.update(order, final_plate_number="ABC-1234")
+        facts = hero_facts(self.page(order))
+        self.assertIn("ABC-1234", facts)
+        self.assertNotIn("尚未領牌", facts)
+
+    def test_header_skips_phone_placeholder(self):
+        order = self.update(self.make_order(), owner_phone="未提供")
+        facts = hero_facts(self.page(order))
+        self.assertNotIn("電話", facts)
         self.assertNotIn("未提供", facts)
 
-    def test_header_labels_follow_owner_type(self):
-        order = self.update(self.make_order(), owner_type=SalesOrder.OwnerType.COMPANY, owner_id_number="83739807")
-        facts = owner_facts(self.page(order))
-        self.assertIn("<span>統一編號</span>", facts)
-        self.assertIn("<span>公司地址</span>", facts)
-        order = self.update(order, owner_type=SalesOrder.OwnerType.FOREIGN, owner_id_number="AC01234567")
-        self.assertIn("<span>居留證號</span>", owner_facts(self.page(order)))
-
-    def test_compact_bar_does_not_repeat_owner_facts(self):
+    def test_compact_bar_does_not_repeat_hero_facts(self):
         page = self.page(self.make_order())
         bar = page[page.index("data-order-compact-bar"):page.index("data-order-stage-start")]
-        self.assertNotIn("order-owner-facts", bar)
-        self.assertNotIn("A123456789", bar)
+        self.assertNotIn("order-hero-facts", bar)
+        self.assertNotIn("0912345678", bar)
 
     # T-36：新車主資料排最後、不放附件；證件與下訂附件區與浮水印入口移除。
     def test_order_sections_put_new_owner_last_without_attachments(self):
@@ -76,7 +80,7 @@ class OrderPageSectionTests(TestCase):
         panel = page[page.index('id="panel-order"'):page.index('id="panel-deposit"')]
         titles = re.findall(r'<details class="form-section" id="(\w+)"', panel)
         self.assertEqual(titles[-1], "owner")
-        self.assertLess(panel.index('id="deposit"'), panel.index('id="owner"'))
+        self.assertNotIn('id="deposit"', panel)
         owner = panel[panel.index('id="owner"'):]
         self.assertIn("<strong>新車主資料</strong>", owner)
         self.assertNotIn("車主與證件", panel)
@@ -199,3 +203,107 @@ class OrderSourceInCardTests(TestCase):
         script = open("static/js/order-workspace.js", encoding="utf-8").read()
         self.assertIn("!form.contains(event.target)", script)
         self.assertIn("data-autosave-mirror", script)
+
+
+class OrderPageLinesAndFeesTests(TestCase):
+    """T-43 配件不多一列空白；T-44 其他費用搬到左側「訂金與費用」步驟，訂單表單不再有訂金欄位。"""
+    setUp = flow.OrderFlowTests.setUp
+    make_order = flow.OrderFlowTests.make_order
+    page = OrderPageSectionTests.page
+    detail = OrderSourceInCardTests.detail
+    workspace_payload = OrderSourceInCardTests.workspace_payload
+
+    def order_with_lines(self):
+        from decimal import Decimal
+        from sales.models import AccessoryLine, OtherFeeLine
+        order = self.make_order()
+        for index in range(3):
+            AccessoryLine.objects.create(order=order, name=f"配件{index}", quantity=1, amount=Decimal("500"))
+        OtherFeeLine.objects.create(order=order, name="代辦費", amount=Decimal("1200"))
+        order = SalesOrder.objects.get(pk=order.pk)
+        SalesOrder.objects.filter(pk=order.pk).update(actual_balance=order.calculate_balance())
+        return SalesOrder.objects.get(pk=order.pk)
+
+    def accessory_rows(self, page):
+        start = page.index('id="accessory-forms"')
+        return page[start:page.index('id="empty-accessory"', start)]
+
+    def test_accessories_show_only_saved_lines(self):
+        page = self.page(self.order_with_lines())
+        rows = self.accessory_rows(page)
+        self.assertEqual(rows.count("data-accessory-row"), 3)
+        self.assertNotIn("accessories-3-", rows)
+        self.assertIn('name="accessories-TOTAL_FORMS" value="3"', page)
+
+    def test_order_without_fees_shows_no_blank_fee_row(self):
+        page = self.page(self.make_order())
+        self.assertIn('name="other_fees-TOTAL_FORMS" value="0"', page)
+        fees = page[page.index('id="other-fee-forms"'):page.index('id="empty-other-fee"')]
+        self.assertNotIn("other-fee-row", fees)
+
+    def test_wizard_keeps_blank_first_accessory_and_fee_rows(self):
+        admin = get_user_model().objects.create_superuser("admin", password="test-only")
+        self.client.force_login(admin)
+        page = self.client.get(reverse("order_create")).content.decode()
+        self.assertIn('id="deposit"', page)
+        self.assertIn('name="other_fees-0-name"', page)
+
+    def test_deposit_section_is_gone_and_fees_live_in_deposit_step(self):
+        page = self.page(self.order_with_lines())
+        panel = page[page.index('id="panel-order"'):page.index('id="panel-deposit"')]
+        self.assertNotIn('id="deposit"', panel)
+        self.assertNotIn('name="deposit_amount"', page)
+        self.assertNotIn('id="other-fee-forms"', panel)
+        step = page[page.index('id="panel-deposit"'):]
+        step = step[:step.index("</section>")]
+        self.assertIn("<h3>其他費用</h3>", step)
+        self.assertIn('id="add-other-fee"', step)
+        self.assertRegex(step, r'<input[^>]*name="other_fees-0-amount"[^>]*form="order-form"')
+        self.assertRegex(step, r'<input[^>]*name="other_fees-0-id"[^>]*form="order-form"')
+        self.assertRegex(step, r'name="other_fees-0-DELETE"[^>]*form="order-form"')
+        self.assertIn('data-autosave-mirror="order-form"', step)
+        self.assertEqual(page.count('id="other-fee-forms"'), 1)
+
+    def test_step_is_renamed_deposit_and_fees(self):
+        page = self.page(self.make_order())
+        nav = page[page.index("data-order-nav"):page.index('id="panel-order"')]
+        self.assertIn("訂金與費用", nav)
+
+    def test_fee_saves_from_deposit_step_without_touching_deposit_or_balance(self):
+        from decimal import Decimal
+        from sales.models import OtherFeeLine
+        order = self.order_with_lines()
+        before = SalesOrder.objects.get(pk=order.pk)
+        response = self.detail(order)
+        self.assertNotIn("deposit_amount", response.context["form"].fields)
+        data = self.workspace_payload(response, note="只改備註")
+        saved = self.client.post(reverse("order_edit", args=[order.pk]), data, HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(saved.status_code, 200, saved.content)
+        after = SalesOrder.objects.get(pk=order.pk)
+        for name in ("deposit_amount", "deposit_date", "deposit_method", "actual_balance"):
+            self.assertEqual(getattr(after, name), getattr(before, name), name)
+        self.assertEqual(after.other_fee_total, before.other_fee_total)
+        self.assertEqual(after.calculate_balance(), before.calculate_balance())
+        data = self.workspace_payload(self.detail(order), **{
+            "other_fees-TOTAL_FORMS": "2", "other_fees-1-id": "", "other_fees-1-name": "保管費", "other_fees-1-amount": "300",
+        })
+        saved = self.client.post(reverse("order_edit", args=[order.pk]), data, HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(saved.status_code, 200, saved.content)
+        self.assertEqual(sorted(OtherFeeLine.objects.filter(order=order).values_list("name", "amount")),
+                         [("代辦費", Decimal("1200")), ("保管費", Decimal("300"))])
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).deposit_amount, before.deposit_amount)
+
+    def test_read_only_deposit_step_lists_saved_fees(self):
+        from django.template.loader import render_to_string
+        order = self.order_with_lines()
+        html = render_to_string("sales/_order_step_fees.html", {"order": order})
+        self.assertIn("<dt>代辦費</dt><dd>$1,200</dd>", html)
+        self.assertNotIn("add-other-fee", html)
+
+    def test_scripts_handle_fee_rows_outside_the_order_form(self):
+        script = open("static/js/order-workspace.js", encoding="utf-8").read()
+        # 存檔後重編明細列：表單外、以 form 屬性併入的費用列也要算進去，否則 TOTAL_FORMS 會被歸零。
+        self.assertIn("filter(row => idOf(row)?.form === form)", script)
+        form_scripts = open("templates/sales/_order_form_scripts.html", encoding="utf-8").read()
+        self.assertIn('deleteInput?.dispatchEvent(new Event("change", {bubbles: true}))', form_scripts)
+        self.assertIn("...orderForm.elements]", form_scripts)

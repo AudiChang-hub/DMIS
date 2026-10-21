@@ -151,6 +151,11 @@
 @media (prefers-reduced-motion: reduce) {
   .deposit-receipt, .deposit-receipt__switch, .deposit-receipt__switch::after { transition: none; }
 }
+/* 其他費用接在訂金下方（使用者 2026-10-21 T-44）：細線分隔，沿用訂單表單的費用列。 */
+.order-step-fees { display: grid; gap: var(--stack-gap-sm); padding-top: var(--stack-gap-sm); border-top: 1px solid var(--line); }
+.order-step-fees > .fee-subsection { margin: 0; padding: 0; border: 0; }
+.order-step-fees .section-title { margin: 0; padding: 0 0 var(--space-2); border: 0; }
+.order-step-fees .section-title h3 { margin: 0; font-size: var(--text-base); }
 .delivery-balance { margin: var(--stack-gap-sm) 0 0; padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .delivery-balance legend { padding-inline: var(--space-2); font-weight: 600; }
 

@@ -1,0 +1,24 @@
+    <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
+      <div class="section-title"><h3>其他費用</h3></div>
+      <div id="other-fee-forms">
+      {% for fee_form in fee_formset %}
+        <div class="other-fee-row dynamic-row{% if fee_form.DELETE.value %} is-pending-delete{% endif %}" data-dynamic-row data-row-label="費用">
+          {{ fee_form.id }}
+          <span hidden>{{ fee_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
+          {% include "sales/_field.html" with field=fee_form.name %}
+          {% include "sales/_field.html" with field=fee_form.amount %}
+        </div>
+      {% endfor %}
+      </div>
+      <template id="empty-other-fee">
+        <div class="other-fee-row dynamic-row" data-dynamic-row data-row-label="費用">
+          {{ fee_formset.empty_form.id }}
+          <span hidden>{{ fee_formset.empty_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
+          {% include "sales/_field.html" with field=fee_formset.empty_form.name %}
+          {% include "sales/_field.html" with field=fee_formset.empty_form.amount %}
+        </div>
+      </template>
+      <button type="button" class="button ghost add-row-button" id="add-other-fee">＋ 新增費用</button>
+    </div>

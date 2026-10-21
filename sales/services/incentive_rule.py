@@ -25,6 +25,8 @@ def compulsory_insurance_commission(order):
 
 
 def _calculated_disbursement(order):
+    """實際車價收入的預設（使用者 2026-10-21 T-62）：現金單＝車價；分期單＝分期那筆×撥款比例（方案快照的預估撥款）
+    ＋現金／刷卡／匯款各筆全額。分期部分算不出來時不帶，維持人工填寫。"""
     if order.source_type == order.SourceType.PLATFORM:
         return None
     if order.payment_type == order.PaymentType.CASH:
@@ -32,7 +34,9 @@ def _calculated_disbursement(order):
     if order.payment_type == order.PaymentType.INSTALLMENT:
         snapshot = order.installment_plan_snapshot or {}
         amount = snapshot.get("expected_disbursement_amount")
-        return Decimal(str(amount)) if amount is not None else None
+        if amount is None:
+            return None
+        return Decimal(str(amount)) + order.customer_vehicle_split_amount
     return None
 
 

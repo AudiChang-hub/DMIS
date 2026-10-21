@@ -33,6 +33,28 @@ def resolve_installment_plan_option(vehicle_model_id, order_date, periods):
     return version.options.select_related("company").filter(periods=periods).first()
 
 
+def same_periods_disbursement_rate(order, option=None):
+    """自訂分期（或車型沒有該期數方案）時的撥款比例：沿用同期數的車型方案比例（使用者 2026-10-21 T-62）。
+
+    依序找本車型當時方案的同期數、同分期公司同期數、全系統同期數；後兩者只有一種比例時才採用，都沒有就不帶。"""
+    rate_method = InstallmentPlanOption.ExpectedDisbursementMethod.RATE
+    if option is not None and option.expected_disbursement_method == rate_method and option.expected_disbursement_rate is not None:
+        return option.expected_disbursement_rate
+    if not order.installment_periods:
+        return None
+    rates = InstallmentPlanOption.objects.filter(
+        periods=order.installment_periods, version__active=True,
+        expected_disbursement_method=rate_method, expected_disbursement_rate__isnull=False,
+    )
+    for scoped in (rates.filter(company__name=order.installment_company), rates):
+        found = set(scoped.values_list("expected_disbursement_rate", flat=True))
+        if len(found) == 1:
+            return found.pop()
+        if found:
+            return None
+    return None
+
+
 def calculate_base_expected_disbursement(option, vehicle_price):
     if not option:
         return None
@@ -123,6 +145,11 @@ def apply_order_installment_snapshot(order):
         order.installment_periods,
     )
     if not option or order.installment_custom:
+        rate = same_periods_disbursement_rate(order, option)
+        expected = (
+            (order.installment_split_amount * rate / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+            if rate is not None else None
+        )
         order.installment_company_master = None
         order.installment_plan_option = None
         order.installment_plan_snapshot = {
@@ -132,10 +159,11 @@ def apply_order_installment_snapshot(order):
             "monthly_amount": int(order.installment_monthly or Decimal("0")),
             "opening_fee": int(order.installment_opening_fee or Decimal("0")),
             "expected_disbursement_method": "manual",
-            "expected_disbursement_method_label": "本單另填",
-            "base_expected_disbursement_amount": None,
+            "expected_disbursement_method_label": f"沿用同期數方案撥款 {rate.normalize():f}%" if rate is not None else "本單另填",
+            "expected_disbursement_rate": str(rate) if rate is not None else None,
+            "base_expected_disbursement_amount": int(expected) if expected is not None else None,
             "extra_disbursement_bonus": 0,
-            "expected_disbursement_amount": None,
+            "expected_disbursement_amount": int(expected) if expected is not None else None,
             "captured_at": timezone.now().isoformat(),
         }
         SalesOrder.objects.filter(pk=order.pk).update(

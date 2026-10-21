@@ -4840,9 +4840,12 @@ class PaymentRecord(TimeStampedModel):
     def delete(self, *args, **kwargs):
         SalesOrder.objects.select_for_update().get(pk=self.order_id)
         if not _PAYMENT_LEDGER_MAINTENANCE.get():
-            current = type(self).objects.filter(pk=self.pk).values("confirmed", "entry_type").first()
-            if current and (current["confirmed"] or current["entry_type"] != self.EntryType.RECEIPT):
-                raise ValidationError("已確認的收款、沖銷與退款紀錄不可刪除；請以沖銷處理。")
+            # 收款（含已確認）可直接刪除（使用者 2026-10-21 T-47）；沖銷、退款紀錄與已被沖銷的收款仍不可刪。
+            current = type(self).objects.filter(pk=self.pk).values("entry_type").first()
+            if current and current["entry_type"] != self.EntryType.RECEIPT:
+                raise ValidationError("沖銷與退款紀錄不可刪除。")
+            if current and self.reversal_entries.exists():
+                raise ValidationError("這筆收款已沖銷，不能刪除。")
         return super().delete(*args, **kwargs)
 
     order = models.ForeignKey(

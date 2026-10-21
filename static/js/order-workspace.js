@@ -232,7 +232,6 @@
       LOCKED_PAYMENT_FIELDS.forEach(name => { const field = row.querySelector(`[name="${prefix}${name}"]`); if (field) field.disabled = locked; });
       row.classList.toggle('is-locked', locked); row.toggleAttribute('data-payment-locked', locked);
       row.querySelectorAll('[data-payment-locked-only], .receipt-amount .help-text').forEach(node => { node.hidden = !locked; });
-      const remove = row.querySelector('[data-delete-payment]'); if (remove) remove.hidden = locked;
     });
   }
   // 訂金步驟（使用者 2026-10-20 T-29）：已收妥即入帳，金額、日期、方式與訂單上的訂金一起鎖定；

@@ -415,9 +415,32 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
         self.assertIn("獎勵與補助", income)
         self.assertIn('name="_section" value="finance"', finance)
         self.assertIn('data-workspace-save="operations"', finance)
-        self.assertIn("收款與分期對帳", finance)
-        self.assertIn("沖銷與退款", finance)
+        # 1.86.3x（使用者 2026-10-21 T-48）：只做收款，標題改「收款」，不再有分期資訊欄。
+        self.assertIn("<summary><strong>收款</strong>", finance)
+        self.assertNotIn("收款與分期對帳", finance)
+        self.assertNotIn('name="operations-installment_info"', finance)
+        # T-47：沖銷與退款整區拿掉，收款明細直接刪除。
+        self.assertNotIn("沖銷與退款", finance)
+        self.assertNotIn("沖銷登記錯誤的收款", finance)
+        # T-46：應收設定整區拿掉，也不另顯示系統計算的應收。
+        self.assertNotIn("應收設定", finance)
+        self.assertNotIn('<label for="id_payments-0-expected_amount"', finance)
         self.assertIn("系統帶入", expense)
+        # T-45：車輛成本、傭金不再重複列標題、金額與說明，只留可編輯的欄位。
+        self.assertNotIn('<h3 class="ledger-group__title">車輛成本', expense)
+        self.assertNotIn('<h3 class="ledger-group__title">傭金', expense)
+        self.assertNotIn("此來源不計傭金", expense)
+        self.assertNotIn("的成本版本", expense)
+
+    def test_finance_form_has_no_installment_info_and_sync_keeps_it(self):
+        from sales.forms import OrderOperationsForm
+        from sales.services.operations_sync import sync_order_operations
+        order = self.make_order()
+        profile = self.profile(order)
+        self.assertNotIn("installment_info", OrderOperationsForm(instance=profile, prefix="operations", section="finance").fields)
+        self.assertNotIn("installment_info", OrderOperationsForm(instance=profile, prefix="operations").fields)
+        sync_order_operations(order.pk)
+        self.assertEqual(self.profile(order).installment_info, profile.installment_info)
 
     def test_manual_tag_follows_manual_fields(self):
         order = self.make_order()

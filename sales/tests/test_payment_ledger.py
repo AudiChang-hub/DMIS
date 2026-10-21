@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.forms import OrderOperationsForm
-from sales.models import OrderEvent, OrderOperationsProfile, PaymentRecord, SalesOrder, payment_ledger_maintenance
+from sales.models import OrderChange, OrderEvent, OrderOperationsProfile, PaymentRecord, SalesOrder, payment_ledger_maintenance
 from sales.services.operations_sync import sync_order_operations
 from sales.services.order_next_actions import build_order_next_actions
 from sales.services.order_workspace import payment_formset_for
@@ -118,14 +118,13 @@ class PaymentLedgerTests(TestCase):
     def test_reverse_endpoint_and_ledger_panel(self):
         paid = self.receipt(20000)
         page = self.client.get(reverse("order_operations", args=[self.order.pk]))
-        self.assertContains(page, "沖銷登記錯誤的收款")
+        # 1.86.3x（T-47）：畫面不再有沖銷與退款區；既有端點保留給舊資料與取消結算使用。
+        self.assertNotContains(page, "沖銷登記錯誤的收款")
         self.assertContains(page, "data-payment-locked")
         response = self.client.post(reverse("payment_reverse", args=[self.order.pk]),
                                     {"payment": paid.pk, "reason": "金額錯誤", "return_to": "operations"})
         self.assertRedirects(response, reverse("order_operations", args=[self.order.pk]))
         self.assertTrue(paid.reversal_entries.exists())
-        page = self.client.get(reverse("order_operations", args=[self.order.pk]))
-        self.assertContains(page, "金額錯誤")
 
     def test_duplicate_receipt_requires_acknowledgement(self):
         self.receipt(20000)
@@ -137,8 +136,24 @@ class PaymentLedgerTests(TestCase):
         self.assertEqual(self.order.payment_records.filter(received_amount=20000, confirmed=True).count(), 2)
         self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="duplicate_payment_confirmed").exists())
 
-    def test_confirmed_receipt_cannot_be_deleted_from_operations(self):
+    def test_confirmed_receipt_can_be_deleted_with_audit_snapshot(self):
+        # 使用者 2026-10-21 T-47 方案 A：已確認收款可直接刪除，處理紀錄留下內容快照。
+        paid = self.receipt(20000, note="客人匯錯帳號")
+        payload = self.payload()
+        row = next(form for form in payment_formset_for(self.order) if form.instance.pk == paid.pk)
+        payload[row.add_prefix("DELETE")] = "on"
+        response = self.post_operations(payload)
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertFalse(PaymentRecord.objects.filter(pk=paid.pk).exists())
+        event = OrderEvent.objects.get(order=self.order, event_type="payment_deleted")
+        for text in ("客戶匯款", "實收 $20,000", "2026/09/21", "匯款", "已確認", "客人匯錯帳號"):
+            self.assertIn(text, event.description)
+        change = OrderChange.objects.filter(order=self.order, reason="刪除收款").get()
+        self.assertEqual(change.changes["刪除收款：客戶匯款"]["after"], "已刪除")
+
+    def test_reversed_receipt_still_cannot_be_deleted(self):
         paid = self.receipt(20000)
+        reverse_payment(order_id=self.order.pk, payment_id=paid.pk, actor_name="測試", reason="舊沖銷")
         payload = self.payload()
         row = next(form for form in payment_formset_for(self.order) if form.instance.pk == paid.pk)
         payload[row.add_prefix("DELETE")] = "on"
@@ -205,15 +220,15 @@ class PaymentLedgerTests(TestCase):
         self.assertFalse(self.order.is_editable)
 
     def test_settlement_gap_after_delivery_correction(self):
-        self.receipt(70000)
+        self.receipt(68000)
+        wrong = self.receipt(2000, item_name="誤登收款")
         SalesOrder.objects.filter(pk=self.order.pk).update(status=SalesOrder.Status.COMPLETED, delivered_at=timezone.now())
         self.order.refresh_from_db()
         self.assertIsNone(settlement_gap(self.order))
+        # 1.86.3x（T-47）：交付後刪掉登記錯的已確認收款，留下待補收差額。
         payload = self.payload()
-        balance = self.order.payment_records.get(system_key="balance")
-        row = next(form for form in payment_formset_for(self.order) if form.instance.pk == balance.pk)
-        payload[row.add_prefix("expected_amount")] = "72000"
-        payload[row.add_prefix("expected_amount_override_reason")] = "交付後補收牌照費"
+        row = next(form for form in payment_formset_for(self.order) if form.instance.pk == wrong.pk)
+        payload[row.add_prefix("DELETE")] = "on"
         response = self.post_operations(payload)
         self.assertEqual(response.status_code, 200, response.content)
         self.order.refresh_from_db()

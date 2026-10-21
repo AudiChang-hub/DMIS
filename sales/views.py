@@ -5702,6 +5702,27 @@ def _operations_snapshot(profile):
     return values
 
 
+def _payment_deletion_snapshot(payment):
+    """刪除收款前的內容快照（處理紀錄用）：項目、分類、應收、實收、日期、方式、確認狀態與備註。"""
+    parts = [
+        payment.item_name or "收款",
+        "分期公司撥款" if payment.effective_receipt_kind == "lender" else "客戶收款",
+        f"實收 ${payment.received_amount or 0:,.0f}",
+        f"應收 ${payment.expected_amount or 0:,.0f}",
+    ]
+    if payment.received_on:
+        parts.append(f"{payment.received_on:%Y/%m/%d}")
+    if payment.payment_method:
+        parts.append(payment.payment_method)
+    if payment.confirmed and payment.confirmed_at:
+        parts.append(f"已確認（{payment.confirmed_by or '未記錄'} · {timezone.localtime(payment.confirmed_at):%Y/%m/%d %H:%M}）")
+    else:
+        parts.append("已確認" if payment.confirmed else "未確認")
+    if payment.note:
+        parts.append(f"備註：{payment.note}")
+    return {"item_name": payment.item_name or "收款", "text": "；".join(parts)[:480]}
+
+
 def _record_duplicate_acknowledgements(order, forms, user):
     for form in forms:
         duplicate = getattr(form, "duplicate_of", None)
@@ -5810,7 +5831,15 @@ def order_operations(request, pk):
                     setattr(profile, f"{prefix}_confirmed_by", "")
             profile.updated_by = _editing_name(request.user)
             profile.save()
+            # 收款明細直接刪除（使用者 2026-10-21 T-47）：刪前留下內容快照寫入處理紀錄，刪除後無法復原。
+            deleted_payments = [_payment_deletion_snapshot(row.instance) for row in (payment_formset.deleted_forms if payment_formset is not None else [])
+                                if row.instance.pk]
             payments = payment_formset.save() if payment_formset is not None else []
+            for snapshot in deleted_payments:
+                OrderChange.objects.create(order=order, reason="刪除收款", actor_name=_editing_name(request.user),
+                                           changes={f"刪除收款：{snapshot['item_name']}": {"before": snapshot["text"], "after": "已刪除"}})
+                OrderEvent.objects.create(order=order, event_type="payment_deleted", actor_name=_editing_name(request.user),
+                                          description=f"刪除收款：{snapshot['text']}")
             deposit = next((payment for payment in payments if payment.system_key == "deposit"), None)
             # 取消流程中退款依帳本結算，訂金應收不再回寫訂單約定訂金。
             if deposit and deposit.expected_amount != order.deposit_amount and not order.is_cancelled_sale:

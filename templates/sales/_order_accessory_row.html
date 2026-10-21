@@ -1,0 +1,20 @@
+{% comment %}配件一列（使用者 2026-10-21 T-50）：桌機一個配件一列，欄寬依內容；刪除與備註鈕併在同列，備註需要時才展開。
+建單精靈與訂單頁共用，新增列（empty_form）也用這一段。{% endcomment %}
+<div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
+  {{ accessory_form.id }}
+  <span hidden>{{ accessory_form.DELETE }}</span>
+  <div class="accessory-row__name">
+    {% include "sales/_field.html" with field=accessory_form.accessory_product %}
+    <div data-custom-accessory hidden>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
+  </div>
+  <div class="accessory-row__quantity">{% include "sales/_field.html" with field=accessory_form.quantity %}</div>
+  <div class="accessory-row__type">{% include "sales/_field.html" with field=accessory_form.line_type %}</div>
+  <div class="accessory-row__price">{% include "sales/_field.html" with field=accessory_form.amount %}</div>
+  <div class="accessory-row__labor">{% include "sales/_field.html" with field=accessory_form.labor_fee %}</div>
+  <div class="accessory-row__total"><div class="field"><label>配件總額（單件售價＋工資）</label><output class="form-control" data-accessory-total>0</output><small data-accessory-quantity-total></small></div></div>
+  <div class="accessory-row__actions">
+    <button type="button" class="accessory-note-toggle{% if accessory_form.note.value %} has-note{% endif %}" data-accessory-note-toggle aria-expanded="{% if accessory_form.note.value or accessory_form.note.errors %}true{% else %}false{% endif %}" aria-label="備註">備註</button>
+    <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
+  </div>
+  <div class="accessory-row__note" data-accessory-note {% if not accessory_form.note.value and not accessory_form.note.errors %}hidden{% endif %}>{% include "sales/_field.html" with field=accessory_form.note %}</div>
+</div>

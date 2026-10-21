@@ -8,6 +8,7 @@
     const byId = id => doc.getElementById(id);
     const company = byId('installment-company-choice');
     const periods = byId('installment-period-choice');
+    const periodField = byId('installment-period-field');
     const toggle = byId('installment-manual-toggle');
     const custom = byId('id_installment_custom');
     const manualFields = [...doc.querySelectorAll('[data-installment-manual]')];
@@ -39,6 +40,17 @@
       toggle.textContent = value ? '改用車型方案' : '其他／自訂分期';
       toggle.disabled = false;
       syncRequired();
+      syncPeriodField();
+    }
+    // 選「其他／自訂分期」時不顯示「期數與每期金額」（使用者 2026-10-21 T-49）：期數與每期金額只由下方欄位填，
+    // 選單清空並停用，不留舊方案的期數與金額；切回車型方案時再出現。
+    function syncPeriodField() {
+      const customChosen = company.value === '__custom__';
+      if (customChosen) {
+        if (periods.value) renderPeriods();
+        periods.disabled = true;
+      }
+      if (periodField) periodField.hidden = customChosen;
     }
     custom?.addEventListener('change', () => { setManual(custom.checked); if (custom.checked) company.value = '__custom__'; });
     // 自訂分期的每期金額（使用者 2026-10-21 T-34）：分期價格（付款方式「分期」那筆）÷期數，四捨五入到整數。
@@ -81,11 +93,13 @@
       const historical = preserve && (inputs.company.value || Number(inputs.periods.value) > 0);
       setManual(Boolean(custom?.checked) || !options.length || Boolean(historical && !found));
       if (custom?.checked) company.value = '__custom__';
+      syncPeriodField();
       config.hint.textContent = versionHint + (historical
         ? '保留原訂單公司、期數與金額；明確選擇方案後才會重新帶入。'
         : options.length ? '請選擇公司與期數，帶入每期金額及開辦費。' : '沒有有效方案，可保留原值或人工填寫；不套用今天的其他版本。');
     }
     function apply() {
+      if (company.value === '__custom__') return;
       const option = options.find(item => item.company === company.value && String(item.periods) === periods.value);
       if (!option) return;
       if (custom) custom.checked = false;

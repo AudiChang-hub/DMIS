@@ -32,5 +32,8 @@ RUN install -d -o dmis -g dmis /app/media /app/staticfiles \
 
 USER dmis
 
+# 靜態檔在建置時整理（含雜湊檔名與壓縮），新版容器啟動就能直接服務，不再花數秒 collectstatic。
+RUN DJANGO_DEBUG=0 DJANGO_SECRET_KEY=collectstatic-build-only     python manage.py collectstatic --noinput --verbosity 0     && test -f /app/staticfiles/staticfiles.json
+
 EXPOSE 8000
 CMD ["./scripts/start_django.sh"]

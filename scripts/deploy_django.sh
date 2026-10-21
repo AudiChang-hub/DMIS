@@ -31,6 +31,21 @@ flock -n 9 || fail "已有 DMIS Next 部署程序執行中"
 cd "$PROJECT_DIR"
 compose=(docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml)
 
+# 秒退：把流量切回上一色（已停止、仍是上一版 image），不動 Git、不重新部署。
+if [[ "${1:-}" == "--rollback" ]]; then
+    ./scripts/deploy_web_bluegreen.sh rollback
+    ./scripts/verify_django_public_route.sh
+    rolled_back_sha=$(cat "${DMIS_PROXY_STATE_DIR:-/srv/dmis-data/dmis-next/proxy}/$(./scripts/deploy_web_bluegreen.sh active).sha" 2>/dev/null || true)
+    # 部署標記改成上一版，下次執行部署會重新套用 main 最新版（應為修正版）。
+    if [[ -n "$rolled_back_sha" ]]; then
+        printf '%s\n' "$rolled_back_sha" >"$DEPLOY_STATE_FILE"
+    else
+        rm -f "$DEPLOY_STATE_FILE"
+    fi
+    exit 0
+fi
+script_before=$(sha256sum scripts/deploy_django.sh)
+
 [[ "$(git branch --show-current)" == "$DEPLOY_BRANCH" ]] ||
     fail "目前 branch 不是 $DEPLOY_BRANCH"
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] ||
@@ -59,6 +74,11 @@ else
 
     log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
     git merge --ff-only "origin/$DEPLOY_BRANCH"
+    # 部署腳本本身有更新時改用新版接著跑（已備份、已合併，會走「續跑部署」）。
+    if [[ "$(sha256sum scripts/deploy_django.sh)" != "$script_before" ]]; then
+        log "部署腳本已更新，改用新版繼續"
+        exec ./scripts/deploy_django.sh "$@"
+    fi
 fi
 
 log "核對正式版號與已發布標籤；未標記版本不得部署"
@@ -68,26 +88,10 @@ git fetch --quiet origin "refs/tags/v${release_version}:refs/tags/v${release_ver
 python3 scripts/check_release.py --tag "v${release_version}" ||
     fail "正式版號或標籤提交核對失敗；不重啟應用服務"
 
-log "重建 Django web 與背景工作 image"
-"${compose[@]}" build web ocr-worker search-worker import-worker
-
-log "只重啟 DMIS 應用服務；資料庫與 Redis 保持運作"
-"${compose[@]}" up -d --no-deps web ocr-worker search-worker import-worker
-
-web_id=$("${compose[@]}" ps -q web)
-[[ -n "$web_id" ]] || fail "找不到 web container"
-for attempt in $(seq 1 36); do
-    health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$web_id")
-    [[ "$health" == "healthy" ]] && break
-    sleep 5
-done
-[[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$web_id")" == "healthy" ]] ||
-    fail "web 未在期限內恢復健康"
-
-# nginx 會解析並記住 web container IP；web 重建後必須重新建立代理。
-# 使用 up 而不是 restart，確保 network alias 等 Compose 設定異動也會生效。
-log "重新建立 DMIS tunnel proxy"
-"${compose[@]}" up -d --no-deps --force-recreate tunnel-proxy
+# 藍綠部署：新版在閒置的那色就緒後才切換，舊版排空後停止並保留供秒退。
+# 資料庫與 Redis 不會因應用更新而重啟。
+DMIS_DEPLOY_SHA="$remote_sha" DMIS_NEXT_PROJECT_DIR="$PROJECT_DIR" \
+    ./scripts/deploy_web_bluegreen.sh deploy
 
 log "啟動由 DMIS Next 管理的 Cloudflare Tunnel connector（HTTP/2）"
 "${compose[@]}" up -d --no-deps cloudflared

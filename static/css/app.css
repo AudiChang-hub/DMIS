@@ -1635,9 +1635,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
   .delivery-layout__col { display: contents; }
   .delivery-layout__note { order: 1; }
 }
-.accessory-row.has-accessory-name .field:nth-of-type(2) label::after,
-.accessory-row.has-accessory-name .field:nth-of-type(3) label::after,
-.accessory-row.has-accessory-name .field:nth-of-type(4) label::after {
+.accessory-row.has-accessory-name :is(.accessory-row__quantity, .accessory-row__type) label::after {
   content: "必填"; color: var(--red); font-size: var(--text-2xs); font-weight: 800;
 }
 .form-control, .login-card input, .action-card select {
@@ -6405,7 +6403,12 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .installment-picker { padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-tint); margin-top: var(--stack-gap-sm); }
   .installment-picker .form-grid { padding: 0; }
   .installment-picker select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); color: var(--ink); background: var(--surface); font: inherit; }
-  .installment-picker .button { margin-top: var(--stack-gap-sm); }
+  /* 分期方案選擇列（使用者 2026-10-21 T-51）：「其他／自訂分期／改用車型方案」按鈕併在同一列右側；
+     自訂分期時隱藏期數選單，公司選單直接延伸到按鈕前，不留半邊空白。窄版改回上下排。 */
+  .installment-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--stack-gap-sm); }
+  .installment-picker .form-grid:has(> #installment-period-field[hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .installment-picker > .button { margin-top: 0; min-height: 48px; white-space: nowrap; }
+  .installment-picker > .button[hidden] { display: none; }
   [data-installment-manual][hidden] { display: none; }
   @media (min-width: 860.02px) {
     .app-header-inner { flex-wrap: nowrap; gap: var(--space-1); }
@@ -6464,7 +6467,8 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
     .form-grid { grid-template-columns: minmax(0, 1fr); }
     .card, .detail-grid .card { padding: var(--card-pad); }
     .conditional-panel, .subsection { margin-inline: var(--space-4); }
-    .installment-picker { padding: var(--inset-pad); }
+    .installment-picker { padding: var(--inset-pad); grid-template-columns: minmax(0, 1fr); }
+    .installment-picker > .button { justify-self: start; }
     .access-checks { gap: var(--space-3) var(--stack-gap-sm); }
   }
   .form-progress { top: var(--app-header-height, 108px); background: var(--surface-glass); border-radius: var(--radius-md); }
@@ -6795,17 +6799,84 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .document-card .document-download{display:block;padding:var(--space-2);text-align:center;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-tint);color:var(--ink);text-decoration:none}
 .document-card small{color:var(--muted)}.order-attachments{margin-block:var(--stack-gap);padding:var(--inset-pad);border-top:1px solid var(--line)}
 [data-custom-accessory][hidden]{display:none!important}
-/* 配件獨立成卡；平板名稱欄不再跨滿整列。新增列也沿用相同版面。 */
-.accessory-section #accessory-forms{display:grid;gap:var(--stack-gap);counter-reset:accessory-card}
-.accessory-section .accessory-row{counter-increment:accessory-card;padding:var(--space-8) var(--space-5) var(--space-5);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface-soft);min-width:0}
-.accessory-section .accessory-row::before{content:"配件 " counter(accessory-card);position:absolute;top:18px;left:20px;font-size:var(--text-sm-plus);font-weight:700;color:var(--muted)}
-.accessory-section .accessory-row>.remove-row-button{top:12px;right:16px}
-.accessory-section .accessory-row>.field:first-of-type{grid-column:auto;padding-right:0}
-.accessory-section .accessory-row>.field:last-child{grid-column:1 / -1}
-.accessory-section .accessory-row>.field,.accessory-section [data-custom-accessory]{min-width:0}
-.accessory-section .accessory-row select{width:100%;min-width:0;max-width:100%}
-@media(min-width:600.02px) and (max-width:1100px){.accessory-section .accessory-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:600px){.accessory-section #accessory-forms{gap:var(--stack-gap)}.accessory-section .accessory-row{grid-template-columns:minmax(0,1fr);padding:var(--space-8) var(--space-4) var(--space-4)}.accessory-section .accessory-row::before{left:16px}}
+/* 配件精簡列（使用者 2026-10-21 T-50）：依配件區實際寬度（container query）排版，建單精靈與訂單頁共用。
+   寬：一個配件一列，欄寬依內容，欄名放在上方表頭；中：名稱一列、數字一列；窄（手機）：名稱、數量類型總額、售價工資三列。
+   刪除與備註鈕在同列右側，備註需要時才展開成整列。 */
+.accessory-section { container: accessory / inline-size; }
+.accessory-section #accessory-forms { display: grid; gap: var(--space-2); }
+.accessory-section .accessory-row {
+  display: grid; align-items: start; gap: var(--space-2) var(--space-3); min-width: 0;
+  padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-areas: "name name name name actions actions" "qty qty type type type type" "price price price labor labor labor" "total total total total total total" "note note note note note note";
+}
+/* 窄版：單件總額改成一行摘要（標籤在左、金額在右），不再佔一整格。 */
+.accessory-section .accessory-row__total .field { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); }
+.accessory-section .accessory-row__total .field > label { margin: 0; }
+.accessory-section .accessory-row__total [data-accessory-total] { width: auto; min-height: 0; padding: 0; border: 0; font-size: var(--text-base); }
+.accessory-section .accessory-row__total [data-accessory-quantity-total] { flex-basis: 100%; text-align: right; }
+.accessory-section .accessory-row > div { min-width: 0; }
+.accessory-section .accessory-row__name { grid-area: name; display: grid; gap: var(--space-2); }
+.accessory-section .accessory-row__quantity { grid-area: qty; }
+.accessory-section .accessory-row__type { grid-area: type; }
+.accessory-section .accessory-row__price { grid-area: price; }
+.accessory-section .accessory-row__labor { grid-area: labor; }
+.accessory-section .accessory-row__total { grid-area: total; }
+.accessory-section .accessory-row__note { grid-area: note; }
+.accessory-section .accessory-row__note[hidden] { display: none; }
+.accessory-section .accessory-row__actions { grid-area: actions; display: flex; justify-content: flex-end; align-items: center; align-self: start; gap: var(--space-2); }
+.accessory-section .accessory-row .field { gap: var(--space-1); }
+.accessory-section .accessory-row .field > label { font-size: var(--text-xs); }
+.accessory-section .accessory-row .form-control { min-height: 42px; padding-block: var(--space-2); }
+.accessory-section .accessory-row select { width: 100%; min-width: 0; max-width: 100%; }
+.accessory-section .accessory-row [data-accessory-total] { display: flex; align-items: center; font-weight: 750; font-variant-numeric: tabular-nums; background: transparent; border-style: dashed; }
+.accessory-section .accessory-row [data-accessory-quantity-total] { color: var(--muted); font-size: var(--text-xs); }
+.accessory-section .accessory-row [data-accessory-quantity-total][hidden] { display: none; }
+.accessory-section .accessory-row :is(.accessory-row__quantity, .accessory-row__price, .accessory-row__labor) .form-control { font-variant-numeric: tabular-nums; }
+.accessory-section .remove-row-button { position: static; min-height: 36px; padding-inline: var(--space-2); white-space: nowrap; }
+.accessory-note-toggle {
+  position: relative; min-height: 36px; padding: var(--space-2); color: var(--ink-soft); background: var(--surface); white-space: nowrap;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; cursor: pointer;
+}
+.accessory-note-toggle:hover { border-color: var(--line-strong); color: var(--ink); }
+.accessory-note-toggle[aria-expanded="true"] { color: var(--ink); background: var(--surface-subtle); }
+.accessory-note-toggle.has-note::after { content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--blue, currentColor); }
+.accessory-note-toggle:focus-visible, .accessory-section .remove-row-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.accessory-head { display: none; }
+@container accessory (min-width: 560px) {
+  .accessory-section .accessory-row__total .field { display: grid; justify-content: stretch; }
+  .accessory-section .accessory-row__total .field > label { margin-bottom: var(--space-1); }
+  .accessory-section .accessory-row__total [data-accessory-total] { width: 100%; min-height: 42px; padding: var(--space-2) var(--space-3); border: 1px dashed var(--line); font-size: inherit; }
+  .accessory-section .accessory-row__total [data-accessory-quantity-total] { text-align: left; }
+  .accessory-section .accessory-row {
+    grid-template-columns: 4.5rem 6.5rem minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "name name name name actions" "qty type price labor total" "note note note note note";
+  }
+}
+/* 寬：一列排完，欄名改在表頭；欄位標籤保留給讀屏。 */
+@container accessory (min-width: 760px) {
+  .accessory-head, .accessory-section .accessory-row {
+    grid-template-columns: minmax(0, 1fr) 4rem 6rem 6rem 6rem 7.5rem 7.5rem;
+    column-gap: var(--space-3);
+  }
+  .accessory-head {
+    display: grid; padding: 0 calc(var(--space-3) + 1px) var(--space-1);
+    color: var(--muted); font-size: var(--text-xs); font-weight: 700;
+  }
+  .accessory-section:not(:has([data-accessory-row]:not(.is-pending-delete))) .accessory-head { display: none; }
+  .accessory-section .accessory-row__actions { align-self: center; }
+  .accessory-section .accessory-row {
+    align-items: center; padding: var(--space-2) var(--space-3);
+    grid-template-areas: "name qty type price labor total actions" "note note note note note note note";
+  }
+  .accessory-section .accessory-row .field > label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  /* 選「其他」時自填名稱接在選單右邊，同一列。 */
+  .accessory-section .accessory-row__name:has([data-custom-accessory]:not([hidden])) { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr); }
+  .accessory-section .accessory-row [data-accessory-quantity-total] { white-space: nowrap; }
+  .accessory-section .accessory-row__note .field > label { position: static; width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; }
+}
 .operations-form .operation-section,.operations-form .operation-change-reason{margin-block:0}
 .operations-form .operation-section{padding:0;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink,var(--navy))}
 .operations-form .operation-section>summary{cursor:pointer}

@@ -5578,7 +5578,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         document.document_type: document
         for document in order.registration_documents.all()
         if document.document_type
-        != RegistrationDocument.DocumentType.OTHER_INSURANCE
+        not in RegistrationDocument.multi_document_types()
     }
     required_types = order.required_registration_document_types()
     registration_document_rows = [
@@ -5722,6 +5722,9 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "other_insurance_documents": order.registration_documents.filter(
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
             ),
+            "other_registration_documents": order.registration_documents.filter(
+                document_type=RegistrationDocument.DocumentType.OTHER
+            ).order_by("created_at", "pk"),
             "registration_missing": registration_missing,
             # 必備文件都已上傳時，儲存領牌資料會直接完成領牌，按鈕改名並先確認。
             "registration_docs_ready": not [
@@ -7083,7 +7086,7 @@ def registration_document_upload(request, pk):
     # 領牌完成後仍可補上傳還沒有的文件（例如晚到的發票、選號單）；已上傳的不能替換（使用者 2026-10-15）。
     if (
         (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
-        and form.cleaned_data["document_type"] != RegistrationDocument.DocumentType.OTHER_INSURANCE
+        and form.cleaned_data["document_type"] not in RegistrationDocument.multi_document_types()
         and order.registration_documents.filter(document_type=form.cleaned_data["document_type"]).exists()
     ):
         return _document_upload_response(
@@ -7098,7 +7101,7 @@ def registration_document_upload(request, pk):
     document = form.save(commit=False)
     document.order = order
     document.uploaded_by = _editing_name(request.user)
-    if document.document_type != RegistrationDocument.DocumentType.OTHER_INSURANCE:
+    if document.document_type not in RegistrationDocument.multi_document_types():
         existing = order.registration_documents.filter(
             document_type=document.document_type
         ).first()
@@ -7145,17 +7148,19 @@ def registration_document_delete(request, pk, document_pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
-    if order.is_registration_complete or order.status in {
-        SalesOrder.Status.COMPLETED,
-        SalesOrder.Status.CANCELLED,
-    }:
-        messages.error(request, "此訂單的領牌階段已完成，無法刪除文件。")
-        return redirect("order_detail", pk=pk)
     document = get_object_or_404(
         RegistrationDocument,
         pk=document_pk,
         order=order,
     )
+    # 其他領牌相關資料是選填的補充檔，領牌完成後仍可刪除傳錯的檔案（使用者 2026-10-22 T-101）；其餘文件領牌後鎖定。
+    locked = order.status == SalesOrder.Status.CANCELLED or (
+        document.document_type != RegistrationDocument.DocumentType.OTHER
+        and (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
+    )
+    if locked:
+        messages.error(request, "此訂單的領牌階段已完成，無法刪除文件。")
+        return redirect("order_detail", pk=pk)
     display_name = document.display_name
     previous_file = getattr(document.file, "name", "")
     document.delete()

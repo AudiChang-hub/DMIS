@@ -5075,8 +5075,9 @@ class OrderFlowTests(TestCase):
         )
         css = Path("static/css/app.css").read_text(encoding="utf-8")
 
-        # 其他補助文件改成上傳列直接在標題下（2026-10-22 T-83），不再用 content-section-heading。
-        self.assertEqual(template.count("content-section-heading"), 3)
+        # 其他補助文件改成上傳列直接在標題下（2026-10-22 T-83），不再用 content-section-heading；
+        # 領牌步驟新增「其他領牌相關資料」（T-101），和其他保險單同樣用有色條標題。
+        self.assertEqual(template.count("content-section-heading"), 4)
         self.assertIn(".content-section-heading {", css)
         self.assertIn(
             ".content-section-heading + .registration-document-list {",

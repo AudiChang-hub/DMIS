@@ -111,7 +111,7 @@
       {% if order.commission_recipient_id %}<div class="wide highlight-data"><dt>台數與傭金歸屬</dt><dd>{{ order.commission_recipient }}<small>{% site_text 'order_detail.8470a8d69a64' %}</small></dd></div>{% endif %}
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
-      <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.actual_location_label }}</dd></div>
+      <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.whereabouts_label }}</dd></div>
       {% elif order.legacy_snapshot.vehicle_identifier %}
       <div class="wide highlight-data"><dt>歷史車輛識別</dt><dd>{{ order.legacy_snapshot.vehicle_identifier }}</dd></div>
       {% endif %}
@@ -248,7 +248,7 @@
     <div class="allocation-overview__identity">
       <span class="allocation-overview__label">{% if order.vehicle_model.energy_type == "gas" %}引擎號碼{% else %}車身號碼{% endif %}</span>
       <strong>{{ order.allocated_vehicle.identifier }}</strong>
-      <small>此車已保留給本訂單</small>
+      <small>{% if order.is_delivered %}已交付給本訂單客戶{% else %}此車已保留給本訂單{% endif %}</small>
       {% suzuki_parts_lookup order.vehicle_model order.allocated_vehicle.engine_number|default:order.allocated_vehicle.frame_number %}
     </div>
     <div class="allocation-overview__vehicle">
@@ -262,14 +262,17 @@
         {% if order.allocated_vehicle.manufactured_year_month %}<span>出廠 {{ order.allocated_vehicle.manufactured_year_month }}</span>{% endif %}
       </div>
     </div>
-    <div class="allocation-overview__location">
+    {# 交車不改存放欄位：已交車／售出／調出的車改顯示去向，不再顯示「本店」（使用者 2026-10-22 T-98）。 #}
+    {% with vehicle=order.allocated_vehicle %}
+    <div class="allocation-overview__location{% if vehicle.has_left_store %} is-left{% endif %}">
       <span class="allocation-overview__location-mark" aria-hidden="true"></span>
       <div>
-        <span class="allocation-overview__label">目前位置</span>
-        <strong>{{ order.allocated_vehicle.actual_location_label }}</strong>
-        <small>實體存放位置</small>
+        <span class="allocation-overview__label">{% if vehicle.has_left_store %}車輛去向{% else %}目前位置{% endif %}</span>
+        <strong>{{ vehicle.whereabouts_label }}</strong>
+        <small>{% if vehicle.has_left_store %}{% if order.is_delivered and order.delivered_at %}{{ order.delivered_at|date:"Y/m/d" }} 交付，已不在本店{% else %}已不在本店{% endif %}{% else %}實體存放位置{% endif %}</small>
       </div>
     </div>
+    {% endwith %}
   </div>
   {% if order.is_editable %}
     {% if order.has_registration_started %}
@@ -479,6 +482,48 @@
         </form>
         {% endif %}
       </div>
+
+      {% comment %}其他領牌相關資料（使用者 2026-10-22 T-101）：和「其他補助文件」同一個多檔上傳元件（data-multi-upload、other-subsidy-upload.js），
+      一次多選或拖曳、逐檔進度、名稱自動帶原始檔名，傳完原地更新。選填，不算領牌完成條件；領牌後仍可補傳與刪除。{% endcomment %}
+      <section class="other-subsidy-documents other-registration-documents" aria-labelledby="other-registration-title">
+        <div class="content-section-heading">
+          <div>
+            <h3 id="other-registration-title">其他領牌相關資料</h3>
+            <p>監理站收據、委託書、選號截圖等其他資料都可以放這裡，可上傳多份；選填，不影響領牌完成。</p>
+          </div>
+        </div>
+        {% if order.status != 'cancelled' %}
+        <form class="other-subsidy-documents__form" id="other-registration-upload" data-multi-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="document_type" value="other">
+          <label class="other-subsidy-documents__file" data-upload-dropzone>
+            <span class="other-subsidy-documents__file-icon" aria-hidden="true">＋</span>
+            <span class="other-subsidy-documents__file-text"><strong>選擇資料上傳</strong><small>{% site_text 'order_detail.98bfed2bc1c1' %}</small></span>
+            <input id="other-registration-file" type="file" name="file" multiple data-max-bytes="20971520" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
+          </label>
+          <noscript><button class="button primary" type="submit">上傳資料</button></noscript>
+          <div class="upload-queue" data-upload-queue hidden></div>
+        </form>
+        {% endif %}
+        {% for document in other_registration_documents %}
+        <article class="other-subsidy-documents__item">
+          <span>
+            <strong>{{ document.display_name }}</strong>
+            <small>由 {{ document.uploaded_by|default:"內部人員" }} 於 {{ document.created_at|date:"Y/m/d H:i" }} 上傳</small>
+          </span>
+          <div>
+            {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
+            {% if order.status != 'cancelled' %}
+            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="確定刪除這份資料嗎？刪除後無法復原。">
+              {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% empty %}
+        {% if order.status == 'cancelled' %}<p class="other-subsidy-documents__empty">目前沒有其他領牌相關資料。</p>{% endif %}
+        {% endfor %}
+      </section>
     </div>
 
     {% include "sales/_registration_completion.html" %}

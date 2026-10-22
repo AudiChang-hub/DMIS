@@ -2732,6 +2732,27 @@ class VehicleInventory(TimeStampedModel):
     def actual_location_label(self):
         return self.current_dealer.name if self.current_dealer_id else "本店"
 
+    LEFT_STORE_STATUSES = (Status.DELIVERED, Status.SOLD, Status.TRANSFERRED_OUT)
+
+    @property
+    def has_left_store(self):
+        """已交車、已售出或已調出：車已不在本店或車行，存放位置只是離開前的最後紀錄。"""
+        return self.status in self.LEFT_STORE_STATUSES
+
+    @property
+    def whereabouts_label(self):
+        """畫面顯示用的車輛去向（使用者 2026-10-22 T-98）：還在的車顯示存放位置，離開的車顯示去向。
+        交車不改存放欄位（只改狀態），所以已離開的車不能再顯示「本店」。歷史紀錄的位置快照照舊用 actual_location_label。"""
+        if self.status == self.Status.DELIVERED:
+            return "已交車給客戶"
+        if self.status == self.Status.TRANSFERRED_OUT:
+            return f"已調出：{self.disposition_target_label}" if self.disposition_target_label else "已調出"
+        if self.status == self.Status.SOLD:
+            if self.disposition == self.Disposition.DEALER_PICKUP and self.disposition_target_label:
+                return f"{self.disposition_target_label}已領車"
+            return "已售出"
+        return self.actual_location_label
+
     @property
     def disposition_target_label(self):
         """去向對象：對到車行主檔顯示車行名稱，否則顯示匯入原文（例如「工廠」）。"""
@@ -5058,6 +5079,12 @@ class RegistrationDocument(TimeStampedModel):
         COMPULSORY_INSURANCE = "compulsory_insurance", "強制險單"
         PLATE_SELECTION = "plate_selection", "選號單"
         OTHER_INSURANCE = "other_insurance", "其他保險單"
+        OTHER = "other", "其他領牌相關資料"
+
+    @classmethod
+    def multi_document_types(cls):
+        """可一張訂單存多份、不是固定文件格的類型（其他領牌相關資料：使用者 2026-10-22 T-101）。"""
+        return frozenset({cls.DocumentType.OTHER_INSURANCE, cls.DocumentType.OTHER})
 
     @classmethod
     def retired_document_types(cls):
@@ -5095,7 +5122,7 @@ class RegistrationDocument(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["order", "document_type"],
-                condition=~models.Q(document_type="other_insurance"),
+                condition=~models.Q(document_type__in=["other_insurance", "other"]),
                 name="unique_fixed_registration_document",
             )
         ]

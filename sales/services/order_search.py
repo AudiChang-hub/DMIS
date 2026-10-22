@@ -232,7 +232,7 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
         related_values += (
             ("引擎號碼", vehicle.engine_number),
             ("車身號碼", vehicle.frame_number),
-            ("目前位置", vehicle.actual_location_label),
+            ("目前位置", vehicle.whereabouts_label),
             ("車況說明", vehicle.condition_note),
             ("車況處理結果", vehicle.condition_resolution),
             ("進車日期", vehicle.received_on),
@@ -378,7 +378,7 @@ def build_order_search_payload(order, *, include_private=True):
         related_values += (
             ("引擎號碼", vehicle.engine_number),
             ("車身號碼", vehicle.frame_number),
-            ("目前位置", vehicle.actual_location_label),
+            ("目前位置", vehicle.whereabouts_label),
             ("車況說明", vehicle.condition_note),
             ("車況處理結果", vehicle.condition_resolution),
             ("進車日期", vehicle.received_on),

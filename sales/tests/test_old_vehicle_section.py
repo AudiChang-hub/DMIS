@@ -19,9 +19,11 @@ class OldVehicleSectionTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         self.assertNotIn("僅供查看", html)
         self.assertIn('value="old_vehicle"', html)
         self.assertIn('id="ops_old_vehicle_operations-old_vehicle_engine_number"', html)
-        # 舊車與報廢資料只出現一次，且在補助撥款追蹤之前。
-        self.assertEqual(html.count("<strong>舊車與報廢資料</strong>"), 1)
-        self.assertLess(html.index("<strong>舊車與報廢資料</strong>"), html.index("<strong>補助撥款追蹤</strong>"))
+        # 舊車與報廢資料併入「汰舊與舊車資料」卡、只出現一次；補助撥款追蹤整區拿掉（2026-10-22 T-81、T-82）。
+        self.assertEqual(html.count("<h4>舊車與報廢</h4>"), 1)
+        self.assertLess(html.index('id="tradein-card-title"'), html.index("<h4>舊車與報廢</h4>"))
+        self.assertNotIn("補助撥款追蹤", html)
+        self.assertIn('form="ops-old-vehicle-form"', html)
 
     def test_old_vehicle_section_saves_without_touching_subsidy_tracking(self):
         self.login_admin()

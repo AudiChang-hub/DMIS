@@ -49,8 +49,8 @@
   const sourceType = byId("id_source_type");
   const ownerType = byId("id_owner_type");
   const paymentType = byId("id_payment_type");
-  const isTradeInSubsidy = byId("id_is_trade_in_subsidy");
-  const tradeInIntent = byId("id_trade_in_intent");
+  // 有沒有汰舊看補助方案是否勾到汰舊類（使用者 2026-10-22 T-80），不再有「是否有汰舊」選單與汰舊勾選。
+  const tradeInChoices = [...document.querySelectorAll("[data-subsidy-trade-in] input")];
   const installmentInputs = [
     byId("id_installment_company"),
     byId("id_installment_periods"),
@@ -596,7 +596,7 @@
     const installmentRequired = !platform && paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
     installmentPicker.syncRequired();
-    showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
+    showConditional("trade-in-owner", tradeInChoices.some(choice => choice.checked));
     showConditional("watch", plateChoice.value === "watch");
     // 只有「指定號碼」收選號費；一般領牌偏好、待確認、不選號都不顯示也不計（使用者 2026-10-17）。
     showConditional("plate-selection", plateChoice.value === "watch");
@@ -748,7 +748,7 @@
     loadVehiclePrice({force: true});
     if (paymentType.value === "installment") loadInstallmentPlanOptions();
   });
-  [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy, tradeInIntent].filter(Boolean)
+  [sourceType, ownerType, plateChoice, deliveryMethod, ...tradeInChoices].filter(Boolean)
     .forEach(el => el.addEventListener("change", refresh));
   sourceType?.addEventListener("change", () => {
     // 切入或切出網路平台時重新帶車價；店內／車行之間切換不覆蓋人工調整的車價。

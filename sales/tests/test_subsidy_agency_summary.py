@@ -74,9 +74,10 @@ class AgencySummaryPageTests(TestCase):
 
     def test_subsidy_tab_shows_summary_instead_of_dropdowns(self):
         page = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "subsidy"})
-        self.assertContains(page, 'id="subsidy-agency-summary"')
-        self.assertContains(page, "已申請")
-        self.assertContains(page, "尚未登錄補助項目")  # 環境部、地方政府沒有項目
+        # 補助撥款追蹤整區拿掉（使用者 2026-10-22 T-82）：各單位進度不再另外顯示，補助項目各列已有狀態。
+        self.assertNotContains(page, 'id="subsidy-agency-summary"')
+        self.assertNotContains(page, "補助撥款追蹤")
+        self.assertContains(page, "工業局購車補助")
         self.assertNotContains(page, 'name="operations-industry_bureau_status"')
         self.assertNotContains(page, 'name="operations-local_government_status"')
 

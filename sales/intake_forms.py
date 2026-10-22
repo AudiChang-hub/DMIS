@@ -9,6 +9,7 @@ from sales.forms import SalesOrderForm
 from sales.models import SalesOrder
 from sales.services.installment_plan import resolve_installment_plan_version
 from sales.services.order_intake import account_profile, can_edit_finance
+from sales.services.subsidy_programs import programs_include_trade_in
 from sales.services.upload_validation import validate_document_upload
 
 
@@ -115,9 +116,11 @@ class IntakeOrderForm(SalesOrderForm):
         for name in FINANCE_FIELDS:
             if name in self.fields and self.fields[name].disabled and data.get(name) is None:
                 data.pop(name, None)
-        data["trade_in_intent"] = data.get("trade_in_intent") or "unknown"
-        data["is_trade_in_subsidy"] = data["trade_in_intent"] == "yes"
-        if data["trade_in_intent"] != "yes":
+        # 不再選「是否有汰舊」（使用者 2026-10-22 T-80）：勾到汰舊類補助方案就是有汰舊。
+        trade_in = programs_include_trade_in(data.get("subsidy_programs"))
+        data["trade_in_intent"] = "yes" if trade_in else "no"
+        data["is_trade_in_subsidy"] = trade_in
+        if not trade_in:
             data["old_owner_same_as_owner"] = False
         elif data.get("old_owner_same_as_owner"):
             data["old_owner_name"] = data.get("owner_name", "")

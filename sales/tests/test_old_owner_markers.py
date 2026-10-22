@@ -88,8 +88,10 @@ class OldOwnerDisplayTests(TestCase):
         html = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
         self.assertIn("舊車主電話", html)
         self.assertIn("0922333444", html)
-        self.assertIn("新北市板橋區", html)
-        self.assertIn("舊車與報廢資料", html)
+        # 舊車主戶籍不再顯示與輸入（2026-10-22 T-81），值保留；舊車與報廢資料併入「汰舊與舊車資料」。
+        self.assertNotIn('name="old_owner_household_address"', html)
+        self.assertEqual(self.order.old_owner_household_address, "新北市板橋區")
+        self.assertIn("汰舊與舊車資料", html)
         self.assertIn("ENG-789", html)
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).old_vehicle_brand, "三陽")
 

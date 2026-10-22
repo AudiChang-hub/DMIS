@@ -353,7 +353,11 @@ class IntakeRefinementTests(TestCase):
     submit = intake_fixtures.OrderIntakeTests.submit
 
     def test_trade_in_choice_and_optional_bank_documents_survive_creation(self):
-        response = self.submit(trade_in_intent="yes", old_owner_same_as_owner="on", owner_bankbook=self.image("bank.png"), old_id_front=self.image("old.png"))
+        # 2026-10-22 T-80：不再選「是否有汰舊」，勾到汰舊類補助方案就是有汰舊。
+        from sales.models import SubsidyProgram
+        program = SubsidyProgram.objects.update_or_create(name="汰舊換新", defaults={"category": "other", "requires_old_vehicle": True, "active": True})[0]
+        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1", old_owner_same_as_owner="on",
+                               owner_bankbook=self.image("bank.png"), old_id_front=self.image("old.png"))
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.get()
         self.assertTrue(order.cash_receivable_v2)

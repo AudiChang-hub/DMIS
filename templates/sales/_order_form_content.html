@@ -122,23 +122,22 @@
   </details>
 
   <details class="form-section" id="tradein" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="tradein" {% if wizard.current != 'tradein' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">{% if order_workspace %}3{% else %}4{% endif %}</span><span><strong>汰舊與補助</strong><small>是否汰舊、申請哪些補助，以及舊車主是否為新車主本人</small></span></summary>
+    <summary><span class="step-number">{% if order_workspace %}3{% else %}4{% endif %}</span><span><strong>汰舊與補助</strong><small>申請哪些補助；有汰舊再確認舊車主是否為新車主本人</small></span></summary>
+    {% comment %}不再選「是否有汰舊」（使用者 2026-10-22 T-80）：勾到汰舊類補助（方案主檔「需要舊車」）就是有汰舊，
+    才顯示「新舊車主為同一人」；這一步不上傳舊車主證件與存摺，改在訂單的補助步驟上傳。{% endcomment %}
     <div class="form-grid">
-      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
       {% if "subsidy_programs" in form.fields %}<fieldset class="span-2 subsidy-program-picker field" data-subsidy-picker>
         <legend>{{ form.subsidy_programs.label }}</legend>
         <input type="hidden" name="subsidy_programs_present" value="1">
-        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}" data-subsidy-kind="{{ choice.data.value.instance.vehicle_kind }}" data-subsidy-group="{{ choice.data.value.instance.exclusive_group }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
+        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}" data-subsidy-kind="{{ choice.data.value.instance.vehicle_kind }}" data-subsidy-group="{{ choice.data.value.instance.exclusive_group }}"{% if choice.data.value.instance.requires_old_vehicle %} data-subsidy-trade-in{% endif %}>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
         <div class="subsidy-program-picker__other" id="subsidy-other-field" data-subsidy-other{% if not form.subsidy_other.value %} hidden{% endif %}>{% include "sales/_field.html" with field=form.subsidy_other %}</div>
         <small>{{ form.subsidy_programs.help_text }}</small>
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>{% endif %}
       {# 訂單頁編輯不含這兩欄（改在「補助」分頁處理），不能留下空白框。 #}
-      {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
       {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
       {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「補助」分頁填寫。</p>{% endif %}
       {% if intake_mode %}<label>新車主存摺封面（選填）<input type="file" name="owner_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label>{% endif %}
-      {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
       {# 換步驟回來時，已存的證件與存摺列在原位；檔案選擇框一律是空的，重新選檔會取代同類已存檔案。 #}
       {% if intake_mode and tradein_attachments %}<div class="span-2">{% include "sales/_intake_attachments.html" with intake_attachments=tradein_attachments attachments_title="已存的證件與存摺" attachments_hint="草稿已保存這些檔案，不必重新上傳；同一類重新選檔會取代原檔。點縮圖可放大。" %}</div>{% endif %}
     </div>

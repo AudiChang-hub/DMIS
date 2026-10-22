@@ -1,0 +1,14 @@
+{% comment %}撥款銀行與匯款帳戶放在補助申請項目標題列右側（使用者 2026-10-22 T-82）：有財務權限可直接改（營運表單 form="ops-subsidy-form"），
+其他人唯讀。{% endcomment %}
+{% if workspace_finance %}
+<div class="subsidy-payout">
+  {% include "sales/_field.html" with field=operations_subsidy_form.bank_name %}
+  {% include "sales/_field.html" with field=operations_subsidy_form.remittance_account %}
+  <p class="autosave-status" data-autosave-mirror="ops-subsidy-form" role="status" aria-live="polite"></p>
+</div>
+{% elif payout_summary %}
+<dl class="subsidy-payout is-readonly">
+  <div><dt>銀行</dt><dd>{{ payout_summary.bank_name|default:"尚未登記" }}</dd></div>
+  <div><dt>匯款帳戶</dt><dd data-payout-account>{{ payout_summary.account|default:"尚未登記" }}</dd></div>
+</dl>
+{% endif %}

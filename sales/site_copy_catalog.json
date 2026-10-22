@@ -1186,11 +1186,6 @@
     "default": "本筆沿用原 Excel 早期公式，未扣友善車行、首賣、台數獎金支出；原始值仍留存在匯入資料。",
     "template": "templates/sales/order_operations.html"
   },
-  "order_operations.fb6f0cbe2651": {
-    "page": "營運資料",
-    "default": "不出現在建立訂單畫面；核准後才會扣減應收，配件主檔售價與工資快照不會被改寫。",
-    "template": "templates/sales/order_operations.html"
-  },
   "order_operations.c3a138109390": {
     "page": "營運資料",
     "default": "現金依車款售價自動帶入；分期依訂單日套用的分期方案快照帶入；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。",

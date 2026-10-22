@@ -4,13 +4,13 @@
     <li class="wizard-bar__step is-{{ step.state }}" {% if step.state == 'current' %}aria-current="step"{% endif %}>
       {% if step.reachable %}
       <button type="submit" name="_wizard_goto" value="{{ step.key }}" formnovalidate class="wizard-bar__link">
-        <span class="wizard-bar__number">{% if step.state == 'done' %}✓{% else %}{{ step.number }}{% endif %}</span>
-        <span class="wizard-bar__label">{{ step.label }}</span>
+        <span class="wizard-bar__number">{{ step.number }}</span>
+        <span class="wizard-bar__label">{{ step.label }}{% if step.state == 'done' %}<small class="wizard-bar__state">已完成</small>{% endif %}</span>
       </button>
       {% else %}
       <span class="wizard-bar__link" {% if step.state == 'locked' %}aria-disabled="true" title="請先完成前面的步驟"{% endif %}>
-        <span class="wizard-bar__number">{% if step.state == 'done' %}✓{% else %}{{ step.number }}{% endif %}</span>
-        <span class="wizard-bar__label">{{ step.label }}</span>
+        <span class="wizard-bar__number">{{ step.number }}</span>
+        <span class="wizard-bar__label">{{ step.label }}{% if step.state == 'done' %}<small class="wizard-bar__state">已完成</small>{% endif %}</span>
       </span>
       {% endif %}
     </li>

@@ -17,7 +17,25 @@
     const saved = kept.filter(row => row.saved);
     return {removed: rows.filter(row => row.deletedWhenSent), order: [...saved, ...kept.filter(row => !row.saved)], initial: saved.length};
   };
-  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan};
+  // 原地更新後找新頁面裡的同一張表單：id、儲存種類、送出網址與營運區段都相同（使用者 2026-10-22 T-92）。
+  const identity = form => [form.id, form.dataset.workspaceSave, form.getAttribute('action') || '',
+    form.querySelector('input[name="_section"]')?.value || ''].join('|');
+  // 新頁面表單的伺服器現值，交給三方合併。管理欄位、檔案、密碼與版本號不比；
+  // 明細列的 id 與目前畫面不同（伺服器新增或重排了列）時整列略過，免得把別筆的值填進來。
+  const SKIP_REMOTE = /^(csrfmiddlewaretoken|_order_revision|_section)$|-(TOTAL|INITIAL|MIN_NUM|MAX_NUM)_FORMS$/;
+  const remoteValues = (freshFields, own) => {
+    const fresh = new Map(freshFields.filter(f => f.name).map(f => [f.name, f]));
+    const updates = {};
+    freshFields.forEach(field => {
+      if (!field.name || SKIP_REMOTE.test(field.name) || ['file', 'password', 'submit', 'button'].includes(field.type)) return;
+      const row = field.name.match(/^(.*-\d+-)/);
+      if (row && (fresh.get(row[1] + 'id')?.value || '') !== (own(row[1] + 'id') || '')) return;
+      if (field.type === 'radio') { if (field.checked) updates[field.name] = field.value; return; }
+      updates[field.name] = field.type === 'checkbox' ? field.checked : field.value;
+    });
+    return updates;
+  };
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -314,28 +332,65 @@
           Object.entries(remote).forEach(([name, value]) => { updates[prefix + name] = value; });
         });
       }
-      const base = bases.get(form);
-      let conflict = false;
-      for (const [name, remote] of Object.entries(updates)) {
-        const field = form.elements.namedItem(name);
-        if (!field || !field.tagName || ['change_reason', 'confirm_completed_correction', 'financial_revision'].some(k => name.endsWith(k))) continue;
-        const next = canonical(field, remote);
-        // 送出後才打的字不被伺服器回傳值蓋掉，留待下一次自動儲存。
-        const mode = form === savedForm ? (typed.has(name) ? 'keep' : 'update') : decision(base.get(name), value(field), next);
-        if (mode === 'conflict') { conflict = true; field.setAttribute('data-workspace-conflict', 'true'); }
-        else {
-          if (mode === 'update') updateField(field, remote);
-          base.set(name, next);
-        }
-      }
-      if (conflict) conflicts.add(form);
-      if (!conflicts.has(form)) {
-        for (const [name, next] of [['_order_revision', payload.revision], ['operations-financial_revision', payload.financial_revision]]) {
-          const field = form.elements.namedItem(name);
-          if (field && next != null) { field.value = next; base.set(name, value(field)); }
-        }
-      }
+      adopt(form, updates, {revision: payload.revision, financial: payload.financial_revision}, savedForm, typed);
     });
+  }
+  // 三方合併伺服器現值：沒動過的欄位換新值，未儲存的輸入保留，重疊才標衝突；沒有衝突才換版本號。
+  function adopt(form, updates, revisions, savedForm = null, typed = new Set()) {
+    const base = bases.get(form);
+    const changed = [];
+    let conflict = false;
+    for (const [name, remote] of Object.entries(updates)) {
+      const field = form.elements.namedItem(name);
+      if (!field || !field.tagName || ['change_reason', 'confirm_completed_correction', 'financial_revision'].some(k => name.endsWith(k))) continue;
+      const next = canonical(field, remote);
+      // 送出後才打的字不被伺服器回傳值蓋掉，留待下一次自動儲存。
+      const mode = form === savedForm ? (typed.has(name) ? 'keep' : 'update') : decision(base.get(name), value(field), next);
+      if (mode === 'conflict') { conflict = true; field.setAttribute('data-workspace-conflict', 'true'); }
+      else {
+        if (mode === 'update' && value(field) !== next) { updateField(field, remote); changed.push(name); }
+        base.set(name, next);
+      }
+    }
+    if (conflict) conflicts.add(form);
+    if (!conflicts.has(form)) {
+      for (const [name, next] of [['_order_revision', revisions.revision], ['operations-financial_revision', revisions.financial]]) {
+        const field = form.elements.namedItem(name);
+        if (field && next != null) { field.value = next; base.set(name, value(field)); }
+      }
+    }
+    // 收支試算以載入時的金額為基準；被同步換掉的欄位跟著換基準，不誤標「含未儲存的修改」。
+    if (changed.length && form !== savedForm) form.dispatchEvent(new CustomEvent('workspace-synced', {detail: {names: changed}}));
+  }
+  // 上傳文件等原地更新只換部分區塊，但伺服器可能連帶改了訂單或收支（例如最後一份領牌文件自動完成領牌、帶入促銷補助）。
+  // 沒被換掉的自動儲存表單從新頁面取現值與版本號再合併，之後的儲存才不會被當成舊資料擋下（使用者 2026-10-22 T-92）。
+  document.addEventListener('inplace:updated', event => {
+    const doc = event.detail?.doc;
+    if (!doc) return;
+    const fresh = [...doc.querySelectorAll('form[data-workspace-save]')];
+    const hidden = name => doc.querySelector(`input[name="${name}"]`)?.value;
+    const revisions = {revision: hidden('_order_revision'), financial: hidden('operations-financial_revision')};
+    const summary = document.getElementById('workspace-finance-summary');
+    const freshSummary = doc.getElementById('workspace-finance-summary');
+    if (summary && freshSummary && !summary.isEqualNode(freshSummary)) summary.replaceWith(document.importNode(freshSummary, true));
+    forms.forEach(form => {
+      const match = counterpartForm(form, fresh);
+      if (!match) return;
+      const own = name => form.elements.namedItem(name)?.value;
+      adopt(form, remoteValues(formFields(match), own), revisions);
+      if (autosaving(form) && dirty(form) && !conflicts.has(form)) schedule(form);
+    });
+    indicators();
+  });
+  function formFields(form) {
+    // 以 form 屬性併入、放在表單外的欄位也算（解析後的頁面不一定把它們列進 form.elements）。
+    const outside = form.id ? [...form.ownerDocument.querySelectorAll(`[form="${form.id}"]`)] : [];
+    return [...new Set([...form.elements, ...outside])];
+  }
+  function counterpartForm(form, candidates) {
+    const key = identity(form);
+    const same = forms.filter(item => identity(item) === key);
+    return candidates.filter(item => identity(item) === key)[same.indexOf(form)] || null;
   }
   function acceptRows(form, payload, sent) {
     for (const [name, savedValue] of Object.entries(payload.values || {})) {

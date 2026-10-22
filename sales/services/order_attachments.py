@@ -211,12 +211,13 @@ def _signing_slot(order, policy, key, label, field_name, route):
     elif getattr(order, f"has_{field_name}"):
         status, done = "已上傳", True
     else:
-        status, done = "缺少", False
+        status, done = "未上傳", False
     view_url = None
     if stored and stored.name:
         view_url = _allowed(policy, "protected_media", ["order", order.pk, field_name])
     return DocumentSlot(
-        key=key, group="簽署文件", label=label, required=True, status=status, done=done,
+        # 簽署改為選用（使用者 2026-10-22 T-95）：沒簽顯示「未上傳」，不算缺項。
+        key=key, group="簽署文件", label=label, required=False, status=status, done=done,
         route=route, field_name=field_name, document_type="", accept=DOCUMENT_ACCEPT,
         extensions=frozenset(DOCUMENT_EXTENSIONS), open=True,
         view_url=view_url, view_name=Path(stored.name).name if stored else "",
@@ -234,22 +235,24 @@ def document_slots(order, request, registration_rows=(), subsidy_rows=()):
         slots.append(_signing_slot(order, policy, "contract", "訂購合約", "signed_contract", "contract_upload"))
         slots.append(_signing_slot(order, policy, "privacy", "個資同意書", "privacy_consent", "privacy_consent_upload"))
 
-    locked_status = {SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED}
+    # 領牌完成後已上傳的文件鎖定，還沒上傳的仍可補傳；與訂單頁領牌文件列、上傳檢查一致（使用者 2026-10-22 T-95）。
+    registration_done = order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED
     if not order.allocated_vehicle_id:
         registration_open, registration_note = False, "配車後開放上傳"
-    elif order.is_registration_complete or order.status in locked_status:
-        registration_open, registration_note = False, "領牌已完成，文件已鎖定"
+    elif order.status == SalesOrder.Status.CANCELLED:
+        registration_open, registration_note = False, "已取消訂單無法修改領牌文件"
     else:
         registration_open, registration_note = True, ""
     for row in registration_rows:
         document = row["document"]
+        slot_open = registration_open and not (registration_done and document)
         slots.append(DocumentSlot(
             key=f"registration:{row['type']}", group="領牌文件", label=row["label"],
             required=row["required"], status="已上傳" if document else ("缺少" if row["required"] else "未上傳"),
             done=bool(document),
             route="registration_document_upload", field_name="file", document_type=row["type"],
             accept=DOCUMENT_ACCEPT, extensions=frozenset(DOCUMENT_EXTENSIONS),
-            open=registration_open, closed_note=registration_note,
+            open=slot_open, closed_note=registration_note or "領牌已完成，已上傳的文件不能替換",
             view_url=document and _allowed(policy, "registration_document_file", [document.pk]),
             view_name=Path(document.file.name).name if document else "",
         ))
@@ -263,10 +266,11 @@ def document_slots(order, request, registration_rows=(), subsidy_rows=()):
             elif evidence:
                 status, done = "沿用下訂附件", True
             else:
-                status, done = ("缺少" if row["required"] else "未上傳"), False
+                status, done = "未上傳", False
+            # 補助文件改為選填（使用者 2026-10-22 T-95）：送件前備妥即可，不算缺項。
             slots.append(DocumentSlot(
                 key=f"subsidy:{row['type']}", group="補助文件", label=row["label"],
-                required=row["required"], status=status, done=done,
+                required=False, status=status, done=done,
                 route="subsidy_document_upload", field_name="file", document_type=row["type"],
                 accept=SUBSIDY_ACCEPT, extensions=frozenset(SUBSIDY_EXTENSIONS),
                 open=subsidy_open, closed_note="" if subsidy_open else "已取消訂單無法修改補助文件",

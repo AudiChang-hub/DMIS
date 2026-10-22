@@ -39,3 +39,37 @@ test('儲存後重編明細：應收設定列一起編號、儲存中新增的�
   assert.deepEqual(plan.removed, [removed]);
   assert.equal(plan.initial, 3);
 });
+test('原地更新後取新頁面現值：略過管理欄位、檔案、密碼與版本號，明細列 id 不同整列略過（T-92）', () => {
+  const {remoteValues} = require('../../static/js/order-workspace.js');
+  const field = (name, value, type = 'text', checked = false) => ({name, value, type, checked});
+  const fresh = [
+    field('csrfmiddlewaretoken', 'x', 'hidden'), field('_order_revision', '9', 'hidden'), field('_section', 'fulfillment', 'hidden'),
+    field('payments-TOTAL_FORMS', '2', 'hidden'), field('payments-INITIAL_FORMS', '2', 'hidden'),
+    field('operations-promotion_subsidy', '1500'), field('operations-vehicle_control_confirmed', 'on', 'checkbox', true),
+    field('operations-proof', '', 'file'), field('operations-vehicle_control_password', '', 'password'),
+    field('payments-0-id', '11', 'hidden'), field('payments-0-received_amount', '2100'),
+    field('payments-1-id', '13', 'hidden'), field('payments-1-received_amount', '500'),
+    field('plate', 'a', 'radio', false), field('plate', 'b', 'radio', true),
+  ];
+  const own = name => ({'payments-0-id': '11', 'payments-1-id': '12'})[name];
+  assert.deepEqual(remoteValues(fresh, own), {
+    'operations-promotion_subsidy': '1500',
+    'operations-vehicle_control_confirmed': true,
+    'payments-0-id': '11',
+    'payments-0-received_amount': '2100',
+    plate: 'b',
+  });
+});
+test('原地更新後依 id、儲存種類、網址與營運區段認同一張表單（T-92）', () => {
+  const {identity} = require('../../static/js/order-workspace.js');
+  const form = (id, kind, action, section) => ({
+    id, dataset: {workspaceSave: kind}, getAttribute: () => action,
+    querySelector: () => (section ? {value: section} : null),
+  });
+  assert.equal(identity(form('', 'operations', '/orders/1/operations/', 'fulfillment')),
+    identity(form('', 'operations', '/orders/1/operations/', 'fulfillment')));
+  assert.notEqual(identity(form('', 'operations', '/orders/1/operations/', 'fulfillment')),
+    identity(form('', 'operations', '/orders/1/operations/', '')));
+  assert.notEqual(identity(form('ops-subsidy-form', 'operations', '/orders/1/operations/', 'subsidy')),
+    identity(form('ops-old-vehicle-form', 'operations', '/orders/1/operations/', 'old_vehicle')));
+});

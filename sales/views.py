@@ -5621,6 +5621,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 document_type=SubsidyDocument.DocumentType.OTHER
             ),
             "subsidy_missing": subsidy_missing,
+            "subsidy_document_progress": order.subsidy_document_progress(),
             "subsidy_form": SubsidyDataForm(instance=order, auto_id="subsidy_%s"),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
             "subsidy_name_suggestions": subsidy_name_suggestions(),
@@ -5938,6 +5939,8 @@ def order_operations(request, pk):
     if request.method == "POST":
         profile.refresh_from_db()
         if order_workspace.is_workspace_save(request):
+            if form.stale_revision:
+                return order_workspace.save_error(form.STALE_REVISION_MESSAGE, status=409)
             return order_workspace.save_error("收支資料未儲存，請修正下列欄位。", forms=(form, *(payment_formset.forms if payment_formset is not None else ())))
     return render(
         request,

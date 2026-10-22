@@ -83,5 +83,11 @@
     baseline = new Map(inputs().map(input => [input.name, toAmount(input.value)]));
     refresh();
   });
+  // 原地更新後換成伺服器新值的欄位（使用者 2026-10-22 T-92）：基準跟著換，總覽換新後依目前輸入重算。
+  form?.addEventListener('workspace-synced', event => {
+    event.detail.names.forEach(name => { if (baseline.has(name)) baseline.set(name, toAmount(form.elements.namedItem(name)?.value)); });
+    refresh();
+  });
+  document.addEventListener('inplace:updated', refresh);
   refresh();
 })();

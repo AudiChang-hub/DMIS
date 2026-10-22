@@ -623,30 +623,18 @@
     {% endif %}
   </div>
 
+  {% comment %}汰舊／補助作業（使用者 2026-10-22 T-81、T-82）：補助申請項目在上（標題列右側是撥款銀行與匯款帳戶），
+  下方「汰舊與舊車資料」把舊車主、舊車與報廢資料併成一張卡。「申請汰舊／政府補助」不再手動勾選，由補助項目推導；
+  舊車主戶籍、舊車估價、舊車未繳稅金不再輸入（欄位與既有值保留）。銀行、帳戶與舊車報廢欄位屬營運表單，以 form 屬性併入、各自自動儲存。{% endcomment %}
   {% if order.can_manage_subsidy %}
-  <form data-workspace-save="subsidy" class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-owner-name="{{ order.owner_name }}" data-owner-id="{{ order.owner_id_number }}" data-subsidy-form data-subsidy-toggle-url="{% url 'subsidy_toggle' order.pk %}" data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
+  <form data-workspace-save="subsidy" class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-owner-name="{{ order.owner_name }}" data-owner-id="{{ order.owner_id_number }}" data-subsidy-form data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="_order_revision" value="{{ order.revision }}">
-    <label class="subsidy-toggle">
-      {{ subsidy_form.is_trade_in_subsidy }}
-      <span><strong>申請汰舊／政府補助</strong><small data-subsidy-toggle-message>{% site_text 'order_detail.84ab150d7e35' %}</small></span>
-    </label>
-    <label class="subsidy-toggle subsidy-owner-toggle">
-      {{ subsidy_form.old_owner_same_as_owner }}
-      <span><strong>新舊車主為同一人</strong><small>{% site_text 'order_detail.16d07928b807' %}</small></span>
-    </label>
-    <div class="subsidy-edit-grid">
-      <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
-      <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
-      <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
-      <div><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
-      <div><label for="{{ subsidy_form.old_owner_household_address.id_for_label }}">舊車主戶籍</label>{{ subsidy_form.old_owner_household_address }}</div>
-      <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
-      <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
-
-    </div>
-    <section class="dynamic-detail-section" data-subsidy-items>
-      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div></div>
+    <section class="dynamic-detail-section subsidy-items" data-subsidy-items>
+      <div class="subsidy-items__head">
+        <div class="subsidy-items__title"><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div>
+        {% include "sales/_subsidy_payout_fields.html" %}
+      </div>
       {{ subsidy_item_formset.management_form }}
       <datalist id="subsidy-name-suggestions">{% for name in subsidy_name_suggestions %}<option value="{{ name }}"></option>{% endfor %}</datalist>
       <div class="dynamic-detail-list" data-form-list>
@@ -661,8 +649,28 @@
       <template data-empty-form><div class="dynamic-detail-row" data-form-row>{% with item_form=subsidy_item_formset.empty_form %}{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>{% endwith %}</div></template>
       <button class="button ghost" type="button" data-add-form>＋ 新增補助項目</button>
     </section>
+    <section class="tradein-card" aria-labelledby="tradein-card-title">
+      <div class="tradein-card__head">
+        <h3 id="tradein-card-title">汰舊與舊車資料</h3>
+        <small>{% if order.is_trade_in_subsidy %}有申請汰舊類補助，請備齊舊車主與舊車資料{% else %}補助項目沒有汰舊類時，這裡可以留空{% endif %}</small>
+      </div>
+      {% if order.is_trade_in_subsidy %}
+      <label class="subsidy-toggle subsidy-owner-toggle">
+        {{ subsidy_form.old_owner_same_as_owner }}
+        <span><strong>新舊車主為同一人</strong><small>{% site_text 'order_detail.16d07928b807' %}</small></span>
+      </label>
+      {% endif %}
+      <div class="subsidy-edit-grid">
+        <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
+        <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
+        <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
+        <div><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
+      </div>
+      {% if workspace_finance %}{% include "sales/_ops_old_vehicle_inline.html" with form=operations_old_vehicle_form %}{% endif %}
+    </section>
     <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
   </form>
+  {% if workspace_finance %}{% include "sales/_ops_shell_form.html" with section_form=operations_old_vehicle_form section_key="old_vehicle" form_id="ops-old-vehicle-form" %}{% include "sales/_ops_shell_form.html" with section_form=operations_subsidy_form section_key="subsidy" form_id="ops-subsidy-form" %}{% endif %}
   {% if order.old_owner_ocr_name or order.old_owner_ocr_id_number %}
   <div class="ocr-conflict-card">
     <div>
@@ -690,12 +698,10 @@
     <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
     <div><span>舊車主身分證字號</span><strong>{{ order.old_owner_id_number|default:"尚未填寫" }}</strong></div>
     <div><span>舊車主電話</span><strong>{{ order.old_owner_phone|default:"尚未填寫" }}</strong></div>
-    <div><span>舊車主戶籍</span><strong>{{ order.old_owner_household_address|default:"尚未填寫" }}</strong></div>
   </div>
   {% endif %}
-  {% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_old_vehicle_form section_key="old_vehicle" fields_template="sales/_ops_old_vehicle_fields.html" %}{% endif %}
 
-  {% if payout_summary %}
+  {% if payout_summary and not order.can_manage_subsidy %}
   <section class="payout-summary" aria-labelledby="payout-summary-title" data-payout-summary>
     <div class="payout-summary__head"><h3 id="payout-summary-title">撥款銀行與匯款帳戶</h3><small>由財務登記，這裡只能查看。</small></div>
     <div class="subsidy-summary">
@@ -751,13 +757,35 @@
       {% endfor %}
     </div>
 
-    <div class="other-subsidy-documents">
-      <div class="other-subsidy-documents__heading content-section-heading">
-        <div>
-          <h3>其他補助文件</h3>
-          <p>{% site_text 'order_detail.b14167f8e945' %}</p>
-        </div>
+    {% comment %}其他補助文件（使用者 2026-10-22 T-83）：上傳列直接放在標題下，不受汰舊流程開關影響，一眼看得出可以上傳；
+    沒有文件時只顯示一行提示，已上傳的文件列在上傳列下方。{% endcomment %}
+    <section class="other-subsidy-documents" aria-labelledby="other-subsidy-title">
+      <div class="other-subsidy-documents__heading">
+        <h3 id="other-subsidy-title">其他補助文件</h3>
+        <p>切結書、加碼補助等其他文件都可以在這裡上傳，可上傳多份；不影響上方必備文件的完成狀態。</p>
       </div>
+      {% if order.can_manage_subsidy %}
+      <form class="other-subsidy-documents__form" data-inplace-form method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="document_type" value="other">
+        <label class="other-subsidy-documents__file">
+          <span class="other-subsidy-documents__file-icon" aria-hidden="true">＋</span>
+          <span class="other-subsidy-documents__file-text"><strong>選擇文件上傳</strong><small>{% site_text 'order_detail.98bfed2bc1c1' %}</small></span>
+          <input id="other-subsidy-file" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
+        </label>
+        <div class="other-subsidy-documents__meta">
+          <div>
+            <label for="other-subsidy-name">文件名稱 <span class="required-inline">必填</span></label>
+            <input id="other-subsidy-name" type="text" name="name" maxlength="160" placeholder="例如：補助申請切結書" required>
+          </div>
+          <div>
+            <label for="other-subsidy-note">備註</label>
+            <input id="other-subsidy-note" type="text" name="note" maxlength="250" placeholder="選填">
+          </div>
+          <button class="button primary" type="submit">上傳文件</button>
+        </div>
+      </form>
+      {% endif %}
       {% for document in other_subsidy_documents %}
       <article class="other-subsidy-documents__item">
         <span>
@@ -775,30 +803,9 @@
         </div>
       </article>
       {% empty %}
-      <p class="other-subsidy-documents__empty">目前沒有其他補助文件。</p>
+      {% if not order.can_manage_subsidy %}<p class="other-subsidy-documents__empty">目前沒有其他補助文件。</p>{% endif %}
       {% endfor %}
-
-      {% if order.can_manage_subsidy %}
-      <form class="other-subsidy-documents__form" data-inplace-form data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
-        {% csrf_token %}
-        <input type="hidden" name="document_type" value="other">
-        <div>
-          <label for="other-subsidy-name">文件名稱 <span class="required-inline">必填</span></label>
-          <input id="other-subsidy-name" type="text" name="name" maxlength="160" placeholder="例如：補助申請切結書" required>
-        </div>
-        <div>
-          <label for="other-subsidy-note">備註</label>
-          <input id="other-subsidy-note" type="text" name="note" maxlength="250" placeholder="選填">
-        </div>
-        <div>
-          <label for="other-subsidy-file">選擇文件 <span class="required-inline">必填</span></label>
-          <input id="other-subsidy-file" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
-          <small>{% site_text 'order_detail.98bfed2bc1c1' %}</small>
-        </div>
-        <button class="button secondary" type="submit">＋ 新增其他文件</button>
-      </form>
-      {% endif %}
-    </div>
+    </section>
 
   </div>
 
@@ -817,7 +824,6 @@
       </div>
     </div>
 </section>
-{% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_subsidy_form section_key="subsidy" fields_template="sales/_ops_subsidy_fields.html" submit_label="儲存補助撥款資料" %}{% endif %}
 </div></section>{% endwith %}
 {% if not editing_order %}
 {% with step=steps.closing %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-closing" data-step-key="closing" role="tabpanel" aria-labelledby="tab-closing" tabindex="-1">

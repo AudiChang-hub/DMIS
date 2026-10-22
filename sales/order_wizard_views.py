@@ -256,7 +256,8 @@ def build_summary(form, formset, fee_formset, draft):
     if deposit:
         deposit_rows.append(("收款確認", "已收到，建立時直接入帳"))
     deposit_rows += _discount_rows(form, formset, fee_formset)
-    tradein_rows = _rows(form, ("trade_in_intent",))
+    # 「是否有汰舊」由補助方案推導（使用者 2026-10-22 T-80），確認頁只列申請的補助。
+    tradein_rows = []
     if "subsidy_programs" in form.fields:
         programs = form.cleaned_data.get("subsidy_programs") or []
         from sales.services.subsidy_programs import other_subsidy_names

@@ -8164,6 +8164,9 @@ def subsidy_data_update(request, pk):
     if items_submitted:
         item_formset.instance = order
         item_formset.save()
+        # 有沒有汰舊由補助項目推導（使用者 2026-10-22 T-81 方案 A）。
+        from sales.services.subsidy_programs import sync_trade_in_from_subsidies
+        sync_trade_in_from_subsidies(order)
     profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
     profile.subsidy_amount = order.subsidy_total
     profile.subsidy_applied_on = order.subsidy_last_applied_on
@@ -8187,7 +8190,7 @@ def subsidy_data_update(request, pk):
         actor_name=_editing_name(request.user),
     )
     if order_workspace.is_workspace_save(request):
-        return order_workspace.saved(request, order, form=form, formsets=(item_formset,))
+        return order_workspace.saved(request, order, form=form, formsets=(item_formset,), extra={"subsidy_trade_in": order.is_trade_in_subsidy})
     messages.success(request, "補助資料已更新，尾款與變更紀錄已同步。")
     return redirect(detail_url)
 

@@ -43,6 +43,8 @@ from sales.models import (
     SalesSource,
     Store,
     SubsidyDocument,
+    SubsidyItem,
+    SubsidyProgram,
     VehicleBrand,
     VehicleColor,
     VehicleFactoryModelCode,
@@ -3158,19 +3160,21 @@ class OrderFlowTests(TestCase):
             response,
             order_step_url(order.pk, "subsidy"),
         )
+        balance_before = order.calculated_balance
         order.refresh_from_db()
-        self.assertTrue(order.is_trade_in_subsidy)
+        # 2026-10-22 T-81 方案 A：汰舊開關、舊車估價與未繳稅金不再由補助頁送出；送了也不採用，尾款不變。
+        self.assertFalse(order.is_trade_in_subsidy)
         self.assertEqual(order.trade_in_plate, "ABC-1234")
         self.assertEqual(order.old_owner_id_number, "B123456789")
-        self.assertEqual(order.actual_balance, Decimal("65700"))
-        self.assertEqual(order.calculated_balance, Decimal("65700"))
+        self.assertEqual((order.old_vehicle_valuation, order.old_vehicle_tax), (0, 0))
+        self.assertEqual(order.calculated_balance, balance_before)
         self.assertEqual(order.revision, 2)
         change = order.changes.latest("created_at")
         self.assertEqual(change.actor_name, "tester")
         self.assertEqual(change.reason, "修改補助資料")
         self.assertIn("舊車車牌", change.changes)
         self.assertIn("舊車主身分證字號", change.changes)
-        self.assertIn("舊車估價", change.changes)
+        self.assertNotIn("舊車估價", change.changes)
 
     def test_completed_order_can_enable_subsidy_and_upload_documents(self):
         order = self.make_order()
@@ -3186,21 +3190,23 @@ class OrderFlowTests(TestCase):
 
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, 'data-subsidy-form')
-        self.assertContains(detail, "申請汰舊／政府補助")
+        # 2026-10-22 T-81 方案 A：不再手動勾「申請汰舊／政府補助」，加入汰舊類補助項目就啟用。
+        self.assertNotContains(detail, "申請汰舊／政府補助")
+        SubsidyProgram.objects.update_or_create(name="汰舊換新", defaults={"category": "other", "requires_old_vehicle": True, "active": True})[0]
 
         response = self.client.post(
             reverse("subsidy_data_update", args=[order.pk]),
             {
                 "_order_revision": order.revision,
-                "is_trade_in_subsidy": "on",
                 "old_owner_same_as_owner": "on",
                 "trade_in_plate": "old-1234",
                 "old_owner_name": "",
                 "old_owner_id_number": "",
-                "subsidy_type": "汰舊換新",
-                "old_vehicle_valuation": "0",
-                "old_vehicle_tax": "0",
                 "change_reason": "交付後開始辦理補助",
+                "subsidy_items-TOTAL_FORMS": "1", "subsidy_items-INITIAL_FORMS": "0",
+                "subsidy_items-MIN_NUM_FORMS": "0", "subsidy_items-MAX_NUM_FORMS": "1000",
+                "subsidy_items-0-item_name": "汰舊換新", "subsidy_items-0-category": "other",
+                "subsidy_items-0-status": "not_submitted",
             },
         )
         self.assertRedirects(
@@ -3237,7 +3243,8 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
 
         inactive_detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(inactive_detail, "data-subsidy-toggle-url")
+        # 2026-10-22 T-81：畫面不再有開關（改由補助項目推導），端點保留。
+        self.assertNotContains(inactive_detail, "data-subsidy-toggle-url")
         self.assertContains(inactive_detail, "data-subsidy-upload-control hidden")
 
         response = self.client.post(
@@ -3374,8 +3381,10 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
+        # 2026-10-22 T-81：舊車估價不再由補助頁輸入，試算尾款不變，人工尾款照樣保留。
         self.assertEqual(order.actual_balance, Decimal("76000"))
-        self.assertEqual(order.calculated_balance, Decimal("70200"))
+        self.assertEqual(order.calculated_balance, Decimal("75200"))
+        self.assertEqual(order.old_vehicle_valuation, 0)
         self.assertEqual(order.balance_adjustment_reason, "系統摘要：修改補助資料時保留人工尾款")
 
     def test_disabling_subsidy_preserves_uploaded_documents(self):
@@ -3387,6 +3396,8 @@ class OrderFlowTests(TestCase):
             subsidy_type="汰舊換新",
         )
         order.refresh_from_db()
+        # 2026-10-22 T-81 方案 A：沒有汰舊類補助項目就關閉汰舊流程（這張單只有非汰舊的補助項目）。
+        item = SubsidyItem.objects.create(order=order, category="other", item_name="新購補助")
         document = SubsidyDocument.objects.create(
             order=order,
             document_type=SubsidyDocument.DocumentType.OLD_VEHICLE_REGISTRATION,
@@ -3402,10 +3413,12 @@ class OrderFlowTests(TestCase):
                 "_order_revision": order.revision,
                 "trade_in_plate": "OLD-123",
                 "old_owner_name": "",
-                "subsidy_type": "汰舊換新",
-                "old_vehicle_valuation": "0",
-                "old_vehicle_tax": "0",
                 "change_reason": "客戶暫停補助申請",
+                "subsidy_items-TOTAL_FORMS": "1", "subsidy_items-INITIAL_FORMS": "1",
+                "subsidy_items-MIN_NUM_FORMS": "0", "subsidy_items-MAX_NUM_FORMS": "1000",
+                "subsidy_items-0-id": str(item.pk), "subsidy_items-0-order": str(order.pk),
+                "subsidy_items-0-item_name": "新購補助", "subsidy_items-0-category": "other",
+                "subsidy_items-0-status": "not_submitted",
             },
         )
 
@@ -5058,7 +5071,8 @@ class OrderFlowTests(TestCase):
         )
         css = Path("static/css/app.css").read_text(encoding="utf-8")
 
-        self.assertEqual(template.count("content-section-heading"), 4)
+        # 其他補助文件改成上傳列直接在標題下（2026-10-22 T-83），不再用 content-section-heading。
+        self.assertEqual(template.count("content-section-heading"), 3)
         self.assertIn(".content-section-heading {", css)
         self.assertIn(
             ".content-section-heading + .registration-document-list {",

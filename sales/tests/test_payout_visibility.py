@@ -68,7 +68,8 @@ class PayoutAccountVisibilityTests(TestCase):
         user = self.make_user("worker", orders=(True, True), work=(True, True))
         response = self.subsidy_page(user)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "撥款銀行與匯款帳戶")
+        # 撥款銀行與帳戶放在補助申請項目標題列右側（2026-10-22 T-82），沒有財務權限時唯讀。
+        self.assertContains(response, "匯款帳戶")
         self.assertContains(response, BANK)
         # 1.62.4 起有訂單作業權限者直接看到完整帳號（使用者 2026-10-10）。
         self.assertContains(response, FULL_ACCOUNT)

@@ -1,0 +1,5 @@
+{% comment %}營運區段的空殼表單（使用者 2026-10-22 T-81、T-82）：欄位以 form 屬性放在補助步驟各處，這裡只放版本與區段，畫面不顯示；
+儲存狀態顯示在 data-autosave-mirror。{% endcomment %}
+<form id="{{ form_id }}" method="post" action="{% url 'order_operations' order.pk %}" enctype="multipart/form-data" class="operations-form operations-shell-form" data-workspace-save="operations" hidden>
+  {% csrf_token %}{{ section_form.financial_revision }}<input type="hidden" name="_section" value="{{ section_key }}">
+</form>

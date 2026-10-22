@@ -2595,6 +2595,61 @@ input[type="file"].form-control { padding: var(--space-3); }
 .other-subsidy-documents__form > div { display: grid; min-width: 0; gap: var(--space-2); }
 .other-subsidy-documents__form input { width: 100%; min-width: 0; }
 .other-subsidy-documents__form small { color: var(--muted); font-size: var(--text-xs); }
+/* 補助步驟（使用者 2026-10-22 T-81～T-83）：補助申請項目標題列右側放撥款銀行與帳戶；汰舊卡合併舊車主、舊車與報廢資料；
+   其他補助文件的上傳列直接在標題下，以虛線上傳區提示可直接上傳。 */
+.subsidy-items__head {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--stack-gap-sm) var(--stack-gap);
+  padding: var(--inset-pad); border-bottom: 1px solid var(--line);
+}
+.subsidy-items__title { min-width: 0; }
+.subsidy-items__title h3 { margin: 0 0 3px; }
+.subsidy-items__title small { color: var(--muted); }
+.subsidy-payout { display: grid; grid-template-columns: repeat(2, minmax(180px, 240px)); gap: var(--space-2) var(--space-3); margin: 0; }
+.subsidy-payout .field { margin: 0; gap: var(--space-1); }
+.subsidy-payout .field > label { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.subsidy-payout .autosave-status { grid-column: 1 / -1; margin: 0; text-align: right; }
+.subsidy-payout .autosave-status:empty { display: none; }
+.subsidy-payout.is-readonly dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.subsidy-payout.is-readonly dd { margin: 2px 0 0; font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tradein-card { border-top: 1px solid var(--line); }
+.tradein-card__head { display: grid; gap: 3px; padding: var(--inset-pad) var(--inset-pad) 0; }
+.tradein-card__head h3 { margin: 0; }
+.tradein-card__head small { color: var(--muted); }
+.tradein-card .subsidy-owner-toggle { margin: var(--space-3) var(--inset-pad) 0; border-radius: var(--radius-md); background: var(--mint); }
+.tradein-card__scrap { border-top: 1px dashed var(--line); }
+.tradein-card .subsidy-edit-grid label { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
+.tradein-card__scrap h4 { margin: 0; padding: var(--inset-pad) var(--inset-pad) 0; color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
+.tradein-card__scrap .field { margin: 0; gap: var(--space-2); }
+.tradein-card__scrap .autosave-status { margin: 0; padding: 0 var(--inset-pad) var(--space-3); }
+.tradein-card__scrap .autosave-status:empty { display: none; }
+.other-subsidy-documents__heading h3 { margin: 0 0 3px; font-size: var(--text-md); }
+.other-subsidy-documents__heading p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.other-subsidy-documents .other-subsidy-documents__form {
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 1.6fr); align-items: stretch; margin-top: var(--space-3);
+}
+.other-subsidy-documents__file {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; gap: var(--space-2) var(--space-3);
+  padding: var(--space-4); color: var(--ink); background: var(--surface); border: 1.5px dashed var(--line-strong);
+  border-radius: var(--radius-md); cursor: pointer; transition: border-color .15s ease, background-color .15s ease;
+}
+.other-subsidy-documents__file:hover, .other-subsidy-documents__file:focus-within { border-color: var(--forest); background: var(--mint); }
+.other-subsidy-documents__file-icon {
+  display: grid; width: 40px; height: 40px; place-items: center; color: var(--surface); background: var(--forest);
+  border-radius: var(--radius-pill); font-size: var(--text-lg); font-weight: 900;
+}
+.other-subsidy-documents__file-text { display: grid; gap: 2px; min-width: 0; }
+.other-subsidy-documents__file input[type="file"] { grid-column: 1 / -1; max-width: 100%; font-size: var(--text-sm); }
+.other-subsidy-documents__meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); }
+.other-subsidy-documents__meta > div { display: grid; min-width: 0; gap: var(--space-2); }
+.other-subsidy-documents__meta .button { min-height: 44px; }
+.other-subsidy-documents .other-subsidy-documents__item { margin-top: var(--space-2); border-bottom: 1px solid var(--line); border-radius: var(--radius-md); }
+@media (max-width: 900px) {
+  .subsidy-payout { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .other-subsidy-documents .other-subsidy-documents__form, .other-subsidy-documents__meta { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .subsidy-payout { grid-template-columns: 1fr; }
+}
 .registration-completion {
   display: flex; margin-top: var(--stack-gap-sm); padding: var(--inset-pad); align-items: center;
   justify-content: space-between; gap: var(--stack-gap-sm); border-radius: var(--radius-lg);

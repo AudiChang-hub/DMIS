@@ -539,7 +539,7 @@
         // 「本次更新說明」只跟著這一次儲存，存好就清空，下一次自動儲存不重複帶入。
         fields(form).filter(f => f.name.endsWith('change_reason') && !typed.has(f.name)).forEach(f => { f.value = ''; base.set(f.name, value(f)); });
         bases.set(form, base);
-        form.dispatchEvent(new CustomEvent('workspace-saved'));
+        form.dispatchEvent(new CustomEvent('workspace-saved', {detail: payload}));
         indicators();
         if (auto) setStatus(form, conflicts.size ? '已自動儲存，但其他區塊有重疊修改，請核對。' : `已自動儲存 ${clock()}`, conflicts.size ? 'error' : 'saved');
         else notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ''), conflicts.size > 0);

@@ -9,6 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (field) { field.value = value || ''; field.dispatchEvent(new Event('input', {bubbles: true})); }
     }
   });
+  // 汰舊流程改由補助項目推導（使用者 2026-10-22 T-81）：存檔後汰舊狀態改變時重新載入，文件區、完成條件與「新舊車主為同一人」一起更新。
+  subsidyForm?.addEventListener("workspace-saved", event => {
+    const tradeIn = event.detail?.subsidy_trade_in;
+    if (typeof tradeIn === "boolean" && String(tradeIn) !== subsidyForm.dataset.wasEnabled) location.reload();
+  });
   const subsidyToggle = subsidyForm?.querySelector("[name='is_trade_in_subsidy']");
   const toggleMessage = subsidyForm?.querySelector("[data-subsidy-toggle-message]");
   const revisionInput = subsidyForm?.querySelector("[name='_order_revision']");

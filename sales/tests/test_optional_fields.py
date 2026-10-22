@@ -16,12 +16,13 @@ class OptionalFieldTests(TestCase):
             vehicle_model=model, color=color,
         )
 
-    def test_old_vehicle_amounts_default_to_zero(self):
-        form = SubsidyDataForm({"is_trade_in_subsidy": "on", "trade_in_plate": "abc-1234", "old_owner_name": "",
-                                "old_owner_id_number": "", "subsidy_type": "", "old_vehicle_valuation": "",
-                                "old_vehicle_tax": ""}, instance=self.order)
+    def test_old_vehicle_amounts_are_no_longer_subsidy_inputs(self):
+        # 2026-10-22 T-81 方案 A：補助頁不再輸入汰舊開關、舊車主戶籍、舊車估價與未繳稅金（欄位與既有值保留）。
+        form = SubsidyDataForm({"trade_in_plate": "abc-1234", "old_owner_name": "", "old_owner_id_number": "",
+                                "old_vehicle_valuation": "9999", "old_vehicle_tax": "9999"}, instance=self.order)
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual((form.cleaned_data["old_vehicle_valuation"], form.cleaned_data["old_vehicle_tax"]), (0, 0))
+        for name in ("is_trade_in_subsidy", "old_owner_household_address", "old_vehicle_valuation", "old_vehicle_tax"):
+            self.assertNotIn(name, form.fields)
         self.assertEqual(form.cleaned_data["trade_in_plate"], "ABC-1234")
 
     def test_subsidy_type_not_editable_on_order_page(self):

@@ -75,7 +75,8 @@ class OrderWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         for kind in ('order', 'operations', 'subsidy'):
             self.assertContains(response, f'data-workspace-save="{kind}"')
-        self.assertContains(response, 'subsidy_old_owner_same_as_owner')
+        # 「新舊車主為同一人」只在有汰舊類補助時顯示（2026-10-22 T-80）。
+        self.assertContains(response, 'id="tradein-card-title"')
 
     def test_reader_does_not_receive_financial_form_or_ajax_access(self):
         self.client.force_login(self.staff)

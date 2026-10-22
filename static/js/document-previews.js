@@ -33,13 +33,6 @@
     link.removeAttribute('target');
   });
   scan(); new MutationObserver(scan).observe(document.body, {childList: true, subtree: true});
-  document.querySelectorAll('[data-trade-in-uploads]').forEach(section => {
-    const form = section.closest('form');
-    const field = form.querySelector('[name="trade_in_intent"]');
-    const same = form.querySelector('[name="old_owner_same_as_owner"]');
-    const update = () => { section.hidden = field?.value !== 'yes' || same?.checked; section.querySelectorAll('input[type="file"]').forEach(input => input.disabled = section.hidden); };
-    field?.addEventListener('change', update); same?.addEventListener('change', update); update();
-  });
   const blobs = new Set();
   document.querySelectorAll('input[type="file"]').forEach(input => {
     if (!['owner_bankbook', 'old_id_front', 'old_id_back', 'old_bankbook', 'installment_document', 'supplement_documents'].includes(input.name)) return;

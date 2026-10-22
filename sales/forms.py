@@ -4832,22 +4832,19 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
 
 
 class SubsidyDataForm(forms.ModelForm):
+    # 汰舊與補助精簡（使用者 2026-10-22 T-81 方案 A）：「申請汰舊／政府補助」改由補助項目推導（sync_trade_in_from_subsidies），
+    # 舊車主戶籍、舊車估價、舊車未繳稅金不再輸入；欄位與既有值保留，公式不變。
 
     class Meta:
         model = SalesOrder
         fields = [
-            "is_trade_in_subsidy",
             "old_owner_same_as_owner",
             "trade_in_plate",
             "old_owner_name",
             "old_owner_id_number",
             "old_owner_phone",
-            "old_owner_household_address",
-            "old_vehicle_valuation",
-            "old_vehicle_tax",
         ]
         widgets = {
-            "is_trade_in_subsidy": forms.CheckboxInput(),
             "old_owner_same_as_owner": forms.CheckboxInput(),
         }
 
@@ -4858,11 +4855,7 @@ class SubsidyDataForm(forms.ModelForm):
             self.initial["old_owner_id_number"] = self.instance.owner_id_number
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
-        # 舊車估價與未繳稅金選填，空白視為 0（clean 補值）。
-        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
-            self.fields[field_name].required = False
         self.fields["trade_in_plate"].widget.attrs.update(
             {
                 "lang": "en",
@@ -4884,12 +4877,6 @@ class SubsidyDataForm(forms.ModelForm):
         if data.get("old_owner_same_as_owner"):
             data["old_owner_name"] = self.instance.owner_name
             data["old_owner_id_number"] = self.instance.owner_id_number
-        if not data.get("is_trade_in_subsidy"):
-            data["old_owner_same_as_owner"] = False
-        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
-            if data.get(field_name) is None:
-                data[field_name] = 0
-                self.cleaned_data[field_name] = 0
         return data
 
 

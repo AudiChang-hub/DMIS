@@ -5786,7 +5786,7 @@ def order_operations(request, pk):
     # 工作台各步驟只送出自己的區段；未指定時（獨立營運頁）維持整張表單。
     section = request.POST.get("_section") if request.method == "POST" else None
     if section not in {"finance", "subsidy", "old_vehicle", "fulfillment"}:
-        section = None
+        section = None if order_workspace.is_workspace_save(request) else "standalone"
     form = OrderOperationsForm(
         request.POST or None,
         instance=profile,
@@ -5801,7 +5801,7 @@ def order_operations(request, pk):
         order,
         request.POST or None,
         request.FILES or None,
-    ) if section in {None, "finance"} else None
+    ) if section in {None, "finance", "standalone"} else None
     gap_before = settlement_gap(order)
     previous_payment_proofs = list(
         order.payment_records.exclude(proof="").values_list("proof", flat=True)

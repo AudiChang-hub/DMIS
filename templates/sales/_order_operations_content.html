@@ -111,7 +111,7 @@
       {% for payment in payment_formset %}{% if payment.instance.is_receivable_only %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
     </div>
   </details>
-{% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
+{% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
   {% if order_workspace %}
   {% if form.confirm_legacy_finance %}<div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>{% endif %}
   <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>

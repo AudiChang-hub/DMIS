@@ -450,8 +450,9 @@ class OrderLifecycleTests(TestCase):
         self.assertNotContains(response, 'name="handover_photo"')
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
-        self.assertContains(response, "尾款已收清或由車行掛帳")
-        self.assertContains(response, 'data-workspace-go="finance"')
+        # 沒有明確目的的「前往收入與支出」導向框拿掉（T-102）。
+        self.assertNotContains(response, "尾款已收清或由車行掛帳")
+        self.assertNotContains(response, 'data-workspace-go="finance"')
         self.assertNotContains(response, "儲存收款資料")
         self.assertNotContains(response, 'name="payment_checked"')
 

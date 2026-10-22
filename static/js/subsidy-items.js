@@ -2,17 +2,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const section = document.querySelector("[data-subsidy-items]");
   if (!section) return;
   const subsidyForm = document.querySelector("[data-subsidy-form]");
-  subsidyForm?.querySelector('[name="old_owner_same_as_owner"]')?.addEventListener('change', event => {
-    if (!event.target.checked) return;
+  // 「新舊車主不同人」（使用者 2026-10-22 T-84）：不勾＝同一人，舊車主欄位收起並沿用新車主；打勾才展開讓人填舊車主。
+  subsidyForm?.querySelector('[name="old_owner_different"]')?.addEventListener('change', event => {
+    const different = event.target.checked;
+    subsidyForm.querySelectorAll('[data-old-owner-field]').forEach(cell => { cell.hidden = !different; });
+    subsidyForm.querySelectorAll('[data-old-owner-same]').forEach(note => { note.hidden = different; });
     for (const [name, value] of [['old_owner_name', subsidyForm.dataset.ownerName], ['old_owner_id_number', subsidyForm.dataset.ownerId]]) {
       const field = subsidyForm.querySelector(`[name="${name}"]`);
-      if (field) { field.value = value || ''; field.dispatchEvent(new Event('input', {bubbles: true})); }
+      if (!field) continue;
+      // 改成不同人時清掉沿用的新車主資料，避免把新車主當成舊車主送出。
+      const next = different ? (field.value === (value || '') ? '' : field.value) : (value || '');
+      if (field.value !== next) { field.value = next; field.dispatchEvent(new Event('input', {bubbles: true})); }
     }
+    if (different) subsidyForm.querySelector('[name="old_owner_name"]')?.focus({preventScroll: true});
   });
-  // 汰舊流程改由補助項目推導（使用者 2026-10-22 T-81）：存檔後汰舊狀態改變時重新載入，文件區、完成條件與「新舊車主為同一人」一起更新。
+  // 汰舊流程改由補助項目推導（使用者 2026-10-22 T-81）：存檔後汰舊狀態改變時重新載入，文件區、完成條件與「新舊車主不同人」一起更新。
+  const ownerDifferent = subsidyForm?.querySelector('[name="old_owner_different"]');
+  let savedOwnerDifferent = ownerDifferent?.checked;
   subsidyForm?.addEventListener("workspace-saved", event => {
     const tradeIn = event.detail?.subsidy_trade_in;
-    if (typeof tradeIn === "boolean" && String(tradeIn) !== subsidyForm.dataset.wasEnabled) location.reload();
+    if (typeof tradeIn === "boolean" && String(tradeIn) !== subsidyForm.dataset.wasEnabled) { location.reload(); return; }
+    // 新舊車主是否同人會改變必備文件（聲明書、舊車主證件）與「已備妥」件數：存好後原地換新文件區，不跳動、不搶焦點。
+    if (ownerDifferent && ownerDifferent.checked !== savedOwnerDifferent) {
+      savedOwnerDifferent = ownerDifferent.checked;
+      window.DMISInplace?.refresh?.(location.href).catch(() => {});
+    }
   });
   const subsidyToggle = subsidyForm?.querySelector("[name='is_trade_in_subsidy']");
   const toggleMessage = subsidyForm?.querySelector("[data-subsidy-toggle-message]");

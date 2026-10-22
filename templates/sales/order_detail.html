@@ -654,18 +654,22 @@
         <h3 id="tradein-card-title">汰舊與舊車資料</h3>
         <small>{% if order.is_trade_in_subsidy %}有申請汰舊類補助，請備齊舊車主與舊車資料{% else %}補助項目沒有汰舊類時，這裡可以留空{% endif %}</small>
       </div>
+      {% comment %}同一人居多（使用者 2026-10-22 T-84）：打勾＝新舊車主不同人；不勾＝同一人，舊車主欄位收起、沿用新車主資料。{% endcomment %}
+      {% with owner_same=order.old_owner_same_as_owner %}
       {% if order.is_trade_in_subsidy %}
       <label class="subsidy-toggle subsidy-owner-toggle">
-        {{ subsidy_form.old_owner_same_as_owner }}
-        <span><strong>新舊車主為同一人</strong><small>{% site_text 'order_detail.16d07928b807' %}</small></span>
+        {{ subsidy_form.old_owner_different }}
+        <span><strong>新舊車主不同人</strong><small>{% site_text 'order_detail.16d07928b807' %}</small></span>
       </label>
       {% endif %}
       <div class="subsidy-edit-grid">
         <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
-        <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
-        <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
-        <div><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
+        {% if order.is_trade_in_subsidy %}<div class="tradein-owner-same" data-old-owner-same{% if not owner_same %} hidden{% endif %}><span>舊車主</span><strong>同新車主{% if order.owner_name %}・{{ order.owner_name }}{% endif %}</strong><small>證件與存摺沿用下訂附件</small></div>{% endif %}
+        <div data-old-owner-field{% if order.is_trade_in_subsidy and owner_same %} hidden{% endif %}><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
+        <div data-old-owner-field{% if order.is_trade_in_subsidy and owner_same %} hidden{% endif %}><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
+        <div data-old-owner-field{% if order.is_trade_in_subsidy and owner_same %} hidden{% endif %}><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
       </div>
+      {% endwith %}
       {% if workspace_finance %}{% include "sales/_ops_old_vehicle_inline.html" with form=operations_old_vehicle_form %}{% endif %}
     </section>
     <p class="autosave-status" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>

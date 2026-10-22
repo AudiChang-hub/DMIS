@@ -121,8 +121,8 @@ class IntakeOrderForm(SalesOrderForm):
         data["trade_in_intent"] = "yes" if trade_in else "no"
         data["is_trade_in_subsidy"] = trade_in
         if not trade_in:
-            data["old_owner_same_as_owner"] = False
-        elif data.get("old_owner_same_as_owner"):
+            data["old_owner_different"] = False  # 沒有汰舊時回到預設「同一人」（T-84）
+        elif not data.get("old_owner_different"):
             data["old_owner_name"] = data.get("owner_name", "")
             data["old_owner_id_number"] = data.get("owner_id_number", "")
         model = data.get("vehicle_model")

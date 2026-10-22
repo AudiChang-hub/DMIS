@@ -41,7 +41,7 @@ STEP_FIELDS = {
         "installment_company", "installment_custom", "installment_periods", "installment_monthly",
         "installment_opening_fee",
     },
-    "tradein": {"trade_in_intent", "subsidy_programs", "subsidy_other", "is_trade_in_subsidy", "old_owner_same_as_owner"},
+    "tradein": {"trade_in_intent", "subsidy_programs", "subsidy_other", "is_trade_in_subsidy", "old_owner_different"},
     "delivery": {
         "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note",
         "delivery_method", "delivery_destination",

@@ -47,17 +47,17 @@ class IntakeTradeInTests(TestCase):
 
     def test_trade_in_program_means_trade_in(self):
         program = trade_in_program()
-        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1", old_owner_same_as_owner="on")
+        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1")
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.get()
         self.assertEqual((order.trade_in_intent, order.is_trade_in_subsidy, order.old_owner_same_as_owner), ("yes", True, True))
 
     def test_new_purchase_only_is_not_trade_in(self):
         program = new_purchase_program()
-        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1", old_owner_same_as_owner="on")
+        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1")
         self.assertEqual(response.status_code, 302)
         order = SalesOrder.objects.get()
-        self.assertEqual((order.trade_in_intent, order.is_trade_in_subsidy, order.old_owner_same_as_owner), ("no", False, False))
+        self.assertEqual((order.trade_in_intent, order.is_trade_in_subsidy, order.old_owner_same_as_owner), ("no", False, True))
 
 
 class SubsidyStepTests(lifecycle.OrderLifecycleTests.__bases__[0]):
@@ -91,7 +91,7 @@ class SubsidyStepTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         self.post_items(order, [{"id": str(item.pk), "order": str(order.pk), "item_name": program.name, "category": "industry",
                                  "status": "not_submitted", "DELETE": "on"}])
         order.refresh_from_db()
-        self.assertEqual((order.is_trade_in_subsidy, order.trade_in_intent, order.old_owner_same_as_owner), (False, "no", False))
+        self.assertEqual((order.is_trade_in_subsidy, order.trade_in_intent, order.old_owner_same_as_owner), (False, "no", True))
 
     def test_existing_flag_is_not_recomputed_without_item_changes(self):
         order, _vehicle = self.make_order()
@@ -116,8 +116,8 @@ class SubsidyStepTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         self.assertLess(html.index('data-subsidy-items'), html.index('id="tradein-card-title"'))
         self.assertIn('id="ops-subsidy-form"', html)
         self.assertIn('id="ops-old-vehicle-form"', html)
-        # 沒有汰舊時不顯示「新舊車主為同一人」，其他補助文件仍可直接上傳。
-        self.assertNotIn('name="old_owner_same_as_owner"', html)
+        # 沒有汰舊時不顯示「新舊車主不同人」，其他補助文件仍可直接上傳。
+        self.assertNotIn('name="old_owner_different"', html)
         other = html.split('class="other-subsidy-documents"', 1)[1].split("</section>", 1)[0]
         form_tag = re.search(r'<form class="other-subsidy-documents__form"[^>]*>', other).group(0)
         self.assertNotIn("hidden", form_tag)

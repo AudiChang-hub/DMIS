@@ -2616,6 +2616,18 @@ input[type="file"].form-control { padding: var(--space-3); }
 .tradein-card__head h3 { margin: 0; }
 .tradein-card__head small { color: var(--muted); }
 .tradein-card .subsidy-owner-toggle { margin: var(--space-3) var(--inset-pad) 0; border-radius: var(--radius-md); background: var(--mint); }
+.tradein-card .subsidy-owner-toggle:has(input:checked) { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--forest); }
+.subsidy-edit-grid > .tradein-owner-same {
+  grid-column: span 2;
+  display: grid; align-content: center; gap: 2px; padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--surface);
+}
+.tradein-owner-same > span { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
+.tradein-owner-same strong { overflow-wrap: anywhere; }
+.tradein-owner-same small { color: var(--muted); }
+[data-old-owner-field]:not([hidden]) { animation: tradein-owner-reveal .22s ease both; }
+@keyframes tradein-owner-reveal { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { [data-old-owner-field]:not([hidden]) { animation: none; } }
 .tradein-card__scrap { border-top: 1px dashed var(--line); }
 .tradein-card .subsidy-edit-grid label { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .tradein-card__scrap h4 { margin: 0; padding: var(--inset-pad) var(--inset-pad) 0; color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
@@ -4860,6 +4872,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .payout-summary__action { grid-column: 1 / -1; justify-self: stretch; }
   .payout-summary__action .button { width: 100%; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: var(--inset-pad); }
+  .subsidy-edit-grid > .tradein-owner-same { grid-column: auto; }
   .identity-compare { grid-template-columns: 1fr; padding: var(--inset-pad); }
   .ocr-status { grid-template-columns: auto 1fr; margin-inline: var(--space-4); padding: var(--inset-pad); }
   .ocr-status .button { grid-column: 1 / -1; width: 100%; }

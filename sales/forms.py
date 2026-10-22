@@ -605,7 +605,6 @@ class SalesOrderForm(forms.ModelForm):
             required=False,
             widget=forms.CheckboxSelectMultiple(attrs={"class": "subsidy-program-choice"}),
             initial=linked_program_ids,
-            help_text="在「資料維護區 › 補助方案」新增或停用方案；預設金額可留空。",
         )
         # 政府偶有清單外的補助名稱：勾「其他」自行填寫，送出後建立同名補助項目（類別「其他」）。
         self.fields["subsidy_other"] = forms.CharField(
@@ -4930,19 +4929,13 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
             in RegistrationDocument.retired_document_types()
         ):
             self.add_error("document_type", "此文件項目已取消，不需再上傳。")
-        if (
-            data.get("document_type")
-            == RegistrationDocument.DocumentType.OTHER_INSURANCE
-            and not data.get("name")
-        ):
-            self.add_error("name", "新增其他保險單時必須填寫保險名稱。")
-        if (
-            data.get("document_type") == RegistrationDocument.DocumentType.OTHER
-            and not (data.get("name") or "").strip()
-        ):
-            # 其他領牌相關資料（使用者 2026-10-22 T-101）：比照其他補助文件，名稱自動帶原始檔名（去掉副檔名）。
+        document_type = data.get("document_type")
+        if document_type in RegistrationDocument.multi_document_types() and not (data.get("name") or "").strip():
+            # 可多份的領牌文件（其他保險單 T-100、其他領牌相關資料 T-101）名稱不必填：自動帶原始檔名（去掉副檔名），
+            # 之後可在清單上改名；取不到檔名時用類型名稱。
             upload = data.get("file")
-            data["name"] = Path(getattr(upload, "name", "") or "").stem.strip()[:160] or "其他領牌相關資料"
+            data["name"] = (Path(getattr(upload, "name", "") or "").stem.strip()[:160]
+                            or RegistrationDocument.DocumentType(document_type).label)
             self.instance.name = data["name"]
         return data
 

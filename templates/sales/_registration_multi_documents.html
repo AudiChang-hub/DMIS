@@ -1,0 +1,48 @@
+{% load screen_access %}{% comment %}領牌步驟可存多份的文件（使用者 2026-10-22 T-100 其他保險單、T-101 其他領牌相關資料）共用同一個區塊：
+標題下直接是上傳區（data-multi-upload、other-subsidy-upload.js），可一次多選或拖曳、逐檔進度、名稱自動帶原始檔名；
+清單在同一塊，點名稱即可改名（data-rename-form）。選填，不算領牌完成條件；沒有文件時不寫「目前沒有」。
+參數：key、title、description、documents、document_type、accept、accept_label、upload_label、hint、name_label、
+delete_after_registration（領牌完成後仍可刪）、confirm_text。{% endcomment %}
+{% if order.status != 'cancelled' or documents %}
+<section class="other-insurance other-registration-documents" aria-labelledby="{{ key }}-title" data-multi-documents="{{ document_type }}">
+  <div class="other-subsidy-documents__heading">
+    <h3 id="{{ key }}-title">{{ title }}</h3>
+    <p>{{ description }}</p>
+  </div>
+  {% if order.status != 'cancelled' %}
+  <form class="other-subsidy-documents__form" id="{{ key }}-upload" data-multi-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="document_type" value="{{ document_type }}">
+    <label class="other-subsidy-documents__file" data-upload-dropzone>
+      <span class="other-subsidy-documents__file-icon" aria-hidden="true">＋</span>
+      <span class="other-subsidy-documents__file-text"><strong>{{ upload_label }}</strong><small>{{ hint }}</small></span>
+      <input id="{{ key }}-file" type="file" name="file" multiple data-max-bytes="20971520" data-accept-label="{{ accept_label }}" accept="{{ accept }}" required>
+    </label>
+    <noscript><button class="button primary" type="submit">上傳</button></noscript>
+    <div class="upload-queue" data-upload-queue hidden></div>
+  </form>
+  {% endif %}
+  {% for document in documents %}
+  <article class="other-subsidy-documents__item other-insurance__item">
+    {% if order.status != 'cancelled' %}
+    <form class="other-insurance__rename" method="post" action="{% url 'registration_document_rename' order.pk document.pk %}" data-inplace-form data-rename-form>
+      {% csrf_token %}
+      <label class="visually-hidden" for="{{ key }}-name-{{ document.pk }}">{{ name_label }}</label>
+      <input id="{{ key }}-name-{{ document.pk }}" class="other-insurance__name" type="text" name="name" value="{{ document.name }}" placeholder="{{ title }}" maxlength="160" lang="zh-Hant" autocomplete="off" data-no-recent-values title="點一下即可改名，離開欄位或按 Enter 就儲存，按 Esc 還原">
+      <small>{{ document.uploaded_by|default:"內部人員" }} 於 {{ document.created_at|date:"Y/m/d H:i" }} 上傳・點名稱可改名</small>
+    </form>
+    {% else %}
+    <span><strong>{{ document.display_name }}</strong><small>{{ document.uploaded_by|default:"內部人員" }} 於 {{ document.created_at|date:"Y/m/d H:i" }} 上傳</small></span>
+    {% endif %}
+    <div>
+      {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
+      {% if order.status != 'cancelled' and delete_after_registration or not order.is_registration_complete and order.status != 'cancelled' and order.status != 'completed' %}
+      <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="{{ confirm_text }}">
+        {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}

@@ -70,10 +70,12 @@ def payment_summary(order, records=None):
 
 
 def balance_breakdown(order, summary=None, records=None):
-    """交車收尾款的應收計算式（使用者 2026-10-22 T-73），數字全部取自 payment_summary 同一組來源。
+    """交車收尾款的應收對帳單（使用者 2026-10-22 T-73、T-76）。
 
-    回傳 {"due": 應收, "lines": [(標籤, 金額, "+"/"-")], "exact": 逐項加總是否等於應收}；
-    逐項加總對不上（例如人工調整過的舊資料）時只列合計，不另算一套。"""
+    從組成項目開始：車價、配件、牌險、選號、其他費用…加總＝費用合計，扣已核准優惠＝總價，
+    再扣舊車折抵、分期公司撥款、已收訂金、其他已收款＝應收。應收一律取 payment_summary 的 delivery_due
+    （與交車判斷同一個數字）；逐項推算對不上（人工調整過的尾款、舊資料）時改列收支合計並標示 fallback，不另算一套。
+    0 元的項目不列。"""
     records = list(order.payment_records.all()) if records is None else list(records)
     summary = summary or payment_summary(order, records)
     due = summary["delivery_due"]
@@ -82,29 +84,51 @@ def balance_breakdown(order, summary=None, records=None):
     base = summary["customer_expected"] - extras  # 訂金＋尾款的應收
     deposit_received = sum((p.received_amount or ZERO for p in customer if p.system_key == "deposit" and p.confirmed), ZERO)
     other_received = summary["customer_received"] - deposit_received
-    total = order.discounted_total
+
+    accessories = [(f"{line.name}{f' ×{line.quantity}' if line.quantity != 1 else ''}", line.line_total)
+                   for line in order.accessories.all() if line.line_total]
+    fees = [(fee.name or "其他費用", fee.amount) for fee in order.other_fees.all() if fee.amount]
+    charges = [
+        {"label": "車價", "amount": order.vehicle_price or ZERO, "items": []},
+        {"label": "配件", "amount": order.accessory_total or ZERO, "items": accessories},
+        {"label": "牌險費", "amount": order.plate_insurance_fee or ZERO, "items": []},
+        {"label": "選號費", "amount": order.plate_selection_fee or ZERO, "items": []},
+        {"label": "動保設定費", "amount": order.lien_registration_fee or ZERO, "items": []},
+        {"label": "分期開辦費", "amount": order.effective_installment_fee or ZERO, "items": []},
+        {"label": "其他費用", "amount": order.other_fee_total or ZERO, "items": fees},
+        {"label": "舊車稅", "amount": order.old_vehicle_tax or ZERO, "items": []},
+    ]
+    charges = [row for row in charges if row["amount"]]
+    charges_total = sum((row["amount"] for row in charges), ZERO)
+    discount = order.approved_discount_amount or ZERO
+    total = charges_total - discount
     valuation = order.old_vehicle_valuation or ZERO
-    lines = [("總價", total, "+")]
-    if valuation:
-        lines.append(("舊車折抵", valuation, "-"))
     lender = total - valuation - base
+    deductions = []
+    if valuation:
+        deductions.append({"label": "舊車折抵", "amount": valuation})
     if order.payment_type == "installment" and lender > 0:
-        lines.append(("分期公司撥款", lender, "-"))
-    elif lender:
-        lines = [("訂金＋尾款應收", base, "+")]
-    if extras:
-        lines.append(("其他應收", extras, "+"))
+        deductions.append({"label": "分期公司撥款（車價分期）", "amount": lender})
+        lender = ZERO
     if deposit_received:
-        lines.append(("已收訂金", deposit_received, "-"))
+        deductions.append({"label": "已收訂金", "amount": deposit_received})
     if other_received:
-        lines.append(("其他已收款", other_received, "-"))
-    computed = sum((amount if sign == "+" else -amount for _label, amount, sign in lines), ZERO)
-    exact = max(computed, ZERO) == due
+        deductions.append({"label": "其他已收款", "amount": other_received})
+    computed = total + extras - sum((row["amount"] for row in deductions), ZERO)
+    exact = lender == ZERO and charges_total == order.pre_discount_total and max(computed, ZERO) == due
+    lines = ([(row["label"], row["amount"], "+") for row in charges]
+             + ([("已核准優惠", discount, "-")] if discount else [])
+             + ([("其他應收", extras, "+")] if extras else [])
+             + [(row["label"], row["amount"], "-") for row in deductions])
+    fallback = []
     if not exact:
-        lines = [("客戶應收合計", summary["customer_expected"], "+"), ("已收款", summary["customer_received"], "-")]
-        computed = summary["customer_expected"] - summary["customer_received"]
-        exact = max(computed, ZERO) == due
-    return {"due": due, "lines": lines if exact else [], "exact": exact}
+        fallback = [{"label": "客戶應收合計", "amount": summary["customer_expected"], "sign": "+"},
+                    {"label": "已收款", "amount": summary["customer_received"], "sign": "-"}]
+    return {
+        "due": due, "exact": exact, "charges": charges, "charges_total": charges_total, "discount": discount,
+        "total": total, "extras": extras, "deductions": deductions, "lines": lines if exact else [], "fallback": fallback,
+        "received": summary["customer_received"],
+    }
 
 
 def effective_records(records):

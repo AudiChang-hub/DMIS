@@ -479,15 +479,8 @@
 {% comment %}尾款放在交車與收尾款最上方（使用者 2026-10-22 T-73）：列出應收的計算式，數字與交車判斷同一份 payment_summary；
 欄位在交車表單外，以 form 屬性併入交車表單送出。實收不得少於應收才能完成交車（T-75，畫面即時判斷、送出時再驗證）。{% endcomment %}
 <fieldset class="delivery-balance" id="delivery-balance" data-delivery-due="{{ balance_breakdown.due|floatformat:0 }}">
-  <legend>尾款（應收 ${{ balance_breakdown.due|number_with_commas }}）</legend>
-  {% if balance_breakdown.lines %}<dl class="balance-formula" aria-label="應收計算方式">
-    {% for label, amount, sign in balance_breakdown.lines %}<div class="balance-formula__item"><dt>{% if not forloop.first %}<span class="balance-formula__op" aria-label="{% if sign == '-' %}減{% else %}加{% endif %}">{% if sign == '-' %}−{% else %}＋{% endif %}</span>{% endif %}{{ label }}</dt><dd>${{ amount|number_with_commas }}</dd></div>{% endfor %}
-    <div class="balance-formula__item balance-formula__result"><dt><span class="balance-formula__op" aria-label="等於">＝</span>應收</dt><dd>${{ balance_breakdown.due|number_with_commas }}</dd></div>
-  </dl>{% endif %}
-  <div class="form-grid compact-grid">
-    {% for field in balance_payment_form %}{% if field.name != "confirmed" %}{% include "sales/_field.html" %}{% endif %}{% endfor %}
-  </div>
-  <p class="form-hint" data-balance-hint>實收金額大於或等於應收 ${{ balance_breakdown.due|number_with_commas }}，才能按下方「收尾款並完成交車」；送出時會同時確認尾款已收妥並完成交車，金額不足時不會交車，也不會記錄收款。</p>
+  <legend>尾款</legend>
+  {% include "sales/_delivery_balance_sheet.html" %}
 </fieldset>
 {% endif %}
 {% if workspace_finance %}<section class="section-block delivery-prep" aria-labelledby="delivery-prep-title">

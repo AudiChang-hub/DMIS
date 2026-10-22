@@ -1,0 +1,50 @@
+{% load sales_format %}{% comment %}尾款對帳單（使用者 2026-10-22 T-73、T-76）：左欄從組成項目加到總價、再扣到應收，金額靠右、等寬數字；
+右欄是應收、即時的實收／尚差與收款欄位。數字來自 balance_breakdown（應收＝payment_summary 的 delivery_due）。{% endcomment %}
+{% with b=balance_breakdown %}
+<div class="balance-sheet">
+  <section class="balance-ledger" aria-labelledby="balance-ledger-title">
+    <h3 class="balance-ledger__title" id="balance-ledger-title">應收怎麼算</h3>
+    {% if b.exact %}
+    <dl class="ledger">
+      {% for row in b.charges %}
+      <div class="ledger__row"><dt>{{ row.label }}{% if row.items|length == 1 %}<span class="ledger__hint">{{ row.items.0.0 }}</span>{% elif row.items %}<span class="ledger__hint">{{ row.items|length }} 項</span>{% endif %}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>
+      {% if row.items|length > 1 %}{% for name, amount in row.items %}<div class="ledger__row is-item"><dt>{{ name }}</dt><dd>${{ amount|number_with_commas }}</dd></div>{% endfor %}{% endif %}
+      {% endfor %}
+      {% if b.discount %}
+      <div class="ledger__row is-subtotal"><dt>費用合計</dt><dd>${{ b.charges_total|number_with_commas }}</dd></div>
+      <div class="ledger__row is-minus"><dt>已核准優惠</dt><dd>−${{ b.discount|number_with_commas }}</dd></div>
+      {% endif %}
+      <div class="ledger__row is-subtotal is-total"><dt>總價</dt><dd>${{ b.total|number_with_commas }}</dd></div>
+      {% if b.extras %}<div class="ledger__row"><dt>其他應收</dt><dd>${{ b.extras|number_with_commas }}</dd></div>{% endif %}
+      {% for row in b.deductions %}
+      <div class="ledger__row is-minus"><dt>{{ row.label }}</dt><dd>−${{ row.amount|number_with_commas }}</dd></div>
+      {% endfor %}
+      <div class="ledger__row is-due"><dt>應收</dt><dd>${{ b.due|number_with_commas }}</dd></div>
+    </dl>
+    {% else %}
+    <dl class="ledger">
+      {% for row in b.fallback %}
+      <div class="ledger__row{% if row.sign == '-' %} is-minus{% endif %}"><dt>{{ row.label }}</dt><dd>{% if row.sign == '-' %}−{% endif %}${{ row.amount|number_with_commas }}</dd></div>
+      {% endfor %}
+      <div class="ledger__row is-due"><dt>應收</dt><dd>${{ b.due|number_with_commas }}</dd></div>
+    </dl>
+    <p class="ledger__note" role="note">這張單的尾款有人工調整或屬舊資料，逐項加總對不上，這裡改列收支合計；明細請到「收入與支出」核對。</p>
+    {% endif %}
+  </section>
+  <div class="balance-entry">
+  <aside class="balance-summary" data-balance-summary aria-live="polite">
+    <span class="balance-summary__label">應收</span>
+    <strong class="balance-summary__due">${{ b.due|number_with_commas }}</strong>
+    <dl class="balance-summary__meta">
+      <div><dt>實收</dt><dd data-balance-received>—</dd></div>
+      <div><dt data-balance-gap-label>尚差</dt><dd data-balance-gap>${{ b.due|number_with_commas }}</dd></div>
+    </dl>
+    <p class="balance-summary__state" data-balance-state>填入實收金額，足額後即可收尾款並完成交車。</p>
+  </aside>
+  <div class="balance-fields">
+    {% for field in balance_payment_form %}{% if field.name != "confirmed" %}{% include "sales/_field.html" %}{% endif %}{% endfor %}
+  </div>
+  <p class="form-hint" data-balance-hint>實收要大於或等於應收 ${{ b.due|number_with_commas }}，才能按下方「收尾款並完成交車」；送出時同時確認收款，金額不足不會交車、也不記錄收款。</p>
+  </div>
+</div>
+{% endwith %}

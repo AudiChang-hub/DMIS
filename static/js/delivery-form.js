@@ -9,7 +9,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const due = Number(fieldset.dataset.deliveryDue || 0);
     const hint = fieldset.querySelector("[data-balance-hint]");
     const blockers = form.querySelector("[data-delivery-blockers]");
+    // 對帳單右欄（使用者 2026-10-22 T-76）：實收與尚差跟著輸入即時更新。
+    const summary = fieldset.querySelector("[data-balance-summary]");
+    const money = (value) => `$${Math.round(value).toLocaleString("zh-TW")}`;
+    const syncSummary = () => {
+      if (!summary) return;
+      const received = Number(amount.value || 0);
+      const filled = amount.value !== "";
+      const gap = due - received;
+      summary.dataset.state = !filled ? "empty" : gap > 0 ? "short" : "ok";
+      summary.querySelector("[data-balance-received]").textContent = filled ? money(received) : "—";
+      summary.querySelector("[data-balance-gap-label]").textContent = gap > 0 || !filled ? "尚差" : gap < 0 ? "多收" : "差額";
+      summary.querySelector("[data-balance-gap]").textContent = money(Math.abs(filled ? gap : due));
+      summary.querySelector("[data-balance-state]").textContent = !filled
+        ? "填入實收金額，足額後即可收尾款並完成交車。"
+        : gap > 0 ? `還差 ${money(gap)}，補足後才能完成交車。` : "已足額，可以收尾款並完成交車。";
+    };
     const sync = () => {
+      syncSummary();
       const short = due > 0 && !(Number(amount.value || 0) >= due);
       button.dataset.balanceShort = short ? "1" : "";
       const blocked = Boolean(blockers && !blockers.hidden);

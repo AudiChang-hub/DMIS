@@ -7069,7 +7069,47 @@ def registration_document_upload(request, pk):
             message="此訂單已取消，無法修改文件。",
             status=409,
         )
-    form = RegistrationDocumentUploadForm(request.POST, request.FILES)
+    uploads = request.FILES.getlist("file")
+    if len(uploads) > 1 and request.POST.get("document_type") in RegistrationDocument.multi_document_types():
+        return _upload_multiple_registration_documents(request, order, uploads)
+    response, document = _store_registration_document(request, order, request.FILES)
+    if response is not None:
+        return response
+    finished = _auto_finish_registration(request, order)
+    if finished:
+        # 非同步上傳完成後頁面會重新整理，用訊息框告知已自動完成領牌。
+        messages.success(request, finished)
+    return _document_upload_response(
+        request,
+        order_pk=pk,
+        tab="delivery" if finished else "registration",
+        ok=True,
+        message=f"{document.display_name}已上傳。",
+    )
+
+
+def _upload_multiple_registration_documents(request, order, uploads):
+    """可多筆的領牌文件一次選多個檔案（使用者 2026-10-22 T-100 其他保險單）：每個檔案各存一筆、各自檢查，
+    一個失敗不影響其他檔案。畫面上由 other-subsidy-upload.js 逐檔送出以顯示進度；這裡是一次送出多檔時的備援。"""
+    label = RegistrationDocument.DocumentType(request.POST.get("document_type")).label
+    saved, failures = 0, []
+    for upload in uploads:
+        with transaction.atomic():
+            response, _document = _store_registration_document(request, order, MultiValueDict({"file": [upload]}))
+        if response is None:
+            saved += 1
+        elif isinstance(response, JsonResponse):
+            failures.append(f"{upload.name}：{json.loads(response.content)['message']}")
+    message = (f"已上傳 {saved} 份{label}。" if saved else f"{label}都沒有上傳成功。") + (
+        f"未上傳：{'；'.join(failures)}" if failures else "")
+    return _document_upload_response(request, order_pk=order.pk, tab="registration", ok=bool(saved), message=message,
+                                     status=200 if saved else 400)
+
+
+def _store_registration_document(request, order, files):
+    """回傳（錯誤回應, None）或（None, 已保存的文件）。"""
+    pk = order.pk
+    form = RegistrationDocumentUploadForm(request.POST, files)
     if not form.is_valid():
         return _document_upload_response(
             request,
@@ -7082,7 +7122,7 @@ def registration_document_upload(request, pk):
                 for error in errors
             ),
             status=400,
-        )
+        ), None
     # 領牌完成後仍可補上傳還沒有的文件（例如晚到的發票、選號單）；已上傳的不能替換（使用者 2026-10-15）。
     if (
         (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
@@ -7096,7 +7136,7 @@ def registration_document_upload(request, pk):
             ok=False,
             message="此訂單的領牌階段已完成，已上傳的文件無法替換。",
             status=409,
-        )
+        ), None
 
     document = form.save(commit=False)
     document.order = order
@@ -7129,17 +7169,37 @@ def registration_document_upload(request, pk):
         description=f"已上傳領牌文件：{document.display_name}",
         actor_name=_editing_name(request.user),
     )
-    finished = _auto_finish_registration(request, order)
-    if finished:
-        # 非同步上傳完成後頁面會重新整理，用訊息框告知已自動完成領牌。
-        messages.success(request, finished)
-    return _document_upload_response(
-        request,
-        order_pk=pk,
-        tab="delivery" if finished else "registration",
-        ok=True,
-        message=f"{document.display_name}已上傳。",
+    return None, document
+
+
+@login_required
+@transaction.atomic
+def registration_document_rename(request, pk, document_pk):
+    """可多筆的領牌文件改名（使用者 2026-10-22 T-100 其他保險單）：上傳時自動帶檔名，之後在清單上直接改；留空就顯示類型名稱。"""
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    target = order_step_url(pk, "registration")
+    if order.status == SalesOrder.Status.CANCELLED:
+        messages.error(request, "此訂單已取消，無法修改文件。")
+        return redirect(target)
+    document = get_object_or_404(
+        RegistrationDocument, pk=document_pk, order=order,
+        document_type__in=RegistrationDocument.multi_document_types(),
     )
+    name = (request.POST.get("name") or "").strip()[:RegistrationDocument._meta.get_field("name").max_length]
+    if name != document.name:
+        previous = document.display_name
+        document.name = name
+        document.save(update_fields=["name", "updated_at"])
+        OrderEvent.objects.create(
+            order=order,
+            event_type="registration_document_renamed",
+            description=f"{document.get_document_type_display()}改名：{previous} → {document.display_name}",
+            actor_name=_editing_name(request.user),
+        )
+        messages.success(request, f"已改名為「{document.display_name}」。")
+    return redirect(target)
 
 
 @login_required

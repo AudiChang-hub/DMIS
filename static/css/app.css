@@ -1788,6 +1788,30 @@ input[type="file"].form-control { padding: var(--space-3); }
 .subsidy-program-picker small { display: block; margin-top: var(--space-2); color: var(--muted); }
 .subsidy-program-picker__options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .subsidy-program-picker__other { max-width: 32rem; margin-top: var(--space-3); }
+/* 補助方案入口（T-97）：原本的純文字提示改成可點的膠囊連結，另開分頁不打斷建單。 */
+.subsidy-program-picker__manage {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); max-width: 100%;
+  min-height: 40px; margin-top: var(--space-3); padding: var(--space-2) var(--space-4);
+  color: var(--action-text); font-size: var(--text-sm); font-weight: 800; text-decoration: none;
+  border: 1px dashed color-mix(in srgb, var(--action-text) 45%, transparent); border-radius: var(--radius-pill);
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.subsidy-program-picker__manage:hover, .subsidy-program-picker__manage:focus-visible {
+  background: color-mix(in srgb, var(--action-bg) 8%, var(--surface)); border-style: solid; border-color: var(--action-text);
+}
+.subsidy-program-picker__manage:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.subsidy-program-picker__manage-note { color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
+.subsidy-program-picker__manage > [aria-hidden] { transition: transform .15s ease; }
+.subsidy-program-picker__manage:hover > [aria-hidden] { transform: translate(2px, -2px); }
+@media (max-width: 600px) {
+  /* 手機會折成兩行：改成整寬圓角卡，說明在第一行、「另開分頁 ↗」靠右在第二行。 */
+  .subsidy-program-picker__manage { display: grid; grid-template-columns: 1fr auto auto; width: 100%; border-radius: var(--radius-md); }
+  .subsidy-program-picker__manage > :first-child { grid-column: 1 / -1; }
+  .subsidy-program-picker__manage-note { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .subsidy-program-picker__manage, .subsidy-program-picker__manage > [aria-hidden] { transition: none; }
+}
 .subsidy-program-picker label[hidden] { display: none; }
 .subsidy-program-picker label:has(> input[type="checkbox"]) {
   display: inline-flex; min-height: 44px; padding: var(--space-2) var(--space-4); align-items: center; gap: var(--space-2);
@@ -2577,23 +2601,20 @@ input[type="file"].form-control { padding: var(--space-3); }
 .file-button { cursor: pointer; }
 .file-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .other-insurance { margin-top: var(--stack-gap); }
-.other-insurance__item {
-  display: flex; min-height: 58px; padding: var(--space-3) var(--space-3); align-items: center;
-  justify-content: space-between; gap: var(--stack-gap-sm); border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line); border-left: 1px solid var(--line);
-}
-.other-insurance__item:last-of-type { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+/* 其他保險單（T-100）：和其他補助文件同一套版型，名稱可在清單上直接改。 */
 .other-insurance__item span, .other-insurance__item small { display: block; }
 .other-insurance__item small { margin-top: 3px; color: var(--muted); }
-.other-insurance > .muted {
-  margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-top: 0;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+.other-insurance__rename { display: grid; flex: 1 1 auto; gap: 2px; min-width: 0; margin: 0; }
+.other-insurance__rename small { margin-top: 0; font-size: var(--text-xs); }
+.other-insurance__name {
+  width: 100%; max-width: 30rem; min-height: 40px; margin-left: calc(-1 * var(--space-2)); padding: var(--space-1) var(--space-2);
+  color: var(--ink); font: inherit; font-weight: 800; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+  transition: background-color .15s ease, border-color .15s ease;
 }
-.other-insurance__form {
-  display: grid; margin-top: var(--stack-gap-sm); padding: var(--inset-pad); grid-template-columns: 1fr 1fr auto;
-  align-items: end; gap: var(--space-3); background: var(--surface-soft); border-radius: var(--radius-md);
-}
-.other-insurance__form > div { display: grid; gap: var(--space-2); }
+.other-insurance__name:hover { background: var(--surface-soft); border-color: var(--line); }
+.other-insurance__name:focus { background: var(--surface); border-color: var(--forest); outline: 3px solid color-mix(in srgb, var(--forest) 22%, transparent); outline-offset: 0; }
+.other-insurance__name::placeholder { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .other-insurance__name { transition: none; } }
 .other-subsidy-documents { margin-top: var(--stack-gap); }
 .other-subsidy-documents__empty { margin: 0; color: var(--muted); font-size: var(--text-sm); padding: var(--space-3) var(--space-4); border: 1px dashed var(--line); border-radius: var(--radius-lg); }
 .other-subsidy-documents__item {
@@ -2665,7 +2686,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .tradein-card__scrap .autosave-status:empty { display: none; }
 .other-subsidy-documents__heading h3 { margin: 0 0 3px; font-size: var(--text-md); }
 .other-subsidy-documents__heading p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
-.other-subsidy-documents .other-subsidy-documents__form {
+:is(.other-subsidy-documents, .other-insurance) .other-subsidy-documents__form {
   grid-template-columns: minmax(0, 1fr); align-items: stretch; margin-top: var(--space-3);
 }
 .other-subsidy-documents__file {
@@ -2693,12 +2714,6 @@ input[type="file"].form-control { padding: var(--space-3); }
 .other-subsidy-documents__file.is-dragover .other-subsidy-documents__file-icon { transform: scale(1.08); }
 .other-subsidy-documents__file-icon { transition: transform .18s ease; }
 .other-subsidy-documents__form > noscript .button { min-height: 44px; justify-self: start; }
-/* 其他領牌相關資料（T-101）：和同一步的「其他保險單」同樣是有色條標題的卡片，上傳區接在標題下、清單接在上傳區下。 */
-.other-registration-documents > .other-subsidy-documents__form {
-  margin-top: 0; background: var(--surface-soft); border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-}
-.other-registration-documents > .other-subsidy-documents__form:not(:last-child) { border-radius: 0; }
-.other-registration-documents > .other-subsidy-documents__empty { border-style: solid; border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 .upload-queue { display: grid; gap: var(--space-2); }
 .upload-queue[hidden] { display: none; }
 .upload-queue__summary { margin: 0; color: var(--blue); font-size: var(--text-sm); font-weight: 850; }
@@ -2739,10 +2754,10 @@ input[type="file"].form-control { padding: var(--space-3); }
 @media (prefers-reduced-motion: reduce) {
   .upload-queue__item, .other-subsidy-documents__file-icon { transition: none; }
 }
-.other-subsidy-documents .other-subsidy-documents__item { margin-top: var(--space-2); border-bottom: 1px solid var(--line); border-radius: var(--radius-md); }
+:is(.other-subsidy-documents, .other-insurance) .other-subsidy-documents__item { margin-top: var(--space-2); border-bottom: 1px solid var(--line); border-radius: var(--radius-md); }
 @media (max-width: 900px) {
   .subsidy-payout { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .other-subsidy-documents .other-subsidy-documents__form { grid-template-columns: 1fr; }
+  :is(.other-subsidy-documents, .other-insurance) .other-subsidy-documents__form { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .subsidy-payout { grid-template-columns: 1fr; }

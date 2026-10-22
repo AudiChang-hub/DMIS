@@ -1023,7 +1023,7 @@
   },
   "order_detail.694d2fbee690": {
     "page": "訂單內容",
-    "default": "若另有第三人責任險、車體險等，可依實際名稱新增多份文件。",
+    "default": "第三人責任險、車體險等可一次上傳多份；名稱自動用檔名，上傳後點名稱即可改名。不影響領牌完成。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.bce60d0f7a34": {

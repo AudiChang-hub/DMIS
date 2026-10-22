@@ -415,7 +415,7 @@
     if (busy) { queued.add(form); return true; }
     const invalid = fields(form).find(field => visible(field) && field.willValidate && !field.checkValidity());
     if (invalid) {
-      setStatus(form, `尚未儲存：請填寫「${labelOf(invalid)}」`, 'pending');
+      setStatus(form, `尚未儲存：請${invalid.validity.valueMissing ? '填寫' : '修正'}「${labelOf(invalid)}」`, 'pending');
       invalid.setAttribute('aria-invalid', 'true');
       return false;
     }

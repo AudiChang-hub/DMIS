@@ -387,7 +387,7 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
                         item
                         for item in (
                             order.get_plate_choice_display(),
-                            order.watched_numbers or order.plate_preference_note,
+                            order.watched_numbers_display or order.plate_preference_note,
                         )
                         if item
                     )

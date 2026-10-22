@@ -223,8 +223,8 @@ class UploadFormIntegrationTests(SimpleTestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("有效的 PDF", form.errors["file"][0])
 
-    def test_payment_proof_rejects_corrupted_image(self):
-        # 收支頁收款明細不再上傳收款證明（使用者 2026-10-21 T-54）；交車「尾款收妥」仍可上傳，驗證照舊。
+    def test_delivery_balance_no_longer_accepts_proof_upload(self):
+        # 收支頁收款明細（T-54）與交車「尾款收妥」（使用者 2026-10-22 T-68）都不再上傳收款證明：送來的檔案不會被收下。
         form = DeliveryPaymentForm(
             data={
                 "received_amount": "1000",
@@ -242,8 +242,8 @@ class UploadFormIntegrationTests(SimpleTestCase):
             },
         )
 
-        self.assertFalse(form.is_valid())
-        self.assertIn("圖片已損壞", form.errors["proof"][0])
+        self.assertNotIn("proof", form.fields)
+        self.assertTrue(form.is_valid(), form.errors)
 
     def test_delivery_photo_uses_the_image_security_validator(self):
         order = SalesOrder(owner_name="測試車主", owner_phone="0912345678")

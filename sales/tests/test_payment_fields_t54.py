@@ -26,10 +26,9 @@ class PaymentFormFieldsTests(TestCase):
         self.assertIn("card_fee_charged", PaymentRecordForm.base_fields)
         for name in REMOVED:
             self.assertNotIn(name, PaymentRecordForm.base_fields)
-        # 交車「尾款收妥」：收款證明、備註照舊；收款帳戶與非重複確認於 T-64（2026-10-21）拿掉。
-        for name in ("proof", "note"):
-            self.assertIn(name, DeliveryPaymentForm.base_fields)
-        for name in ("receiving_account", "duplicate_confirmed"):
+        # 交車「尾款收妥」：收款備註照舊；收款帳戶與非重複確認於 T-64（2026-10-21）、收款證明於 T-68（10-22）拿掉。
+        self.assertIn("note", DeliveryPaymentForm.base_fields)
+        for name in ("receiving_account", "duplicate_confirmed", "proof"):
             self.assertNotIn(name, DeliveryPaymentForm.base_fields)
 
     def test_card_fee_still_requires_card_method(self):

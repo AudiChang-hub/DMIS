@@ -3689,6 +3689,18 @@ class SalesOrder(TimeStampedModel):
     def balance_adjustment_amount(self):
         return self.actual_balance - self.calculated_balance
 
+    # 指定號碼與志願序（使用者 2026-10-22 T-67）：資料維持一行一個號碼；畫面、訂購單與列印以「、」串成一行。
+    # 輸入接受頓號、逗號、分號、空白或換行分隔。
+    WATCHED_NUMBER_SEPARATORS = re.compile(r"[\s、，,；;]+")
+
+    @classmethod
+    def split_watched_numbers(cls, text):
+        return [item for item in cls.WATCHED_NUMBER_SEPARATORS.split(text or "") if item]
+
+    @property
+    def watched_numbers_display(self):
+        return "、".join(self.split_watched_numbers(self.watched_numbers))
+
     @property
     def is_registration_complete(self):
         return bool(self.registration_completed_at)

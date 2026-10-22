@@ -122,7 +122,7 @@
     {% for line in order.accessories.all %}
       <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount|number_with_commas }} ＋ 工資 ${{ line.labor_fee|number_with_commas }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total|number_with_commas }}</strong></div>
     {% empty %}<p class="muted">無配件</p>{% endfor %}
-    {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers|default:order.plate_preference_note }}</p></div>{% endif %}
+    {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers_display|default:order.plate_preference_note }}</p></div>{% endif %}
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
@@ -492,7 +492,8 @@
     <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
-  <div class="note-box" id="delivery-payment">{% if collect_balance %}<p>尾款在下方與交車一起登記，送出後同時確認收款並完成交車。</p>{% elif order.is_delivered %}<p>交車後的補收或退差請到「收入與支出」處理。</p>{% else %}<p>尾款已收清或由車行掛帳；其他收款請到「收入與支出」。</p>{% endif %}{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往收入與支出</button>{% endif %}</div>
+  {# 在交車表單收尾款時不再另列提示框，下方就是尾款欄位（使用者 2026-10-22 T-68）。 #}
+  {% if not collect_balance %}<div class="note-box" id="delivery-payment">{% if order.is_delivered %}<p>交車後的補收或退差請到「收入與支出」處理。</p>{% else %}<p>尾款已收清或由車行掛帳；其他收款請到「收入與支出」。</p>{% endif %}{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往收入與支出</button>{% endif %}</div>{% endif %}
   {% if dealer_settlement %}
   <div class="delivery-gate delivery-gate--settlement" id="dealer-settlement">{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement compact=True %}</div>
   {% endif %}

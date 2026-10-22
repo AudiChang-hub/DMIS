@@ -1633,7 +1633,9 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .delivery-layout > [hidden] { display: none; }
 .delivery-layout__choice, .delivery-layout__method { flex: 0 1 13rem; }
 .delivery-layout__fee { flex: 0 1 9rem; }
-.delivery-layout__numbers, .delivery-layout__destination { flex: 1 1 16rem; }
+/* 第一列：選號方式、選號費、指定號碼（拉長到列尾）；第二列：交車方式＋送達地點（使用者 2026-10-22 T-67）。 */
+.delivery-layout__numbers { flex: 1 1 calc(100% - 22rem - 3 * var(--space-4)); min-width: 12rem; }
+.delivery-layout__destination { flex: 1 1 16rem; }
 .delivery-layout__note { flex: 1 1 100%; }
 /* 文字框單行起跳、依內容長高（不支援 field-sizing 的瀏覽器由 _order_form_scripts 補上）。 */
 .delivery-layout textarea.form-control { field-sizing: content; min-height: 48px; max-height: 12rem; resize: vertical; }

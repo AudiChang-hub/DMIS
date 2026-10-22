@@ -146,8 +146,8 @@
 
   <details class="form-section" id="delivery" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="delivery" {% if wizard.current != 'delivery' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">{% if order_workspace %}4{% else %}5{% endif %}</span><span><strong>選號與交車</strong><small>{% if wizard %}車牌號碼的選法與交車方式{% else %}車牌號碼的選法、交車方式與其他備註{% endif %}</small></span></summary>
-    {% comment %}精簡排版（使用者 2026-10-21 T-58）：欄位依內容寬度往右排、放不下才換行，條件欄位隱藏時不佔位；
-    指定號碼、選號偏好與備註是單行起跳、依內容長高的文字框。手機每欄一列，備註排最後。精靈的備註在訂金與費用。{% endcomment %}
+    {% comment %}精簡排版（使用者 2026-10-21 T-58、10-22 T-67）：第一列選號方式、選號費、指定號碼（單行、以「、」分隔，拉長到列尾）；
+    第二列交車方式＋送達地點；條件欄位隱藏時不佔位。選號偏好與備註是單行起跳、依內容長高的文字框。手機每欄一列，備註排最後。精靈的備註在訂金與費用。{% endcomment %}
     <div class="form-grid delivery-layout">
       <div class="delivery-layout__choice">{% include "sales/_field.html" with field=form.plate_choice %}</div>
       <div class="delivery-layout__fee" data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>

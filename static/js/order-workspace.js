@@ -292,7 +292,8 @@
         : (payload.delivery_ready ? [] : [payload.delivery_blocker].filter(Boolean));
       const ready = blockers.length === 0;
       root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
-        button.disabled = !ready; button.setAttribute('aria-disabled', String(!ready));
+        // 尾款實收不足（delivery-form.js 標記 balanceShort）時維持停用（使用者 2026-10-22 T-75）。
+        button.disabled = !ready || button.dataset.balanceShort === '1'; button.setAttribute('aria-disabled', String(button.disabled));
         button.textContent = !ready ? '尚未符合交車條件' : (canCollect && payload.delivery_collect_balance ? '收尾款並完成交車' : '確認完成交付');
         if (!ready && blockers[0]) button.title = blockers[0];
         if (ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？完成後訂單與實體車輛將鎖定。'; }

@@ -22,6 +22,7 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import BooleanField, Case, Count, DecimalField, Exists, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.utils.datastructures import MultiValueDict
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.response import TemplateResponse
@@ -4434,6 +4435,11 @@ def order_list(request):
     )
 
 
+def _year_month_text(value):
+    """舊車出廠年月匯出成 6 碼 YYYYMM（T-93，跟畫面輸入一致；匯入也讀得回來）。"""
+    return f"{value.year:04d}{value.month:02d}" if value else ""
+
+
 def _operations_report_queryset(request):
     from sales.services.order_filters import filter_order_analysis
     rows = SalesOrder.objects.select_related(
@@ -4778,7 +4784,7 @@ def operations_report_export(request):
             *[row["text"] for row in order.subsidy_agency_summary[:3]],
             order.old_owner_name, order.old_owner_id_number, order.trade_in_plate,
             op("old_vehicle_engine_number"), op("old_vehicle_brand"),
-            op("old_vehicle_displacement_cc"), op("old_vehicle_manufactured_on"),
+            op("old_vehicle_displacement_cc"), _year_month_text(op("old_vehicle_manufactured_on", None)),
             op("scrapped_on"), op("recycled_on"),
             op("registration_tax_expense", 0),
             op("compulsory_insurance_expense", 0),
@@ -7955,6 +7961,10 @@ def subsidy_toggle(request, pk):
 
 @login_required
 def subsidy_document_upload(request, pk):
+    uploads = request.FILES.getlist("file")
+    if (request.method == "POST" and len(uploads) > 1
+            and request.POST.get("document_type") == SubsidyDocument.DocumentType.OTHER):
+        return _upload_other_subsidy_documents(request, pk, uploads)
     # 先在交易內保存文件並放開訂單鎖，再做舊車主證件 OCR；辨識期間同一張訂單的自動儲存不必排隊等。
     with transaction.atomic():
         response, document = _store_subsidy_document(request, pk)
@@ -7980,7 +7990,24 @@ def subsidy_document_upload(request, pk):
     )
 
 
-def _store_subsidy_document(request, pk):
+def _upload_other_subsidy_documents(request, pk, uploads):
+    """其他補助文件一次選多個檔案（使用者 2026-10-22 T-94）：每個檔案各存一筆、各自檢查，
+    一個檔案失敗不影響其他檔案。畫面上由 other-subsidy-upload.js 逐檔送出以顯示進度；這裡是一次送出多檔時的備援。"""
+    saved, failures = 0, []
+    for upload in uploads:
+        with transaction.atomic():
+            response, _document = _store_subsidy_document(request, pk, files=MultiValueDict({"file": [upload]}))
+        if response is None:
+            saved += 1
+        elif isinstance(response, JsonResponse):
+            failures.append(f"{upload.name}：{json.loads(response.content)['message']}")
+    message = (f"已上傳 {saved} 份其他補助文件。" if saved else "其他補助文件都沒有上傳成功。") + (
+        f"未上傳：{'；'.join(failures)}" if failures else "")
+    return _document_upload_response(request, order_pk=pk, tab="subsidy", ok=bool(saved), message=message,
+                                     status=200 if saved else 400)
+
+
+def _store_subsidy_document(request, pk, files=None):
     """回傳（錯誤回應, None）或（None, 已保存的文件）。"""
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
@@ -7994,7 +8021,8 @@ def _store_subsidy_document(request, pk):
             message="已取消訂單無法修改補助文件。",
             status=409,
         ), None
-    if not order.is_trade_in_subsidy:
+    # 其他補助文件不受汰舊流程影響（T-83 畫面一律可上傳）；固定文件仍限有汰舊／政府補助的訂單。
+    if not order.is_trade_in_subsidy and request.POST.get("document_type") != SubsidyDocument.DocumentType.OTHER:
         return _document_upload_response(
             request,
             order_pk=pk,
@@ -8003,7 +8031,7 @@ def _store_subsidy_document(request, pk):
             message="此訂單未勾選汰舊／政府補助。",
             status=400,
         ), None
-    form = SubsidyDocumentUploadForm(request.POST, request.FILES)
+    form = SubsidyDocumentUploadForm(request.POST, request.FILES if files is None else files)
     if not form.is_valid():
         return _document_upload_response(
             request,

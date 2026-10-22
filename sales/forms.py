@@ -1581,7 +1581,17 @@ class DealerVolumeBonusTierForm(forms.ModelForm):
                    for name, minimum in (("minimum_quantity", 1), ("bonus_per_vehicle", 0))}
 
 
-class BaseDealerVolumeBonusTierFormSet(BaseInlineFormSet):
+class FirstRowWhenEmptyFormSet(BaseInlineFormSet):
+    """新資料給第一列可直接填；已有明細時不再多一列空白，要新增按「＋ 新增」（使用者 2026-10-22 T-85）。"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk and self.get_queryset().exists():
+            self.extra = 0
+
+
+class BaseDealerVolumeBonusTierFormSet(FirstRowWhenEmptyFormSet):
+
     def clean(self):
         super().clean()
         if any(self.errors):
@@ -3093,6 +3103,9 @@ class OrderOperationsForm(forms.ModelForm):
         elif section == "finance":
             keep = (set(self.fields) - self.SUBSIDY_SECTION_FIELDS - self.OLD_VEHICLE_SECTION_FIELDS
                     - self.FULFILLMENT_SECTION_FIELDS)
+        elif section == "standalone":
+            # 獨立營運資料頁也拿掉補助撥款追蹤（使用者 2026-10-22 T-88）：值保留，銀行與帳戶改在補助申請項目標題列編輯。
+            keep = set(self.fields) - self.SUBSIDY_SECTION_FIELDS
         else:
             keep = set(self.fields)
         # 分期資訊由訂單同步、訂單與配件已看得到，收支頁不再顯示也不從表單寫入（使用者 2026-10-21 T-48）。
@@ -3717,7 +3730,7 @@ DealerRewardCostVersionFormSet = inlineformset_factory(
     DealerRewardCostVersion,
     form=DealerRewardCostVersionForm,
     formset=BaseDealerRewardCostVersionFormSet,
-    extra=1,
+    extra=0,  # T-85：新項目靠 min_num 給第一列；已有版本不再多一列空白
     can_delete=True,
     min_num=1,
     validate_min=True,
@@ -4738,6 +4751,7 @@ PositionedPrintFieldFormSet = inlineformset_factory(
     PositionedPrintTemplate,
     PositionedPrintField,
     form=PositionedPrintFieldForm,
+    formset=FirstRowWhenEmptyFormSet,
     extra=1,
     can_delete=True,
 )
@@ -4945,11 +4959,12 @@ class SubsidyProgramForm(forms.ModelForm):
             self.fields[name].widget.attrs["class"] = "form-check"
 
 
+# 不預設多一列空白（使用者 2026-10-22 T-85，比照 T-43）：要新增時按「＋ 新增」才出現。
 SubsidyItemFormSet = inlineformset_factory(
     SalesOrder,
     SubsidyItem,
     form=SubsidyItemForm,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

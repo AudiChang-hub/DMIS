@@ -154,6 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     list.append(fragment);
     total.value = index + 1;
+    section.querySelector("[data-subsidy-empty]")?.setAttribute("hidden", "");
+    list.lastElementChild?.querySelector("input:not([type=hidden]), select")?.focus({preventScroll: true});
     refreshTotal();
   });
   list.addEventListener("change", event => {

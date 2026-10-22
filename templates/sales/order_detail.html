@@ -770,25 +770,18 @@
         <p>切結書、加碼補助等其他文件都可以在這裡上傳，可上傳多份；不影響上方必備文件的完成狀態。</p>
       </div>
       {% if order.can_manage_subsidy %}
-      <form class="other-subsidy-documents__form" data-inplace-form method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+      {% comment %}一次多選、拖曳多檔（使用者 2026-10-22 T-94）：選好就逐檔上傳、各存一筆，名稱自動帶原始檔名；不再輸入名稱與備註。
+      other-subsidy-upload.js 逐檔顯示進度與結果，全部傳完原地更新清單；沒有 JavaScript 時按「上傳文件」一次送出。{% endcomment %}
+      <form class="other-subsidy-documents__form" id="other-subsidy-upload" data-multi-upload method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
         {% csrf_token %}
         <input type="hidden" name="document_type" value="other">
-        <label class="other-subsidy-documents__file">
+        <label class="other-subsidy-documents__file" data-upload-dropzone>
           <span class="other-subsidy-documents__file-icon" aria-hidden="true">＋</span>
           <span class="other-subsidy-documents__file-text"><strong>選擇文件上傳</strong><small>{% site_text 'order_detail.98bfed2bc1c1' %}</small></span>
-          <input id="other-subsidy-file" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
+          <input id="other-subsidy-file" type="file" name="file" multiple data-max-bytes="20971520" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
         </label>
-        <div class="other-subsidy-documents__meta">
-          <div>
-            <label for="other-subsidy-name">文件名稱 <span class="required-inline">必填</span></label>
-            <input id="other-subsidy-name" type="text" name="name" maxlength="160" placeholder="例如：補助申請切結書" required>
-          </div>
-          <div>
-            <label for="other-subsidy-note">備註</label>
-            <input id="other-subsidy-note" type="text" name="note" maxlength="250" placeholder="選填">
-          </div>
-          <button class="button primary" type="submit">上傳文件</button>
-        </div>
+        <noscript><button class="button primary" type="submit">上傳文件</button></noscript>
+        <div class="upload-queue" data-upload-queue hidden></div>
       </form>
       {% endif %}
       {% for document in other_subsidy_documents %}
@@ -1024,6 +1017,7 @@
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/other-subsidy-upload.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/delivery-form.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/allocation-priority.js' %}?v={{ app_version }}" defer></script>

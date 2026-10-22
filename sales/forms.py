@@ -1,5 +1,7 @@
+import datetime
 import json
 import re
+from pathlib import Path
 from decimal import Decimal, InvalidOperation
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
@@ -12,6 +14,7 @@ from django.db.models import Q
 from django.forms import BaseFormSet, formset_factory, inlineformset_factory
 from django.forms.models import BaseInlineFormSet
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .models import (
     allocation_priority_age_months,
@@ -114,6 +117,8 @@ def apply_mobile_keyboard_attrs(form):
         widget = field.widget
         if isinstance(widget, (forms.HiddenInput, forms.FileInput)):
             continue
+        if widget.attrs.get("inputmode") == "numeric":
+            continue  # 已指定數字鍵盤（例如 6 碼年月），不要被一般文字欄位覆蓋。
         if field_name in PHONE_FIELDS:
             widget.attrs.update(
                 {
@@ -195,6 +200,93 @@ class YearMonthSelect(forms.Select):
         current = value[0] if isinstance(value, (list, tuple)) and value else (value or "")
         self.choices = self.year_month_choices(str(current))
         return super().get_context(name, value, attrs)
+
+
+YEAR_MONTH_MIN_YEAR = 1950
+
+
+def year_month_hint(value):
+    """6 碼年月旁的即時說明：合法時換算成「2013 年 9 月・民國 102 年」，跟 year-month-input.js 一致。"""
+    if isinstance(value, datetime.date):
+        year, month = value.year, value.month
+    else:
+        match = re.fullmatch(r"(\d{4})(\d{2})", str(value or ""))
+        if not match:
+            return "6 碼數字，例 201309"
+        year, month = int(match[1]), int(match[2])
+    roc = f"民國 {year - 1911} 年" if year > 1911 else ""
+    return f"{year} 年 {month} 月・{roc}" if roc else f"{year} 年 {month} 月"
+
+
+class YearMonthDateInput(forms.TextInput):
+    """6 碼年月輸入（YYYYMM）：手機跳數字鍵盤，下方即時顯示換算或錯誤（year-month-input.js）。"""
+
+    def __init__(self, attrs=None):
+        base = {
+            "inputmode": "numeric",
+            "maxlength": "6",
+            "pattern": r"(19[5-9]\d|20\d\d)(0[1-9]|1[0-2])",
+            "placeholder": "例 201309",
+            "autocomplete": "off",
+            "enterkeyhint": "next",
+            "data-year-month": "",
+            # 「最近輸入」清單會蓋住即時說明，也可能記下打到一半的值；這格不需要。
+            "data-no-recent-values": "",
+        }
+        super().__init__({**base, **(attrs or {})})
+
+    def format_value(self, value):
+        if isinstance(value, datetime.date):
+            return f"{value.year:04d}{value.month:02d}"
+        return super().format_value(value)
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        widget_attrs = context["widget"]["attrs"]
+        if widget_attrs.get("id"):
+            describedby = widget_attrs.get("aria-describedby", "")
+            widget_attrs["aria-describedby"] = f"{describedby} {widget_attrs['id']}_ym".strip()
+        return context
+
+    def render(self, name, value, attrs=None, renderer=None):
+        html = super().render(name, value, attrs, renderer)
+        hint_id = f"{(attrs or {}).get('id') or self.attrs.get('id') or name}_ym"
+        shown = value if isinstance(value, datetime.date) else self.format_value(value)
+        return format_html('<span class="year-month-input">{}<small class="year-month-hint" id="{}" data-year-month-hint aria-live="polite">{}</small></span>',
+                           html, hint_id, year_month_hint(shown))
+
+
+class YearMonthDateField(forms.Field):
+    """舊車出廠年月：直接打 6 碼數字 YYYYMM（例 201309），存成當月 1 日（使用者 2026-10-22 T-93）。
+    資料庫維持日期欄位；正式站既有值全是當月 1 日，顯示回 YYYYMM 不會少資訊。也接受「2013/09」「2013-9」，貼上完整日期只取年月。"""
+
+    widget = YearMonthDateInput
+    default_error_messages = {
+        "invalid": "請輸入 6 碼年月，例如 201309（2013 年 9 月）。",
+        "month": "月份要在 01 到 12 之間。",
+        "year": f"年份要在 {YEAR_MONTH_MIN_YEAR} 年到今年之間。",
+        "future": "出廠年月不能晚於本月。",
+    }
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        if isinstance(value, datetime.date):
+            return value.replace(day=1)
+        text = str(value).strip()
+        match = re.fullmatch(r"(\d{4})(\d{2})", text) or re.fullmatch(
+            r"(\d{4})\s*[/.\-年]\s*(\d{1,2})\s*月?(?:\s*[/.\-]\s*\d{1,2}\s*日?)?", text)
+        if not match:
+            raise ValidationError(self.error_messages["invalid"], code="invalid")
+        year, month = int(match[1]), int(match[2])
+        if not 1 <= month <= 12:
+            raise ValidationError(self.error_messages["month"], code="month")
+        today = timezone.localdate()
+        if not YEAR_MONTH_MIN_YEAR <= year <= today.year:
+            raise ValidationError(self.error_messages["year"], code="year")
+        if (year, month) > (today.year, today.month):
+            raise ValidationError(self.error_messages["future"], code="future")
+        return datetime.date(year, month, 1)
 
 
 class OrderCommissionAttributionForm(forms.Form):
@@ -1756,6 +1848,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
         else:
             schema = self.CHANNEL_FIELDS
         self.editable_keys = [key for key, *_ in schema]
+        self.year_month_keys = []
         self.required_when_correcting = [key for key, _, _, required in schema if required]
         for key, label, kind, required in schema:
             display_label = f"{label}（修正時必填）" if required else label
@@ -1780,12 +1873,14 @@ class LegacyImportRowCorrectionForm(forms.Form):
                     choices=SalesOrder.TransactionType.choices,
                 )
             elif kind == "year_month":
+                # 也接受 6 碼 YYYYMM（T-93，跟訂單頁舊車出廠年月一樣），存檔前補回 YYYY/MM。
                 field = forms.RegexField(
                     label=display_label,
                     required=False,
-                    regex=r"^\d{4}/(0[1-9]|1[0-2])$",
-                    error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
+                    regex=r"^\d{4}/?(0[1-9]|1[0-2])$",
+                    error_messages={"invalid": "請使用 YYYY/MM 或 6 碼 YYYYMM，例如 2026/08、202608。"},
                 )
+                self.year_month_keys.append(key)
             elif kind == "textarea":
                 field = forms.CharField(label=display_label, required=False, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
             elif kind == "email":
@@ -1837,7 +1932,12 @@ class LegacyImportRowCorrectionForm(forms.Form):
         return cleaned
 
     def cleaned_mapping(self):
-        return {key: self.cleaned_data.get(key) for key in self.editable_keys}
+        mapping = {key: self.cleaned_data.get(key) for key in self.editable_keys}
+        for key in self.year_month_keys:
+            value = mapping.get(key) or ""
+            if len(value) == 6:
+                mapping[key] = f"{value[:4]}/{value[4:]}"
+        return mapping
 
 
 class OrderEditForm(SalesOrderForm):
@@ -3013,6 +3113,8 @@ class OrderOperationsForm(forms.ModelForm):
         help_text="請先逐項確認金額，並填寫本次更新說明；不會變更收款確認狀態。",
     )
     financial_revision = forms.CharField(required=False, widget=forms.HiddenInput())
+    # 直接打 6 碼年月（使用者 2026-10-22 T-93）；資料庫仍是日期欄位，存成當月 1 日。
+    old_vehicle_manufactured_on = YearMonthDateField(label="舊車出廠年月", required=False)
     vehicle_control_password = forms.CharField(
         label="車控密碼",
         required=False,
@@ -3064,7 +3166,6 @@ class OrderOperationsForm(forms.ModelForm):
         ]
         widgets = {
             "subsidy_applied_on": DateInput(),
-            "old_vehicle_manufactured_on": DateInput(),
             "scrapped_on": DateInput(),
             "recycled_on": DateInput(),
             "battery_activated_on": DateInput(),
@@ -4851,8 +4952,9 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
             data.get("document_type") == SubsidyDocument.DocumentType.OTHER
             and not (data.get("name") or "").strip()
         ):
-            # 補助文字欄位一律選填（使用者 2026-10-10）；沒填名稱就以「其他補助文件」記錄。
-            data["name"] = "其他補助文件"
+            # 名稱與備註不再輸入（使用者 2026-10-22 T-94）：名稱自動帶原始檔名（去掉副檔名），讀不到才記「其他補助文件」。
+            upload = data.get("file")
+            data["name"] = Path(getattr(upload, "name", "") or "").stem.strip()[:160] or "其他補助文件"
             self.instance.name = data["name"]
         return data
 

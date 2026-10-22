@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
@@ -631,6 +632,18 @@ class LegacyImportTests(TestCase):
         row.refresh_from_db()
         self.assertEqual(row.action, LegacyImportRow.Action.ERROR)
         self.assertFalse(row.corrections.exists())
+
+    def test_import_review_year_month_accepts_six_digits(self):
+        # 跟訂單頁舊車出廠年月一樣可打 6 碼（T-93），存回匯入資料時補成 YYYY/MM。
+        row, _order = self.make_review_row()
+        form = LegacyImportRowCorrectionForm(row=row)
+        field = form.fields["old_vehicle_manufactured_year_month"]
+        self.assertEqual(field.clean("201309"), "201309")
+        with self.assertRaises(ValidationError):
+            field.clean("201313")
+        form.cleaned_data = {key: None for key in form.editable_keys}
+        form.cleaned_data["old_vehicle_manufactured_year_month"] = "201309"
+        self.assertEqual(form.cleaned_mapping()["old_vehicle_manufactured_year_month"], "2013/09")
 
     def test_import_review_changed_buyer_is_not_a_duplicate_or_automatic_cancel(self):
         row, order = self.make_review_row({"owner_name": '<script>alert("test")</script>'})

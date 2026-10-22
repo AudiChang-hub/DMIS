@@ -993,7 +993,7 @@
   },
   "order_detail.98bfed2bc1c1": {
     "page": "訂單內容",
-    "default": "單一檔案上限 20 MB，不接受執行檔。",
+    "default": "可一次選多個檔案，也可以直接拖曳進來；每個檔案上限 20 MB，不接受執行檔。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.38f944b02b9c": {

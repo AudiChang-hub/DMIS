@@ -123,7 +123,7 @@ class InplaceUploadTests(TestCase):
         html = self.detail()
         for marker in (
             '<form class="other-insurance__form" data-inplace-form',
-            '<form class="other-subsidy-documents__form" data-inplace-form',
+            '<form class="other-subsidy-documents__form" id="other-subsidy-upload" data-multi-upload',
             f'action="{reverse("registration_document_delete", args=[self.order.pk, insurance.pk])}" data-inplace-form',
             f'action="{reverse("subsidy_document_delete", args=[self.order.pk, subsidy.pk])}" data-inplace-form',
             f'action="{reverse("order_attachment_delete", args=[self.order.pk, attachment.pk])}" data-inplace-form',

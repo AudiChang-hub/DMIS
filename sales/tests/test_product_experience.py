@@ -779,6 +779,39 @@ class ProductExperienceTests(TestCase):
         )
         self.assertRedirects(response, reverse("dashboard"))
 
+    def test_changing_source_address_cannot_exceed_account_limit(self):
+        login_url = reverse("login")
+        for attempt in range(19):
+            response = self.client.post(
+                login_url,
+                {"username": self.user.username, "password": "wrong-password"},
+                REMOTE_ADDR=f"203.0.113.{attempt}",
+            )
+            self.assertEqual(response.status_code, 200)
+
+        with self.assertLogs("dmis.security", level="WARNING"):
+            response = self.client.post(
+                login_url,
+                {"username": self.user.username.upper(), "password": "wrong-password"},
+                REMOTE_ADDR="198.51.100.7",
+            )
+        response = self.client.post(
+            login_url,
+            {"username": self.user.username, "password": "test-pass-123"},
+            REMOTE_ADDR="198.51.100.8",
+        )
+        self.assertContains(response, "請 15 分鐘後再試")
+
+        from config.auth_views import clear_account_login_lock
+
+        clear_account_login_lock(self.user.username)
+        response = self.client.post(
+            login_url,
+            {"username": self.user.username, "password": "test-pass-123"},
+            REMOTE_ADDR="198.51.100.8",
+        )
+        self.assertRedirects(response, reverse("dashboard"))
+
     def test_admin_login_cannot_bypass_the_same_throttle(self):
         self.user.is_staff = True
         self.user.save(update_fields=["is_staff"])

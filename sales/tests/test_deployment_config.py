@@ -84,6 +84,10 @@ class BlueGreenDeploymentTests(SimpleTestCase):
         )
         self.assertIn("proxy_set_header Upgrade $http_upgrade;", conf)
         self.assertIn("error_page 502 = @unavailable;", conf)
+        # 登入節流靠來源位址：只送 Cloudflare 覆寫的 CF-Connecting-IP，不附加用戶端自帶的 XFF。
+        self.assertIn("map $http_cf_connecting_ip $dmis_client_ip", conf)
+        self.assertIn("proxy_set_header X-Forwarded-For $dmis_client_ip;", conf)
+        self.assertNotIn("$proxy_add_x_forwarded_for", conf)
 
     def test_deploy_migrates_and_starts_new_color_before_switching(self):
         script = self.read("scripts", "deploy_web_bluegreen.sh")

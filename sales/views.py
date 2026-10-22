@@ -248,7 +248,7 @@ from .services.order_search import (
 from .services.customer_receivable import PLATE_INCOME_FIELDS
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
-from .services.payment_summary import payment_summary
+from .services.payment_summary import balance_breakdown, payment_summary
 from .services.payment_ledger import (
     refund_overpayment,
     reverse_payment,
@@ -5627,10 +5627,12 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "delivery_form": DeliveryCompletionForm(order),
             "balance_payment": balance_payment,
             "balance_payment_form": (
-                DeliveryPaymentForm(instance=balance_payment, prefix="balance")
+                _delivery_balance_form(balance_payment, detail_summary["delivery_due"])
                 if collect_balance
                 else None
             ),
+            # 尾款應收的計算式（使用者 2026-10-22 T-73），與交車判斷同一份 payment_summary。
+            "balance_breakdown": balance_breakdown(order, detail_summary) if collect_balance else None,
             "balance_ready_for_delivery": balance_ready_for_delivery,
             "delivery_blockers": delivery_blockers,
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
@@ -5718,6 +5720,14 @@ def _payment_deletion_snapshot(payment):
     if payment.note:
         parts.append(f"備註：{payment.note}")
     return {"item_name": payment.item_name or "收款", "text": "；".join(parts)[:480]}
+
+
+def _delivery_balance_form(balance_payment, due):
+    """交車表單的尾款欄位（使用者 2026-10-22 T-73）：區塊放在交車步驟最上方、交車表單外，以 form 屬性併入交車表單送出。"""
+    form = DeliveryPaymentForm(instance=balance_payment, prefix="balance", due=due)
+    for field in form.fields.values():
+        field.widget.attrs["form"] = "delivery-completion-form"
+    return form
 
 
 def _record_duplicate_acknowledgements(order, forms, user):
@@ -7112,6 +7122,11 @@ def delivery_complete(request, pk):
         )
         return redirect(detail_url)
     balance_form = None
+    due = payment_summary(order)["delivery_due"] if order.source_type != SalesOrder.SourceType.DEALER else Decimal("0")
+    if due > 0 and not request.POST.get("balance-received_amount", "").strip():
+        # 應收大於 0 時實收必填（使用者 2026-10-22 T-75）。
+        messages.error(request, f"交付未完成：應收 {due:,.0f} 元，請填寫實收金額。")
+        return redirect(detail_url)
     if request.POST.get("balance-received_amount", "").strip():
         # 交車同時收尾款：尾款與交付在同一交易，任一失敗全部不寫入。
         from .services.order_intake import can_edit_finance
@@ -7121,7 +7136,7 @@ def delivery_complete(request, pk):
             return redirect(detail_url)
         data = request.POST.copy()
         data["balance-confirmed"] = "on"
-        balance_form = DeliveryPaymentForm(data, request.FILES, instance=balance, prefix="balance")
+        balance_form = DeliveryPaymentForm(data, request.FILES, instance=balance, prefix="balance", due=due)
         if not balance_form.is_valid():
             messages.error(request, "交付未完成：" + _form_error_text(balance_form))
             return redirect(detail_url)

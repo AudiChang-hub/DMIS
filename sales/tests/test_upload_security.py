@@ -17,7 +17,6 @@ from sales.forms import (
 from sales.models import PaymentRecord, RegistrationDocument, SalesOrder
 from sales.services.upload_validation import (
     DOCUMENT_MAX_BYTES,
-    IMAGE_MAX_BYTES,
     pdf_is_previewable,
     validate_document_upload,
     validate_excel_upload,
@@ -245,9 +244,9 @@ class UploadFormIntegrationTests(SimpleTestCase):
         self.assertNotIn("proof", form.fields)
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_delivery_photo_uses_the_image_security_validator(self):
+    def test_delivery_no_longer_accepts_handover_photo(self):
+        # 交付照片拿掉（使用者 2026-10-22 T-74）：交車表單沒有上傳欄，送來的檔案不會被收下。
         order = SalesOrder(owner_name="測試車主", owner_phone="0912345678")
-        valid_png = uploaded_png("handover.png").read()
         form = DeliveryCompletionForm(
             order,
             data={
@@ -258,22 +257,9 @@ class UploadFormIntegrationTests(SimpleTestCase):
                 "recipient_phone": "0912345678",
                 "carrier_name": "",
                 "handover_location": "馭盛國際有限公司",
-                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_NORMAL,
-                "condition_checked": "on",
-                "documents_checked": "on",
-                "keys_checked": "on",
-                "accessories_checked": "on",
-                "payment_checked": "on",
                 "note": "",
             },
-            files={
-                "handover_photo": SimpleUploadedFile(
-                    "handover.png",
-                    valid_png + b"0" * (IMAGE_MAX_BYTES - len(valid_png) + 1),
-                    content_type="image/png",
-                )
-            },
+            files={"handover_photo": SimpleUploadedFile("handover.png", b"broken", content_type="image/png")},
         )
-
-        self.assertFalse(form.is_valid())
-        self.assertIn("12 MB", form.errors["handover_photo"][0])
+        self.assertNotIn("handover_photo", form.fields)
+        self.assertTrue(form.is_valid(), form.errors)

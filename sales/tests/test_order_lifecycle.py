@@ -141,11 +141,11 @@ class OrderLifecycleTests(TestCase):
         )
         self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)
         self.assertEqual(record.recipient_name, "王小明")
-        self.assertEqual(
-            record.vehicle_condition_note,
-            DeliveryCompletionForm.VEHICLE_CONDITION_NORMAL,
-        )
+        # 交付車況與四項核對拿掉（使用者 2026-10-22 T-74）：新紀錄留空、未勾。
+        self.assertEqual(record.vehicle_condition_note, "")
         self.assertFalse(record.damage_found)
+        self.assertFalse(record.condition_checked)
+        self.assertTrue(record.payment_checked)
 
     def test_delivery_form_confirms_prep_without_separate_save(self):
         # 交車前確認併入交付核對（2026-10-14）：沒先存「交車前確認」也能直接交車，送出時補記確認。
@@ -160,9 +160,9 @@ class OrderLifecycleTests(TestCase):
         self.assertNotIn("vehicle_control_checked", form.fields)
         self.assertTrue(form.is_valid(), form.errors)
         form.save("交車人員")
+        # 交付核對四項拿掉（T-74）後，交車不再補記贈品與履約確認。
         profile = OrderOperationsProfile.objects.get(order=order)
-        self.assertIsNotNone(profile.fulfillment_confirmed_at)
-        self.assertEqual(profile.fulfillment_confirmed_by, "交車人員")
+        self.assertIsNone(profile.fulfillment_confirmed_at)
 
     def test_electric_delivery_requires_vehicle_control_check(self):
         order, vehicle = self.make_order(dealer=True)
@@ -176,8 +176,6 @@ class OrderLifecycleTests(TestCase):
         form = DeliveryCompletionForm(order, self.delivery_payload())
         self.assertFalse(form.is_valid())
         self.assertIn("vehicle_control_checked", form.errors)
-        names = list(form.fields)
-        self.assertEqual(names.index("vehicle_control_checked"), names.index("accessories_checked") + 1)
         form = DeliveryCompletionForm(order, {**self.delivery_payload(), "vehicle_control_checked": "on"})
         self.assertTrue(form.is_valid(), form.errors)
         form.save("交車人員")
@@ -211,62 +209,6 @@ class OrderLifecycleTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("carrier_name", form.errors)
 
-    def test_damage_condition_requires_note_and_sets_damage_flag(self):
-        order, _vehicle = self.make_order(dealer=True)
-        payload = self.delivery_payload()
-        payload["vehicle_condition_note"] = (
-            DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED
-        )
-
-        form = DeliveryCompletionForm(order, payload)
-        self.assertFalse(form.is_valid())
-        self.assertIn("damage_note", form.errors)
-
-        payload["damage_note"] = "右側車殼有刮痕"
-        form = DeliveryCompletionForm(order, payload)
-        self.assertTrue(form.is_valid(), form.errors)
-
-        _delivered, record = form.save("測試人員")
-        self.assertTrue(record.damage_found)
-        self.assertEqual(record.damage_note, "右側車殼有刮痕")
-
-    def test_other_condition_requires_delivery_note(self):
-        order, _vehicle = self.make_order(dealer=True)
-        payload = self.delivery_payload()
-        payload["vehicle_condition_note"] = (
-            DeliveryCompletionForm.VEHICLE_CONDITION_OTHER
-        )
-
-        form = DeliveryCompletionForm(order, payload)
-        self.assertFalse(form.is_valid())
-        self.assertIn("note", form.errors)
-
-        payload["note"] = "客戶要求返店後再確認異音"
-        form = DeliveryCompletionForm(order, payload)
-        self.assertTrue(form.is_valid(), form.errors)
-
-        _delivered, record = form.save("測試人員")
-        self.assertEqual(record.note, "客戶要求返店後再確認異音")
-        self.assertFalse(record.damage_found)
-
-    def test_legacy_free_text_condition_post_remains_compatible(self):
-        order, _vehicle = self.make_order(dealer=True)
-        payload = self.delivery_payload()
-        payload.update(
-            {
-                "vehicle_condition_note": "外觀有舊刮痕，功能正常",
-                "damage_found": "on",
-                "damage_note": "交付前既有痕跡",
-            }
-        )
-
-        form = DeliveryCompletionForm(order, payload)
-        self.assertTrue(form.is_valid(), form.errors)
-
-        _delivered, record = form.save("測試人員")
-        self.assertEqual(record.vehicle_condition_note, "外觀有舊刮痕，功能正常")
-        self.assertTrue(record.damage_found)
-
     def confirm_deposit(self, order):
         deposit = order.payment_records.get(system_key="deposit")
         deposit.received_on = date(2026, 8, 1)
@@ -274,6 +216,23 @@ class OrderLifecycleTests(TestCase):
         deposit.confirmed = True
         deposit.save()
         return deposit
+
+    def test_condition_and_checklist_are_no_longer_required(self):
+        # 交付車況、交付核對四項與交付照片拿掉（使用者 2026-10-22 T-74）：不填也能交車；舊版畫面送來的值不會寫入。
+        order, _vehicle = self.make_order(dealer=True)
+        payload = {key: value for key, value in self.delivery_payload().items()
+                   if key not in {"vehicle_condition_note", "condition_checked", "documents_checked", "keys_checked",
+                                  "accessories_checked", "damage_note"}}
+        form = DeliveryCompletionForm(order, {**payload, "note": "客人自行加裝手機架"})
+        for name in ("vehicle_condition_note", "damage_note", "condition_checked", "documents_checked",
+                     "keys_checked", "accessories_checked", "handover_photo"):
+            self.assertNotIn(name, form.fields)
+        self.assertTrue(form.is_valid(), form.errors)
+        _order, record = form.save("交車人員")
+        self.assertEqual((record.vehicle_condition_note, record.damage_found, record.note), ("", False, "客人自行加裝手機架"))
+        legacy = DeliveryCompletionForm(self.make_order(dealer=True)[0], {
+            **self.delivery_payload(), "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED, "damage_note": ""})
+        self.assertTrue(legacy.is_valid(), legacy.errors)
 
     def test_cancellation_releases_vehicle_and_settles_refund_from_ledger(self):
         order, vehicle = self.make_order()
@@ -465,25 +424,6 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(order.status, SalesOrder.Status.DELIVERED_DOCS_PENDING)
         self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)
 
-    def test_delivery_endpoint_rejects_damage_without_note_without_side_effects(self):
-        order, vehicle = self.make_order(dealer=True)
-        self.client.force_login(self.user)
-        payload = self.delivery_payload()
-        payload["vehicle_condition_note"] = (
-            DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED
-        )
-
-        response = self.client.post(
-            reverse("delivery_complete", args=[order.pk]), payload, follow=True
-        )
-
-        self.assertContains(response, "發現刮傷或損壞時必須填寫說明")
-        self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
-        order.refresh_from_db()
-        vehicle.refresh_from_db()
-        self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
-        self.assertEqual(vehicle.status, VehicleInventory.Status.RESERVED)
-
     def test_delivery_endpoint_ignores_duplicate_submission(self):
         order, _vehicle = self.make_order(dealer=True)
         self.client.force_login(self.user)
@@ -503,8 +443,11 @@ class OrderLifecycleTests(TestCase):
             f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
         )
 
-        self.assertContains(response, '<fieldset class="wide delivery-condition-field">')
-        self.assertContains(response, 'name="vehicle_condition_note"', count=3)
+        # 交付車況與交付核對拿掉（T-74）。
+        self.assertNotContains(response, 'delivery-condition-field')
+        self.assertNotContains(response, 'name="vehicle_condition_note"')
+        self.assertNotContains(response, 'data-delivery-check-all')
+        self.assertNotContains(response, 'name="handover_photo"')
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
         self.assertContains(response, "尾款已收清或由車行掛帳")
@@ -525,8 +468,8 @@ class OrderLifecycleTests(TestCase):
             follow=True,
         )
 
-        self.assertContains(response, "尾款尚未收清")
-        self.assertContains(response, "請在交車表單一併登記尾款")
+        # 應收大於 0 時實收必填（使用者 2026-10-22 T-75）。
+        self.assertContains(response, "請填寫實收金額")
         self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
         order.refresh_from_db()
         vehicle.refresh_from_db()
@@ -683,8 +626,6 @@ class OrderLifecycleTests(TestCase):
         payload.update(
             {
                 "carrier_name": "安心託運",
-                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED,
-                "damage_note": "右側車殼有刮痕",
                 "note": "送達前請先聯絡收車人",
             }
         )
@@ -697,23 +638,21 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="delivery-complete__grid"')
         self.assertContains(response, "安心託運")
-        self.assertContains(response, "右側車殼有刮痕")
         self.assertContains(response, "送達前請先聯絡收車人")
+        # 新紀錄沒有交付車況，不顯示車況卡（T-74）。
+        self.assertNotContains(response, "<span>交付車況</span>")
         self.assertContains(response, "交付備註")
         self.assertNotContains(response, 'class="data-list delivery-summary"')
 
     def test_completed_delivery_does_not_present_other_condition_as_normal(self):
+        # 舊交付紀錄仍保留並顯示當時的車況（T-74 後新紀錄不再填）。
         order, _vehicle = self.make_order(dealer=True)
         self.client.force_login(self.user)
         payload = self.delivery_payload()
-        payload.update(
-            {
-                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_OTHER,
-                "note": "車主要求交車後自行調整後照鏡",
-            }
-        )
+        payload.update({"note": "車主要求交車後自行調整後照鏡"})
 
         self.client.post(reverse("delivery_complete", args=[order.pk]), payload)
+        DeliveryRecord.objects.filter(order=order).update(vehicle_condition_note=DeliveryCompletionForm.VEHICLE_CONDITION_OTHER)
         response = self.client.get(
             f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
         )

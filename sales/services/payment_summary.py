@@ -69,6 +69,44 @@ def payment_summary(order, records=None):
                 settled=bool(customer_expected + lender_expected > 0 and customer_due <= 0 and lender_due <= 0 and legacy_settled))
 
 
+def balance_breakdown(order, summary=None, records=None):
+    """交車收尾款的應收計算式（使用者 2026-10-22 T-73），數字全部取自 payment_summary 同一組來源。
+
+    回傳 {"due": 應收, "lines": [(標籤, 金額, "+"/"-")], "exact": 逐項加總是否等於應收}；
+    逐項加總對不上（例如人工調整過的舊資料）時只列合計，不另算一套。"""
+    records = list(order.payment_records.all()) if records is None else list(records)
+    summary = summary or payment_summary(order, records)
+    due = summary["delivery_due"]
+    customer = [p for p in records if p.effective_receipt_kind != "lender"]
+    extras = sum((p.expected_amount or ZERO for p in customer if p.system_key not in EXPECTED_KEYS), ZERO)
+    base = summary["customer_expected"] - extras  # 訂金＋尾款的應收
+    deposit_received = sum((p.received_amount or ZERO for p in customer if p.system_key == "deposit" and p.confirmed), ZERO)
+    other_received = summary["customer_received"] - deposit_received
+    total = order.discounted_total
+    valuation = order.old_vehicle_valuation or ZERO
+    lines = [("總價", total, "+")]
+    if valuation:
+        lines.append(("舊車折抵", valuation, "-"))
+    lender = total - valuation - base
+    if order.payment_type == "installment" and lender > 0:
+        lines.append(("分期公司撥款", lender, "-"))
+    elif lender:
+        lines = [("訂金＋尾款應收", base, "+")]
+    if extras:
+        lines.append(("其他應收", extras, "+"))
+    if deposit_received:
+        lines.append(("已收訂金", deposit_received, "-"))
+    if other_received:
+        lines.append(("其他已收款", other_received, "-"))
+    computed = sum((amount if sign == "+" else -amount for _label, amount, sign in lines), ZERO)
+    exact = max(computed, ZERO) == due
+    if not exact:
+        lines = [("客戶應收合計", summary["customer_expected"], "+"), ("已收款", summary["customer_received"], "-")]
+        computed = summary["customer_expected"] - summary["customer_received"]
+        exact = max(computed, ZERO) == due
+    return {"due": due, "lines": lines if exact else [], "exact": exact}
+
+
 def effective_records(records):
     """排除已被沖銷的收款與其沖銷列（兩者淨額為零）；退款列保留為實際退回。"""
     records = list(records)

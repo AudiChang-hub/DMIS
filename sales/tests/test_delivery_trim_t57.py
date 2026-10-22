@@ -24,7 +24,8 @@ class DeliveryTrimTests(TestCase):
                         'name="operations-customer_service_phone"', "operations-fulfillment_confirmed"):
             self.assertNotIn(removed, delivery)
         self.assertIn("交車前確認", delivery)
-        self.assertIn("已核對配件與贈品", delivery)
+        # 交付核對四項 2026-10-22 起拿掉（T-74）。
+        self.assertNotIn("已核對配件與贈品", delivery)
 
     def test_balance_in_delivery_form_has_no_duplicate_or_account_fields(self):
         order, _vehicle = self.registered_v2()

@@ -1056,16 +1056,6 @@
     "default": "領牌階段已完成，可進行後續收款與車輛交付作業。",
     "template": "templates/sales/order_detail.html"
   },
-  "order_detail.888f88e01465": {
-    "page": "訂單內容",
-    "default": "請點選最接近的狀況；特殊情形可寫在下方交付備註。",
-    "template": "templates/sales/order_detail.html"
-  },
-  "order_detail.16b976fde2c5": {
-    "page": "訂單內容",
-    "default": "選擇「發現刮傷或損壞」時必填。",
-    "template": "templates/sales/order_detail.html"
-  },
   "order_detail.8a1ee2445105": {
     "page": "訂單內容",
     "default": "委託託運時，實際交付時間是交給託運公司的時間。完成後訂單與實體車輛將鎖定。",

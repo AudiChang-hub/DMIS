@@ -1,4 +1,5 @@
 // 其他補助文件一次多選、拖曳多檔上傳（使用者 2026-10-22 T-94）：選好就逐檔送出、各存一筆，
+// 領牌步驟的「其他領牌相關資料」（T-101）共用同一個元件：form[data-multi-upload] 都適用。
 // 每個檔案顯示進度與成功／失敗；全部傳完用 DMISInplace.refresh 原地換上新清單，不整頁重整、不跳位（比照 T-14）。
 // 大小與格式先在這裡擋一次，伺服器仍逐檔檢查（20 MB、只收白名單格式，執行檔一律不收）。
 (() => {
@@ -108,7 +109,7 @@
         let payload = null;
         try { payload = JSON.parse(request.responseText); } catch (_error) { /* 不是 JSON：權限或伺服器錯誤 */ }
         if (request.status >= 200 && request.status < 300 && payload?.ok) return finish(true, "✓ 已上傳");
-        const reason = (payload?.message || "").replace(/^補助文件上傳失敗：/, "");
+        const reason = (payload?.message || "").replace(/^[^：]*文件上傳失敗：/, "");
         finish(false, reason || (request.status === 403 ? "沒有權限或頁面已過期，請重新整理後再試" : `上傳失敗（${request.status || "連線中斷"}）`));
       });
       request.addEventListener("timeout", () => finish(false, "回應逾時，請稍候查看清單，確認沒有再重傳"));

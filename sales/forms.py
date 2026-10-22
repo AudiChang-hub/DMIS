@@ -4936,9 +4936,20 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
             and not data.get("name")
         ):
             self.add_error("name", "新增其他保險單時必須填寫保險名稱。")
+        if (
+            data.get("document_type") == RegistrationDocument.DocumentType.OTHER
+            and not (data.get("name") or "").strip()
+        ):
+            # 其他領牌相關資料（使用者 2026-10-22 T-101）：比照其他補助文件，名稱自動帶原始檔名（去掉副檔名）。
+            upload = data.get("file")
+            data["name"] = Path(getattr(upload, "name", "") or "").stem.strip()[:160] or "其他領牌相關資料"
+            self.instance.name = data["name"]
         return data
 
     def clean_file(self):
+        # 其他領牌相關資料和其他補助文件收同樣的格式（圖片、PDF、Office、文字檔）。
+        if self.cleaned_data.get("document_type") == RegistrationDocument.DocumentType.OTHER:
+            return validate_subsidy_upload(self.cleaned_data.get("file"))
         return validate_document_upload(self.cleaned_data.get("file"))
 
 

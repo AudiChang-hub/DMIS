@@ -31,9 +31,10 @@ class DeliveryTrimTests(TestCase):
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
         fieldset = page.split('id="delivery-balance"', 1)[1].split("</fieldset>", 1)[0]
-        for removed in ("balance-duplicate_confirmed", "確認非重複收款", "balance-receiving_account", "收款帳戶"):
+        for removed in ("balance-duplicate_confirmed", "確認非重複收款", "balance-receiving_account", "收款帳戶",
+                        "balance-proof", "收款證明"):
             self.assertNotIn(removed, fieldset)
-        for kept in ("balance-received_amount", "balance-proof", "balance-note"):
+        for kept in ("balance-received_amount", "balance-note"):
             self.assertIn(kept, fieldset)
 
     def test_same_day_same_amount_balance_is_not_blocked(self):

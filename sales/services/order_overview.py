@@ -129,7 +129,7 @@ def build_order_overview(order, *, include_finance=True):
         ]),
         _section("registration", "選號與領牌", [
             _row("選號方式", _display(order, "plate_choice")),
-            _row("指定號碼與志願序", order.watched_numbers, wide=True),
+            _row("指定號碼與志願序", order.watched_numbers_display, wide=True),
             _row("領牌偏好備註", order.plate_preference_note, wide=True),
             _row("車牌號碼", order.final_plate_number, mono=True),
             _row("實際領牌日期", _date(order.registration_date), mono=True),

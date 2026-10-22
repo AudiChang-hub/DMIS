@@ -320,10 +320,11 @@ class SalesOrderForm(forms.ModelForm):
             "registration_date": DateInput(),
             "owner_address": forms.Textarea(attrs={"rows": 2}),
             "note": forms.Textarea(attrs={"rows": 3}),
-            "watched_numbers": forms.Textarea(
+            # 單行輸入、以「、」分隔（使用者 2026-10-22 T-67）；存檔仍是一行一個號碼。
+            "watched_numbers": forms.TextInput(
                 attrs={
-                    "rows": 3,
-                    "placeholder": "每行一個號碼，依志願序排列",
+                    "placeholder": "依志願序，用「、」分隔，例如 8899、9988",
+                    "autocomplete": "off",
                 }
             ),
             "plate_preference_note": forms.Textarea(
@@ -342,6 +343,8 @@ class SalesOrderForm(forms.ModelForm):
         if not self.instance.pk:
             self.initial.setdefault("old_owner_same_as_owner", False)
         self._initial_vehicle_model_id = self.instance.vehicle_model_id
+        if "watched_numbers" in self.fields and self.initial.get("watched_numbers"):
+            self.initial["watched_numbers"] = "、".join(SalesOrder.split_watched_numbers(self.initial["watched_numbers"]))
         if not self.is_bound:
             blank_numeric_fields = (
                 "vehicle_price",
@@ -581,6 +584,14 @@ class SalesOrderForm(forms.ModelForm):
                     )
                 seen[program.exclusive_group] = program.name
         return self.cleaned_data.get("subsidy_programs")
+
+    def clean_watched_numbers(self):
+        """號碼與順序沒變就保留原文（不產生修改紀錄、不改簽署內容）；有改才存成一行一個號碼。"""
+        numbers = SalesOrder.split_watched_numbers(self.cleaned_data.get("watched_numbers"))
+        original = self.instance.watched_numbers if self.instance.pk else ""
+        if numbers == SalesOrder.split_watched_numbers(original):
+            return original
+        return "\n".join(numbers)
 
     def clean(self):
         data = super().clean()
@@ -3323,24 +3334,17 @@ class DeliveryPaymentForm(forms.ModelForm):
         required=False,
     )
     # 交車收尾款不再要求「確認非重複收款」，也不填收款帳戶（使用者 2026-10-21 T-64，與 T-29 訂金步驟一致）；
-    # 既有的收款帳戶值保留在資料庫。
+    # 收款證明也不在交車時上傳（2026-10-22 T-68）。既有的收款帳戶與已上傳證明保留在資料庫。
     class Meta:
         model = PaymentRecord
         fields = [
             "received_amount",
             "received_on",
             "payment_method",
-            "proof",
             "note",
             "confirmed",
         ]
-        widgets = {
-            "proof": forms.ClearableFileInput(
-                attrs={"accept": "image/*,application/pdf"}
-            ),
-        }
         labels = {
-            "proof": "收款證明",
             "note": "收款備註",
         }
 
@@ -3382,9 +3386,6 @@ class DeliveryPaymentForm(forms.ModelForm):
                 f"尚差 {shortage:,.0f} 元，不可標記為已收清。",
             )
         return cleaned
-
-    def clean_proof(self):
-        return validate_document_upload(self.cleaned_data.get("proof"))
 
     def save(self, actor_name, commit=True):
         payment = super().save(commit=False)

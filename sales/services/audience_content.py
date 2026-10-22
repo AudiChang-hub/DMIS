@@ -4,6 +4,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.86.63", "改善"): [("order_list", "internal"), ("subsidy_program_list", "internal"), ("order_list", "internal"), ("order_list", "internal")],
     ("1.86.62", "新增"): [("order_list", "internal")] * 2,
     ("1.86.62", "修正"): [("order_list", "internal")] * 2,
     ("1.86.61", "改善"): [("order_list", "internal")] * 3,
@@ -533,7 +534,7 @@ LEGACY_HELP_RULES = {
     "system-integrity": ("system_integrity_report", "system_diagnostics"),
     "first-setup": ("vehicle_model_list", "sales_source_list", "inventory_create"),
     "inventory": ("inventory_list", "inventory_create"),
-    "master-data": ("vehicle_model_list", "accessory_product_list", "dealer_reward_catalog_list", "installment_company_list", "business_holiday_list", "settlement_cost_rule_list", "incentive_rule_list", "dealer_volume_bonus_list", "positioned_template_list", "legacy_import_list"),
+    "master-data": ("vehicle_model_list", "accessory_product_list", "dealer_reward_catalog_list", "installment_company_list", "subsidy_program_list", "business_holiday_list", "settlement_cost_rule_list", "incentive_rule_list", "dealer_volume_bonus_list", "positioned_template_list", "legacy_import_list"),
     "dealer-sales-programs": ("dealer_sales_program_list", "dealer_reward_catalog_list"),
     "dealer-volume-bonus": ("dealer_volume_bonus_list", "dealer_volume_bonus_create"),
     "sales-sources": ("sales_source_list", "sales_source_edit"),

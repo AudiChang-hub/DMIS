@@ -131,7 +131,11 @@
         <input type="hidden" name="subsidy_programs_present" value="1">
         <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}" data-subsidy-kind="{{ choice.data.value.instance.vehicle_kind }}" data-subsidy-group="{{ choice.data.value.instance.exclusive_group }}"{% if choice.data.value.instance.requires_old_vehicle %} data-subsidy-trade-in{% endif %}>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
         <div class="subsidy-program-picker__other" id="subsidy-other-field" data-subsidy-other{% if not form.subsidy_other.value %} hidden{% endif %}>{% include "sales/_field.html" with field=form.subsidy_other %}</div>
-        <small>{{ form.subsidy_programs.help_text }}</small>
+        {% comment %}方案在哪裡維護（使用者 2026-10-22 T-97）：原本只寫「資料維護區 › 補助方案」找不到入口；改成直接連到補助方案頁，
+        另開分頁以免中斷建單；沒有補助方案權限的人不顯示。{% endcomment %}
+        {% if_access 'subsidy_program_list' %}<a class="subsidy-program-picker__manage" href="{% url 'subsidy_program_list' %}" target="_blank" rel="noopener">
+          <span>沒有要的方案？到「補助方案」新增或停用</span><span class="subsidy-program-picker__manage-note">另開分頁</span><span aria-hidden="true">↗</span>
+        </a>{% endif_access %}
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>{% endif %}
       {# 訂單頁編輯不含這兩欄（改在「補助」分頁處理），不能留下空白框。 #}

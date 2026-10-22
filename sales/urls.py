@@ -429,6 +429,11 @@ urlpatterns = [
         name="registration_document_delete",
     ),
     path(
+        "orders/<int:pk>/registration/documents/<int:document_pk>/rename/",
+        views.registration_document_rename,
+        name="registration_document_rename",
+    ),
+    path(
         "orders/<int:pk>/registration/complete/",
         views.registration_complete,
         name="registration_complete",

@@ -70,6 +70,12 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "route": "installment_company_list",
     },
     {
+        "key": "subsidy-programs",
+        "label": "補助方案",
+        "icon": "補",
+        "route": "subsidy_program_list",
+    },
+    {
         "key": "settlement-costs",
         "label": "車輛結算成本",
         "icon": "本",

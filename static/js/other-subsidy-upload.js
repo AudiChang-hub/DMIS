@@ -1,10 +1,10 @@
-// 其他補助文件一次多選、拖曳多檔上傳（使用者 2026-10-22 T-94）：選好就逐檔送出、各存一筆，
-// 領牌步驟的「其他領牌相關資料」（T-101）共用同一個元件：form[data-multi-upload] 都適用。
+// 多選、拖曳多檔上傳（使用者 2026-10-22 T-94 其他補助文件、T-100 其他保險單、T-101 其他領牌相關資料）：選好就逐檔送出、各存一筆，
 // 每個檔案顯示進度與成功／失敗；全部傳完用 DMISInplace.refresh 原地換上新清單，不整頁重整、不跳位（比照 T-14）。
 // 大小與格式先在這裡擋一次，伺服器仍逐檔檢查（20 MB、只收白名單格式，執行檔一律不收）。
 (() => {
   const FORM = "form[data-multi-upload]";
-  let state = null; // {queue, list, summary, items: [], running, done, failed}
+  // 每個上傳區各一份佇列（以表單 id 區分）；區塊原地換新後仍沿用同一份。
+  const states = new Map(); // id -> {form, queue, list, summary, items: [], running}
 
   const formatSize = (bytes) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
@@ -17,11 +17,12 @@
     const name = file.name.toLowerCase();
     const type = (file.type || "").toLowerCase();
     const ok = accepted.some((rule) => (rule.startsWith(".") ? name.endsWith(rule) : type === rule));
-    return ok ? "" : "格式不支援（可上傳圖片、PDF、Office 文件、文字檔）";
+    return ok ? "" : `格式不支援（可上傳${input.dataset.acceptLabel || "圖片、PDF、Office 文件、文字檔"}）`;
   }
 
   function ensureQueue(form) {
-    if (state && state.form === form && state.queue.isConnected) return state;
+    const existing = states.get(form.id);
+    if (existing && existing.queue.isConnected) return existing;
     const queue = form.querySelector("[data-upload-queue]");
     const summary = document.createElement("p");
     summary.className = "upload-queue__summary";
@@ -30,7 +31,8 @@
     const list = document.createElement("ol");
     list.className = "upload-queue__list";
     queue.replaceChildren(summary, list);
-    state = {form, queue, summary, list, items: [], running: false};
+    const state = {form, queue, summary, list, items: [], running: false};
+    states.set(form.id, state);
     return state;
   }
 
@@ -232,6 +234,24 @@
     zone.classList.remove("is-dragover");
     const form = zone.closest(FORM);
     if (form) enqueue(form, event.dataTransfer?.files);
+  });
+
+  // 其他保險單改名：改完離開欄位或按 Enter 就原地儲存（inplace-regions.js 接手送出），不必另外按儲存。
+  // Enter 改成離開欄位，只由 change 送出一次（瀏覽器按 Enter 會先觸發 change 再送出，會重複送出）；Esc 還原。
+  document.addEventListener("keydown", (event) => {
+    const input = event.target;
+    if (!input.matches?.("form[data-rename-form] input[name=name]")) return;
+    if (event.key === "Escape") input.value = input.defaultValue;
+    if (event.key === "Enter" || event.key === "Escape") {
+      event.preventDefault();
+      input.blur();
+    }
+  });
+  document.addEventListener("change", (event) => {
+    const input = event.target;
+    const form = input.closest?.("form[data-rename-form]");
+    if (!form || input.name !== "name" || input.value.trim() === (input.defaultValue || "").trim()) return;
+    form.requestSubmit();
   });
 
   const init = () => document.querySelectorAll(FORM).forEach(ready);

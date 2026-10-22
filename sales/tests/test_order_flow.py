@@ -4846,7 +4846,7 @@ class OrderFlowTests(TestCase):
             "old_vehicle_valuation", order_response.context["form"].fields
         )
         self.assertIn(
-            "old_owner_same_as_owner", order_response.context["form"].fields
+            "old_owner_different", order_response.context["form"].fields
         )
         self.assertNotIn("old_vehicle_tax", order_response.context["form"].fields)
         self.assertNotContains(order_response, "分期申請金額")

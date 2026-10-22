@@ -6210,7 +6210,7 @@ def _inline_order_form_context(request, order, form=None, formset=None, fee_form
     """訂單頁「訂車與配件」步驟內的訂單表單；儲存走 order_edit 的自動儲存。"""
     from sales.access.services import policy_for
     form = form or OrderEditForm(instance=order)
-    for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+    for field in ("is_trade_in_subsidy", "old_owner_different"):
         form.fields.pop(field, None)
     # 訂單來源改在頁首右上角的小卡編輯（使用者 2026-10-21）：欄位放在表單外，以 form 屬性併入同一張訂單表單自動儲存。
     for field in ("source_type", "source"):
@@ -6286,7 +6286,7 @@ def order_edit(request, pk):
         previous_actual_balance = order.actual_balance
         form = OrderEditForm(request.POST, request.FILES, instance=order)
         if order_workspace.is_workspace_save(request) or request.POST.get("_workspace") == "1":
-            for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+            for field in ("is_trade_in_subsidy", "old_owner_different"):
                 form.fields.pop(field, None)
         formset = OrderPageAccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
         fee_formset = OrderPageOtherFeeFormSet(
@@ -6380,7 +6380,7 @@ def order_edit(request, pk):
     if request.method == "POST" and order_workspace.is_workspace_save(request):
         return order_workspace.save_error("訂單內容未儲存，請修正下列欄位。", forms=(form, *formset.forms, *fee_formset.forms))
     context = order_detail(request, pk, workspace_context_only=True)
-    for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+    for field in ("is_trade_in_subsidy", "old_owner_different"):
         form.fields.pop(field, None)
     return render(
         request,

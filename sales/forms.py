@@ -241,7 +241,19 @@ SOURCE_FIELD_COPY = {
 }
 
 
+def old_owner_different_field():
+    """「新舊車主不同人」勾選（使用者 2026-10-22 T-84）：同一人居多，所以打勾＝不同人、不勾＝同一人。
+    資料庫照舊存 old_owner_same_as_owner（意義不變），只有畫面反向；存檔時由 apply_old_owner_different 寫回。"""
+    return forms.BooleanField(label="新舊車主不同人", required=False, help_text="同一人不用勾；舊車主是別人才勾，舊車主資料在訂單的補助步驟填。")
+
+
+def apply_old_owner_different(form):
+    if "old_owner_different" in form.fields and hasattr(form, "cleaned_data"):
+        form.instance.old_owner_same_as_owner = not form.cleaned_data.get("old_owner_different")
+
+
 class SalesOrderForm(forms.ModelForm):
+    old_owner_different = old_owner_different_field()
     assign_commission_to_other = forms.BooleanField(
         label="這台算給其他車行", required=False, widget=forms.HiddenInput,
     )
@@ -303,7 +315,6 @@ class SalesOrderForm(forms.ModelForm):
             "installment_periods",
             "installment_monthly",
             "is_trade_in_subsidy",
-            "old_owner_same_as_owner",
             "plate_choice",
             "watched_numbers",
             "plate_preference_note",
@@ -340,8 +351,8 @@ class SalesOrderForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.instance.pk:
-            self.initial.setdefault("old_owner_same_as_owner", False)
+        # 新單預設同一人（不勾）；既有訂單依存的值反向帶入。
+        self.initial.setdefault("old_owner_different", bool(self.instance.pk) and not self.instance.old_owner_same_as_owner)
         self._initial_vehicle_model_id = self.instance.vehicle_model_id
         if "watched_numbers" in self.fields and self.initial.get("watched_numbers"):
             self.initial["watched_numbers"] = "、".join(SalesOrder.split_watched_numbers(self.initial["watched_numbers"]))
@@ -485,7 +496,7 @@ class SalesOrderForm(forms.ModelForm):
             self.fields[field_name].required = False
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
-        self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
+        self.fields["old_owner_different"].widget.attrs["class"] = "form-check"
         # 補助方案多選（主檔設定）；選了就帶入訂單的補助項目，金額可在補助分頁修改。
         linked_program_ids = (
             list(self.instance.subsidy_items.filter(program__isnull=False).values_list("program_id", flat=True))
@@ -592,6 +603,10 @@ class SalesOrderForm(forms.ModelForm):
         if numbers == SalesOrder.split_watched_numbers(original):
             return original
         return "\n".join(numbers)
+
+    def _post_clean(self):
+        apply_old_owner_different(self)
+        super()._post_clean()
 
     def clean(self):
         data = super().clean()
@@ -4835,27 +4850,31 @@ class SubsidyDataForm(forms.ModelForm):
     # 汰舊與補助精簡（使用者 2026-10-22 T-81 方案 A）：「申請汰舊／政府補助」改由補助項目推導（sync_trade_in_from_subsidies），
     # 舊車主戶籍、舊車估價、舊車未繳稅金不再輸入；欄位與既有值保留，公式不變。
 
+    old_owner_different = old_owner_different_field()
+
     class Meta:
         model = SalesOrder
         fields = [
-            "old_owner_same_as_owner",
             "trade_in_plate",
             "old_owner_name",
             "old_owner_id_number",
             "old_owner_phone",
         ]
-        widgets = {
-            "old_owner_same_as_owner": forms.CheckboxInput(),
-        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.is_bound and self.instance.old_owner_same_as_owner:
             self.initial["old_owner_name"] = self.instance.owner_name
             self.initial["old_owner_id_number"] = self.instance.owner_id_number
+        # 只有汰舊時才問新舊車主（畫面也只在汰舊時顯示）；沒有汰舊時存檔不改動這個值。
+        if self.instance.is_trade_in_subsidy:
+            self.initial["old_owner_different"] = not self.instance.old_owner_same_as_owner
+        else:
+            del self.fields["old_owner_different"]
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
+        if "old_owner_different" in self.fields:
+            self.fields["old_owner_different"].widget.attrs["class"] = "form-check"
         self.fields["trade_in_plate"].widget.attrs.update(
             {
                 "lang": "en",
@@ -4874,10 +4893,14 @@ class SubsidyDataForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        if data.get("old_owner_same_as_owner"):
+        if "old_owner_different" in self.fields and not data.get("old_owner_different"):
             data["old_owner_name"] = self.instance.owner_name
             data["old_owner_id_number"] = self.instance.owner_id_number
         return data
+
+    def _post_clean(self):
+        apply_old_owner_different(self)
+        super()._post_clean()
 
 
 class SubsidyItemForm(forms.ModelForm):

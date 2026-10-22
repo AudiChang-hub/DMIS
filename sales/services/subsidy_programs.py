@@ -20,12 +20,12 @@ def programs_include_trade_in(programs):
 
 
 def sync_trade_in_from_subsidies(order):
-    """有汰舊類補助項目＝有汰舊；沒有時關閉汰舊流程並取消「新舊車主為同一人」。已上傳的文件都保留。"""
+    """有汰舊類補助項目＝有汰舊；沒有時關閉汰舊流程並取消「新舊車主不同人」（回到預設同一人，T-84）。已上傳的文件都保留。"""
     names = SubsidyProgram.objects.filter(requires_old_vehicle=True).values_list("name", flat=True)
     has_trade_in = order.subsidy_items.filter(Q(program__requires_old_vehicle=True) | Q(item_name__in=list(names))).exists()
     values = {"is_trade_in_subsidy": has_trade_in, "trade_in_intent": "yes" if has_trade_in else "no"}
     if not has_trade_in:
-        values["old_owner_same_as_owner"] = False
+        values["old_owner_same_as_owner"] = True
     changed = {name: value for name, value in values.items() if getattr(order, name) != value}
     if changed:
         for name, value in changed.items():

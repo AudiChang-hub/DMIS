@@ -309,9 +309,12 @@ class PptRefinementTests(TestCase):
 
     def test_same_owner_new_form_default_and_existing_value(self):
         from sales.forms import SalesOrderForm
-        self.assertFalse(SalesOrderForm()['old_owner_same_as_owner'].value())
+        # T-84：改問「新舊車主不同人」，新單預設不勾（＝同一人），既有訂單反向帶入。
+        self.assertFalse(SalesOrderForm()['old_owner_different'].value())
+        self.order.old_owner_same_as_owner = False
+        self.assertTrue(SalesOrderForm(instance=self.order)['old_owner_different'].value())
         self.order.old_owner_same_as_owner = True
-        self.assertTrue(SalesOrderForm(instance=self.order)['old_owner_same_as_owner'].value())
+        self.assertFalse(SalesOrderForm(instance=self.order)['old_owner_different'].value())
 
 
 class CustomerBalanceDeliveryTests(TestCase):
@@ -356,7 +359,7 @@ class IntakeRefinementTests(TestCase):
         # 2026-10-22 T-80：不再選「是否有汰舊」，勾到汰舊類補助方案就是有汰舊。
         from sales.models import SubsidyProgram
         program = SubsidyProgram.objects.update_or_create(name="汰舊換新", defaults={"category": "other", "requires_old_vehicle": True, "active": True})[0]
-        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1", old_owner_same_as_owner="on",
+        response = self.submit(subsidy_programs=[str(program.pk)], subsidy_programs_present="1",
                                owner_bankbook=self.image("bank.png"), old_id_front=self.image("old.png"))
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.get()
@@ -365,8 +368,8 @@ class IntakeRefinementTests(TestCase):
         self.assertTrue(order.old_owner_same_as_owner)
         self.assertEqual(set(order.intake_attachments.values_list("kind", flat=True)), {"owner_bankbook", "old_id_front"})
 
-    def test_no_trade_in_does_not_check_same_owner(self):
-        self.submit(trade_in_intent="no", old_owner_same_as_owner="on")
+    def test_no_trade_in_does_not_check_different_owner(self):
+        self.submit(trade_in_intent="no", old_owner_different="on")
         order = SalesOrder.objects.get()
         self.assertFalse(order.is_trade_in_subsidy)
-        self.assertFalse(order.old_owner_same_as_owner)
+        self.assertTrue(order.old_owner_same_as_owner)

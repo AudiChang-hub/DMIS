@@ -1,13 +1,17 @@
-{% comment %}舊車與報廢資料併入「汰舊與舊車資料」卡（使用者 2026-10-22 T-81）：欄位屬營運表單（form="ops-old-vehicle-form"），各自自動儲存。{% endcomment %}
+{% comment %}舊車與報廢資料併入「汰舊與舊車資料」卡（使用者 2026-10-22 T-81）：欄位屬營運表單（form="ops-old-vehicle-form"），各自自動儲存。
+舊車車牌放第一格（T-87，人在上、車在下）：屬補助表單，沒有 form 屬性，跟著補助資料自動儲存；沒有財務權限時只顯示車牌。{% endcomment %}
 <div class="tradein-card__scrap">
   <h4>舊車與報廢</h4>
-  <div class="subsidy-edit-grid">
+  <div class="subsidy-edit-grid tradein-card__vehicle">
+    <div class="field"><label for="{{ plate.id_for_label }}">舊車車牌</label>{{ plate }}</div>
+    {% if form %}
     {% include "sales/_field.html" with field=form.old_vehicle_engine_number %}
     {% include "sales/_field.html" with field=form.old_vehicle_brand %}
     {% include "sales/_field.html" with field=form.old_vehicle_displacement_cc %}
     {% include "sales/_field.html" with field=form.old_vehicle_manufactured_on %}
     {% include "sales/_field.html" with field=form.scrapped_on %}
     {% include "sales/_field.html" with field=form.recycled_on %}
+    {% endif %}
   </div>
-  <p class="autosave-status" data-autosave-mirror="ops-old-vehicle-form" role="status" aria-live="polite"></p>
+  {% if form %}<p class="autosave-status" data-autosave-mirror="ops-old-vehicle-form" role="status" aria-live="polite"></p>{% endif %}
 </div>

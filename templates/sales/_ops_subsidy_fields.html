@@ -1,7 +1,0 @@
-  <details {% if order_workspace %}data-workspace-section="subsidy"{% endif %} class="operation-section" open><summary><strong>補助撥款追蹤</strong><span>各政府單位可分別追蹤；申請金額由補助項目同步</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.subsidy_amount %}
-    {% include "sales/_field.html" with field=form.bank_name %}
-    {% include "sales/_field.html" with field=form.remittance_account %}
-    {% include "sales/_field.html" with field=form.subsidy_applied_on %}
-    {% include "sales/_subsidy_agency_summary.html" %}
-  </div></details>

@@ -2420,10 +2420,20 @@ input[type="file"].form-control { padding: var(--space-3); }
 .payout-summary [data-payout-account] { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dynamic-detail-section { grid-column: 1 / -1; margin-top: var(--stack-gap-sm); padding-top: var(--space-4); border-top: 1px solid var(--line); }
 .dynamic-detail-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
+.subsidy-items__empty { margin: 0 0 var(--space-3); padding: var(--space-4); color: var(--muted); text-align: center; border: 1.5px dashed var(--line-strong); border-radius: var(--radius-md); }
+/* 建單配件不預設空白列（T-85）：沒有列時表頭一起收起。 */
+.accessory-section:not(:has(#accessory-forms > *)) .accessory-head { display: none; }
 .dynamic-detail-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .dynamic-detail-row.is-deleted { opacity: .48; }
-@media (min-width: 900px) {
-  [data-subsidy-items] .dynamic-detail-row { grid-template-columns: minmax(0, 2.4fr) repeat(2, minmax(0, 1fr)) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+/* 補助項目六欄：下拉選單保留完整文字寬度（「地方政府」「未申請」不截字，1.86.57）；依區塊寬度：窄時一欄、中等三欄兩列、夠寬才六欄一列。 */
+[data-subsidy-items] { container-type: inline-size; }
+@container (min-width: 520px) {
+  [data-subsidy-items] .dynamic-detail-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 880px) {
+  [data-subsidy-items] .dynamic-detail-row {
+    grid-template-columns: minmax(150px, 2fr) minmax(92px, .85fr) minmax(128px, 1fr) minmax(150px, 1.1fr) minmax(118px, .95fr) minmax(110px, 1.2fr);
+  }
 }
 .dynamic-detail-row label { display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .dynamic-detail-row input, .dynamic-detail-row select { width: 100%; }
@@ -2617,7 +2627,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .tradein-card .subsidy-owner-toggle { margin: var(--space-3) var(--inset-pad) 0; border-radius: var(--radius-md); background: var(--mint); }
 .tradein-card .subsidy-owner-toggle:has(input:checked) { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--forest); }
 .subsidy-edit-grid > .tradein-owner-same {
-  grid-column: span 2;
+  grid-column: 1 / -1;
   display: grid; align-content: center; gap: 2px; padding: var(--space-3) var(--space-4);
   border: 1px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--surface);
 }
@@ -2628,6 +2638,10 @@ input[type="file"].form-control { padding: var(--space-3); }
 @keyframes tradein-owner-reveal { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { [data-old-owner-field]:not([hidden]) { animation: none; } }
 .tradein-card__scrap { border-top: 1px dashed var(--line); }
+/* 車的資料七格排齊（T-87）：車牌、引擎號碼、廠牌、排氣量一列四格，出廠、報廢、回收日期一列三格。 */
+.tradein-card__vehicle { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.tradein-card__vehicle > :nth-child(-n+4) { grid-column: span 3; }
+.tradein-card__vehicle > :nth-child(n+5) { grid-column: span 4; }
 .tradein-card .subsidy-edit-grid label { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .tradein-card__scrap h4 { margin: 0; padding: var(--inset-pad) var(--inset-pad) 0; color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .tradein-card__scrap .field { margin: 0; gap: var(--space-2); }
@@ -4871,7 +4885,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .payout-summary__action { grid-column: 1 / -1; justify-self: stretch; }
   .payout-summary__action .button { width: 100%; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: var(--inset-pad); }
-  .subsidy-edit-grid > .tradein-owner-same { grid-column: auto; }
+  .subsidy-edit-grid > .tradein-owner-same, .tradein-card__vehicle > * { grid-column: auto !important; }
   .identity-compare { grid-template-columns: 1fr; padding: var(--inset-pad); }
   .ocr-status { grid-template-columns: auto 1fr; margin-inline: var(--space-4); padding: var(--inset-pad); }
   .ocr-status .button { grid-column: 1 / -1; width: 100%; }

@@ -48,7 +48,15 @@ class IntakeOwnerDifferentTests(TestCase):
         self.assertNotIn("新舊車主為同一人", page)
 
 
-class SubsidyOwnerDifferentTests(t80.SubsidyStepTests):
+class SubsidyPageHelpers(t80.lifecycle.OrderLifecycleTests.__bases__[0]):
+    setUp = t80.SubsidyStepTests.setUp
+    make_order = t80.SubsidyStepTests.make_order
+    login_admin = t80.SubsidyStepTests.login_admin
+    page = t80.SubsidyStepTests.page
+    post_items = t80.SubsidyStepTests.post_items
+
+
+class SubsidyOwnerDifferentTests(SubsidyPageHelpers):
     def trade_in_order(self, same):
         order, _vehicle = self.make_order()
         SalesOrder.objects.filter(pk=order.pk).update(

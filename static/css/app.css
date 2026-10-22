@@ -6975,6 +6975,11 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .document-thumbnail:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 /* 訂單「附件」分頁：其他附件上傳與全部檔案集中預覽 */
 .order-files__title{align-items:flex-start;gap:var(--space-3)}
+/* 附件分頁的卡片（使用者 2026-10-22 T-79）：卡片本身有框線但沒有內距，標題以外的內容（分組標題、清單框、上傳區）
+   改成與標題同樣的左右內距，底部留白，避免框線貼邊、清單框與卡片框疊在一起。 */
+.section-block.order-files{padding-bottom:var(--card-pad)}
+.section-block.order-files>:not(.section-title){margin-inline:var(--card-pad)}
+.section-block.order-files>.section-title+*{margin-top:var(--space-4)}
 .order-files__count{flex:none;padding:var(--space-1) var(--space-3);border-radius:var(--radius-pill);background:var(--surface-tint);color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
 .order-files__upload{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:var(--space-3);align-items:end;margin-block:var(--stack-gap-sm)}
 .order-files__drop{position:relative;display:grid;justify-items:center;gap:var(--space-1);padding:var(--space-4) var(--space-3);border:1.5px dashed var(--line-strong);border-radius:var(--radius-md);background:var(--surface-soft);color:var(--ink);text-align:center;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}

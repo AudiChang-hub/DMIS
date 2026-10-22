@@ -2102,7 +2102,7 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(list(response.context["vehicles"]), [second])
-        self.assertContains(response, 'class="inventory-table"')
+        self.assertContains(response, 'class="inventory-table inventory-table--stock"')
         self.assertContains(response, "查看／編輯")
         self.assertNotContains(response, 'class="inventory-card"')
         self.assertContains(response, 'name="vehicle_family"')
@@ -2169,7 +2169,8 @@ class OrderFlowTests(TestCase):
             set(response.context["vehicles"]),
             {self.vehicle, newer_vehicle},
         )
-        self.assertContains(response, "全部機種")
+        # T-66：複選下拉不列「全部機種」，沒勾就是全部。
+        self.assertNotContains(response, "全部機種")
 
     def test_inventory_list_defaults_to_current_inventory(self):
         delivered = VehicleInventory.objects.create(
@@ -2321,12 +2322,12 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         # 使用者 2026-10-21 T-63：取消「狀態」「車輛來源」篩選；其餘都能打字搜尋，提示只寫「全部」（上方已有欄名）。
+        # T-66：排序下拉移除，改在表頭排序。
         searchable_filters = {
             "inventory-brand": "全部",
             "inventory-model": "全部",
             "inventory-color": "全部",
             "inventory-location": "全部",
-            "inventory-sort": "輸入排序方式",
         }
         for element_id, placeholder in searchable_filters.items():
             with self.subTest(element_id=element_id):
@@ -2340,10 +2341,11 @@ class OrderFlowTests(TestCase):
                 )
         self.assertNotContains(response, 'id="inventory-status"')
         self.assertNotContains(response, 'id="inventory-acquisition"')
-        self.assertContains(response, 'data-searchable-select="1"', count=5)
+        self.assertNotContains(response, 'id="inventory-sort"')
+        self.assertContains(response, 'data-searchable-select="1"', count=4)
         self.assertContains(response, 'data-searchable-multiple="1"', count=4)
         self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
-        self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
+        self.assertContains(response, 'data-searchable-search-icon="1"', count=4)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
         self.assertNotContains(response, "實際位置／車行")

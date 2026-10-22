@@ -87,7 +87,9 @@ class SubsidyOwnerDifferentTests(SubsidyPageHelpers):
 
     def test_requirements_follow_stored_value_unchanged(self):
         same, different = self.trade_in_order(True), self.trade_in_order(False)
-        self.assertEqual(different.subsidy_required_count - same.subsidy_required_count, 3)
+        # 補助文件改選填（T-95）：已備妥件數只算資料（不同人多舊車主姓名、證號），聲明書改列在應備文件。
+        self.assertEqual(different.subsidy_required_count - same.subsidy_required_count, 2)
+        self.assertEqual(different.subsidy_document_progress()[1] - same.subsidy_document_progress()[1], 1)
         self.assertIn(SubsidyDocument.DocumentType.OWNER_DECLARATION, different.required_subsidy_document_types())
         self.assertNotIn(SubsidyDocument.DocumentType.OWNER_DECLARATION, same.required_subsidy_document_types())
 

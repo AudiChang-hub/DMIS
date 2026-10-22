@@ -81,7 +81,8 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         ),
         "documents": dict(
             number=3, title="列印與簽署文件",
-            state="done" if order.has_signed_contract and order.has_privacy_consent else "todo",
+            # 簽署改為選用（使用者 2026-10-22 T-95）：沒簽不列為待辦，摘要照常顯示簽署狀態。
+            state="done" if order.has_signed_contract and order.has_privacy_consent else "optional",
             summary="訂購單" + _document_summary(order, "contract")
                     + "・個資同意書" + _document_summary(order, "privacy"),
         ),
@@ -146,6 +147,8 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
     for key, step in steps.items():
         step["key"] = key
         step["state_label"] = STATE_LABELS[step["state"]]
+    if steps["documents"]["state"] == "optional":
+        steps["documents"]["state_label"] = "選用"
     # 預設開啟目前步驟；沒有建議時開第一個待處理步驟，全部完成則回到訂單內容。
     open_step = (
         TAB_STEP.get(requested or "") or current

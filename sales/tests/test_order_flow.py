@@ -3111,7 +3111,9 @@ class OrderFlowTests(TestCase):
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, "可與配車同時進行")
         self.assertContains(detail, "舊車主身分證正面")
-        self.assertContains(detail, "2／8 已備妥")
+        # 補助文件改選填（T-95）：狀態只算資料，文件另列已上傳幾份。
+        self.assertContains(detail, "✓ 資料齊全")
+        self.assertContains(detail, "補助文件已上傳 0／6（選填）")
         self.assertContains(detail, "舊車主存摺封面")
         # 新車主存摺封面改在補助分頁上傳（選填），不列入必備文件。
         self.assertContains(detail, "新車主存摺封面")
@@ -3462,11 +3464,11 @@ class OrderFlowTests(TestCase):
 
         missing = order.missing_subsidy_requirements()
 
-        self.assertIn("新舊車主不同人聲明書", missing)
-        self.assertIn("舊車主身分證字號", missing)
-        self.assertNotIn("新車主存摺封面", missing)
-        self.assertIn("舊車主存摺封面", missing)
-        self.assertEqual(order.subsidy_required_count, 11)
+        # 補助文件改選填（T-95）：缺項只算資料；聲明書仍列入送件前要備妥的文件。
+        self.assertEqual(missing, ["舊車主身分證字號"])
+        self.assertEqual(order.subsidy_required_count, 4)
+        self.assertIn(SubsidyDocument.DocumentType.OWNER_DECLARATION, order.required_subsidy_document_types())
+        self.assertEqual(order.subsidy_document_progress(), (0, 7))
 
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
@@ -3736,8 +3738,8 @@ class OrderFlowTests(TestCase):
         # 1.21.0 起發票照片為選填。
         self.assertNotIn("發票", missing)
         self.assertNotIn("監理站單據", missing)
-        # 2026-10-15 起強制險單恢復為必填（每台訂單都有）。
-        self.assertIn("強制險單", missing)
+        # 2026-10-22 T-95 起強制險單改選填：只有新行照、登記書是領牌條件。
+        self.assertNotIn("強制險單", missing)
 
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])

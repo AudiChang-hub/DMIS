@@ -31,7 +31,8 @@
       <div class="slot-row{% if slot.done %} is-done{% elif slot.required %} is-missing{% endif %}" data-upload-row>
         <div class="slot-row__name">
           <strong>{{ slot.label }}</strong>
-          {% if not slot.required %}<span class="optional-badge">選填</span>{% endif %}
+          {# 只有領牌條件的行照、登記書不是選填（使用者 2026-10-22 T-95）；不用「必填」字樣（T-90）。 #}
+          {% if slot.required %}<span class="optional-badge is-needed">領牌需要</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
         </div>
         <span class="slot-row__status">{% if slot.done %}<span aria-hidden="true">✓ </span>{% endif %}{{ slot.status }}</span>
         <div class="slot-row__actions">

@@ -61,6 +61,10 @@ docker compose -f docker-compose.django.yml \
 目前接流量的 `web-blue:8000` 或 `web-green:8000`（見下方「藍綠部署」）。Tunnel connector 固定使用 HTTP/2。
 `deployment/nginx/tunnel-proxy.conf` 必須轉送 `Upgrade`／`Connection`，訂單草稿即時共編
 （`/ws/orders/drafts/…`）才能建立 WebSocket；少了會回 404，畫面一直顯示重新連線。
+`X-Forwarded-For` 只送 Cloudflare 覆寫的 `CF-Connecting-IP`（不可改回 `$proxy_add_x_forwarded_for`：
+daphne 取最左邊的值，用戶端可偽造，登入節流就失效）。登入失敗：同帳號＋來源 5 次／15 分、同帳號不分來源
+20 次／1 小時，各暫停 15 分鐘並在接流量那色的 web 日誌記 `login_account_locked`；急件解除：
+`compose exec -T web python manage.py shell -c "from config.auth_views import clear_account_login_lock as c; c('帳號')"`。
 正式站的 `web` 服務不接流量，只當管理指令容器：`compose exec -T web python manage.py …`
 （systemd 排程、本文件的維運指令）照舊可用，image 與上線版本同一次建置。
 

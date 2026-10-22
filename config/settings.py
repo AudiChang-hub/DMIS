@@ -74,6 +74,11 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "dmis.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
     },
 }
 

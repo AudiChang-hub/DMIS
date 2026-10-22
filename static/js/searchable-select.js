@@ -25,7 +25,8 @@
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-expanded", "false");
-    input.placeholder = select.dataset.searchPlaceholder || "輸入關鍵字搜尋";
+    const basePlaceholder = select.dataset.searchPlaceholder || "輸入關鍵字搜尋";
+    input.placeholder = basePlaceholder;
     const label = select.id ? document.querySelector(`label[for="${select.id}"]`) : null;
     if (label) label.htmlFor = input.id;
 
@@ -38,10 +39,6 @@
     if (isMultiple) list.setAttribute("aria-multiselectable", "true");
     list.hidden = true;
 
-    const chips = document.createElement("div");
-    chips.className = "searchable-select__chips";
-    chips.setAttribute("aria-live", "polite");
-
     const toggle = document.createElement("span");
     toggle.className = "searchable-select__toggle";
     toggle.setAttribute("aria-hidden", "true");
@@ -53,7 +50,13 @@
       searchIcon.setAttribute("aria-hidden", "true");
       wrapper.append(searchIcon);
     }
-    wrapper.append(input, toggle, chips, list);
+    // 複選的已選數量徽章掛在欄名旁（例如「品牌 2」），框內寬度全部留給已選名稱。
+    const count = document.createElement("span");
+    count.className = "searchable-select__count";
+    count.setAttribute("aria-hidden", "true");
+    count.hidden = true;
+    if (isMultiple && label) label.append(count);
+    wrapper.append(input, toggle, list);
     select.insertAdjacentElement("afterend", wrapper);
 
     const storageKey = `dmis-recent-select:${select.name}`;
@@ -177,24 +180,27 @@
       if (isMultiple) {
         const bulk = document.createElement("div");
         bulk.className = "searchable-select__bulk";
+        // 「全選符合項目」是三態勾選框（T-66）：符合目前搜尋的選項全勾＝勾、部分勾＝半勾、都沒勾＝空；
+        // 全勾時再點一次取消這些選項，其餘狀態點了就全勾。
+        const matching = options.filter(option => option.value);
+        const checkedCount = matching.filter(option => option.selected).length;
+        const allChecked = matching.length > 0 && checkedCount === matching.length;
         const selectMatches = document.createElement("button");
         selectMatches.type = "button";
-        selectMatches.className = "searchable-select__bulk-action";
+        selectMatches.className = "searchable-select__bulk-toggle";
+        selectMatches.setAttribute("role", "checkbox");
+        selectMatches.setAttribute("aria-checked", allChecked ? "true" : (checkedCount ? "mixed" : "false"));
         selectMatches.textContent = "全選符合項目";
-        selectMatches.disabled = !options.some(option => option.value);
+        selectMatches.disabled = !matching.length;
         selectMatches.addEventListener("mousedown", event => event.preventDefault());
         selectMatches.addEventListener("click", () => {
-          options.filter(option => option.value).forEach(option => {
-            option.selected = true;
-            remember(option);
+          matching.forEach(option => {
+            option.selected = !allChecked;
+            if (!allChecked) remember(option);
           });
-          [...select.options].forEach(option => {
-            if (!option.value) option.selected = false;
-          });
-          input.value = "";
           select.dispatchEvent(new Event("change", {bubbles: true}));
           syncFromSelect();
-          renderOptions();
+          renderOptions(input.value);
           input.focus();
         });
         const clear = document.createElement("button");
@@ -251,43 +257,27 @@
       input.disabled = select.disabled;
       wrapper.classList.toggle("is-disabled", select.disabled);
       if (select.disabled) closeList({restore: true});
-      renderChips();
+      renderSelectionSummary();
       if (!wrapper.classList.contains("is-open")) {
         input.value = selectedLabel();
       }
     }
 
-    function renderChips() {
-      chips.replaceChildren();
-      if (!isMultiple) {
-        chips.hidden = true;
-        return;
-      }
-      const selected = selectedOptions();
-      chips.hidden = !selected.length;
-      selected.slice(0, 3).forEach(option => {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "searchable-select__chip";
-        chip.textContent = `${option.textContent.trim()} ×`;
-        chip.setAttribute("aria-label", `移除 ${option.textContent.trim()}`);
-        chip.addEventListener("click", () => {
-          option.selected = false;
-          if (!selectedOptions().length) {
-            const emptyOption = [...select.options].find(item => !item.value);
-            if (emptyOption) emptyOption.selected = true;
-          }
-          select.dispatchEvent(new Event("change", {bubbles: true}));
-          syncFromSelect();
-          if (!list.hidden) renderOptions(input.value);
-        });
-        chips.append(chip);
-      });
-      if (selected.length > 3) {
-        const summary = document.createElement("span");
-        summary.className = "searchable-select__chip-summary";
-        summary.textContent = `另 ${selected.length - 3} 項`;
-        chips.append(summary);
+    // 複選的已選項目不再堆在欄位底下（T-66）：收合時把名稱寫在框內（放不下以刪節號收尾），欄名旁徽章顯示已選幾項，
+    // 完整清單放在滑鼠提示；開啟下拉打字時提示字自然消失，勾選狀態看清單的勾選框。
+    function renderSelectionSummary() {
+      if (!isMultiple) return;
+      const labels = selectedOptions().map(option => option.textContent.trim().replace(/（\d+）$/, ""));
+      wrapper.classList.toggle("has-selection", labels.length > 0);
+      input.placeholder = labels.length ? labels.join("、") : basePlaceholder;
+      count.hidden = !labels.length;
+      count.textContent = String(labels.length);
+      if (labels.length) {
+        input.title = `已選 ${labels.length} 項：${labels.join("、")}`;
+        input.setAttribute("aria-description", input.title);
+      } else {
+        input.removeAttribute("title");
+        input.removeAttribute("aria-description");
       }
     }
 

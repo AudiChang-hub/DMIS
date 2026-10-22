@@ -8444,6 +8444,11 @@ def inventory_list(request):
             "manufactured_year_month", "received_on", "id",
         ),
     }
+    # 表頭排序（T-66）：文字欄可再點一次改成反向（<鍵>_desc），舊網址的排序鍵照常可用。
+    for key in ("brand", "model", "color", "identifier", "status", "location"):
+        sort_options[f"{key}_desc"] = tuple(
+            field[1:] if field.startswith("-") else f"-{field}" for field in sort_options[key]
+        )
     if sort not in sort_options:
         sort = "received_desc"
     if sort == "priority":
@@ -8459,6 +8464,30 @@ def inventory_list(request):
     page = paginator.get_page(request.GET.get("page"))
     filter_params = request.GET.copy()
     filter_params.pop("page", None)
+
+    def sort_header(label, first, second=None):
+        """表頭排序連結：沒在排的欄先排 first，正在排的欄再點換方向；單向欄再點回預設排序。"""
+        if sort == first:
+            target, direction = second or "received_desc", "descending" if first.endswith("desc") else "ascending"
+        elif second and sort == second:
+            target, direction = first, "descending" if second.endswith("desc") else "ascending"
+        else:
+            target, direction = first, ""
+        params = filter_params.copy()
+        params["sort"] = target
+        return {"label": label, "url": f"?{params.urlencode()}", "direction": direction}
+
+    sort_headers = {
+        "received": sort_header("進車日期", "received_desc", "received_asc"),
+        "priority": sort_header("優先配車", "priority"),
+        "brand": sort_header("品牌", "brand", "brand_desc"),
+        "model": sort_header("車型", "model", "model_desc"),
+        "color": sort_header("車色", "color", "color_desc"),
+        "identifier": sort_header("引擎／車身號碼", "identifier", "identifier_desc"),
+        "status": sort_header("狀態", "status", "status_desc"),
+        "location": sort_header("實際位置", "location", "location_desc"),
+    }
+    sort_headers["priority"]["direction"] = "descending" if sort == "priority" else ""
     inventory_counts = VehicleInventory.objects.aggregate(
         current=Count("id", filter=Q(status__in=current_statuses)),
         history=Count("id", filter=Q(status__in=historical_statuses)),
@@ -8559,6 +8588,7 @@ def inventory_list(request):
             "disposition_dealers": disposition_dealers,
             "disposition_none_count": disposition_none_count,
             "filter_query": filter_params.urlencode(),
+            "sort_headers": sort_headers,
             "selected": {
                 "q": keyword,
                 "status": selected_statuses[0] if selected_statuses else "",

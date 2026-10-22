@@ -1712,20 +1712,6 @@ input[type="file"].form-control { padding: var(--space-3); }
 .searchable-select__list button:hover,
 .searchable-select__list button.is-active,
 .searchable-select__list button[aria-selected="true"] { color: var(--action-text); background: var(--mint); }
-.searchable-select__chips {
-  display: flex; min-height: 0; margin-top: var(--space-2); align-items: center; gap: var(--space-1); overflow-x: auto;
-  scrollbar-width: thin;
-}
-.searchable-select__chips[hidden] { display: none; }
-.searchable-select__chip {
-  flex: 0 0 auto; min-height: 30px; padding: var(--space-1) var(--space-2); color: var(--forest-2);
-  background: var(--mint); border: 1px solid color-mix(in srgb, var(--forest) 24%, var(--line));
-  border-radius: var(--radius-pill); cursor: pointer; font-size: var(--text-xs); font-weight: 850;
-}
-.searchable-select__chip:hover { border-color: var(--forest); }
-.searchable-select__chip-summary {
-  flex: 0 0 auto; padding: var(--space-1) var(--space-2); color: var(--muted); font-size: var(--text-xs); font-weight: 850;
-}
 .searchable-select__bulk {
   position: sticky; z-index: 1; top: -6px; display: flex; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-1); padding: var(--space-2);
   gap: var(--space-2); background: var(--surface); border-bottom: 1px solid var(--line);
@@ -1735,6 +1721,36 @@ input[type="file"].form-control { padding: var(--space-3); }
   border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 850;
 }
 .searchable-select__list .searchable-select__bulk-action:disabled { opacity: .45; cursor: default; }
+/* 三態「全選符合項目」（T-66）：與選項同款勾選框，部分勾選顯示橫線；把「清除此欄」推到右側。 */
+.searchable-select__list .searchable-select__bulk-toggle {
+  display: flex; width: auto; min-height: 34px; margin-right: auto; padding: var(--space-1) var(--space-2);
+  align-items: center; gap: var(--space-2); color: var(--ink); font-size: var(--text-sm); font-weight: 850;
+}
+.searchable-select__list .searchable-select__bulk-toggle::before {
+  display: grid; flex: 0 0 18px; width: 18px; height: 18px; place-items: center;
+  color: var(--on-accent); border: 1px solid var(--line-strong); border-radius: var(--radius-xs); content: "";
+  font-size: var(--text-2xs); font-weight: 950;
+}
+.searchable-select__list .searchable-select__bulk-toggle[aria-checked="true"]::before { background: var(--forest); border-color: var(--forest); content: "✓"; }
+.searchable-select__list .searchable-select__bulk-toggle[aria-checked="mixed"]::before { background: var(--forest); border-color: var(--forest); content: "–"; }
+.searchable-select__list .searchable-select__bulk-toggle:hover:not(:disabled) { color: var(--action-text); background: var(--mint); }
+.searchable-select__list .searchable-select__bulk-toggle:disabled { opacity: .45; cursor: default; }
+.searchable-select__list .searchable-select__bulk-toggle[aria-checked] { background: transparent; }
+.searchable-select__list .searchable-select__bulk-toggle[aria-checked]:hover:not(:disabled) { background: var(--mint); }
+/* 複選已有勾選：已選摘要寫在框內（提示字改成正文色、加粗），框線帶主色，一眼看出哪幾欄在篩選。 */
+.searchable-select.has-selection .searchable-select__input {
+  background: color-mix(in srgb, var(--mint) 55%, var(--surface));
+  border-color: color-mix(in srgb, var(--forest) 45%, var(--line));
+}
+.searchable-select.has-selection .searchable-select__input::placeholder { color: var(--ink); font-weight: 800; opacity: 1; }
+.searchable-select__count {
+  display: inline-grid; min-width: 20px; height: 20px; margin-left: var(--space-2); padding: 0 var(--space-1); place-items: center;
+  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-pill); vertical-align: 1px;
+  font-size: var(--text-2xs); font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.searchable-select__count[hidden] { display: none; }
+.searchable-select.has-selection .searchable-select__search-icon { border-color: var(--forest); }
+.searchable-select.has-selection .searchable-select__search-icon::after { background: var(--forest); }
 .searchable-select__list[aria-multiselectable="true"] button[role="option"] {
   display: flex; align-items: center; gap: var(--space-2);
 }
@@ -2842,18 +2858,56 @@ div.acquisition-choice label:has(input:checked) {
 }
 div.acquisition-choice label:has(input:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
 input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-/* 車輛庫存篩選列（T-63）：欄數依可用寬度自動決定（每欄至少 196px），放不下就換到下一列；
-   搜尋與排序（選項字較長）各佔兩欄，清除／套用固定在最右一欄。已售出／調出多兩個去向篩選也照同一套排。 */
-.inventory-filters.inventory-filters--stock { grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); }
-.inventory-filters.inventory-filters--stock > :is(.inventory-filter--search, .inventory-filter--sort) { grid-column: span 2; }
-.inventory-filters.inventory-filters--stock > .inventory-filter-actions { grid-column: -2 / -1; justify-self: end; justify-content: flex-end; flex-wrap: wrap; }
-/* 欄位對齊頂端：複選後下方多出已選標籤的欄位變高，同列其他搜尋框仍在同一水平；按鈕前補一行與欄名同高的空白，與搜尋框齊平。 */
-.inventory-filters.inventory-filters--stock { align-items: start; }
+/* 車輛庫存篩選列（T-63、T-66）：篩選欄自成一組，欄數依可用寬度自動決定（每欄至少 164px），放不下就換列；
+   清除／套用固定在右側，不佔篩選欄格。搜尋框只比其他篩選略寬（T-66 縮短，原本佔兩欄）。已售出／調出多兩個去向篩選也照同一套排。 */
+.inventory-filters.inventory-filters--stock { grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-3) var(--space-4); }
+.inventory-filter-fields { display: grid; min-width: 0; grid-template-columns: minmax(200px, 1.3fr) repeat(auto-fit, minmax(164px, 1fr)); align-items: start; gap: var(--space-3); }
+.inventory-filters.inventory-filters--stock > .inventory-filter-actions { grid-column: auto; justify-self: end; justify-content: flex-end; flex-wrap: wrap; }
+/* 按鈕前補一行與欄名同高的空白，與搜尋框齊平。 */
 .inventory-filters.inventory-filters--stock > .inventory-filter-actions::before { flex-basis: 100%; font-size: var(--text-sm); font-weight: 900; content: "\00a0"; }
 @media (max-width: 860px) {
-  .inventory-filters.inventory-filters--stock { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inventory-filters.inventory-filters--stock > :is(.inventory-filter--sort, .inventory-filter-actions) { grid-column: 1 / -1; }
+  .inventory-filters.inventory-filters--stock { grid-template-columns: minmax(0, 1fr); }
+  .inventory-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-filter-fields > .inventory-filter--search { grid-column: 1 / -1; }
+  .inventory-filters.inventory-filters--stock > .inventory-filter-actions { justify-self: stretch; }
+  .inventory-filters.inventory-filters--stock > .inventory-filter-actions .button { flex: 1; }
   .inventory-filters.inventory-filters--stock > .inventory-filter-actions::before { display: none; }
+}
+/* 關鍵字搜尋框與旁邊的可搜尋下拉同款：左側放大鏡、同高。 */
+.inventory-search-box { position: relative; display: block; min-width: 0; }
+.inventory-filter .inventory-search-box input { padding-left: calc(var(--space-6) + var(--space-1)); text-overflow: ellipsis; }
+.inventory-search-box .searchable-select__search-icon { top: 21px; }
+.inventory-search-box:focus-within .searchable-select__search-icon { border-color: var(--forest); }
+.inventory-search-box:focus-within .searchable-select__search-icon::after { background: var(--forest); }
+/* 表頭排序（T-66）：可排序的欄名是連結，旁邊淡色 ↕；正在排的欄改主色並顯示 ↑／↓，再點換方向。 */
+.inventory-sort-link {
+  display: inline-flex; align-items: center; gap: var(--space-1); color: inherit; font: inherit; letter-spacing: inherit;
+  text-decoration: none; border-radius: var(--radius-xs); transition: color .15s ease;
+}
+.inventory-sort-link:hover { color: var(--ink); }
+.inventory-sort-link:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.inventory-sort-link__arrow { display: inline-block; min-width: 1ch; opacity: .38; font-size: 1.05em; transition: opacity .15s ease, transform .15s ease; }
+.inventory-sort-link:hover .inventory-sort-link__arrow { opacity: .8; }
+.inventory-sort-link.is-active { color: var(--action-text); }
+.inventory-sort-link.is-active .inventory-sort-link__arrow { opacity: 1; }
+.inventory-sort-pair { display: inline-flex; align-items: center; gap: var(--space-1); }
+/* 庫存表：表頭多了排序箭頭，左右內距收成 12px 讓 1280 寬也放得下；日期、狀態、車況標籤不拆成直排。 */
+.inventory-table--stock :is(th, td) { padding-inline: var(--space-3); }
+.inventory-table--stock :is(td[data-label="進車日期"], .status-pill, .inventory-condition) { white-space: nowrap; }
+/* 手機版沒有表頭：排序改成摘要下方一列可橫向捲動的標籤，桌面隱藏。 */
+.inventory-sort-bar { display: none; }
+@media (max-width: 600px) {
+  .inventory-sort-bar {
+    display: flex; padding: var(--space-2) var(--space-4); align-items: center; gap: var(--space-2);
+    overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; white-space: nowrap;
+  }
+  .inventory-sort-bar::-webkit-scrollbar { display: none; }
+  .inventory-sort-bar > span { flex: 0 0 auto; color: var(--muted); font-size: var(--text-xs); font-weight: 900; }
+  .inventory-sort-bar .inventory-sort-link {
+    flex: 0 0 auto; min-height: 34px; padding: 0 var(--space-3); color: var(--ink-soft); background: var(--surface-subtle);
+    border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 800;
+  }
+  .inventory-sort-bar .inventory-sort-link.is-active { color: var(--action-text); background: var(--mint); border-color: color-mix(in srgb, var(--forest) 35%, var(--line)); }
 }
 /* 已售出／調出：去向用色相區分（調出紫、車行領車青、一般售出灰），下方接對象與日期。 */
 .inventory-table .inventory-disposition {

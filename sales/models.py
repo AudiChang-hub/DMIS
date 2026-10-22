@@ -4468,11 +4468,8 @@ class DeliveryRecord(TimeStampedModel):
 
     def clean(self):
         errors = {}
+        # 車況、交付文件、鑰匙、配件四項核對拿掉（使用者 2026-10-22 T-74），只留系統的收款狀態核對。
         for field_name, label in (
-            ("condition_checked", "車況"),
-            ("documents_checked", "交付文件"),
-            ("keys_checked", "鑰匙"),
-            ("accessories_checked", "配件與贈品"),
             ("payment_checked", "收款狀態"),
         ):
             if not getattr(self, field_name):

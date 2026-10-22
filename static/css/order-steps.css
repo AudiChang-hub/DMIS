@@ -158,6 +158,19 @@
 .order-step-fees .section-title h3 { margin: 0; font-size: var(--text-base); }
 .delivery-balance { margin: var(--stack-gap-sm) 0 0; padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .delivery-balance legend { padding-inline: var(--space-2); font-weight: 600; }
+/* 尾款在交車步驟最上方（使用者 2026-10-22 T-73）：應收計算式一列排開，運算符號在每一項前，結果加粗。 */
+.order-step__body > .delivery-balance { margin: 0; }
+.balance-formula { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface-soft); }
+.balance-formula__item { display: grid; gap: 2px; min-width: 0; }
+.balance-formula__item dt { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
+.balance-formula__item dd { margin: 0; color: var(--ink); font-size: var(--text-base); font-weight: 700; font-variant-numeric: tabular-nums; }
+.balance-formula__op { color: var(--ink-soft); font-size: var(--text-sm); font-weight: 800; }
+.balance-formula__result { margin-left: auto; padding-left: var(--space-4); border-left: 1px solid var(--line); }
+.balance-formula__result dd { font-size: var(--text-lg); }
+.delivery-balance .form-hint.is-warning { color: var(--amber-ink); font-weight: 700; }
+@media (max-width: 600px) {
+  .balance-formula__result { flex-basis: 100%; margin-left: 0; padding-left: 0; padding-top: var(--space-2); border-left: 0; border-top: 1px solid var(--line); }
+}
 
 @media (max-width: 860px) {
   .order-step-bar { margin-block: var(--stack-gap-sm) var(--space-3); }

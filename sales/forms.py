@@ -3348,9 +3348,14 @@ class DeliveryPaymentForm(forms.ModelForm):
             "note": "收款備註",
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, due=None, **kwargs):
         super().__init__(*args, **kwargs)
-        expected = self.instance.expected_amount or Decimal("0")
+        # 交車時收尾款（使用者 2026-10-22 T-75）：due＝交車判斷的應收（payment_summary 的 delivery_due）；
+        # 應收大於 0 時實收必填且不得少於應收，應收為 0 時不必填。其他地方沿用尾款列的應收。
+        self.due = due
+        if due is not None:
+            self.fields["received_amount"].required = due > 0
+            self.fields["received_amount"].widget.attrs["data-delivery-due"] = f"{due:.0f}"
         if not self.is_bound:
             if not self.instance.received_amount:
                 self.initial["received_amount"] = None
@@ -3379,7 +3384,10 @@ class DeliveryPaymentForm(forms.ModelForm):
                 self.add_error("received_on", "已有實收金額時，請填寫收款日期。")
             if not cleaned.get("payment_method"):
                 self.add_error("payment_method", "已有實收金額時，請選擇收款方式。")
-        if cleaned.get("confirmed") and not self.was_confirmed and received < expected:
+        if self.due is not None:
+            if self.due > 0 and received < self.due:
+                self.add_error("received_amount", f"應收 {self.due:,.0f} 元，實收金額不得少於應收（尚差 {self.due - received:,.0f} 元）。")
+        elif cleaned.get("confirmed") and not self.was_confirmed and received < expected:
             shortage = expected - received
             self.add_error(
                 "confirmed",
@@ -4284,19 +4292,8 @@ class DeliveryCompletionForm(forms.Form):
     recipient_phone = forms.CharField(label="收車人電話", max_length=30, required=False)
     carrier_name = forms.CharField(label="託運公司", max_length=160, required=False)
     handover_location = forms.CharField(label="實際交付地點", max_length=250)
-    # 使用 CharField 搭配 RadioSelect，而不是嚴格 ChoiceField：新版畫面只會
-    # 顯示快選值，但尚未重新載入的舊版 PWA 仍可送出原本的自由文字。
-    vehicle_condition_note = forms.CharField(
-        label="交付車況",
-        widget=forms.RadioSelect(choices=VEHICLE_CONDITION_CHOICES),
-    )
-    damage_note = forms.CharField(
-        label="刮傷／損壞說明",
-        required=False,
-        widget=forms.Textarea(
-            attrs={"rows": 2, "placeholder": "例如：右側車殼刮痕約 3 公分"}
-        ),
-    )
+    # 「交付車況」與「交付核對」四項、交付照片拿掉（使用者 2026-10-22 T-74）：不再是交車必填，
+    # 交付紀錄的欄位與既有資料保留；特殊狀況寫在「交付備註／其他狀況說明」。
     note = forms.CharField(
         label="交付備註／其他狀況說明",
         required=False,
@@ -4304,11 +4301,6 @@ class DeliveryCompletionForm(forms.Form):
             attrs={"rows": 2, "placeholder": "可記錄既有痕跡、客戶交代或其他特殊情況"}
         ),
     )
-    condition_checked = forms.BooleanField(label="已核對車況")
-    documents_checked = forms.BooleanField(label="已核對交付文件")
-    keys_checked = forms.BooleanField(label="已核對鑰匙")
-    accessories_checked = forms.BooleanField(label="已核對配件與贈品")
-    handover_photo = forms.ImageField(label="交付照片", required=False)
 
     def __init__(self, order, *args, **kwargs):
         self.order = order
@@ -4326,32 +4318,16 @@ class DeliveryCompletionForm(forms.Form):
                 }
             )
         for field_name, field in self.fields.items():
-            if field_name == "vehicle_condition_note":
-                continue
             field.widget.attrs.setdefault("class", "form-control")
-        for field_name in (
-            "condition_checked",
-            "documents_checked",
-            "keys_checked",
-            "accessories_checked",
-        ):
-            self.fields[field_name].widget.attrs["class"] = "form-check"
-        self.fields["vehicle_condition_note"].widget.attrs[
-            "class"
-        ] = "delivery-condition-options"
         self.fields["recipient_phone"].widget.attrs["inputmode"] = "tel"
-        # 交車前確認併入交付核對（2026-10-14）：電動車多一項車控與電池合約，排在其他核對項目後面。
+        # 電動車交車前仍須確認車控與電池合約（2026-10-14 併入交車表單）；交付核對四項拿掉後單獨保留這一勾。
         if order.is_electric_vehicle:
             profile = getattr(order, "operations", None)
-            control = forms.BooleanField(
+            self.fields["vehicle_control_checked"] = forms.BooleanField(
                 label="已確認車控與電池合約",
                 initial=bool(profile and profile.vehicle_control_confirmed_at),
                 widget=forms.CheckboxInput(attrs={"class": "form-check"}),
             )
-            fields = list(self.fields.items())
-            index = next(i for i, (name, _field) in enumerate(fields) if name == "accessories_checked") + 1
-            fields.insert(index, ("vehicle_control_checked", control))
-            self.fields = dict(fields)
 
     def clean(self):
         data = super().clean()
@@ -4366,25 +4342,8 @@ class DeliveryCompletionForm(forms.Form):
             and not (data.get("carrier_name") or "").strip()
         ):
             self.add_error("carrier_name", "委託託運時必須填寫託運公司。")
-        vehicle_condition = data.get("vehicle_condition_note")
-        known_conditions = {value for value, _label in self.VEHICLE_CONDITION_CHOICES}
-        # 舊版畫面會送出自由文字與 damage_found checkbox；新版則直接由
-        # 「發現刮傷或損壞」快選推導，避免使用者重複判斷同一件事。
-        damage_found = vehicle_condition == self.VEHICLE_CONDITION_DAMAGED or (
-            vehicle_condition not in known_conditions
-            and bool(self.data.get("damage_found"))
-        )
-        data["damage_found"] = damage_found
-        if damage_found and not (data.get("damage_note") or "").strip():
-            self.add_error("damage_note", "發現刮傷或損壞時必須填寫說明。")
-        if vehicle_condition == self.VEHICLE_CONDITION_OTHER and not (
-            data.get("note") or ""
-        ).strip():
-            self.add_error("note", "選擇其他狀況時，請在交付備註補充說明。")
+        data["damage_found"] = False
         return data
-
-    def clean_handover_photo(self):
-        return validate_image_upload(self.cleaned_data.get("handover_photo"))
 
     def _confirm_delivery_prep(self, order, actor_name):
         """交付核對已勾配件、贈品與履約（電動車另勾車控與電池合約），補記交車前確認；已確認的保留原紀錄。"""
@@ -4393,7 +4352,7 @@ class DeliveryCompletionForm(forms.Form):
         profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
         now = timezone.now()
         changed = []
-        checks = [("fulfillment", self.cleaned_data.get("accessories_checked"))]
+        checks = []
         if order.is_electric_vehicle:
             checks.append(("vehicle_control", self.cleaned_data.get("vehicle_control_checked")))
         for prefix, checked in checks:
@@ -4425,21 +4384,15 @@ class DeliveryCompletionForm(forms.Form):
             recipient_phone=self.cleaned_data["recipient_phone"],
             carrier_name=self.cleaned_data["carrier_name"],
             handover_location=self.cleaned_data["handover_location"],
-            vehicle_condition_note=self.cleaned_data["vehicle_condition_note"],
-            condition_checked=self.cleaned_data["condition_checked"],
-            documents_checked=self.cleaned_data["documents_checked"],
-            keys_checked=self.cleaned_data["keys_checked"],
-            accessories_checked=self.cleaned_data["accessories_checked"],
+            # 交付車況與四項核對已不在畫面（T-74）：新紀錄留空／未勾，舊紀錄不動。
+            vehicle_condition_note="",
             # 「已核對收款狀態」表示系統已核對；實際未收清金額另記為掛帳。
             payment_checked=True,
             on_account_amount=on_account,
-            damage_found=self.cleaned_data["damage_found"],
-            damage_note=self.cleaned_data["damage_note"],
-            handover_photo=self.cleaned_data.get("handover_photo"),
             note=self.cleaned_data["note"],
             completed_by=actor_name,
         )
-        record.full_clean()
+        record.full_clean(exclude=["vehicle_condition_note"])
         record.save()
         order.complete_delivery(self.cleaned_data["delivered_at"], actor_name)
         return order, record

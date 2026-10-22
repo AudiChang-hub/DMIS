@@ -1,4 +1,28 @@
 document.addEventListener("DOMContentLoaded", () => {
+  // 交車收尾款（使用者 2026-10-22 T-75）：應收大於 0 時，實收金額大於或等於應收才能按「收尾款並完成交車」；
+  // 應收為 0 不卡。交車條件不符（原因清單有內容）時照舊停用。送出時後端再用同一規則驗證。
+  document.querySelectorAll(".delivery-completion-form").forEach((form) => {
+    const fieldset = document.getElementById("delivery-balance");
+    const amount = form.elements.namedItem("balance-received_amount");
+    const button = form.querySelector('.delivery-completion-actions button[type="submit"]');
+    if (!fieldset || !amount || !button) return;
+    const due = Number(fieldset.dataset.deliveryDue || 0);
+    const hint = fieldset.querySelector("[data-balance-hint]");
+    const blockers = form.querySelector("[data-delivery-blockers]");
+    const sync = () => {
+      const short = due > 0 && !(Number(amount.value || 0) >= due);
+      button.dataset.balanceShort = short ? "1" : "";
+      const blocked = Boolean(blockers && !blockers.hidden);
+      button.disabled = short || blocked;
+      button.setAttribute("aria-disabled", String(button.disabled));
+      hint?.classList.toggle("is-warning", short && amount.value !== "");
+    };
+    amount.addEventListener("input", sync);
+    amount.addEventListener("change", sync);
+    new MutationObserver(sync).observe(blockers || button, {attributes: true, attributeFilter: ["hidden"]});
+    sync();
+  });
+
   // 交付核對四項可一次全部勾選；再按一次取消，方便發現漏看時重來。
   document.querySelectorAll(".delivery-completion-form").forEach((form) => {
     const button = form.querySelector("[data-delivery-check-all]");

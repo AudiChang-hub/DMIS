@@ -2,7 +2,7 @@
 from decimal import Decimal
 
 ZERO = Decimal("0")
-EXPECTED_KEYS = {"deposit", "balance", "installment_disbursement"}
+EXPECTED_KEYS = {"deposit", "balance", "installment_disbursement", "platform_disbursement"}
 
 
 def payment_summary(order, records=None):
@@ -143,5 +143,9 @@ def disbursement_receipts(order, records=None):
     if order.payment_type == "installment":
         return [p for p in records if p.confirmed and p.effective_receipt_kind == "lender"]
     if order.source_type == "platform":
-        return [p for p in records if p.confirmed and p.effective_receipt_kind == "customer" and p.system_key != "deposit"]
+        if hasattr(order, "legacy_snapshot"):
+            # Excel 匯入的平台單以「歷史收款」同步過實際車價收入，維持舊規則，不還原既有金額。
+            return [p for p in records if p.confirmed and p.effective_receipt_kind == "customer" and p.system_key != "deposit"]
+        # 平台撥款只認對帳頁入帳的平台撥款列；客人另付的牌險等款項不是平台撥款（T-96）。
+        return [p for p in records if p.confirmed and p.effective_receipt_kind == "lender"]
     return []

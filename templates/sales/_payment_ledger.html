@@ -13,7 +13,7 @@
         <tr>
           <td>{{ entry.get_entry_type_display }}</td>
           <td>{{ entry.item_name }}{% if entry.reverses %}<small class="muted">（原收款 ${{ entry.reverses.received_amount|number_with_commas }}）</small>{% endif %}</td>
-          <td>{% if entry.effective_receipt_kind == "lender" %}分期公司{% else %}客戶{% endif %}</td>
+          <td>{% if entry.effective_receipt_kind == "lender" %}{% if order.source_type == "platform" %}平台{% else %}分期公司{% endif %}{% else %}客戶{% endif %}</td>
           <td>${{ entry.received_amount|number_with_commas }}</td>
           <td>{{ entry.received_on|date:"Y/m/d" }}</td>
           <td>{{ entry.adjustment_reason }}</td>

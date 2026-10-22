@@ -331,6 +331,16 @@ urlpatterns = [
         name="reconciliation_update",
     ),
     path(
+        "operations/reconciliation/<int:pk>/unconfirm/",
+        views.reconciliation_unconfirm,
+        name="reconciliation_unconfirm",
+    ),
+    path(
+        "operations/reconciliation/batch/",
+        views.reconciliation_batch,
+        name="reconciliation_batch",
+    ),
+    path(
         "operations/export/",
         views.operations_report_export,
         name="operations_report_export",

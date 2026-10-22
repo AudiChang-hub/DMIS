@@ -214,7 +214,8 @@ class InplaceUploadTests(TestCase):
         self.order.final_plate_number = "ABC-1234"
         self.order.save(update_fields=["registration_date", "final_plate_number", "updated_at"])
         stale = self.detail()
-        self.assertIn("一般訂單必須先完成領牌，才可進入交付階段。", stale)
+        # 尚未開放時直接列出還差什麼（T-102）。
+        self.assertIn("一般訂單必須先完成領牌才能交付。", stale)
         before = self.versions()
         for document_type in (
             RegistrationDocument.DocumentType.NEW_LICENSE,

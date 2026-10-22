@@ -179,6 +179,24 @@
 .ledger-tag--manual { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
 .ledger-tag--estimate { margin-right: var(--space-1); color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-border); }
 .ledger-row.is-changed .ledger-tag--system { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
+.ledger-tag--locked { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, var(--surface)); border-color: var(--green-border); }
+
+/* 領牌步驟帶入的金額摘要（T-99）：與收支頁同一組標籤與等寬數字，一項一列、金額靠右，0 元淡化。 */
+.registration-figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); margin-top: var(--stack-gap-sm); }
+.registration-figures:not(:has(.figure-card)) { display: none; }
+.figure-card {
+  display: grid; align-content: start; gap: var(--space-2); min-width: 0; padding: var(--inset-pad);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-tint) 55%, var(--surface));
+}
+.figure-card__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.figure-card__head h3 { margin: 0; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; }
+.figure-list { display: grid; margin: 0; }
+.figure-list__row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line-soft); }
+.figure-list__row:last-child { border-bottom: 0; }
+.figure-list dt { min-width: 0; color: var(--ink); font-size: var(--text-sm); font-weight: 600; }
+.figure-list dd { margin: 0; color: var(--ink); font-size: var(--text-base); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.figure-list__row.is-zero dt, .figure-list__row.is-zero dd { color: var(--muted); font-weight: 500; }
+.figure-card__meta { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
 .finance-ledger__legend { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 2; }
 .finance-ledger__legend .ledger-tag { margin: 0 var(--space-1); vertical-align: 1px; }
 

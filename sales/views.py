@@ -5657,10 +5657,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             order=order,
             system_key="balance",
         ).first()
-    balance_ready_for_delivery = bool(
-        order.source_type == SalesOrder.SourceType.DEALER
-        or payment_summary(order)["customer_settled"]
-    )
     from .services.dealer_credit import credit_overview
     from .services.order_exception import exception_close_blockers
     detail_summary = payment_summary(order)
@@ -5755,7 +5751,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             ),
             # 尾款應收的計算式（使用者 2026-10-22 T-73），與交車判斷同一份 payment_summary。
             "balance_breakdown": balance_breakdown(order, detail_summary) if collect_balance else None,
-            "balance_ready_for_delivery": balance_ready_for_delivery,
             "delivery_blockers": delivery_blockers,
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
             "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,

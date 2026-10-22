@@ -5280,6 +5280,10 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .delivery-gate--reminder p { margin: 0; color: var(--ink-soft); }
 .delivery-gate--reminder a { color: var(--amber-ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .delivery-blockers { margin: var(--space-4) 0 0; padding-left: var(--space-5); color: var(--amber-ink); }
+/* 車輛交付尚未開放時直接列出還差什麼（T-102），不再導向收入與支出。 */
+.delivery-pending { padding: var(--inset-pad); border: 1px dashed var(--amber-border-strong); border-radius: var(--radius-md); background: color-mix(in srgb, var(--amber-soft) 40%, var(--surface)); }
+.delivery-pending__lead { margin: 0; color: var(--ink); font-weight: 800; }
+.delivery-pending .delivery-blockers { margin-top: var(--space-2); }
 .notification-inbox { padding: var(--card-pad); }
 .notification-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-4); border-bottom: 1px solid var(--line); }
 .notification-item:last-child { border-bottom: 0; }
@@ -7269,8 +7273,8 @@ select:not([multiple]):not([size]):not(.searchable-select__native):disabled { --
 :is(.card, .static-section, .payment-ledger) > .section-title { padding-inline: 0; }
 .account-audit.card { padding: 0; }
 /* 無內距面板中直接放入的子卡片、表單與提示：左右與標題列同樣退一個卡片內距。 */
-:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message) { margin: var(--stack-gap-sm) var(--card-pad); }
-:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message):last-child { margin-bottom: var(--card-pad); }
+:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .registration-figures, .delivery-pending, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message) { margin: var(--stack-gap-sm) var(--card-pad); }
+:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .registration-figures, .delivery-pending, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message):last-child { margin-bottom: var(--card-pad); }
 :is(.internal-discount-panel, .operation-section) > p { margin: var(--stack-gap-sm) var(--card-pad); }
 .form-section > details.card { margin: var(--stack-gap-sm) var(--card-pad); }
 /* 表單區塊內的摺疊卡：標題不沿用區塊標題的分隔線與內距，內卡與標題左右對齊並留出間距（2026-10-17）。 */

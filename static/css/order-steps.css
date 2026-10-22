@@ -54,7 +54,7 @@
   background: var(--amber-strong); border-radius: 50%; box-shadow: 0 0 0 2px var(--surface-soft);
 }
 
-.order-step-tab.is-done .order-step-tab__marker { color: var(--green-ink); background: var(--green-border); border-color: transparent; }
+/* 步驟一律顯示編號，不用綠勾（使用者 2026-10-22 T-78）；完成與否看下方狀態文字。 */
 .order-step-tab.is-done .order-step-tab__state { color: var(--green-ink); }
 .order-step-tab.is-todo .order-step-tab__state { color: var(--amber-ink); }
 .order-step-tab.is-current .order-step-tab__marker {
@@ -99,7 +99,6 @@
   font-weight: 600; background: var(--surface-soft); border-radius: 50%;
 }
 .order-step__marker svg { width: 14px; height: 14px; }
-.order-step.is-done .order-step__marker { color: var(--green-ink); background: var(--green-border); }
 .order-step.is-current .order-step__marker { color: var(--action-on); background: var(--action-bg); }
 .order-step__heading { display: grid; flex: 1; min-width: 0; gap: var(--space-1); }
 .order-step__heading h2 { margin: 0; font-family: var(--font-display, inherit); font-size: var(--text-md); line-height: 1.3; }

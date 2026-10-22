@@ -91,8 +91,12 @@ class FormPrintServiceTests(TestCase):
 
         self.assertEqual(values["old_owner_name"], "林測試")
         self.assertEqual(values["old_owner_id_number"], "A123456789")
-        self.assertEqual(values["old_owner_phone"], "0912345678")
-        self.assertEqual(values["old_owner_address"], "台北市")
+        # 聯絡地址與電話一律印新車主的（使用者 2026-10-22 T-81），舊車主有填也不採用。
+        self.assertEqual(values["old_owner_phone"], self.order.owner_phone)
+        self.assertEqual(values["old_owner_address"], self.order.owner_address)
+        self.order.old_owner_phone = "0922000111"
+        values = form_print.form_values(self.order)
+        self.assertEqual((values["old_owner_phone"], values["old_owner_address"]), (self.order.owner_phone, self.order.owner_address))
 
     def test_receipt_insurance_follows_order_period(self):
         self.order.compulsory_insurance_period = SalesOrder.CompulsoryInsurancePeriod.TWO_YEARS

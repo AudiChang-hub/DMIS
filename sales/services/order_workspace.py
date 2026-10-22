@@ -84,12 +84,22 @@ def finance_context(request, order):
         subsidy_form.fields[name].disabled = True
     old_vehicle_form = OrderOperationsForm(instance=profile, prefix='operations', section='old_vehicle', auto_id='ops_old_vehicle_%s')
     fulfillment_form = OrderOperationsForm(instance=profile, prefix='operations', section='fulfillment', auto_id='ops_fulfillment_%s')
+    # 補助步驟（使用者 2026-10-22 T-81、T-82）：銀行與帳戶放在補助申請項目標題列、舊車報廢欄位併入汰舊卡，
+    # 用 form 屬性歸回各自的營運空殼表單；沒有修改權限時直接停用（不在空殼表單的 fieldset 內）。
+    finance_editable = can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST')
+    for section_form, form_id in ((subsidy_form, 'ops-subsidy-form'), (old_vehicle_form, 'ops-old-vehicle-form')):
+        for name, field in section_form.fields.items():
+            if name == 'financial_revision':
+                continue
+            field.widget.attrs['form'] = form_id
+            if not finance_editable:
+                field.disabled = True
     summary = payment_summary(order)
     return {
         **payment_ledger_context(order, summary),
         **finance_overview_context(operations_form, profile, order),
         'workspace_finance': True,
-        'workspace_finance_editable': can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST'),
+        'workspace_finance_editable': finance_editable,
         'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
         'profile': profile,
         'operations_form': operations_form,

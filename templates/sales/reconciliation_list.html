@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}
-{% load sales_format pagination_tags order_origin_tags %}
+{% load static sales_format pagination_tags order_origin_tags %}
 {% block title %}統一撥款對帳｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -13,28 +13,46 @@
     <p class="muted">{% site_text 'reconciliation_list.699f0b9879fe' %}</p>
   </div>
 </section>
-<section class="section-block"><div class="section-title"><h2>如何登記入帳</h2></div><div class="section-body"><ol><li>選「分期公司」可找分期撥款；平台／車行列的是該筆尾款，不是全單所有收款。</li><li>核對預計金額，再填實際收到的金額與入帳日期後按「入帳」。預計金額不符時，展開「本單特殊撥款」填金額與原因。</li><li>填了實際金額就算入帳，不必另外確認；訂單收入與支出的「實際撥款」與淨利會立即同步。還沒收到款項請保持 0。</li><li>入帳後本頁鎖定；登記錯了請到該訂單的收款明細取消「已確認」後修改，已沖銷的收款不能取消。</li></ol><p><strong>本頁差額＝實際入帳－預計入帳，不是淨利，也不是整張訂單的未收餘額。</strong>預計與實際都是 0 也會算出差額 0；是否收款以「已入帳」為準。</p></div></section>
+<section class="section-block reconciliation-guide">
+  <div class="section-title"><h2>如何登記入帳</h2></div>
+  <div class="section-body">
+    <ol class="reconciliation-guide__steps">
+      <li><strong>分期公司撥款</strong><span>預計金額＝分期金額 × 撥款比例。依對方撥款填實際金額，按「入帳」。</span></li>
+      <li><strong>平台撥款</strong><span>不比預計，只記實際撥款。平台一次撥好幾張時，勾選各單、各填金額，合計對上平台對帳單後按「一起入帳」。</span></li>
+      <li><strong>入帳之後</strong><span>確認日期自動記為當天；訂單收支的「預估車價收入」改為「實際車價收入」並鎖定。登記錯了按「取消入帳」改正。</span></li>
+    </ol>
+    <p class="reconciliation-guide__note">差額＝實際－預計，按下入帳後才計算，只標示給人判斷，不會自動記成手續費。現金、刷卡、匯款、客人另付的牌險（車行單也一樣，只對分期公司撥款），以及 Excel 匯入的舊單都不在這裡對帳。</p>
+  </div>
+</section>
 <form class="inventory-filters operations-filters" method="get">
-  <div class="master-search"><label for="reconcile-q">搜尋</label><input id="reconcile-q" name="q" value="{{ selected.q }}" placeholder="訂單、車主、車牌、公司、平台或車行"></div>
-  <div><label for="reconcile-channel">對帳對象</label><select id="reconcile-channel" name="channel"><option value="">全部</option><option value="installment"{% if selected.channel == 'installment' %} selected{% endif %}>分期公司</option><option value="platform"{% if selected.channel == 'platform' %} selected{% endif %}>網路平台</option><option value="dealer"{% if selected.channel == 'dealer' %} selected{% endif %}>車行</option></select></div>
-  <div><label for="reconcile-status">入帳狀態</label><select id="reconcile-status" name="status"><option value="">全部</option><option value="pending"{% if selected.status == 'pending' %} selected{% endif %}>尚未入帳</option><option value="confirmed"{% if selected.status == 'confirmed' %} selected{% endif %}>已入帳</option></select></div>
+  <div class="master-search"><label for="reconcile-q">搜尋</label><input id="reconcile-q" name="q" value="{{ selected.q }}" placeholder="訂單、車主、車牌、分期公司或平台"></div>
+  <div><label for="reconcile-channel">對帳對象</label><select id="reconcile-channel" name="channel"><option value="">全部</option><option value="installment"{% if selected.channel == 'installment' %} selected{% endif %}>分期公司撥款</option><option value="platform"{% if selected.channel == 'platform' %} selected{% endif %}>平台撥款</option></select></div>
+  <div><label for="reconcile-status">入帳狀態</label><select id="reconcile-status" name="status"><option value="">全部</option><option value="pending"{% if selected.status == 'pending' %} selected{% endif %}>待入帳</option><option value="confirmed"{% if selected.status == 'confirmed' %} selected{% endif %}>已入帳</option></select></div>
   <div><label for="reconcile-from">訂單日期起</label><input id="reconcile-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
   <div><label for="reconcile-to">訂單日期迄</label><input id="reconcile-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'reconciliation_list' %}">清除</a><button class="button primary" type="submit">套用</button></div>
 </form>
-<section class="section-block operations-table-shell reconciliation-shell">
-  <div class="section-title"><div><p class="eyebrow">待核對與歷史結果</p><h2>{{ page_obj.paginator.count }} 筆</h2></div><span>尚未入帳優先排列</span></div>
+<section class="section-block operations-table-shell reconciliation-shell" data-reconciliation>
+  <div class="section-title"><div><p class="eyebrow">待核對與歷史結果</p><h2>{{ page_obj.paginator.count }} 筆</h2></div><span>待入帳優先排列</span></div>
   <div class="table-scroll">
     <table class="inventory-table reconciliation-table">
-      <thead><tr><th>訂單／車主</th><th>對帳對象</th><th>預計金額</th><th>實際金額</th><th>差額</th><th>入帳日期</th><th></th></tr></thead>
+      <thead><tr><th>訂單／車主</th><th>對帳對象</th><th>預計金額</th><th>實際金額</th><th>差額</th><th>確認日期</th><th><span class="visually-hidden">操作</span></th></tr></thead>
       <tbody>
       {% for record in records %}
-        <tr>
-          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span class="order-number-stack"><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span>{% order_origin_badge record.order %}</span><small>{{ record.item_name }} · {{ record.reconciliation_state }}</small></td>
-          <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
+        <tr class="reconciliation-row{% if record.confirmed %} is-posted{% endif %}" data-reconciliation-row="{{ record.pk }}">
+          <td data-label="訂單／車主">
+            <div class="reconciliation-order">
+              {% if record.reconciliation_platform and not record.confirmed %}<label class="reconciliation-pick"><input type="checkbox" form="reconciliation-batch" name="records" value="{{ record.pk }}" data-batch-pick aria-label="勾選 {{ record.order.number }} 一起入帳"><span aria-hidden="true"></span></label>{% endif %}
+              <div><strong>{{ record.order.owner_name }}</strong><span class="order-number-stack"><span><a href="{% url 'order_operations' record.order_id %}">{{ record.order.number }}</a> · {{ record.order.order_date|date:"Y/m/d" }}</span>{% order_origin_badge record.order %}</span>{% if record.item_name != record.reconciliation_channel_label %}<small>{{ record.item_name }}</small>{% endif %}</div>
+            </div>
+          </td>
+          <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span class="reconciliation-channel reconciliation-channel--{{ record.reconciliation_channel }}">{{ record.reconciliation_channel_label }}</span></td>
           <td data-label="預計金額" class="number-cell reconciliation-expected">
             <span class="mobile-field-label">預計金額</span>
-            {% if record.reconciliation_receipt_only %}
+            {% if record.reconciliation_platform %}
+            <span class="reconciliation-muted">平台撥款不比預計</span>
+            <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount" value="0">
+            {% elif record.reconciliation_receipt_only %}
             <small>依訂單應收設定<br>本列僅記錄實收</small>
             <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount" value="0">
             {% else %}
@@ -43,29 +61,45 @@
             {% if not record.confirmed %}
             <details class="reconciliation-expected-adjustment"{% if record.expected_amount_overridden %} open{% endif %}>
               <summary>{% if record.expected_amount_overridden %}修改特殊金額{% else %}本單特殊撥款{% endif %}</summary>
-              <label>調整後預計金額<input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="expected_amount" value="{{ record.expected_amount|floatformat:0 }}"></label>
+              <label>調整後預計金額<input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="expected_amount" value="{{ record.expected_amount|floatformat:0 }}" data-expected-input></label>
             </details>
             {% endif %}
             {% endif %}
           </td>
           {% if record.confirmed %}
           <td data-label="實際金額" class="number-cell"><strong>${{ record.received_amount|number_with_commas }}</strong></td>
-          <td data-label="撥款差額" class="number-cell reconciliation-difference {% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">撥款差額</span>{% if record.reconciliation_receipt_only %}<span>—</span>{% else %}<strong>${{ record.reconciliation_difference|number_with_commas }}</strong>{% endif %}</td>
-          <td data-label="入帳日期">{{ record.received_on|date:"Y/m/d"|default:"—" }}</td>
-          <td class="inventory-row-action reconciliation-posted"><span class="status-pill success">已入帳</span><small>更正請到<a href="{% url 'order_operations' record.order_id %}">訂單收款</a>修改</small></td>
+          <td data-label="差額" class="number-cell reconciliation-difference{% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %} difference-warning{% endif %}"><span class="mobile-field-label">差額</span>{% if record.reconciliation_receipt_only %}<span class="reconciliation-muted">—</span>{% else %}<strong>{% if record.reconciliation_difference > 0 %}+{% endif %}${{ record.reconciliation_difference|number_with_commas }}</strong>{% endif %}</td>
+          <td data-label="確認日期">{{ record.reconciliation_confirmed_on|date:"Y/m/d"|default:"—" }}</td>
+          <td class="inventory-row-action reconciliation-posted">
+            <span class="status-pill success">已入帳</span>
+            {% if record.reconciliation_correctable %}
+            <form method="post" action="{% url 'reconciliation_unconfirm' record.pk %}" data-confirm="取消 {{ record.order.number }} 的入帳？訂單收支會回到入帳前的預估車價收入，改好金額後再按入帳。">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button ghost small" type="submit">取消入帳</button></form>
+            {% endif %}
+          </td>
           {% else %}
-          <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{{ record.received_amount|floatformat:0 }}" aria-label="{{ record.order.number }} 實際金額"></td>
-          <td data-label="撥款差額" class="number-cell reconciliation-difference {% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">撥款差額</span>{% if record.reconciliation_receipt_only %}<span>—</span>{% else %}<strong>${{ record.reconciliation_difference|number_with_commas }}</strong>{% endif %}</td>
-          <td data-label="入帳日期"><input class="form-control" form="reconciliation-{{ record.pk }}" type="date" name="received_on" value="{{ record.received_on|date:'Y-m-d' }}"></td>
+          <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{% if record.reconciliation_prefill %}{{ record.reconciliation_prefill|floatformat:0 }}{% endif %}" placeholder="0" aria-label="{{ record.order.number }} 實際金額" data-actual-input{% if not record.reconciliation_receipt_only %} data-expected="{{ record.expected_amount|floatformat:0 }}"{% endif %}>{% if record.reconciliation_platform and record.reconciliation_prefill and not record.received_amount %}<small class="reconciliation-hint">已帶入收支的預估撥款</small>{% endif %}</td>
+          <td data-label="差額" class="number-cell reconciliation-difference"><span class="mobile-field-label">差額</span>{% if record.reconciliation_receipt_only %}<span class="reconciliation-muted">—</span>{% else %}<span class="reconciliation-pending">待入帳</span><small class="reconciliation-preview" data-difference-preview hidden></small>{% endif %}</td>
+          <td data-label="確認日期"><span class="reconciliation-muted reconciliation-auto-date" title="按下入帳當天自動記錄">按入帳自動記</span></td>
           <td class="inventory-row-action">
             <form id="reconciliation-{{ record.pk }}" method="post" action="{% url 'reconciliation_update' record.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="note" value="{{ record.note }}">{% if duplicate_pk == record.pk %}<label class="compact-check reconciliation-duplicate"><input type="checkbox" name="duplicate_confirmed"><span>確認非重複收款</span></label>{% endif %}<button class="button primary small" type="submit">入帳</button></form>
           </td>
           {% endif %}
         </tr>
-      {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>目前沒有符合條件的對帳資料</strong></div></td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>目前沒有符合條件的對帳資料</strong><p>只有系統建立的分期單（含車行來源）與網路平台單需要對帳。</p></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+{% if has_platform_pending %}
+<form id="reconciliation-batch" class="form-savebar reconciliation-batch" method="post" action="{% url 'reconciliation_batch' %}" data-reconciliation-batch hidden>
+  {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <span class="form-savebar__hint reconciliation-batch__summary" aria-live="polite"><span class="reconciliation-batch__label">平台合併撥款</span><span><b data-batch-count>0</b> 張</span><span class="reconciliation-batch__total">合計 <b data-batch-total>$0</b></span></span>
+  <div>
+    <button class="button ghost" type="button" data-batch-clear>清除勾選</button>
+    <button class="button primary" type="submit" data-batch-submit>一起入帳</button>
+  </div>
+</form>
+{% endif %}
 {% pagination page_obj aria_label="撥款對帳分頁" %}
+<script src="{% static 'js/reconciliation.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

@@ -28,6 +28,13 @@ docs/context/CURRENT_STATE.md、docs/context/BUSINESS_RULES.md、docs/context/HA
 - 教學錄影腳本 `scenarios/open_order.py` 寫於建立訂單改為多筆付款前，重錄前先試跑核對選擇器。
 - 正式主機 SSH：`ssh -i "C:/Users/user/.ssh/line_monitor_ubuntu_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes t470p "<指令>"`；專案目錄 `/home/audi/project/DMIS-next`；僅限已授權維運。
 
+## Rollback 注意事項
+
+- T-96 統一撥款對帳（2026-10-22）：
+  - 回到上一版：部署上一版，反向 migration 0196 只刪除未入帳、金額 0 的平台撥款列。14760B 重算後的預計撥款 28,800 保留，不還原。
+  - 已入帳的平台單：如果平台撥款已在對帳頁入帳過才 rollback，舊版不認得平台撥款列（`system_key=platform_disbursement`）。之後該訂單只要再同步一次收款，收支的「實際車價收入」就會還原成入帳前的人工值。
+  - 做法：rollback 前先唯讀列出已入帳的平台撥款列，回舊版後逐張到收支人工重填；否則不要 rollback，改以修正版往前修。
+
 ## 下一步
 
 等使用者新需求；從 [AGENTS](../../AGENTS.md) 路由定位，不自動寫入正式資料。

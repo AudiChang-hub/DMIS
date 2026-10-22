@@ -34,7 +34,7 @@ def _expected_installment_disbursement(order):
 def _upsert_system_payment(order, key, defaults, *, update_receivables=False):
     from sales.models import PaymentRecord
 
-    defaults = {**defaults, "receipt_kind": "lender" if key == "installment_disbursement" else "customer"}
+    defaults = {**defaults, "receipt_kind": "lender" if key in PaymentRecord.PAYOUT_KEYS else "customer"}
     payment, created = PaymentRecord.objects.get_or_create(
         order=order,
         system_key=key,
@@ -70,7 +70,7 @@ def refresh_payment_confirmation(order_id):
     records = list(PaymentRecord.objects.filter(order_id=order_id))
     confirmed = payment_summary(profile.order, records)["settled"]
     # 匯款已確認不等於所有款項已收清；短款仍由 payment_confirmed／應收差額呈現。
-    installment_confirmed = any(
+    installment_confirmed = profile.order.payment_type == "installment" and any(
         p.confirmed and p.effective_receipt_kind == "lender" and p.entry_type == "receipt"
         for p in effective_records(records)
     )
@@ -243,6 +243,21 @@ def sync_order_operations(order_id, *, update_receivables=False):
     else:
         cash_due = default_customer_balance(order)
         active_keys.add("balance")
+    if order.payout_reconciliation_kind == "platform":
+        # 平台撥款列（使用者 2026-10-22 T-96）：平台不先給預計金額，應收 0，只在統一撥款對帳登記實收。
+        active_keys.add("platform_disbursement")
+        _upsert_system_payment(
+            order,
+            "platform_disbursement",
+            {
+                "item_name": "平台撥款",
+                "expected_amount": Decimal("0"),
+                "received_amount": Decimal("0"),
+                "received_on": None,
+                "payment_method": "平台撥款",
+            },
+            update_receivables=update_receivables,
+        )
     # 這一列是扣訂金後還要收的錢，分期、現金都叫「尾款」；分期外應收是扣訂金前的金額，
     # 只在訂購單與訂單頁另外列（使用者 2026-10-20）。舊名稱由 rename_balance_payment_label 回填。
     balance_label = BALANCE_LABEL

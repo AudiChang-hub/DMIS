@@ -4519,23 +4519,23 @@ def operations_report(request):
 
 
 def _reconciliation_queryset(request):
-    records = PaymentRecord.objects.filter(order__deleted_at__isnull=True).exclude(system_key="deposit").select_related(
+    # 統一撥款對帳只核對事後才撥入的車款（使用者 2026-10-22 T-96）：系統建立的分期單（車行來源也算）對分期公司撥款、
+    # 網路平台單對平台撥款。現金、刷卡、匯款、客人另付的款項與 Excel 匯入單都不列，已入帳的紀錄照舊保留。
+    records = PaymentRecord.objects.filter(
+        order__deleted_at__isnull=True, order__legacy_snapshot__isnull=True,
+    ).select_related(
         "order",
         "order__source",
         "order__vehicle_model",
         "order__color",
-    ).filter(
-        Q(receipt_kind="lender") | Q(system_key="installment_disbursement")
-        | Q(
-            receipt_kind="customer",
-            order__source_type__in=[
-                SalesOrder.SourceType.PLATFORM,
-                SalesOrder.SourceType.DEALER,
-            ],
-        )
+        "order__operations",
+    ).prefetch_related("reversal_entries").filter(
+        Q(receipt_kind="lender") | Q(system_key__in=PaymentRecord.PAYOUT_KEYS),
+        Q(order__payment_type=SalesOrder.PaymentType.INSTALLMENT)
+        | Q(order__source_type=SalesOrder.SourceType.PLATFORM),
     )
     records = records.exclude(
-        system_key__in=["balance", "installment_disbursement"], order__operations__payment_confirmed=True,
+        system_key="installment_disbursement", order__operations__payment_confirmed=True,
         received_amount=0, confirmed=False, confirmed_at__isnull=True, confirmed_by="",
         received_on__isnull=True, receiving_account="", proof="", note="",
         card_principal=0, card_fee_charged=0, bank_card_fee=0,
@@ -4551,17 +4551,9 @@ def _reconciliation_queryset(request):
         )
     channel = request.GET.get("channel", "")
     if channel == "installment":
-        records = records.filter(Q(receipt_kind="lender") | Q(system_key="installment_disbursement"))
+        records = records.exclude(order__source_type=SalesOrder.SourceType.PLATFORM)
     elif channel == "platform":
-        records = records.filter(
-            receipt_kind="customer",
-            order__source_type=SalesOrder.SourceType.PLATFORM,
-        )
-    elif channel == "dealer":
-        records = records.filter(
-            receipt_kind="customer",
-            order__source_type=SalesOrder.SourceType.DEALER,
-        )
+        records = records.filter(order__source_type=SalesOrder.SourceType.PLATFORM)
     status = request.GET.get("status", "")
     if status == "confirmed":
         records = records.filter(confirmed=True)
@@ -4575,31 +4567,116 @@ def _reconciliation_queryset(request):
 
 
 def _decorate_reconciliation_record(record):
-    record.reconciliation_receipt_only = not record.system_key and record.expected_amount == 0
-    if record.effective_receipt_kind == "lender":
-        record.reconciliation_channel = "installment"
-        record.reconciliation_channel_label = "分期公司"
-        record.reconciliation_party = record.order.installment_company or "未填分期公司"
-    elif record.order.source_type == SalesOrder.SourceType.PLATFORM:
-        record.reconciliation_channel = "platform"
-        record.reconciliation_channel_label = "網路平台"
-        record.reconciliation_party = (
-            record.order.source.name if record.order.source_id else "未填平台"
-        )
-    else:
-        record.reconciliation_channel = "dealer"
-        record.reconciliation_channel_label = "車行"
-        record.reconciliation_party = (
-            record.order.source.name if record.order.source_id else "未填車行"
-        )
-    record.reconciliation_difference = (
-        record.received_amount - record.expected_amount
+    order = record.order
+    record.reconciliation_platform = order.source_type == SalesOrder.SourceType.PLATFORM
+    # 平台撥款沒有預計金額，不算差額，只記實際撥款（T-96）；舊的人工收款列沿用「只記實收」。
+    record.reconciliation_receipt_only = record.reconciliation_platform or (
+        not record.system_key and record.expected_amount == 0
     )
+    if record.reconciliation_platform:
+        record.reconciliation_channel = "platform"
+        record.reconciliation_channel_label = "平台撥款"
+        record.reconciliation_party = order.source.name if order.source_id else "未填平台"
+    else:
+        record.reconciliation_channel = "installment"
+        record.reconciliation_channel_label = "分期公司撥款"
+        record.reconciliation_party = order.installment_company or "未填分期公司"
+    # 差額＝實際－預計，按下入帳後才算；之前只顯示「待入帳」（T-96）。
+    record.reconciliation_difference = record.received_amount - record.expected_amount
     record.reconciliation_state = ("已入帳" if record.confirmed else
-        "已填金額，按儲存入帳" if record.received_amount > 0 else
         "預計金額待核對" if record.expected_amount == 0 and not record.reconciliation_receipt_only else
-        "尚未入帳")
+        "待入帳")
+    record.reconciliation_confirmed_on = (
+        timezone.localtime(record.confirmed_at).date() if record.confirmed_at else record.received_on
+    )
+    prefill = record.received_amount
+    if not record.confirmed and not prefill and record.reconciliation_platform:
+        # 收支先填的預估平台撥款帶進實際金額，由人員核對後按入帳；不先寫進收款紀錄。
+        operations = getattr(order, "operations", None)
+        prefill = operations.actual_disbursement if operations else Decimal("0")
+    record.reconciliation_prefill = prefill or Decimal("0")
+    record.reconciliation_correctable = bool(
+        record.confirmed and not record.is_adjustment and not order.is_settled_closed
+        and not record.reversal_entries.all()
+    )
     return record
+
+
+def _reconciliation_eligible(record):
+    return (
+        record.effective_receipt_kind == PaymentRecord.ReceiptKind.LENDER
+        and bool(record.order.payout_reconciliation_kind)
+    )
+
+
+def _reconciliation_redirect(request):
+    next_url = request.POST.get("next")
+    if not url_has_allowed_host_and_scheme(
+        url=next_url or "",
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = None
+    return redirect(next_url or "reconciliation_list")
+
+
+def _reconciliation_state_text(record):
+    return "已入帳" if record.confirmed else "尚未入帳"
+
+
+def _post_reconciliation(request, record, data, *, batch_label=""):
+    """登記一筆撥款入帳並留下異動紀錄；回傳表單，呼叫端依 is_valid() 顯示結果。"""
+    was_confirmed = record.confirmed
+    before = {
+        "預計金額": str(record.expected_amount),
+        "實際金額": str(record.received_amount),
+        "確認日期": str(record.received_on or ""),
+        "入帳狀態": _reconciliation_state_text(record),
+    }
+    form = ReconciliationRecordForm(data, instance=record)
+    if not form.is_valid():
+        return form
+    record = form.save(commit=False)
+    if record.confirmed and not was_confirmed:
+        record.confirmed_by = _editing_name(request.user)
+        record.confirmed_at = timezone.now()
+    elif not record.confirmed:
+        record.confirmed_by = ""
+        record.confirmed_at = None
+    record.save()
+    _record_duplicate_acknowledgements(record.order, [form], request.user)
+    refresh_payment_confirmation(record.order_id)
+    after = {
+        "預計金額": str(record.expected_amount),
+        "實際金額": str(record.received_amount),
+        "確認日期": str(record.received_on or ""),
+        "入帳狀態": _reconciliation_state_text(record),
+    }
+    OrderChange.objects.create(
+        order=record.order,
+        reason=f"統一對帳更新：{record.item_name}",
+        changes={
+            key: {"before": before[key], "after": value}
+            for key, value in after.items()
+            if before[key] != value
+        },
+        actor_name=_editing_name(request.user),
+    )
+    description = (
+        f"更新{record.item_name}：預計 {record.expected_amount:.0f} 元、"
+        f"實際 {record.received_amount:.0f} 元。"
+    )
+    OrderEvent.objects.create(
+        order=record.order,
+        event_type="reconciliation_updated",
+        description=description + batch_label,
+        actor_name=_editing_name(request.user),
+    )
+    return form
+
+
+def _form_error_text(form):
+    return " ".join(error for errors in form.errors.values() for error in errors)
 
 
 @login_required
@@ -4618,75 +4695,34 @@ def reconciliation_list(request):
             "page_obj": page,
             "selected": request.GET,
             "duplicate_pk": request.session.pop("reconciliation_duplicate_pk", None),
+            "has_platform_pending": any(r.reconciliation_platform and not r.confirmed for r in records),
         },
+    )
+
+
+def _lock_reconciliation_record(pk):
+    order_id = get_object_or_404(PaymentRecord, pk=pk).order_id
+    get_object_or_404(SalesOrder.objects.select_for_update(), pk=order_id)
+    return get_object_or_404(
+        PaymentRecord.objects.select_for_update().select_related("order"),
+        pk=pk,
     )
 
 
 @login_required
 @transaction.atomic
 def reconciliation_update(request, pk):
-    order_id = get_object_or_404(PaymentRecord, pk=pk).order_id
-    get_object_or_404(SalesOrder.objects.select_for_update(), pk=order_id)
-    record = get_object_or_404(
-        PaymentRecord.objects.select_for_update().select_related("order"),
-        pk=pk,
-    )
-    eligible = record.effective_receipt_kind == "lender" or (
-        record.effective_receipt_kind == "customer"
-        and record.order.source_type
-        in {SalesOrder.SourceType.PLATFORM, SalesOrder.SourceType.DEALER}
-    )
-    if request.method != "POST" or not eligible:
+    record = _lock_reconciliation_record(pk)
+    if request.method != "POST" or not _reconciliation_eligible(record):
         messages.error(request, "此筆資料不屬於統一對帳範圍。")
         return redirect("reconciliation_list")
     if record.order.is_settled_closed or record.is_adjustment:
         messages.error(request, "已取消訂單的收款與沖銷／退款紀錄已結算，不能修改。")
         return redirect("reconciliation_list")
     was_confirmed = record.confirmed
-    before = {
-        "預計金額": str(record.expected_amount),
-        "實際金額": str(record.received_amount),
-        "入帳日期": str(record.received_on or ""),
-        "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
-    }
-    form = ReconciliationRecordForm(request.POST, instance=record)
+    form = _post_reconciliation(request, record, request.POST)
     if form.is_valid():
-        record = form.save(commit=False)
-        if record.confirmed and not was_confirmed:
-            record.confirmed_by = _editing_name(request.user)
-            record.confirmed_at = timezone.now()
-        elif not record.confirmed:
-            record.confirmed_by = ""
-            record.confirmed_at = None
-        record.save()
-        _record_duplicate_acknowledgements(record.order, [form], request.user)
-        refresh_payment_confirmation(record.order_id)
-        after = {
-            "預計金額": str(record.expected_amount),
-            "實際金額": str(record.received_amount),
-            "入帳日期": str(record.received_on or ""),
-            "入帳狀態": "已入帳" if record.confirmed else "尚未入帳",
-        }
-        changes = {
-            key: {"before": before[key], "after": value}
-            for key, value in after.items()
-            if before[key] != value
-        }
-        OrderChange.objects.create(
-            order=record.order,
-            reason=f"統一對帳更新：{record.item_name}",
-            changes=changes,
-            actor_name=_editing_name(request.user),
-        )
-        OrderEvent.objects.create(
-            order=record.order,
-            event_type="reconciliation_updated",
-            description=(
-                f"更新{record.item_name}：預計 {record.expected_amount:.0f} 元、"
-                f"實際 {record.received_amount:.0f} 元。"
-            ),
-            actor_name=_editing_name(request.user),
-        )
+        record = form.instance
         messages.success(
             request,
             f"已登記 {record.order.number} 實際入帳 {record.received_amount:,.0f} 元，訂單收支已同步。"
@@ -4696,20 +4732,99 @@ def reconciliation_update(request, pk):
         if getattr(form, "duplicate_of", None) is not None:
             # 對帳頁平時不顯示「非重複」勾選，只在被擋下的那一列出現。
             request.session["reconciliation_duplicate_pk"] = record.pk
-        messages.error(
-            request,
-            "對帳更新失敗：" + " ".join(
-                error for errors in form.errors.values() for error in errors
-            ),
-        )
-    next_url = request.POST.get("next")
-    if not url_has_allowed_host_and_scheme(
-        url=next_url or "",
-        allowed_hosts={request.get_host()},
-        require_https=request.is_secure(),
-    ):
-        next_url = None
-    return redirect(next_url or "reconciliation_list")
+        messages.error(request, "對帳更新失敗：" + _form_error_text(form))
+    return _reconciliation_redirect(request)
+
+
+@login_required
+@transaction.atomic
+def reconciliation_unconfirm(request, pk):
+    """取消入帳（T-96）：入帳後訂單收支鎖定，金額登記錯了在對帳頁取消、改正後再入帳。"""
+    record = _lock_reconciliation_record(pk)
+    if request.method != "POST" or not _reconciliation_eligible(record):
+        messages.error(request, "此筆資料不屬於統一對帳範圍。")
+        return redirect("reconciliation_list")
+    if not record.confirmed:
+        messages.info(request, f"{record.order.number} 這筆還沒入帳。")
+        return _reconciliation_redirect(request)
+    if record.order.is_settled_closed or record.is_adjustment or record.reversal_entries.exists():
+        messages.error(request, "已沖銷或已結算的撥款不能取消入帳。")
+        return _reconciliation_redirect(request)
+    record.confirmed = False
+    record.confirmed_by = ""
+    record.confirmed_at = None
+    record.save(update_fields=["confirmed", "confirmed_by", "confirmed_at", "updated_at"])
+    refresh_payment_confirmation(record.order_id)
+    OrderChange.objects.create(
+        order=record.order,
+        reason=f"統一對帳取消入帳：{record.item_name}",
+        changes={"入帳狀態": {"before": "已入帳", "after": "尚未入帳"}},
+        actor_name=_editing_name(request.user),
+    )
+    OrderEvent.objects.create(
+        order=record.order,
+        event_type="reconciliation_updated",
+        description=f"取消{record.item_name}入帳（原登記 {record.received_amount:.0f} 元），回到待入帳。",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"已取消 {record.order.number} 的入帳，改好金額後再按「入帳」。")
+    return _reconciliation_redirect(request)
+
+
+@login_required
+@transaction.atomic
+def reconciliation_batch(request):
+    """平台合併撥款（使用者 2026-10-22 T-96）：平台一次撥多張單時，勾選各單、各填金額，一起入帳；
+    任何一張失敗就全部不入帳，避免合計對不上。"""
+    if request.method != "POST":
+        return redirect("reconciliation_list")
+    ids = list(dict.fromkeys(int(value) for value in request.POST.getlist("records") if value.isdigit()))
+    if not ids:
+        messages.error(request, "請先勾選要一起入帳的平台撥款。")
+        return _reconciliation_redirect(request)
+    order_ids = set(PaymentRecord.objects.filter(pk__in=ids).values_list("order_id", flat=True))
+    list(SalesOrder.objects.select_for_update().filter(pk__in=order_ids).order_by("pk"))
+    records = list(
+        PaymentRecord.objects.select_for_update().select_related("order").filter(pk__in=ids).order_by("pk")
+    )
+    errors = []
+    if len(records) != len(ids):
+        errors.append("有勾選的資料已不存在，請重新整理")
+    batch_label = f"（與其他 {len(ids) - 1} 張平台單合併入帳）" if len(ids) > 1 else ""
+    savepoint = transaction.savepoint()
+    posted = []
+    for record in records:
+        number = record.order.number
+        if not _reconciliation_eligible(record) or record.order.source_type != SalesOrder.SourceType.PLATFORM:
+            errors.append(f"{number} 不是平台撥款")
+        elif record.confirmed:
+            errors.append(f"{number} 已經入帳")
+        elif record.order.is_settled_closed or record.is_adjustment:
+            errors.append(f"{number} 已結算，不能入帳")
+        else:
+            form = _post_reconciliation(request, record, {
+                "received_amount": request.POST.get(f"amount_{record.pk}", ""),
+                "expected_amount": record.expected_amount,
+                "note": record.note,
+                "duplicate_confirmed": request.POST.get(f"duplicate_{record.pk}", ""),
+            }, batch_label=batch_label)
+            if not form.is_valid():
+                errors.append(f"{number}：{_form_error_text(form)}")
+            elif not form.instance.confirmed:
+                errors.append(f"{number} 沒有填實際金額")
+            else:
+                posted.append(form.instance)
+    if errors:
+        transaction.savepoint_rollback(savepoint)
+        messages.error(request, "合併入帳沒有完成，勾選的單都維持待入帳：" + "；".join(errors) + "。")
+        return _reconciliation_redirect(request)
+    transaction.savepoint_commit(savepoint)
+    total = sum((record.received_amount for record in posted), Decimal("0"))
+    messages.success(
+        request,
+        f"已合併入帳 {len(posted)} 筆平台撥款，合計 {total:,.0f} 元，各訂單收支已同步。",
+    )
+    return _reconciliation_redirect(request)
 
 
 @login_required
@@ -5712,7 +5827,7 @@ def _payment_deletion_snapshot(payment):
     """刪除收款前的內容快照（處理紀錄用）：項目、分類、應收、實收、日期、方式、確認狀態與備註。"""
     parts = [
         payment.item_name or "收款",
-        "分期公司撥款" if payment.effective_receipt_kind == "lender" else "客戶收款",
+        payment.receipt_kind_label,
         f"實收 ${payment.received_amount or 0:,.0f}",
         f"應收 ${payment.expected_amount or 0:,.0f}",
     ]
@@ -5895,10 +6010,9 @@ def order_operations(request, pk):
                 update_receivables=plate_income_changed and order.payment_type == SalesOrder.PaymentType.INSTALLMENT,
             )
             from .services.operations_sync import sync_payment_financials
-            adopted = next((payment for payment in payments if payment.confirmed and (
-                payment.effective_receipt_kind == "lender" or
-                (payment.effective_receipt_kind == "customer" and payment.system_key != "deposit" and order.source_type == SalesOrder.SourceType.PLATFORM)
-            )), None)
+            from .services.payment_summary import disbursement_receipts
+            adoptable = {payment.pk for payment in disbursement_receipts(order, PaymentRecord.objects.filter(order=order))}
+            adopted = next((payment for payment in payments if payment.pk in adoptable), None)
             sync_payment_financials(order.pk, adopt_payment_id=adopted.pk if adopted else None)
             profile.refresh_from_db()
             if form.cleaned_data.get("confirm_legacy_finance"):

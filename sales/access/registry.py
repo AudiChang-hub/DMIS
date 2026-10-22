@@ -93,7 +93,7 @@ register("work", "form_print_pdf", "export")
 register("work", "form_print_envelopes", "export")
 register("operations", "operations_report")
 register("operations", "operations_report_export", "export")
-register("reconciliation", "reconciliation_list reconciliation_update")
+register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
 register("inventory", "inventory_list")
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_allocation_priority", "operate")
 # 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。

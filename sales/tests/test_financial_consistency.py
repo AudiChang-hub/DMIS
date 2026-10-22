@@ -55,7 +55,7 @@ class FinancialConsistencyTests(TestCase):
 
     def test_payment_confirmation_from_any_entry_updates_profit_and_reversal(self):
         order = self.order(source_type="platform", source=self.platform)
-        payment = order.payment_records.get(system_key="balance")
+        payment = order.payment_records.get(system_key="platform_disbursement")
         payment.received_amount = 65000
         payment.confirmed = True
         payment.save()
@@ -68,7 +68,7 @@ class FinancialConsistencyTests(TestCase):
         reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="金額登記錯誤")
         self.assertEqual(self.profile(order).net_profit, 0)
         self.assertEqual(self.profile(order).payment_disbursement_snapshot, {})
-        PaymentRecord.objects.create(order=order, item_name="平台撥款更正", received_amount=66000,
+        PaymentRecord.objects.create(order=order, item_name="平台撥款更正", receipt_kind="lender", received_amount=66000,
                                      received_on=date(2026, 9, 3), confirmed=True)
         self.assertEqual(self.profile(order).net_profit, 66000)
 
@@ -78,7 +78,7 @@ class FinancialConsistencyTests(TestCase):
         profile.actual_disbursement = 63000
         profile.manual_financial_fields = ["actual_disbursement"]
         profile.save()
-        payment = order.payment_records.get(system_key="balance")
+        payment = order.payment_records.get(system_key="platform_disbursement")
         payment.received_amount = 65000
         payment.confirmed = True
         payment.save()
@@ -91,14 +91,14 @@ class FinancialConsistencyTests(TestCase):
     def test_read_sync_does_not_adopt_old_confirmed_manual_disbursement(self):
         order = self.order(source_type="platform", source=self.platform)
         OrderOperationsProfile.objects.filter(order=order).update(actual_disbursement=61234)
-        order.payment_records.filter(system_key="balance").update(received_amount=62000, confirmed=True)
+        order.payment_records.filter(system_key="platform_disbursement").update(received_amount=62000, confirmed=True)
         sync_order_operations(order.pk)
         self.assertEqual(self.profile(order).actual_disbursement, 61234)
         self.assertEqual(self.profile(order).payment_disbursement_snapshot, {})
 
     def test_confirmed_disbursement_is_readonly_in_operations_form(self):
         order = self.order(source_type="platform", source=self.platform)
-        payment = order.payment_records.get(system_key="balance")
+        payment = order.payment_records.get(system_key="platform_disbursement")
         payment.received_amount, payment.confirmed = 65000, True
         payment.save()
         self.assertTrue(OrderOperationsForm(instance=self.profile(order)).fields["actual_disbursement"].disabled)
@@ -220,7 +220,7 @@ class FinancialConsistencyTests(TestCase):
 
     def test_reconciliation_confirm_and_revoke_updates_profit(self):
         order = self.order(source_type="platform", source=self.platform)
-        payment = order.payment_records.get(system_key="balance")
+        payment = order.payment_records.get(system_key="platform_disbursement")
         self.client.force_login(self.user)
         data = dict(expected_amount="70000", received_amount="68000", received_on="2026-09-03")
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
@@ -239,7 +239,7 @@ class FinancialConsistencyTests(TestCase):
 
     def test_reconciliation_zero_amount_stays_pending_and_page_has_no_confirm_or_account(self):
         order = self.order(source_type="platform", source=self.platform)
-        payment = order.payment_records.get(system_key="balance")
+        payment = order.payment_records.get(system_key="platform_disbursement")
         self.client.force_login(self.user)
         self.client.post(reverse("reconciliation_update", args=[payment.pk]),
                          dict(expected_amount="70000", received_amount="0", received_on=""))
@@ -257,9 +257,9 @@ class FinancialConsistencyTests(TestCase):
 
     def test_reconciliation_duplicate_receipt_shows_acknowledgement_only_on_blocked_row(self):
         order = self.order(source_type="platform", source=self.platform)
-        PaymentRecord.objects.create(order=order, item_name="平台另一筆", received_amount=5000,
-                                     received_on=date(2026, 9, 3), confirmed=True)
-        payment = order.payment_records.get(system_key="balance")
+        PaymentRecord.objects.create(order=order, item_name="平台另一筆", receipt_kind="lender", received_amount=5000,
+                                     received_on=timezone.localdate(), confirmed=True)
+        payment = order.payment_records.get(system_key="platform_disbursement")
         self.client.force_login(self.user)
         data = dict(expected_amount="70000", received_amount="5000", received_on="2026-09-03")
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)

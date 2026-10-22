@@ -3403,6 +3403,10 @@ class PaymentRecordForm(forms.ModelForm):
                 self.fields[name].disabled = True
                 self.fields[name].help_text = "由訂單自動同步。"
             self.initial["receipt_kind"] = self.instance.effective_receipt_kind
+            if self.instance.system_key == "platform_disbursement":
+                # 平台撥款列與分期公司撥款同屬撥款，畫面上照實稱「平台撥款」（T-96）。
+                self.fields["receipt_kind"].choices = [(PaymentRecord.ReceiptKind.LENDER, "平台撥款")]
+                widget.choices = [*(choice for choice in widget.choices if choice[0] != "平台撥款"), ("平台撥款", "平台撥款")]
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
             if isinstance(field, forms.DecimalField):
@@ -3618,13 +3622,12 @@ class ReconciliationRecordForm(forms.ModelForm):
 
     class Meta:
         model = PaymentRecord
+        # 確認日期不手填，按下入帳當天由系統記錄（使用者 2026-10-22 T-96）。
         fields = [
             "expected_amount",
             "received_amount",
-            "received_on",
             "note",
         ]
-        widgets = {"received_on": DateInput()}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3651,6 +3654,8 @@ class ReconciliationRecordForm(forms.ModelForm):
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         # 對帳頁不另勾確認：填入實際金額即視為已入帳，訂單收支隨即同步。
         cleaned["confirmed"] = self.was_confirmed or bool(cleaned.get("received_amount"))
+        if cleaned["confirmed"] and not self.was_confirmed:
+            self.instance.received_on = cleaned["received_on"] = timezone.localdate()
         check_duplicate_receipt(self, cleaned, order=self.instance.order, kind=self.instance.effective_receipt_kind)
         expected = cleaned.get("expected_amount")
         if expected is None:

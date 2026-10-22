@@ -304,10 +304,8 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(actions.primary.key, "registration")
         self.assertEqual(actions.primary.tone, "urgent")
         self.assertIn("2026/08/06", actions.primary.description)
-        reconciliation = next(
-            action for action in actions.secondary if action.key == "reconciliation"
-        )
-        self.assertIn("2026/08/12", reconciliation.description)
+        # 車行尾款的七個工作天期限改由首頁車行提醒處理，車行單不進統一撥款對帳（T-96）。
+        self.assertNotIn("reconciliation", [action.key for action in actions.secondary])
 
     def test_refund_pending_suppresses_every_other_action_and_cancelled_is_quiet(self):
         order = self.make_order(subsidy=True)
@@ -335,16 +333,17 @@ class OrderNextActionTests(TestCase):
 
         # 1.80.0：已交車沒有其他待辦時，提醒人員確認結案。
         self.assertEqual(self.build(store_cash).primary.key, "close")
-        self.assertEqual(self.build(dealer_cash).primary.key, "reconciliation")
+        # T-96：車行單不做撥款對帳；系統建立的分期單要先在統一撥款對帳入帳。
+        self.assertEqual(self.build(dealer_cash).primary.key, "close")
         self.assertEqual(self.build(store_installment).primary.key, "reconciliation")
 
         PaymentRecord.objects.filter(
-            order=dealer_cash,
-            system_key="balance",
+            order=store_installment,
+            system_key="installment_disbursement",
         ).update(confirmed=True)
-        self.assertEqual(self.build(dealer_cash).primary.key, "close")
-        SalesOrder.objects.filter(pk=dealer_cash.pk).update(closed_at=timezone.now())
-        self.assertIsNone(self.build(dealer_cash))
+        self.assertEqual(self.build(store_installment).primary.key, "close")
+        SalesOrder.objects.filter(pk=store_installment.pk).update(closed_at=timezone.now())
+        self.assertIsNone(self.build(store_installment))
 
     def test_order_detail_has_no_suggestion_block(self):
         # 使用者 2026-10-20：「目前無可配車輛／前往快速進車」「另外可處理」這類建議區塊全部移除；左側步驟仍標目前步驟。

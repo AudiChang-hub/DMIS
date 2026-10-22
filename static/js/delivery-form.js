@@ -1,7 +1,10 @@
-document.addEventListener("DOMContentLoaded", () => {
+// 交車區塊會隨原地更新整塊換新（使用者 2026-10-22 T-92）：每張交車表單只綁一次，換新後再綁新的表單。
+function bindDeliveryForms(scope = document) {
+  const forms = Array.from(scope.querySelectorAll(".delivery-completion-form:not([data-delivery-bound])"));
+  forms.forEach((form) => { form.dataset.deliveryBound = ""; });
   // 交車收尾款（使用者 2026-10-22 T-75）：應收大於 0 時，實收金額大於或等於應收才能按「收尾款並完成交車」；
   // 應收為 0 不卡。交車條件不符（原因清單有內容）時照舊停用。送出時後端再用同一規則驗證。
-  document.querySelectorAll(".delivery-completion-form").forEach((form) => {
+  forms.forEach((form) => {
     const fieldset = document.getElementById("delivery-balance");
     const amount = form.elements.namedItem("balance-received_amount");
     const button = form.querySelector('.delivery-completion-actions button[type="submit"]');
@@ -41,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // 交付核對四項可一次全部勾選；再按一次取消，方便發現漏看時重來。
-  document.querySelectorAll(".delivery-completion-form").forEach((form) => {
+  forms.forEach((form) => {
     const button = form.querySelector("[data-delivery-check-all]");
     const count = form.querySelector("[data-delivery-checklist-count]");
     const checks = ["condition_checked", "documents_checked", "keys_checked", "accessories_checked", "vehicle_control_checked"]
@@ -68,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     sync();
   });
 
-  document.querySelectorAll(".delivery-completion-form").forEach((form) => {
+  forms.forEach((form) => {
     const conditionInputs = Array.from(
       form.querySelectorAll('[name="vehicle_condition_note"]')
     );
@@ -85,4 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     syncDamageDetails();
   });
-});
+}
+
+document.addEventListener("DOMContentLoaded", () => bindDeliveryForms());
+document.addEventListener("inplace:updated", (event) => event.detail.regions.forEach((region) => bindDeliveryForms(region)));

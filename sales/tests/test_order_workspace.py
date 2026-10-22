@@ -103,9 +103,22 @@ class OrderWorkspaceTests(TestCase):
         data['operations-financial_revision'] = 'stale'
         data['operations-shipping_expense'] = '800'
         response = self.post('order_operations', data)
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(response.json()['ok'])
+        # 版本衝突不是欄位錯誤：回 409、只給「請重新整理」的說明，不叫人修正欄位（使用者 2026-10-22 T-92）。
+        self.assertEqual(response.status_code, 409)
+        payload = response.json()
+        self.assertFalse(payload['ok'])
+        self.assertEqual(payload['error'], '這張訂單剛被系統或他人更新，請重新整理頁面後再修改。')
+        self.assertEqual(payload['errors'], {})
         self.assertEqual(self.order.operations.shipping_expense, 0)
+
+    def test_ajax_finance_field_error_keeps_field_list(self):
+        data = self.operations_data()
+        data['operations-shipping_expense'] = 'abc'
+        response = self.post('order_operations', data)
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload['error'], '收支資料未儲存，請修正下列欄位。')
+        self.assertIn('operations-shipping_expense', payload['errors'])
 
     def test_ajax_finance_cannot_override_subsidy_item_total(self):
         data = self.operations_data()

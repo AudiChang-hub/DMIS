@@ -8,6 +8,7 @@
 import re
 import shutil
 import tempfile
+from datetime import date
 from decimal import Decimal
 from io import BytesIO
 
@@ -27,6 +28,7 @@ from sales.models import (
     VehicleColor,
     VehicleInventory,
     VehicleModel,
+    VehicleSettlementCostRule,
 )
 
 ORDER_REGIONS = (
@@ -39,6 +41,7 @@ ORDER_REGIONS = (
     "subsidy-documents",
     "subsidy-completion",
     "order-files",
+    "delivery-stage",
 )
 
 
@@ -200,6 +203,42 @@ class InplaceUploadTests(TestCase):
         self.assertEqual(self.versions(), before)
         self.assertTrue(self.order.signed_contract)
         self.assertTrue(self.order.privacy_consent)
+
+    def test_last_registration_document_refreshes_delivery_stage_and_versions(self):
+        """最後一份領牌文件自動完成領牌、伺服器連帶改了訂單與收支（使用者 2026-10-22 T-92）。
+        原地更新換回的新頁面要帶最新版本號給沒被換掉的自動儲存表單，交車區塊也要整塊換成可交車。"""
+        VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.order.vehicle_model, amount=Decimal("60000"), effective_from=date(2026, 1, 1),
+        )
+        self.order.registration_date = date(2026, 10, 19)
+        self.order.final_plate_number = "ABC-1234"
+        self.order.save(update_fields=["registration_date", "final_plate_number", "updated_at"])
+        stale = self.detail()
+        self.assertIn("一般訂單必須先完成領牌，才可進入交付階段。", stale)
+        before = self.versions()
+        for document_type in (
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        ):
+            response = self.client.post(
+                reverse("registration_document_upload", args=[self.order.pk]),
+                {"document_type": document_type, "file": png()},
+                HTTP_X_INPLACE_FORM="1", HTTP_ACCEPT="text/html",
+            )
+            self.assertEqual(response.status_code, 302)
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.is_registration_complete)
+        revision, financial = self.versions()
+        self.assertNotEqual((revision, financial), before)
+        fresh = self.detail()
+        stage = re.search(r'<section class="section-block delivery-stage" id="delivery-stage" data-inplace-region>.*?</section>', fresh, re.S)
+        self.assertIsNotNone(stage)
+        self.assertIn('id="delivery-completion-form"', stage.group(0))
+        self.assertNotIn("一般訂單必須先完成領牌", stage.group(0))
+        self.assertIn(f'name="_order_revision" value="{revision}"', fresh)
+        if financial:
+            self.assertIn(f'name="operations-financial_revision" value="{financial.isoformat()}"', fresh)
 
 
 class InplaceWholeFormTests(TestCase):

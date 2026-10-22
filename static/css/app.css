@@ -1410,7 +1410,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
   border-radius: var(--radius-pill); font-weight: 700; letter-spacing: .01em;
 }
 .status-pill.large { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
-/* 訂單狀態：每個階段一種色相（草稿灰→待配車紫→已配車青→待交車藍→已交車待補文件綠虛線→已完成實心綠＋勾）；
+/* 訂單狀態：每個階段一種色相（草稿灰→待配車紫→已配車青→待交車藍→已交車待領牌綠虛線→已完成實心綠＋勾）；
    待接單（琥珀粗框）、取消待退款（紅）、已取消（實心灰）、例外結案（灰虛線）另行區分。 */
 .status-pill.status-draft { color: var(--ink-soft); background: var(--line-soft); border-color: var(--line-strong); }
 .status-pill.status-allocation_pending { color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-border); }
@@ -2534,6 +2534,8 @@ input[type="file"].form-control { padding: var(--space-3); }
   padding: 3px var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 900;
 }
 .optional-badge { color: var(--muted); background: var(--surface-soft); }
+/* 領牌條件的文件（行照、登記書，T-95）：中性提示，不是錯誤色。 */
+.optional-badge.is-needed { color: var(--blue); background: var(--blue-soft); }
 .registration-document-row__actions, .other-insurance__item > div {
   display: flex; align-items: center; gap: var(--space-2);
 }

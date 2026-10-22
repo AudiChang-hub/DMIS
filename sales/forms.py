@@ -7,7 +7,7 @@ from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Q
@@ -3288,8 +3288,16 @@ class OrderOperationsForm(forms.ModelForm):
             if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
                 cleaned[name] = Decimal("0")
         if cleaned.get("financial_revision") != self.initial.get("financial_revision"):
-            raise forms.ValidationError("營運或收款資料已更新，請重新載入頁面再修改，避免覆蓋他人的金額。")
+            raise forms.ValidationError(self.STALE_REVISION_MESSAGE, code=self.STALE_REVISION_CODE)
         return cleaned
+
+    # 版本衝突不是哪個欄位填錯（使用者 2026-10-22 T-92）：同頁自動儲存改用這句，不再要人「修正下列欄位」。
+    STALE_REVISION_CODE = "stale_revision"
+    STALE_REVISION_MESSAGE = "這張訂單剛被系統或他人更新，請重新整理頁面後再修改。"
+
+    @property
+    def stale_revision(self):
+        return self.has_error(NON_FIELD_ERRORS, self.STALE_REVISION_CODE)
 
 
 CONFIRMED_PAYMENT_LOCKED_FIELDS = (

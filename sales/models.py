@@ -3107,7 +3107,7 @@ class SalesOrder(TimeStampedModel):
         ALLOCATION_PENDING = "allocation_pending", "待配車"
         ALLOCATED = "allocated", "已配車"
         DELIVERY_PENDING = "delivery_pending", "待交車"
-        DELIVERED_DOCS_PENDING = "delivered_docs_pending", "已交車／待補文件"
+        DELIVERED_DOCS_PENDING = "delivered_docs_pending", "已交車／待領牌"
         COMPLETED = "completed", "已完成"
         CANCEL_REFUND_PENDING = "cancel_refund_pending", "取消待退款"
         CANCELLED = "cancelled", "已取消／已退款"
@@ -3730,8 +3730,10 @@ class SalesOrder(TimeStampedModel):
     def required_registration_document_types(self):
         required = set(RegistrationDocument.active_fixed_document_types())
         # 發票照片與選號單皆為選填（選號單：使用者 2026-10-13）；有再上傳，不是完成領牌的條件。
+        # 強制險單也改選填（使用者 2026-10-22 T-95：「只要行照跟登記書有才算領牌完成」）。
         required.discard(RegistrationDocument.DocumentType.INVOICE)
         required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
+        required.discard(RegistrationDocument.DocumentType.COMPULSORY_INSURANCE)
         return required
 
     def subsidy_document_types_when_enabled(self):
@@ -3764,15 +3766,17 @@ class SalesOrder(TimeStampedModel):
             missing.append("舊車主姓名")
         if not self.old_owner_same_as_owner and not self.old_owner_id_number:
             missing.append("舊車主身分證字號")
-        uploaded = set(
-            self.subsidy_documents.values_list("document_type", flat=True)
-        )
-        uploaded.update(self.subsidy_intake_evidence())
-        labels = dict(SubsidyDocument.DocumentType.choices)
-        for document_type in self.required_subsidy_document_types():
-            if document_type not in uploaded:
-                missing.append(labels[document_type])
+        # 補助文件改為選填（使用者 2026-10-22 T-95）：只算資料，文件另以 subsidy_document_progress 顯示已上傳幾份。
         return missing
+
+    def subsidy_document_progress(self):
+        """送件前要備妥的補助文件已上傳幾份（選填，不列為缺項）；回傳 (已上傳, 應備)。"""
+        expected = self.required_subsidy_document_types()
+        if not expected:
+            return 0, 0
+        uploaded = set(self.subsidy_documents.values_list("document_type", flat=True))
+        uploaded.update(self.subsidy_intake_evidence())
+        return len(expected & uploaded), len(expected)
 
     @property
     def owner_area_intake_attachments(self):
@@ -3801,11 +3805,7 @@ class SalesOrder(TimeStampedModel):
         if not self.is_trade_in_subsidy:
             return 0
         different_owner = not self.old_owner_same_as_owner
-        return (
-            2
-            + (2 * int(different_owner))
-            + len(self.required_subsidy_document_types())
-        )
+        return 2 + (2 * int(different_owner))
 
     @property
     def subsidy_completed_count(self):
@@ -5047,7 +5047,7 @@ class RegistrationDocument(TimeStampedModel):
 
     @classmethod
     def active_fixed_document_types(cls):
-        # 強制險單每台訂單都有，2026-10-15 起恢復為必填（使用者要求）。
+        # 領牌固定文件格；哪些是領牌完成條件見 SalesOrder.required_registration_document_types（強制險單 2026-10-22 起選填）。
         return (
             cls.DocumentType.NEW_LICENSE,
             cls.DocumentType.REGISTRATION_APPLICATION,

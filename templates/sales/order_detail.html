@@ -391,7 +391,7 @@
         <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
           <div class="registration-document-row__name">
             <strong>{{ row.label }}</strong>
-            {% if not row.required %}<span class="optional-badge">選填</span>{% endif %}
+            {% if row.required %}<span class="optional-badge is-needed">領牌需要</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
             {% if row.document %}
               <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
             {% endif %}
@@ -495,7 +495,8 @@
   {# 贈品與履約拿掉後（使用者 2026-10-21 T-57），交車前確認只剩電動車的車控與電池合約。 #}
   {% if order.is_electric_vehicle %}{% include "sales/_ops_section_form.html" with section_form=operations_fulfillment_form section_key="fulfillment" fields_template="sales/_ops_fulfillment_fields.html" submit_label="儲存交車前確認" %}{% endif %}
 </section>{% endif %}
-<section class="section-block delivery-stage">
+{# 上傳文件可能讓領牌完成而開放交車：整個區塊跟著原地更新換新（使用者 2026-10-22 T-92）。 #}
+<section class="section-block delivery-stage" id="delivery-stage" data-inplace-region>
   <div class="section-title">
     <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
@@ -816,9 +817,11 @@
           <strong>補助資料尚缺 {{ subsidy_missing|length }} 項</strong>
           <p>{{ subsidy_missing|join:"、" }}</p>
         {% else %}
-          <strong>補助基本資料與文件已齊全</strong>
+          <strong>補助基本資料已齊全</strong>
           <p>{% site_text 'order_detail.742df47d654e' %}</p>
         {% endif %}
+        {# 補助文件改為選填（使用者 2026-10-22 T-95）：只顯示已上傳幾份，不算缺項。 #}
+        {% if order.is_trade_in_subsidy and subsidy_document_progress.1 %}<p class="muted">補助文件已上傳 {{ subsidy_document_progress.0 }}／{{ subsidy_document_progress.1 }}（選填）</p>{% endif %}
       </div>
     </div>
 </section>

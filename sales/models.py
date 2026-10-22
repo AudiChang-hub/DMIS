@@ -4172,6 +4172,16 @@ class SalesOrder(TimeStampedModel):
         return "＋".join(labels) or self.get_payment_type_display()
 
     @property
+    def payout_reconciliation_kind(self):
+        """統一撥款對帳的範圍（使用者 2026-10-22 T-96）：分期、網路平台都是事後才撥款，要對帳；
+        系統建立的分期單（不論來源，車行單也是）對分期公司撥款、網路平台單對平台撥款。Excel 匯入單不對帳。"""
+        if hasattr(self, "legacy_snapshot"):
+            return ""
+        if self.source_type == self.SourceType.PLATFORM:
+            return "platform"
+        return "installment" if self.payment_type == self.PaymentType.INSTALLMENT else ""
+
+    @property
     def installment_split_amount(self):
         """分期公司負擔的車款；沒有明細的舊分期單視為整筆車價。"""
         if self.payment_type != self.PaymentType.INSTALLMENT:
@@ -4799,7 +4809,7 @@ class PaymentRecord(TimeStampedModel):
             return ""
         changed = [name for name in locked if written(name) and getattr(self, name) != previous[name]]
         if previous["entry_type"] == self.EntryType.RECEIPT:
-            previous_kind = self.ReceiptKind.LENDER if previous["system_key"] == "installment_disbursement" else previous["receipt_kind"]
+            previous_kind = self.ReceiptKind.LENDER if previous["system_key"] in self.PAYOUT_KEYS else previous["receipt_kind"]
             if (written("receipt_kind") or written("system_key")) and self.effective_receipt_kind != previous_kind:
                 changed.append("receipt_kind")
             # 勾錯可取消確認（使用者 2026-10-17）：只改勾選、其他入帳欄位不變時允許；已沖銷的收款不可取消。
@@ -4871,14 +4881,23 @@ class PaymentRecord(TimeStampedModel):
     item_name = models.CharField("收款項目", max_length=160)
     receipt_kind = models.CharField("款項分類", max_length=20, choices=ReceiptKind.choices, default=ReceiptKind.CUSTOMER)
 
+    # 分期公司撥款與平台撥款都是第三方事後撥入的車款，歸在撥款，不算客人付的錢（T-96）。
+    PAYOUT_KEYS = ("installment_disbursement", "platform_disbursement")
+
     @property
     def effective_receipt_kind(self):
-        return self.ReceiptKind.LENDER if self.system_key == "installment_disbursement" else self.receipt_kind
+        return self.ReceiptKind.LENDER if self.system_key in self.PAYOUT_KEYS else self.receipt_kind
+
+    @property
+    def receipt_kind_label(self):
+        if self.effective_receipt_kind != self.ReceiptKind.LENDER:
+            return "客戶收款"
+        return "平台撥款" if self.order.source_type == SalesOrder.SourceType.PLATFORM else "分期公司撥款"
 
     @property
     def is_receivable_only(self):
         # 保留原應收與人工調整；沒有實際收款資料的同步列不當作收款明細。
-        return bool(self.system_key in {"balance", "installment_disbursement"} and not any((
+        return bool(self.system_key in {"balance", *self.PAYOUT_KEYS} and not any((
             self.received_amount, self.confirmed, self.confirmed_at, self.confirmed_by,
             self.received_on, self.receiving_account, self.proof, self.note,
             self.card_principal, self.card_fee_charged, self.bank_card_fee,

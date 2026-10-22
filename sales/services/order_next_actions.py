@@ -62,37 +62,26 @@ def _pending_reconciliation_action(order, today):
     from .payment_summary import payment_summary
     summary = payment_summary(order)
     pending_records = []
-    for record in order.payment_records.all():
-        eligible = record.effective_receipt_kind == "lender" or (
-            record.effective_receipt_kind == "customer"
-            and order.source_type
-            in {SalesOrder.SourceType.PLATFORM, SalesOrder.SourceType.DEALER}
-        )
-        due = summary["lender_due"] if record.effective_receipt_kind == "lender" else summary["customer_due"]
-        if eligible and not record.confirmed and (record.received_amount > 0 or (record.expected_amount > 0 and due > 0)):
+    # 只提醒統一撥款對帳範圍內的撥款（T-96）：系統建立的分期單（含車行來源）、網路平台單；平台撥款沒有預計金額，未入帳就提醒。
+    platform = order.payout_reconciliation_kind == "platform"
+    for record in order.payment_records.all() if order.payout_reconciliation_kind else ():
+        if record.effective_receipt_kind != "lender" or record.confirmed:
+            continue
+        if platform or record.received_amount > 0 or (record.expected_amount > 0 and summary["lender_due"] > 0):
             pending_records.append(record)
     if not pending_records:
         return None
 
-    description = f"尚有 {len(pending_records)} 筆實際撥款／收款尚未入帳。"
-    tone = "primary"
-    badge = "結案前確認"
-    delivered_on = _delivered_on(order)
-    if order.source_type == SalesOrder.SourceType.DEALER and delivered_on:
-        due_date = add_business_days(delivered_on, 7)
-        description = _deadline_description("車行款項", due_date, today)
-        tone = "urgent" if today >= due_date else "primary"
-        badge = "收款期限"
-
+    # 車行尾款的七個工作天期限由首頁車行提醒處理（business_days.build_dealer_reminders），不在撥款對帳。
     query = urlencode({"q": order.number, "status": "pending"})
     return NextAction(
         key="reconciliation",
-        title="登記實際撥款與收款",
-        description=description,
+        title="登記平台撥款" if platform else "登記分期公司撥款",
+        description=f"尚有 {len(pending_records)} 筆撥款尚未入帳。",
         action_label="前往統一對帳",
         url=f"{reverse('reconciliation_list')}?{query}",
-        badge=badge,
-        tone=tone,
+        badge="結案前確認",
+        tone="primary",
     )
 
 

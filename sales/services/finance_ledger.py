@@ -76,6 +76,16 @@ def _order_overrides(profile):
 
     order = profile.order
     labels, hints = {}, {}
+    payout = order.payout_reconciliation_kind
+    if payout and profile.payment_disbursement_snapshot:
+        hints["actual_disbursement"] = "已在統一撥款對帳入帳；金額有誤請到對帳頁取消入帳後更正"
+    elif payout:
+        # 分期、平台撥款入帳前是預估（使用者 2026-10-22 T-96）；入帳後才改稱實際並鎖定。
+        labels["actual_disbursement"] = "預估車價收入"
+        hints["actual_disbursement"] = (
+            "可先填預估的平台撥款；在統一撥款對帳入帳後改為實際撥款" if payout == "platform"
+            else "分期那筆×撥款比例＋客人自付車款；在統一撥款對帳入帳後改為實際"
+        )
     if hasattr(order, "legacy_snapshot"):
         labels["agency_fee_income"] = "代辦費收入"
         hints["agency_fee_income"] = "Excel 匯入的代辦費"

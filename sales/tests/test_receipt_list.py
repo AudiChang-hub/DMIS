@@ -6,7 +6,7 @@ from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 from django.urls import reverse
 
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet
-from sales.models import PaymentRecord, OrderChange, OrderOperationsProfile
+from sales.models import PaymentRecord, OrderChange, OrderOperationsProfile, SalesOrder
 from sales.services.operations_sync import sync_order_operations
 from sales.services.payment_ledger import reverse_payment
 from sales.services.payment_summary import payment_summary
@@ -216,13 +216,15 @@ class ReceiptListTests(TestCase):
     def test_new_lender_receipt_is_available_for_reconciliation_without_fake_surplus(self):
         from sales.views import _decorate_reconciliation_record, _reconciliation_queryset
         from django.test import RequestFactory
+        # 只有分期單、網路平台單進統一撥款對帳（T-96）；現金單的撥款列不列。
+        SalesOrder.objects.filter(pk=self.order.pk).update(payment_type="installment")
         record = self.receipt(20000, receipt_kind="lender")
         request = RequestFactory().get("/", {"channel": "installment", "status": "pending"})
         self.assertIn(record.pk, _reconciliation_queryset(request).values_list("pk", flat=True))
         decorated = _decorate_reconciliation_record(record)
         self.assertEqual(decorated.reconciliation_channel, "installment")
         self.assertTrue(decorated.reconciliation_receipt_only)
-        self.assertEqual(decorated.reconciliation_state, "已填金額，按儲存入帳")
+        self.assertEqual(decorated.reconciliation_state, "待入帳")
 
     def test_unauthorized_post_rejected(self):
         payload = self.payload()

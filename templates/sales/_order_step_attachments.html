@@ -23,7 +23,7 @@
   {% for group in document_slot_groups %}
   <div class="order-files__group slot-group">
     <h3>{{ group.title }}
-      {% if group.missing %}<span class="slot-group__missing">還缺 {{ group.missing }} 項必填</span>{% else %}<span class="slot-group__ok">必填已齊</span>{% endif %}
+      {% if group.missing %}<span class="slot-group__missing">還缺 {{ group.missing }} 項</span>{% endif %}
     </h3>
     {% if group.closed_note %}<p class="muted slot-group__note">{{ group.closed_note }}</p>{% endif %}
     <div class="slot-list">
@@ -31,7 +31,7 @@
       <div class="slot-row{% if slot.done %} is-done{% elif slot.required %} is-missing{% endif %}" data-upload-row>
         <div class="slot-row__name">
           <strong>{{ slot.label }}</strong>
-          {% if slot.required %}<span class="required-badge">必填</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
+          {% if not slot.required %}<span class="optional-badge">選填</span>{% endif %}
         </div>
         <span class="slot-row__status">{% if slot.done %}<span aria-hidden="true">✓ </span>{% endif %}{{ slot.status }}</span>
         <div class="slot-row__actions">

@@ -76,12 +76,14 @@ class DeliveryBalanceTrimTests(TestCase):
         self.assertNotIn("balance-proof", fieldset)
         self.assertNotIn("收款證明", fieldset)
 
-    def test_hint_box_stays_when_balance_settled(self):
+    def test_no_hint_box_when_balance_settled(self):
+        # 尾款收清後也不再放「尾款已收清或由車行掛帳／前往收入與支出」的導向框（T-102）。
         order, _vehicle = self.registered_v2()
         balance = PaymentRecord.objects.get(order=order, system_key="balance")
         PaymentRecord.objects.filter(pk=balance.pk).update(received_amount=balance.expected_amount, confirmed=True)
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
         delivery = page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0]
-        self.assertIn('id="delivery-payment"', delivery)
-        self.assertIn("尾款已收清或由車行掛帳", delivery)
+        self.assertNotIn('id="delivery-payment"', delivery)
+        self.assertNotIn("尾款已收清或由車行掛帳", delivery)
+        self.assertNotIn("前往收入與支出", delivery)

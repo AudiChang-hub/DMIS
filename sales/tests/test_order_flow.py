@@ -3884,7 +3884,9 @@ class OrderFlowTests(TestCase):
         )
         self.assertNotContains(response, missing)
         self.assertNotContains(response, "找不到適用的車輛結算成本規則")
-        self.assertContains(response, "人工輸入車輛結算成本：$60,000")
+        # 領牌步驟的金額摘要（T-99）：車輛結算成本卡標「人工輸入」，金額靠右。
+        self.assertContains(response, '<span class="ledger-tag ledger-tag--manual">人工輸入</span>')
+        self.assertContains(response, "<dt>結算成本</dt><dd>$60,000</dd>")
         self.assertIsNone(OrderOperationsProfile.objects.get(pk=profile.pk).vehicle_cost_rule_id)
 
         self.settlement_rule.delete()
@@ -5557,6 +5559,37 @@ class OrderOperationsTests(TestCase):
         future.save()
         profile = apply_order_incentive_rule(self.order, "tester")
         self.assertEqual(profile.sales_bonus, Decimal("1800"))
+
+    def test_registration_step_lists_figures_as_label_amount_rows(self):
+        """領牌步驟的獎勵與補助、分期撥款（T-99）：一項一列、金額靠右，0 元淡化，已固定／預估是狀態標籤，不再用中點串成一段字。"""
+        VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model, sales_bonus=Decimal("2000"), promotion_subsidy=Decimal("0"),
+            installment_interest_subsidy=Decimal("0"), effective_from=date(2026, 7, 1),
+        )
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            payment_type=SalesOrder.PaymentType.INSTALLMENT, installment_periods=24, registration_date=date(2026, 7, 31),
+            installment_plan_snapshot={"periods": 24, "expected_disbursement_method": "rate",
+                                       "expected_disbursement_method_label": "按比例試算", "expected_disbursement_amount": 74000},
+        )
+        self.order.refresh_from_db()
+        store = Store.objects.first() or Store.objects.create(name="T99 門市")
+        self.order.allocate(VehicleInventory.objects.create(vehicle_model=self.model, color=self.color, engine_number="ENG-T99",
+                                                            ownership_store=store, location_store=store))
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        apply_order_incentive_rule(SalesOrder.objects.get(pk=self.order.pk), "tester", lock=True)
+        self.client.force_login(self.user)
+        html = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "registration"}).content.decode()
+        self.assertIn('<h3 id="figure-incentive">車型獎勵與補助</h3>', html)
+        self.assertIn('<span class="ledger-tag ledger-tag--locked">已固定</span>', html)
+        self.assertIn('<div class="figure-list__row"><dt>實銷獎勵</dt><dd>$2,000</dd></div>', html)
+        self.assertIn('<div class="figure-list__row is-zero"><dt>促銷補助</dt><dd>$0</dd></div>', html)
+        self.assertIn('<div class="figure-list__row is-zero"><dt>分期補貼息</dt><dd>$0</dd></div>', html)
+        self.assertIn('<dt>預估撥款</dt><dd>$74,000</dd>', html)
+        self.assertNotIn("實銷獎勵 $", html)
+        css = Path("static/css/order-finance.css").read_text(encoding="utf-8")
+        self.assertIn(".figure-list dd {", css)
+        self.assertIn("font-variant-numeric: tabular-nums", css.split(".figure-list dd {", 1)[1].split("}", 1)[0])
 
     def test_manual_incentive_adjustment_is_not_overwritten_by_new_version(self):
         VehicleIncentiveRule.objects.create(

@@ -36,7 +36,7 @@
           <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           <td data-label="來源">{{ vehicle.acquisition_label }}</td>
           <td data-label="目前狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
-          <td data-label="實際位置">{{ vehicle.actual_location_label }}</td>
+          <td data-label="實際位置">{{ vehicle.whereabouts_label }}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看</a></td>
         </tr>
         {% empty %}

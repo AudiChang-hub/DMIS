@@ -2311,6 +2311,10 @@ input[type="file"].form-control { padding: var(--space-3); }
   border: 3px solid var(--mint); border-radius: 50%; box-shadow: 0 0 0 3px var(--surface-tint);
 }
 .allocation-overview__location > div { display: grid; min-width: 0; gap: 3px; }
+/* 已交車／售出／調出（T-98）：空心標記與淡底，表示車已不在本店，和「目前位置」的實心綠點區分。 */
+.allocation-overview__location.is-left { background: var(--surface); border-style: dashed; }
+.allocation-overview__location.is-left .allocation-overview__location-mark { background: var(--surface); border-color: var(--muted); box-shadow: none; }
+.allocation-overview__location.is-left small { color: var(--muted); }
 .allocation-overview__location strong { overflow-wrap: anywhere; font-size: var(--text-md); }
 .allocation-summary > .reallocation-panel,
 .allocation-summary > .allocation-lock-note { margin: var(--stack-gap-sm) var(--stack-gap) var(--stack-gap); }
@@ -2689,6 +2693,12 @@ input[type="file"].form-control { padding: var(--space-3); }
 .other-subsidy-documents__file.is-dragover .other-subsidy-documents__file-icon { transform: scale(1.08); }
 .other-subsidy-documents__file-icon { transition: transform .18s ease; }
 .other-subsidy-documents__form > noscript .button { min-height: 44px; justify-self: start; }
+/* 其他領牌相關資料（T-101）：和同一步的「其他保險單」同樣是有色條標題的卡片，上傳區接在標題下、清單接在上傳區下。 */
+.other-registration-documents > .other-subsidy-documents__form {
+  margin-top: 0; background: var(--surface-soft); border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.other-registration-documents > .other-subsidy-documents__form:not(:last-child) { border-radius: 0; }
+.other-registration-documents > .other-subsidy-documents__empty { border-style: solid; border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 .upload-queue { display: grid; gap: var(--space-2); }
 .upload-queue[hidden] { display: none; }
 .upload-queue__summary { margin: 0; color: var(--blue); font-size: var(--text-sm); font-weight: 850; }

@@ -973,7 +973,7 @@
   },
   "order_detail.16d07928b807": {
     "page": "訂單內容",
-    "default": "若不是同一人，需補齊舊車主姓名、證號、存摺封面與聲明書。",
+    "default": "同一人不用勾；勾選後要補齊舊車主姓名、證號、存摺封面與聲明書。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.6033f4a4b570": {

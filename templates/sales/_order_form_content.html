@@ -13,7 +13,7 @@
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" {% if order_workspace %}action="{% url 'order_edit' editing_order.pk %}" data-workspace-save="order"{% if inline_order_form %} data-inline-order{% endif %}{% endif %} data-custom-validation="true" {% if editing_order.is_delivered %}data-completed-correction="true"{% endif %}>
   {% csrf_token %}
   {% if order_workspace %}<input type="hidden" name="_workspace" value="1">{% endif %}
-  {% if order_workspace %}<div hidden><input type="checkbox" id="id_is_trade_in_subsidy" disabled {% if order.is_trade_in_subsidy %}checked{% endif %}><input type="checkbox" id="id_old_owner_same_as_owner" disabled {% if order.old_owner_same_as_owner %}checked{% endif %}></div>{% endif %}
+  {% if order_workspace %}<div hidden><input type="checkbox" id="id_is_trade_in_subsidy" disabled {% if order.is_trade_in_subsidy %}checked{% endif %}><input type="checkbox" id="id_old_owner_different" disabled {% if not order.old_owner_same_as_owner %}checked{% endif %}></div>{% endif %}
   {% if intake_mode %}<input type="hidden" name="_submission_key" value="{{ submission_key }}">{% endif %}
   {% if wizard %}<input type="hidden" name="_wizard_step" value="{{ wizard.current }}">{% endif %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
@@ -124,7 +124,7 @@
   <details class="form-section" id="tradein" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="tradein" {% if wizard.current != 'tradein' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">{% if order_workspace %}3{% else %}4{% endif %}</span><span><strong>汰舊與補助</strong><small>申請哪些補助；有汰舊再確認舊車主是否為新車主本人</small></span></summary>
     {% comment %}不再選「是否有汰舊」（使用者 2026-10-22 T-80）：勾到汰舊類補助（方案主檔「需要舊車」）就是有汰舊，
-    才顯示「新舊車主為同一人」；這一步不上傳舊車主證件與存摺，改在訂單的補助步驟上傳。{% endcomment %}
+    才顯示「新舊車主不同人」（同一人居多，不同人才打勾，T-84）；這一步不上傳舊車主證件與存摺，改在訂單的補助步驟上傳。{% endcomment %}
     <div class="form-grid">
       {% if "subsidy_programs" in form.fields %}<fieldset class="span-2 subsidy-program-picker field" data-subsidy-picker>
         <legend>{{ form.subsidy_programs.label }}</legend>
@@ -135,7 +135,7 @@
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>{% endif %}
       {# 訂單頁編輯不含這兩欄（改在「補助」分頁處理），不能留下空白框。 #}
-      {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
+      {% if form.old_owner_different %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_different %}</div>
       {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「補助」分頁填寫。</p>{% endif %}
       {% if intake_mode %}<label>新車主存摺封面（選填）<input type="file" name="owner_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label>{% endif %}
       {# 換步驟回來時，已存的證件與存摺列在原位；檔案選擇框一律是空的，重新選檔會取代同類已存檔案。 #}

@@ -1,0 +1,235 @@
+/*
+ * 價格表凍結：標題列（垂直）＋ 機種欄（水平）
+ *
+ * 注意：class="dms_pricelist_tree" 落在 div.o_list_renderer 上（非 table）。
+ * 因此：
+ *   .dms_pricelist_tree          → 選到 o_list_renderer div
+ *   .dms_pricelist_tree table    → 選到內部的 <table>
+ *
+ * border-collapse:separate 是讓 position:sticky 在 table cell 上生效的必要條件
+ * （CSS spec：collapse 模式下 sticky 對 td/th 無效）。
+ * border-spacing:0 可維持原本視覺。
+ */
+
+/* 0. 改為允許橫向捲動：寧可橫捲也不擠壓換行，避免列高參差。
+ *    table-layout:auto + min-width:max-content 讓表格依內容自然延伸；
+ *    .dms_pricelist_tree 容器允許 overflow-x:auto。
+ */
+.dms_pricelist_tree {
+    overflow-x: auto !important;
+}
+
+.dms_pricelist_tree table {
+    table-layout: auto !important;
+    /* 取消 width:100%，讓表格延伸到內容寬度後出現橫向 scrollbar */
+    width: auto !important;
+    min-width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    font-size: 13px;
+}
+
+/* 標題列：不換行 + 縮小字體 */
+.dms_pricelist_tree thead th,
+.dms_pricelist_tree thead th span {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    font-size: 12px !important;
+}
+
+/* 資料列：不換行；溢出以省略號顯示，hover 時透過 title 屬性看完整內容 */
+.dms_pricelist_tree tbody td,
+.dms_pricelist_tree tbody td span,
+.dms_pricelist_tree tfoot td,
+.dms_pricelist_tree tfoot td span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: keep-all !important;
+}
+
+/* 編輯中 cell 取消 overflow:hidden，避免下拉/輸入被裁切 */
+.dms_pricelist_tree tbody td.o_selected_cell,
+.dms_pricelist_tree tbody tr.o_selected_row td {
+    overflow: visible !important;
+}
+
+/* 1. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */
+.dms_pricelist_tree thead th {
+    border-bottom: 2px solid #dee2e6 !important;
+}
+
+.dms_pricelist_tree tbody td,
+.dms_pricelist_tree tfoot td {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* 2. 凍結標題列 */
+.dms_pricelist_tree thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 4 !important;
+    /* 不覆寫 background-color，由 dms_theme.scss 套用藍色 */
+}
+
+/* 3. 凍結欄 helper class（left 值由 JS 動態注入） */
+.dms_pricelist_tree .o_sticky_col {
+    position: sticky !important;
+    z-index: 3 !important;
+}
+
+/* tbody 凍結欄補白底（防止捲動時透出後方資料） */
+.dms_pricelist_tree tbody .o_sticky_col,
+.dms_pricelist_tree tfoot .o_sticky_col {
+    background-color: #fff !important;
+}
+
+/* 凍結欄在標題列時，z-index 需高於純標題列 (4) */
+.dms_pricelist_tree thead .o_sticky_col {
+    z-index: 6 !important;
+    /* 不覆寫 background-color，由 dms_theme.scss 套用藍色 */
+}
+
+/* 最後一個凍結欄右側投影，視覺邊界提示 */
+.dms_pricelist_tree .o_sticky_border {
+    box-shadow: 3px 0 5px -2px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* hover / 選取行時維持背景不透明 */
+.dms_pricelist_tree tbody tr:hover td.o_sticky_col {
+    background-color: #f5f5f5 !important;
+}
+
+.dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col {
+    background-color: #e8f0fe !important;
+}
+
+/* ── 欄位寬度策略（table-layout:auto）─────────────────────────
+ * auto 模式：瀏覽器依內容智慧分配欄寬。
+ *   - 窄數字欄：設 min-width，確保標題文字不被迫換行
+ *   - 寬文字欄（顧客贈品、附加費用說明）：設 max-width，防止過寬留白
+ *   - 其餘欄位（機種、車色）：讓瀏覽器根據內容自然分配
+ * ─────────────────────────────────────────────────────────── */
+
+/* 年份：4 碼數字，至少容納標題「年份」(2 字) + 排序箭頭 */
+.dms_pricelist_tree thead th[data-name="production_year"] {
+    min-width: 56px;
+}
+
+/* 能源型式：「電車」/「油車」2 字 */
+.dms_pricelist_tree thead th[data-name="energy_type"] {
+    min-width: 64px;
+}
+
+/* 金額欄：3~4 字標題 + 排序箭頭 */
+.dms_pricelist_tree thead th[data-name="suggested_price"] {
+    min-width: 76px;
+}
+
+.dms_pricelist_tree thead th[data-name="cash_discount"] {
+    min-width: 68px;
+}
+
+.dms_pricelist_tree thead th[data-name="cash_price"] {
+    min-width: 68px;
+}
+
+/* 分期欄：「18期」2+1 字，min-width 60px 確保標題不換行 */
+.dms_pricelist_tree thead th[data-name="installment_12_price"],
+.dms_pricelist_tree thead th[data-name="installment_18_price"],
+.dms_pricelist_tree thead th[data-name="installment_24_price"],
+.dms_pricelist_tree thead th[data-name="installment_36_price"],
+.dms_pricelist_tree thead th[data-name="installment_48_price"],
+.dms_pricelist_tree thead th[data-name="installment_60_price"] {
+    min-width: 60px;
+}
+
+/* 啟用：切換鈕 */
+.dms_pricelist_tree thead th[data-name="active"] {
+    min-width: 46px;
+}
+
+/* 顧客贈品、附加費用說明：完整顯示（換行、列高自動拉高）；
+ * 覆蓋上方 tbody 的 nowrap/ellipsis */
+.dms_pricelist_tree thead th[data-name="gift_note"],
+.dms_pricelist_tree td[name="gift_note"] {
+    max-width: 280px;
+    min-width: 180px;
+}
+
+.dms_pricelist_tree thead th[data-name="fees_note"],
+.dms_pricelist_tree td[name="fees_note"] {
+    max-width: 320px;
+    min-width: 200px;
+}
+
+.dms_pricelist_tree tbody td[name="gift_note"],
+.dms_pricelist_tree tbody td[name="gift_note"] span,
+.dms_pricelist_tree tbody td[name="fees_note"],
+.dms_pricelist_tree tbody td[name="fees_note"] span,
+.dms_pricelist_tree tbody td[name="color"],
+.dms_pricelist_tree tbody td[name="color"] span {
+    white-space: pre-line !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+    line-height: 1.4;
+}
+
+/* 列高自動拉高，不被 Odoo 預設高度限制 */
+.dms_pricelist_tree tbody tr {
+    height: auto !important;
+}
+
+.dms_pricelist_tree tbody tr td {
+    vertical-align: top !important;
+}
+
+/* 機種、型式、型號、車色、品牌：給合理 min-width 避免擠壓 */
+.dms_pricelist_tree thead th[data-name="brand_id"] {
+    min-width: 110px;
+}
+
+.dms_pricelist_tree thead th[data-name="name"] {
+    min-width: 120px;
+}
+
+.dms_pricelist_tree thead th[data-name="type_name"] {
+    min-width: 80px;
+}
+
+.dms_pricelist_tree thead th[data-name="model"] {
+    min-width: 110px;
+}
+
+.dms_pricelist_tree thead th[data-name="color"] {
+    min-width: 130px;
+    max-width: 240px;
+}
+
+/* ── 修正 m2o 下拉選單被相鄰 sticky 欄遮擋 ──
+ * 同一列中各 sticky 欄 z-index 相同，後面的 DOM 會蓋住前面欄位的下拉。
+ * 用 :focus-within 把當前編輯的 sticky 欄拉到最上層即可，sticky 行為不變。
+ */
+.dms_pricelist_tree tbody td.o_sticky_col:focus-within,
+.dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col:focus-within {
+    z-index: 10 !important;
+}
+
+.o-autocomplete--dropdown,
+.o-autocomplete--dropdown-menu,
+.o-autocomplete .dropdown-menu {
+    z-index: 1080 !important;
+}
+
+/* ── 產品頁面 form 內的 sku_ids o2m：sheet 改為全寬，o2m 自身可橫捲 ── */
+.dms_template_form .o_form_sheet {
+    max-width: 100% !important;
+}
+.dms_template_form .o_field_one2many.dms_pricelist_tree {
+    max-width: 100%;
+    overflow-x: auto;
+}
+.dms_template_form .o_field_one2many.dms_pricelist_tree .o_list_renderer {
+    overflow-x: auto !important;
+}

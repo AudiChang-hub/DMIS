@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 頂層選單 -->
+  <menuitem id="menu_dms_commission_root"
+            name="傭金管理"
+            sequence="50"
+            web_icon="dms_commission,static/description/icon.png"/>
+
+  <!-- 傭金設定 -->
+  <menuitem id="menu_commission_settings"
+            name="傭金設定"
+            parent="menu_dms_commission_root"
+            sequence="10"/>
+
+  <menuitem id="menu_commission_product_rule"
+            name="基礎傭金規則"
+            parent="menu_commission_settings"
+            action="action_commission_product_rule"
+            sequence="10"/>
+
+  <menuitem id="menu_commission_vehicle_rule"
+            name="車種覆蓋規則"
+            parent="menu_commission_settings"
+            action="action_commission_vehicle_rule"
+            sequence="25"/>
+
+  <menuitem id="menu_commission_dealer_rule"
+            name="車行覆蓋規則"
+            parent="menu_commission_settings"
+            action="action_commission_dealer_rule"
+            sequence="20"/>
+
+  <menuitem id="menu_commission_volume_rule"
+            name="台數現金獎勵規則"
+            parent="menu_commission_settings"
+            action="action_commission_volume_rule"
+            sequence="30"/>
+
+  <menuitem id="menu_commission_volume_gift"
+            name="台數實物獎勵規則"
+            parent="menu_commission_settings"
+            action="action_commission_volume_gift"
+            sequence="35"/>
+
+  <!-- 激勵設定 -->
+  <menuitem id="menu_incentive_settings"
+            name="激勵設定"
+            parent="menu_dms_commission_root"
+            sequence="20"/>
+
+  <menuitem id="menu_incentive_type"
+            name="激勵品項定義"
+            parent="menu_incentive_settings"
+            action="action_incentive_type"
+            sequence="10"/>
+
+  <menuitem id="menu_incentive_rule"
+            name="激勵觸發規則"
+            parent="menu_incentive_settings"
+            action="action_incentive_rule"
+            sequence="20"/>
+
+  <!-- 傭金記錄 -->
+  <menuitem id="menu_commission_record"
+            name="傭金記錄"
+            parent="menu_dms_commission_root"
+            action="action_commission_record"
+            sequence="30"/>
+
+  <!-- 激勵核銷 -->
+  <menuitem id="menu_incentive_delivery"
+            name="激勵核銷"
+            parent="menu_dms_commission_root"
+            action="action_incentive_delivery"
+            sequence="40"/>
+
+  <!-- 報表 -->
+  <menuitem id="menu_commission_reports"
+            name="報表"
+            parent="menu_dms_commission_root"
+            sequence="50"/>
+
+  <menuitem id="menu_report_monthly"
+            name="月結傭金報表"
+            parent="menu_commission_reports"
+            action="action_report_monthly"
+            sequence="10"/>
+
+  <menuitem id="menu_report_summary"
+            name="傭金總報表"
+            parent="menu_commission_reports"
+            action="action_report_summary"
+            sequence="20"/>
+
+</odoo>

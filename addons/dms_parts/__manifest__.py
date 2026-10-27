@@ -1,0 +1,20 @@
+{
+    'name': 'DMS 零件管理',
+    'version': '16.0.2.1.0',
+    'summary': '零件目錄、爆炸圖查詢、CSV 批次匯入，連結 Odoo 庫存',
+    'author': 'DMIS',
+    'license': 'LGPL-3',
+    'category': 'Custom',
+    'depends': ['dms_product', 'stock'],
+    'data': [
+        'security/ir.model.access.csv',
+        'views/catalog_views.xml',
+        'views/catalog_section_views.xml',
+        'views/catalog_search_wizard_views.xml',
+        'views/catalog_import_wizard_views.xml',
+        'views/catalog_pdf_wizard_views.xml',
+        'views/menu_views.xml',
+    ],
+    'installable': True,
+    'application': False,
+}

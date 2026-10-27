@@ -19,14 +19,6 @@ class TestDmsVisit(TransactionCase):
             'phone_1': '02-12345678',
         })
 
-        cls.product = cls.env['dms.product'].create({
-            'brand_id': cls.brand.id,
-            'name': '測試車款',
-            'model': 'TEST-001',
-            'year': '2024',
-            'energy_type': 'oil',
-        })
-
         cls.purpose = cls.env['dms.visit.purpose'].create({
             'name': '洽談訂單',
             'code': 'TALK',
@@ -102,18 +94,16 @@ class TestDmsVisit(TransactionCase):
             'dealer_id': self.dealer.id,
             'visitor_id': self.env.user.id,
             'item_ids': [(0, 0, {
-                'product_id': self.product.id,
+                'item_name': 'DMIS 產品型錄',
                 'quantity': 3.0,
                 'note': '測試送出物品備註',
             })],
         })
         self.assertEqual(len(visit.item_ids), 1, '應有 1 筆物品明細')
+        self.assertEqual(visit.item_ids[0].item_name, 'DMIS 產品型錄', '物品名稱應正確儲存')
         self.assertEqual(visit.item_ids[0].quantity, 3.0, '數量應為 3.0')
         self.assertEqual(
             visit.item_ids[0].note, '測試送出物品備註', '備註應正確儲存',
-        )
-        self.assertEqual(
-            visit.item_ids[0].product_id.id, self.product.id, '產品應正確關聯',
         )
 
     # ── Test 04：Record Rule — user 只見自己的拜訪 ──────────────────
@@ -225,3 +215,33 @@ class TestDmsVisit(TransactionCase):
             ('schedule_id', '=', schedule.id),
         ])
         self.assertEqual(before_count, after_count, '停用排程不應新增拜訪')
+
+    def test_09_bulk_create_wizard_creates_multiple_visits(self):
+        dealer_2 = self.env['dms.dealer'].create({
+            'name': '測試車行二店',
+            'owner_name': '第二負責人',
+            'address': '台北市大安區測試路2號',
+            'phone_1': '02-87654321',
+        })
+        visit_date = fields.Datetime.now()
+        wizard = self.env['dms.visit.bulk.create.wizard'].create({
+            'visit_date': visit_date,
+            'visitor_id': self.user_visit1.id,
+            'purpose_id': self.purpose.id,
+            'dealer_ids': [(6, 0, [self.dealer.id, dealer_2.id])],
+            'note': '同日巡店',
+        })
+
+        action = wizard.action_create_visits()
+        visits = self.env['dms.visit'].search([
+            ('visitor_id', '=', self.user_visit1.id),
+            ('purpose_id', '=', self.purpose.id),
+            ('note', '=', '同日巡店'),
+            ('dealer_id', 'in', [self.dealer.id, dealer_2.id]),
+        ])
+
+        self.assertEqual(len(visits), 2, '批次建立應產生 2 筆拜訪')
+        self.assertEqual(set(visits.mapped('dealer_id').ids), {self.dealer.id, dealer_2.id})
+        self.assertEqual(set(visits.mapped('state')), {'draft'})
+        self.assertEqual(action['type'], 'ir.actions.client')
+        self.assertEqual(action['tag'], 'reload')

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ─── Section Kanban（格狀爆炸圖縮圖）─── -->
+  <record id="view_catalog_section_kanban" model="ir.ui.view">
+    <field name="name">dms.part.catalog.section.kanban</field>
+    <field name="model">dms.part.catalog.section</field>
+    <field name="arch" type="xml">
+      <kanban string="爆炸圖分區">
+        <field name="code"/>
+        <field name="name"/>
+        <field name="category"/>
+        <field name="diagram_image"/>
+        <field name="line_count"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click" style="min-width:200px;max-width:260px;">
+              <div class="o_kanban_image text-center bg-light" style="height:180px;overflow:hidden;">
+                <t t-if="record.diagram_image.raw_value">
+                  <img t-att-src="kanban_image('dms.part.catalog.section','diagram_image',record.id.raw_value)"
+                       style="max-height:180px;max-width:100%;object-fit:contain;" alt="爆炸圖"/>
+                </t>
+                <t t-else="">
+                  <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                    <i class="fa fa-image fa-3x mb-2"/>
+                    <small>點擊進入後上傳圖片</small>
+                  </div>
+                </t>
+              </div>
+              <div class="oe_kanban_details p-2">
+                <strong style="font-size:1.05em;">
+                  <t t-esc="record.code.value"/>&#160;<t t-esc="record.name.value"/>
+                </strong>
+                <div class="text-muted small mt-1">
+                  <span t-if="record.category.value"><t t-esc="record.category.value"/>&#160;|&#160;</span>
+                  共 <t t-esc="record.line_count.value"/> 項零件
+                </div>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
+  <!-- ─── Section Tree ─── -->
+  <record id="view_catalog_section_tree" model="ir.ui.view">
+    <field name="name">dms.part.catalog.section.tree</field>
+    <field name="model">dms.part.catalog.section</field>
+    <field name="arch" type="xml">
+      <tree string="分區清單">
+        <field name="sequence" widget="handle"/>
+        <field name="code"/>
+        <field name="name"/>
+        <field name="catalog_id"/>
+        <field name="category"/>
+        <field name="line_count" string="零件數"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ─── Section Form（爆炸圖 + 零件清單）─── -->
+  <record id="view_catalog_section_form" model="ir.ui.view">
+    <field name="name">dms.part.catalog.section.form</field>
+    <field name="model">dms.part.catalog.section</field>
+    <field name="arch" type="xml">
+      <form string="爆炸圖分區">
+        <sheet>
+          <group>
+            <!-- 左欄：分區基本資料 -->
+            <group string="分區資料">
+              <field name="catalog_id"/>
+              <field name="code" placeholder="如：E01"/>
+              <field name="name" placeholder="如：引擎蓋"/>
+              <field name="category" widget="radio"/>
+            </group>
+            <!-- 右欄：爆炸圖上傳 -->
+            <group string="爆炸圖">
+              <field name="diagram_image" widget="image"
+                     options="{'size': [600, 450]}"
+                     nolabel="1"
+                     style="max-height:320px;"/>
+              <field name="diagram_filename" invisible="1"/>
+              <div colspan="2">
+                <small class="text-muted">
+                  <i class="fa fa-info-circle"/> 支援 PNG / JPG 直接上傳，
+                  或使用下方「PDF 上傳」讓系統自動擷取第一頁
+                </small>
+              </div>
+              <field name="pdf_source" widget="binary" filename="pdf_filename"
+                     string="上傳 PDF（自動擷取第一頁）"/>
+              <field name="pdf_filename" invisible="1"/>
+            </group>
+          </group>
+
+          <separator string="零件明細"/>
+          <field name="line_ids">
+            <tree editable="bottom">
+              <field name="seq_no" string="序號"/>
+              <field name="part_id"/>
+              <field name="part_number" string="料號"/>
+              <field name="name" string="零件名稱"/>
+              <field name="qty"/>
+              <field name="list_price" string="售價" optional="show"/>
+              <field name="qty_available" string="庫存" readonly="1" optional="show"/>
+              <field name="note" optional="hide"/>
+            </tree>
+          </field>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ─── Section Search ─── -->
+  <record id="view_catalog_section_search" model="ir.ui.view">
+    <field name="name">dms.part.catalog.section.search</field>
+    <field name="model">dms.part.catalog.section</field>
+    <field name="arch" type="xml">
+      <search string="分區搜尋">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="catalog_id"/>
+        <filter name="filter_engine" string="引擎" domain="[('category','=','engine')]"/>
+        <filter name="filter_frame" string="車架" domain="[('category','=','frame')]"/>
+        <group expand="0" string="分組依據">
+          <filter name="group_catalog" string="目錄" context="{'group_by': 'catalog_id'}"/>
+          <filter name="group_category" string="部位" context="{'group_by': 'category'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_catalog_section" model="ir.actions.act_window">
+    <field name="name">爆炸圖分區</field>
+    <field name="res_model">dms.part.catalog.section</field>
+    <field name="view_mode">kanban,tree,form</field>
+  </record>
+
+</odoo>

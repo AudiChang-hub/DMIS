@@ -1,0 +1,22 @@
+# 實作任務（03-tasks）— Metabase 車行月銷量與累計趨勢
+
+- [x] 建立 `022-metabase-dealer-monthly-sales` feature spec
+- [x] 新增 Metabase API 腳本更新 P3 dashboard
+- [x] 更新 P3 月銷量圖為車行維度
+- [x] 將 P3 月銷量圖調整回緊湊版位
+- [x] 新增 P3 累計銷量折線圖
+- [x] 新增 P3 車行月銷量明細表
+- [x] 新增 P3 車行區域銷量排行圖
+- [x] 將 P3-4 改為 field-backed query，讓 `未設定` 等區域值可點擊互動並 drill-through 查看訂單
+- [x] 將 `網路平台` 類型的 `dealer_region_district` 直接歸類為 `網路`
+- [x] 將空白 `display_dealer_name` fallback 為 `馭盛` 的資料列同步套用 `馭盛` 主檔地址解析 `dealer_region_city` / `dealer_region_district`
+- [x] 將 `朋友推薦` / `代申請補助` 的 dealer 顯示與地址解析同步正規化為 `馭盛`
+- [x] 將 P3 車行月銷量明細表改為每列三組資料的矩陣版型，並隱藏 A/B/C 欄頭
+- [x] 補上 `領牌年月` / `車行名稱` 下拉式篩選器
+- [x] 補上 `能源類型` 下拉式篩選器
+- [x] 補上 `車行縣市` 下拉式篩選器
+- [x] 補上 `車行區域` 下拉式篩選器
+- [x] 設定 `領牌年月` 預設最近一年（12 個月份，含當前月份）
+- [x] 移除 `銷售來源` 預設值
+- [x] 執行腳本套用至 Metabase
+- [x] 驗證 public dashboard、`make smoke`、`docker compose ps`

@@ -72,3 +72,5 @@ docker compose run --rm odoo odoo -d dmis_dev --test-enable \
 | 日期 | 修改者 | 修改摘要 | specs 參照 | 核准人 |
 |------|--------|----------|------------|--------|
 | 2026-03-26 | Audi | 移除 `name_get` 上的 `@api.model` 錯誤裝飾器（bug fix） | — | — |
+| 2026-04-13 | Copilot | **Bug fix**：`dms_security.xml` 中 `group_dms_dealer_user` 與 `group_dms_dealer_manager` 的 `category_id` 誤設為 `base.module_category_user_type`，導致使用者同時擁有兩個互斥 user type，阻擋 `stock`/`purchase` 等原生模組安裝。修正方式：改為自訂的 `module_category_dms`（車行管理系統），並為 manager 加上 `implied_ids` 繼承 user 群組。 | 本次安裝需求 | — |
+| 2026-04-30 | Copilot | **系統資訊頁面更新**：(a) `_MODULE_LIST` 補上 `dms_commission`、`dms_parts`、`dms_report_ds` 三個遺漏模組，並重整顯示名稱；(b) `_CHANGELOG_HTML` 新增 2026-04-30 條目，彙整 4/02 之後 9 個模組共近 240 個 commit；(c) bump `dms_core` 16.0.1.1.0 → 16.0.1.2.0。同時連動 bump `dms_commission`、`dms_customer`、`dms_parts`、`dms_product`、`dms_report_ds`、`dms_report_virtual`、`dms_sale`、`user_management` 末段版號。 | 本次維護 | — |

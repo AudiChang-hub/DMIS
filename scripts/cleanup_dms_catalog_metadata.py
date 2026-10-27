@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""清理已移除 dms_catalog / dms_product / dms_pricelist 的殘留 metadata。"""
+"""清理已移除模組與重建 dms_product 前的殘留 metadata。"""
 
 from __future__ import annotations
 
@@ -11,24 +11,15 @@ from pathlib import Path
 
 
 CATALOG_ONLY_MODELS = (
-    "dms.product.template",
     "dms.product.sku",
-    "dms.price.version",
-    "dms.price.line",
-    "dms.installment.rule",
-    "dms.installment.rule.line",
-    "dms.fee.type",
-    "dms.installment.rule.fee",
 )
 
 REMOVED_MODULES = (
     "dms_catalog",
-    "dms_product",
     "dms_pricelist",
 )
 
 MIGRATED_MODULES = (
-    "dms_product",
     "dms_pricelist",
 )
 
@@ -181,6 +172,17 @@ def build_cleanup_sql() -> str:
         DELETE FROM ir_model
         WHERE model IN ({catalog_only_models});
 
+        DELETE FROM ir_model_data d
+        WHERE d.module = 'base'
+          AND d.name = 'module_dms_product'
+          AND d.model = 'ir.module.module'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM ir_module_module m
+              WHERE m.id = d.res_id
+                AND m.name = 'dms_product'
+          );
+
         DELETE FROM ir_model_data
         WHERE module IN ({removed_modules});
 
@@ -200,8 +202,8 @@ def print_header(title: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "清理 dms_catalog / dms_product / dms_pricelist "
-            "已移除後殘留的 metadata、舊頂層選單與模組登記。"
+            "清理 dms_catalog / dms_pricelist 已移除後殘留的 metadata、"
+            "舊頂層選單、模組登記，以及重建 dms_product 前的孤兒模組 XML ID。"
         )
     )
     parser.add_argument("--database", default="dmis_dev", help="目標資料庫名稱")

@@ -1,0 +1,172 @@
+# 05 — Acceptance：新一代產品管理模組重建（015-dms-product-rebuild）
+
+## A. 新產品模組功能驗收
+
+- [x] 可從新頂層 App「產品管理」進入主畫面
+- [x] 可建立產品模板，至少可輸入品牌、機種、型式、型號、能源型式
+- [x] 可建立產品項，至少可輸入出廠年份（內部唯一代碼由系統自動生成，不需手動輸入）
+- [x] 同一模板下可建立不同出廠年份的多筆產品項
+- [x] 產品項僅於產品模板表單中的產品項頁籤維護，不提供獨立選單頁面
+- [x] 停用後的產品項仍可在模板頁籤看見，並可直接重新啟用
+- [x] 可於產品模板的產品項頁籤直接複製既有產品項，再微調出廠年份等欄位
+- [x] 可於產品模板的產品項頁籤直接開啟顏色維護入口，逐列新增顏色，不需手動輸入頓號摘要
+- [x] 產品模板表單不再保留獨立「產品顏色」頁籤，避免重複維護入口
+- [x] 維護顏色彈窗不顯示顏色代碼、相容欄位或圖片頁籤
+- [x] 刪除或停用產品顏色後，產品項上的 `可售顏色` 摘要會立即同步更新
+- [x] 產品項複製後會自動生成新的唯一 `internal_code`，不因沿用舊碼而報重複
+- [x] 產品項列級複製後不會重複堆疊相同 breadcrumb
+- [x] 可於產品模板的產品項頁籤直接刪除未被其他資料引用的產品項
+- [x] 模板清單中的 `產品項數量` 僅計算啟用中的產品項
+- [x] 產品模板可從操作選單執行「複製」，並建立新模板與對應產品項
+- [x] 產品項選取下拉與已選值顯示 `內部代碼 / 車種`，避免名稱過長
+- [x] 出廠年份於畫面直接顯示年份文字，例如 `2026`，不得顯示為 `2,026`
+- [x] 不可建立重複 `internal_code`
+- [x] 未手動輸入 `internal_code` 時，系統會依「型號 + 出廠年份」自動生成可讀代碼
+- [x] 若同型號同年份已有既有代碼，系統會自動補尾碼維持唯一性
+- [x] `internal_code` 欄位在 UI 中為唯讀，不允許使用者手動修改
+- [x] `template_id` 在新增產品項對話框中自動帶入所屬模板且不可修改
+- [x] 主要清單畫面以 list 為主，不依賴圖片作主畫面核心
+- [x] 型號為 `EV062`、`EV062FL` 的模板機種一律顯示為 `eReady Fun`
+- [x] 型號為 `EV062`、`EV062FL` 的產品項名稱一律顯示為 `eReady Fun`
+- [x] 若既有銷售訂單引用上述型號，`display_product_name` 會同步更新為 `eReady Fun`
+
+## B. 價格生效邏輯驗收
+
+- [x] 可建立價目版本（名稱、生效日、狀態、備註）
+- [x] 可在同一價目版本下為同一產品項建立價格基準（現金價、牌價）
+- [x] 可於價目版本中一次多選多個產品項，批次建立多筆價格基準
+- [x] 批次加入多個產品項時，可一併輸入統一現金價與牌價並套用到所有新增價格列
+- [x] 可直接複製價目版本，並一併帶出原本的價格基準
+- [x] 複製後的新價目版本名稱不會與原版本重複，且狀態會重設為草稿
+- [x] 查詢價格時，系統抓取 `effective_date <= 查詢日` 的最新版本
+- [x] 不要求手動維護價格迄日
+- [x] 同產品項不同價目版本可有不同價格
+- [x] 價格基準不再提供獨立選單入口，統一於價目版本中維護
+
+## B-1. 產品項與顏色結構驗收
+
+- [x] 產品項只代表「模板 + 出廠年份」，不因顏色拆成多筆
+- [x] 同一產品項可維護多筆顏色
+- [x] 價格基準只綁產品項，不綁顏色
+- [x] 規則掛接只綁產品項，不綁顏色
+- [x] 銷售單可先選產品項，再從顏色下拉選擇顏色
+- [x] 既有因顏色拆分的產品資料可安全收斂為單一產品項 + 多筆顏色
+
+## C. 分期規則驗收
+
+- [x] 可建立分期規則模板
+- [x] 可建立多筆規則明細（起始期數、結束期數、價格基準）
+- [x] 規則明細期數區間不得重疊
+- [x] 規則結構不依賴 `type_1 / type_2 / type_3` 固定欄位
+- [x] 同產品項在不同價目版本下可掛不同分期規則模板
+
+## D. 費用規則驗收
+
+- [x] 可建立費用類型主檔
+- [x] 預設至少存在「開辦費」與「設定費」
+- [x] 可在規則明細下新增多筆費用明細
+- [x] 費用明細可設定外加 / 內含 / 公司吸收
+- [x] 費用類型可擴充，不侷限於兩個固定欄位
+
+## E. migration / 相容驗收
+
+- [x] 舊 `dms.product` 資料不失聯
+- [x] 舊 `dms.product` 能回填 `template_id`、`internal_code`、`production_year`
+- [x] 若 legacy `dms.vehicle.price` 有資料，可回填到新價格結構
+- [x] 若 legacy `dms.installment.plan` 有資料，可回填到新規則結構
+- [x] 不可粗暴刪除 legacy 資料
+
+## F. 不影響既有功能驗收
+
+- [x] `dms_sale` 可正常建立銷售訂單
+- [x] `dms_sale` 選擇車款後可正確查價（新結構或 legacy fallback）
+- [x] `dms_visit` 可正常建立拜訪並記錄送出物品
+- [x] `dms_finance` 可正常建立財務結算
+- [x] `user_management` 可正常建立與指派群組
+
+## G. 不影響現有使用者驗收
+
+- [x] 現有使用者原本可完成的主要流程不失效
+- [x] 不因新模組建立造成既有畫面開啟失敗
+- [x] 不因模組重建造成現有資料不可查詢
+- [x] 新入口與相容入口的關係有明確文件說明
+
+## H. 車行管理模組回歸驗收
+
+- [x] 車行建立、編輯、搜尋正常
+- [x] 品牌管理正常
+- [x] 拜訪清單正常
+- [x] 拜訪行事曆正常
+- [x] 車行管理相關權限不變
+
+## I. Odoo 測試與升級驗收
+
+- [x] `dms_product` 可正常安裝
+- [x] `dms_product` 可正常升級
+- [x] 新模組 menu / action / view 可正常載入
+- [x] `dms_product` 的 Odoo 測試全部通過
+- [x] 受影響模組升級指令無 ERROR
+
+## J. 驗證指令
+
+至少需實際執行並列出結果：
+
+```bash
+make up
+docker compose ps
+docker compose restart odoo
+make smoke
+docker exec dmis-odoo-1 odoo --stop-after-init -d dmis_dev -u dms_product,dms_sale,dms_visit
+docker exec dmis-odoo-1 odoo --test-enable --stop-after-init -d dmis_dev -i dms_product
+docker exec dmis-odoo-1 odoo --test-enable --stop-after-init -d dmis_dev -u dms_core,dms_visit,user_management,dms_finance
+```
+
+> 若任何測試失敗，不得跳過，必須修正或明確說明阻塞原因。
+
+## K. 新增產品項 UX 流程驗收（2026-04-07 新增）
+
+> 解決「全新模板尚未儲存時，新增產品項對話框無法帶入 template_id」問題。
+
+- [x] 在全新產品模板（尚未儲存）頁面點選「新增產品項」時，系統自動儲存模板後才開啟對話框
+- [x] 若模板必填欄位（品牌、機種、能源型式）尚未填寫，點選「新增產品項」後系統顯示紅框提示，不開啟對話框
+- [x] 對話框開啟後，`template_id` 欄位為唯讀且自動帶入當前模板，無需使用者手動選擇
+- [x] 對話框中唯一需要填寫的必要欄位為「出廠年份」
+- [x] 儲存對話框後，`internal_code` 由系統自動按「型號-年份」規則生成，不需手動輸入
+- [x] 已儲存的模板（有既有產品項）點選「新增產品項」時，直接開啟對話框（不重複觸發 auto-save）
+- [x] `internal_code` 欄位在 SKU form 中完全唯讀，不提供手動輸入入口
+
+### 技術實作規範
+
+- OWL widget `sku_o2m`（`dms_product/static/src/js/sku_o2m_autosave.js`）繼承 `X2ManyField`，在 `onAdd()` 中判斷 `record.isNew` → 觸發 `record.save()` → 確認成功後才呼叫 `super.onAdd()`
+- Python `create()` 在記錄建立後，若 `internal_code` 為空則自動呼叫 `_build_generated_code()` 填入
+- `product_template_views.xml` 的 `sku_ids` 欄位使用 `widget="sku_o2m"`
+- `product_sku_views.xml` 的 `internal_code` 加上 `readonly="1"`；`template_id` 加上 `attrs="{'readonly': [('template_id', '!=', False)]}"`
+
+> **⚠️ OWL JS 重要規範（2026-04-07 新增，強制遵守）**
+>
+> **Odoo 16 的 `fields` registry 登錄的值直接是 Class 本身，不是 descriptor object。**
+> 以下寫法是**錯誤的**，會導致 `TypeError: C is not a constructor` OWL 崩潰：
+> ```js
+> // ❌ 錯誤：x2ManyField 不存在，spread 後 component 為 undefined
+> import { X2ManyField, x2ManyField } from "@web/views/fields/x2many/x2many_field";
+> export const myField = { ...x2ManyField, component: MyField };
+> registry.category("fields").add("my_field", myField);
+> ```
+> 正確做法：
+> ```js
+> // ✅ 正確：直接登錄 class
+> import { X2ManyField } from "@web/views/fields/x2many/x2many_field";
+> export class MyField extends X2ManyField { ... }
+> registry.category("fields").add("my_field", MyField);
+> ```
+>
+> **驗收要求**：每次新增自訂 OWL widget 後，必須實際在瀏覽器操作該視圖，確認無 `UncaughtPromiseError > OwlError` 或 `TypeError: C is not a constructor`，方可標記驗收通過。Python 測試通過並不代表前端 JS 正常，兩者必須分開驗證。
+
+### 本輪實際驗證結果（2026-03-27）
+
+- `make up` / `make smoke`：此環境未安裝 `make`，改以 `docker compose up -d` 與 `bash scripts/smoke_odoo.sh` 執行等效流程
+- `docker compose ps`：`db` / `odoo` / `cloudflared` 皆為 `Up`
+- `python3 scripts/cleanup_dms_catalog_metadata.py --database dmis_dev --user odoo`：成功清除重建前孤兒 `base.module_dms_product` XML ID
+- `docker exec dmis-odoo-1 odoo --stop-after-init -d dmis_dev -i dms_product --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo`：成功
+- `docker exec dmis-odoo-1 odoo --http-port=8070 --test-enable --stop-after-init -d dmis_dev -u dms_core,user_management,dms_sale,dms_visit,dms_product --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo`：`0 failed, 0 error(s) of 62 tests`
+- `bash scripts/smoke_odoo.sh`：`OK: received 200 from http://localhost:8069/web/login`

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_product_duplicate_wizard_form" model="ir.ui.view">
+    <field name="name">dms.product.duplicate.wizard.form</field>
+    <field name="model">dms.product.duplicate.wizard</field>
+    <field name="arch" type="xml">
+      <form string="複製產品項">
+        <sheet>
+          <field name="has_conflict" invisible="1"/>
+          <div class="alert alert-warning mb-3"
+               attrs="{'invisible': [('has_conflict', '=', False)]}">
+            <strong>⚠ 年份衝突</strong>：此模板與年份已有產品項
+            「<field name="conflict_product_name" readonly="1" nolabel="1" class="d-inline fw-bold"/>」存在。<br/>
+            確認後系統將以流水號建立新記錄（例如 TEST0001-2026-02）。
+          </div>
+          <group>
+            <field name="template_id" readonly="1"/>
+            <field name="production_year" required="1"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_check_and_create"
+                  type="object"
+                  string="建立"
+                  class="btn-primary"
+                  attrs="{'invisible': [('has_conflict', '=', True)]}"/>
+          <button name="action_confirm_create"
+                  type="object"
+                  string="確認建立（允許重複年份）"
+                  class="btn-warning"
+                  attrs="{'invisible': [('has_conflict', '=', False)]}"/>
+          <button special="cancel" string="取消"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+</odoo>

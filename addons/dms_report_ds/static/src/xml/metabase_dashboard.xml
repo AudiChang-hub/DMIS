@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dms_report_ds.MetabaseDashboard" owl="1">
+        <div class="o_action o_metabase_dashboard"
+             style="height: calc(100vh - 46px); width: 100%; overflow: hidden;">
+            <t t-if="state.loading">
+                <div class="d-flex justify-content-center align-items-center h-100">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中…</span>
+                    </div>
+                </div>
+            </t>
+            <t t-elif="!state.url">
+                <div class="d-flex justify-content-center align-items-center h-100 text-muted">
+                    <span>Dashboard 設定錯誤：缺少 dashboard_uuid</span>
+                </div>
+            </t>
+            <t t-else="">
+                <div class="d-flex align-items-center px-2 py-1 bg-light border-bottom"
+                     style="height: 36px; flex-shrink: 0;">
+                    <button class="btn btn-sm btn-outline-secondary"
+                            t-on-click="resetDashboard"
+                            title="重設篩選條件至預設值">
+                        <i class="fa fa-refresh me-1"/>重設
+                    </button>
+                </div>
+                <iframe t-ref="metabaseIframe"
+                        t-att-src="state.url"
+                        style="width: 100%; height: calc(100% - 36px); border: none;"
+                        allowfullscreen="true"
+                        frameborder="0"/>
+            </t>
+        </div>
+    </t>
+
+</templates>

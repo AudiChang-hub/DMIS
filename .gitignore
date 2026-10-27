@@ -13,3 +13,9 @@ node_modules/
 logs/*.log
 logs/*.log.*
 temp_*.py
+*.pdf
+output.txt
+*.xlsx
+output_report/.~lock.*
+.auto-deploy/
+backups/

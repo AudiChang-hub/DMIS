@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Wizard Form View -->
+  <record id="view_product_create_wizard_form" model="ir.ui.view">
+    <field name="name">dms.product.create.wizard.form</field>
+    <field name="model">dms.product.create.wizard</field>
+    <field name="arch" type="xml">
+      <form string="新增產品項">
+        <sheet>
+          <!-- 第一列：品牌、機種名稱、能源型式 -->
+          <group>
+            <group>
+              <field name="brand_id" options="{'no_create': True, 'no_open': True}"/>
+              <field name="name" placeholder="例：GIXXER SF 250 ABS 七期"/>
+              <field name="model" placeholder="例：SF250（選填）"/>
+              <field name="type_name" placeholder="例：七期（選填）"/>
+            </group>
+            <group>
+              <field name="energy_type"/>
+              <field name="production_year" placeholder="例：2026"/>
+              <field name="color" placeholder="例：消光黑、白（選填）"/>
+            </group>
+          </group>
+
+          <!-- 定價區塊 -->
+          <separator string="定價"/>
+          <group>
+            <group>
+              <field name="suggested_price"/>
+              <field name="cash_discount"/>
+              <field name="cash_price"/>
+            </group>
+          </group>
+
+          <!-- 分期區塊 -->
+          <separator string="分期月付金（填入現金價後自動帶值，可手動調整）"/>
+          <group>
+            <group>
+              <field name="installment_12_price"/>
+              <field name="installment_18_price"/>
+              <field name="installment_24_price"/>
+            </group>
+            <group>
+              <field name="installment_36_price"/>
+              <field name="installment_48_price"/>
+              <field name="installment_60_price"/>
+            </group>
+          </group>
+
+          <!-- 備註區塊 -->
+          <separator string="備註"/>
+          <group>
+            <field name="gift_note" placeholder="例：現金優惠折 5000 元" widget="text" colspan="2"/>
+          </group>
+          <group>
+            <field name="fees_note" placeholder="例：18期：開辦費2500元" widget="text" colspan="2"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_save" type="object" string="✅ 儲存新增" class="btn-primary"/>
+          <button string="取消" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- Wizard Action（target=new 彈窗）-->
+  <record id="action_product_create_wizard" model="ir.actions.act_window">
+    <field name="name">新增產品項</field>
+    <field name="res_model">dms.product.create.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_product_create_wizard_form"/>
+    <field name="target">new</field>
+  </record>
+
+</odoo>

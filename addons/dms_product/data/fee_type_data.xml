@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+  <record id="fee_type_opening" model="dms.fee.type">
+    <field name="name">開辦費</field>
+    <field name="code">opening_fee</field>
+    <field name="active">True</field>
+  </record>
+
+  <record id="fee_type_setup" model="dms.fee.type">
+    <field name="name">設定費</field>
+    <field name="code">setup_fee</field>
+    <field name="active">True</field>
+  </record>
+</odoo>

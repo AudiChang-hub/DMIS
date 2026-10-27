@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Wizard 表單視圖 -->
+  <record id="view_excel_import_wizard_form" model="ir.ui.view">
+    <field name="name">dms.excel.import.wizard.form</field>
+    <field name="model">dms.excel.import.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Excel 銷貨資料匯入">
+        <sheet>
+          <!-- 隱藏的狀態欄位（attrs 依賴） -->
+          <field name="preview_done" invisible="1"/>
+
+          <group string="上傳 Excel 檔案">
+            <field name="file_data" filename="file_name" widget="binary"/>
+            <field name="file_name" invisible="1"/>
+          </group>
+
+          <!-- 預覽結果（比對後顯示） -->
+          <group string="比對結果" attrs="{'invisible': [('preview_done', '=', False)]}">
+            <group>
+              <field name="preview_insert" string="將新增"/>
+              <field name="preview_update" string="將更新"/>
+              <field name="preview_skip"   string="略過（無序號）"/>
+            </group>
+          </group>
+
+          <group string="警告/錯誤" attrs="{'invisible': [('error_summary', '=', False)]}">
+            <field name="error_summary" nolabel="1" colspan="2" readonly="1"/>
+          </group>
+
+        </sheet>
+        <footer>
+          <button string="① 比對資料" type="object" name="action_preview"
+                  class="btn-secondary"
+                  attrs="{'invisible': [('preview_done', '=', True)]}"/>
+          <button string="② 確認匯入" type="object" name="action_import"
+                  class="btn-primary"
+                  attrs="{'invisible': [('preview_done', '=', False)]}"/>
+          <button string="關閉" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- Action -->
+  <record id="action_excel_import_wizard" model="ir.actions.act_window">
+    <field name="name">Excel 銷貨資料匯入</field>
+    <field name="res_model">dms.excel.import.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+  <!-- 選單：車銷管理 → Excel 匯入 -->
+  <menuitem id="menu_excel_import_wizard"
+            name="Excel 銷貨匯入"
+            parent="dms_product.menu_dms_product_root"
+            action="action_excel_import_wizard"
+            sequence="55"/>
+
+</odoo>

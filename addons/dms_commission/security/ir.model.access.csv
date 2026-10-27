@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dms_commission_product_rule,dms.commission.product.rule,model_dms_commission_product_rule,base.group_user,1,1,1,1
+access_dms_commission_vehicle_rule,dms.commission.vehicle.rule,model_dms_commission_vehicle_rule,base.group_user,1,1,1,1
+access_dms_commission_dealer_rule,dms.commission.dealer.rule,model_dms_commission_dealer_rule,base.group_user,1,1,1,1
+access_dms_commission_dealer_rule_incentive_line,dms.commission.dealer.rule.incentive.line,model_dms_commission_dealer_rule_incentive_line,base.group_user,1,1,1,1
+access_dms_commission_volume_rule,dms.commission.volume.rule,model_dms_commission_volume_rule,base.group_user,1,1,1,1
+access_dms_commission_volume_gift,dms.commission.volume.gift,model_dms_commission_volume_gift,base.group_user,1,1,1,1
+access_dms_commission_record,dms.commission.record,model_dms_commission_record,base.group_user,1,1,1,1
+access_dms_incentive_type,dms.incentive.type,model_dms_incentive_type,base.group_user,1,1,1,1
+access_dms_incentive_rule,dms.incentive.rule,model_dms_incentive_rule,base.group_user,1,1,1,1
+access_dms_incentive_delivery,dms.incentive.delivery,model_dms_incentive_delivery,base.group_user,1,1,1,1
+access_dms_commission_monthly_report,dms.commission.monthly.report,model_dms_commission_monthly_report,base.group_user,1,1,1,1
+access_dms_commission_summary_report,dms.commission.summary.report,model_dms_commission_summary_report,base.group_user,1,1,1,1

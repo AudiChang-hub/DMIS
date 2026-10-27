@@ -1,6 +1,6 @@
 services:
   odoo:
-    image: odoo:16
+    build: .
     env_file: .env
     environment:
       - DB_HOST=db
@@ -8,11 +8,14 @@ services:
       - DB_USER=${POSTGRES_USER:-odoo}
       - DB_PASSWORD=${POSTGRES_PASSWORD:-odoo}
     ports:
-      - "${ODOO_PORT:-8069}:8069"
+      # Cloudflare 與其他容器走 Docker network；主機維護入口只綁 loopback。
+      - "127.0.0.1:${ODOO_PORT:-8069}:8069"
     depends_on:
       - db
     volumes:
+      - odoo_data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
+      - /home/audi/project/OrderProcessor/backup:/mnt/order_backup:ro
     restart: always
 
   db:
@@ -23,7 +26,8 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo}
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
     ports:
-      - "${DB_PORT:-5433}:5432"
+      # 歷史資料庫不得直接暴露到區網；主機端維護仍可由 localhost 使用。
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     restart: always
@@ -35,5 +39,22 @@ services:
     depends_on:
       - odoo
 
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+      # 公開存取由既有 Tunnel 提供，維護入口只開放本機。
+      - "127.0.0.1:${METABASE_PORT:-3000}:3000"
+    environment:
+      MB_JETTY_PORT: 3000
+    depends_on:
+      - db
+    volumes:
+      - metabase_data:/metabase.db
+    restart: always
+    profiles:
+      - metabase
+
 volumes:
   db_data:
+  odoo_data:
+  metabase_data:

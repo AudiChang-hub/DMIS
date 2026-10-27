@@ -13,9 +13,9 @@
 
 ---
 
-## 模組整併說明
+## 模組定位更新（014 / 015）
 
-自 `014-module-removal` 起，`dms_sale` 除了銷售訂單本身，也承接原 `dms_product` / `dms_pricelist` 的核心模型與選單：
+自 `014-module-removal` 起，`dms_sale` 承接了原 `dms_product` / `dms_pricelist` 的核心技術模型，以維持既有交易流程不斷線：
 
 - `dms.product`
 - `dms.product.color`
@@ -26,7 +26,11 @@
 - `dms.ev.fee.schedule`
 - `dms.commission.rule`
 
-因此「產品資料」與「價目資料」現皆掛在 `dms_sale` 選單下。
+自 `015-dms-product-rebuild` 起：
+
+- 正式的產品管理入口已移至新 `dms_product` 模組
+- `dms_sale` 保留交易流程與 legacy 相容模型
+- `dms.sale.order` 查價時，優先讀取 `dms_product` 提供的 `dms.price.line` 生效版本；若查無資料，再 fallback 舊 `dms.vehicle.price`
 
 ---
 
@@ -38,7 +42,7 @@
 |---|---|---|---|
 | `name` | Char | ✓ | 訂單編號（自動序號 `SO{YYYYMM}{四碼}`，default='/'） |
 | `order_date` | Date | ✓ | 訂單日期（default=today） |
-| `sale_type` | Selection | ✓ | 交易類型：`store`=店面、`dealer`=車行（default='store'） |
+| `sale_type` | Selection | ✓ | 交易類型：`store`=店面、`dealer`=車行、`online`=網路平台（default='store'）。當 `dealer_id` 為「車行類型=網路平台」時，create/write/onchange 會自動設為 `online` |
 | `state` | Selection | ✓ | 狀態：`draft`=草稿、`confirmed`=確認、`cancel`=取消（default='draft'） |
 | `active` | Boolean | | 啟用（default=True） |
 
@@ -79,7 +83,7 @@
 | `installment_periods` | Integer | | 分期期數（default=0） |
 | `installment_monthly` | Float(12,0) | | 月付金 |
 
-### 車行金流區塊（sale_type=dealer 時顯示）
+### 車行金流區塊（sale_type 在 dealer / online 時顯示）
 
 | 欄位 | 型別 | 必填 | 說明 |
 |---|---|---|---|
@@ -145,7 +149,7 @@
 
 | 觸發欄位 | 目標欄位 | 來源 | 邏輯 |
 |---|---|---|---|
-| `product_id` | `cash_price` | `dms.vehicle.price` | 取最新 valid_year_month，active=True |
+| `product_id` | `cash_price` | `dms.price.line` / `dms.vehicle.price` | 先取 `effective_date <= 查詢日` 的最新生效版本；若無新價格，fallback 取最新 valid_year_month，active=True |
 | `product_id`（電車） | 牌險費 8 欄 | `dms.ev.fee.schedule` | 取最新 valid_from，active=True |
 | `dealer_id` + `product_id` + `installment_periods` | `commission` | `dms.commission.rule` | 精確匹配 dealer+product+periods；fallback 至 product=留空 |
 | `accessory_id`（在 line） | `unit_price`, `install_fee` | `dms.accessory` | 直接帶出欄位值 |
@@ -194,3 +198,26 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 |---|---|---|---|---|---|
 | dms.sale.order | 全員 | ✓ | ✓ | ✓ | ✓ |
 | dms.sale.order.line | 全員 | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## 匯入與同步規則
+
+### OrderProcessor 自動同步
+
+- OrderProcessor 在目前過渡階段不得直接建立、更新或覆寫 `dms.sale.order`；其解析結果只允許進入獨立的 debug/staging 區。
+- `result.json` 若缺少 docx 文字欄位或車輛欄位不完整，但資料夾內仍有 xlsx「原始資料」sheet，系統需補讀 xlsx 並把解析後欄位寫入暫存紀錄，供 debug 使用。
+- `source_product_name`、`product_id`、`color_id`、`dealer_id`、`payment_method`、`installment_periods`、`finance_company` 等交易欄位，允許由 xlsx fallback 補齊後寫入暫存區，但不得因此進入正式銷售資料。
+- 重新同步同一筆 OrderProcessor 資料時，若已存在相同 `source_folder` 的暫存紀錄，應以重建暫存資料為準，不得對銷售訂單做任何刪改。
+- 在 Excel 匯入仍存在的期間，正式銷售資料唯一自動寫入路徑仍為 Excel 匯入。
+
+### 分期欄位正規化
+
+- OrderProcessor 來源中的 `是否有分期` / `分期公司` 若出現 `18期`、`24期` 這類期數字串，需解析為 `installment_periods`，不得直接寫入 `finance_company` selection。
+- `finance_company` 僅接受既有選項：`和潤`、`遠信`、`仲信`、`other`；未知文字需轉入 `finance_company_other`，純期數則保留公司為空。
+
+### Excel 匯入車型匹配
+
+- Excel 匯入的 `車種型號` 先以 `dms.product.model` 精確匹配；若未命中，需依序 fallback 比對 `dms.product.name`、`template_family_name` 與產品模板層的 `model_name`、`family_name`、`model_code`。
+- 若找到對應的 `dms.product`，仍沿用既有顏色匹配邏輯；若所有 fallback 都未命中，才保留 `source_product_name` 原始字串並將 `product_id` 留空。
+- Excel 匯入僅以 `excel_sync_id` 執行 upsert，不得因 OrderProcessor 暫存資料存在而改寫銷售訂單。

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_catalog_import_wizard_form" model="ir.ui.view">
+    <field name="name">dms.part.catalog.import.wizard.form</field>
+    <field name="model">dms.part.catalog.import.wizard</field>
+    <field name="arch" type="xml">
+      <form string="零件目錄 CSV 匯入">
+        <sheet>
+          <group string="目錄資訊">
+            <field name="template_id"/>
+            <field name="engine_prefix" placeholder="如：DD（選填）"/>
+            <field name="setup_date"/>
+          </group>
+          <group string="上傳 CSV">
+            <field name="csv_file" widget="binary" filename="csv_filename"/>
+            <field name="csv_filename" invisible="1"/>
+          </group>
+          <group string="CSV 格式說明" col="1">
+            <div class="alert alert-info" role="alert">
+              <p>
+                <strong>下載 CSV 樣板：</strong>
+                <a href="/dms_parts/static/src/csv/catalog_import_template_v2.csv?v=2"
+                   download="零件目錄匯入樣板.csv"
+                   class="btn btn-sm btn-primary ml-2">
+                  <i class="fa fa-download"/> 下載樣板
+                </a>
+              </p>
+              <p class="mt-2"><strong>必要欄位：</strong></p>
+              <code>目錄名稱, 分區代碼, 分區名稱, 分區類別, 序號, 零件編號, 零件名稱</code>
+              <p class="mt-2"><strong>選填欄位：</strong>單位（預設：個）, 數量（預設：1）, 建議售價（預設：0）</p>
+              <p class="mt-2"><strong>分區類別可填：</strong>engine（引擎）或 frame（車架）</p>
+              <p class="mt-2"><em>說明：表頭可用中文或英文（catalog_name, section_code...）；若 Excel 開啟出現亂碼，請以「資料 → 從文字/CSV 匯入」並選擇 UTF-8 編碼。</em></p>
+            </div>
+          </group>
+          <group string="匯入記錄" attrs="{'invisible': [('import_log','=',False)]}">
+            <field name="import_log" nolabel="1" readonly="1"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_import" string="開始匯入" type="object" class="btn-primary"/>
+          <button string="關閉" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_catalog_import_wizard" model="ir.actions.act_window">
+    <field name="name">CSV 批次匯入</field>
+    <field name="res_model">dms.part.catalog.import.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+</odoo>

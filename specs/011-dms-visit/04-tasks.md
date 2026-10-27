@@ -8,40 +8,40 @@
 
 ## Phase 2：模型
 
-- [ ] `addons/dms_visit/models/visit_purpose.py` — dms.visit.purpose
-- [ ] `addons/dms_visit/models/visit_item.py` — dms.visit.item
-- [ ] `addons/dms_visit/models/visit.py` — dms.visit（含 state 流轉、computed name、onchange）
-- [ ] `addons/dms_visit/models/dealer_visit.py` — dms.dealer 繼承（visit_ids、visit_count、action_open_visits）
-- [ ] `addons/dms_visit/models/__init__.py`
-- [ ] `addons/dms_visit/__init__.py`
-- [ ] `addons/dms_visit/__manifest__.py`
+- [x] `addons/dms_visit/models/visit_purpose.py` — dms.visit.purpose
+- [x] `addons/dms_visit/models/visit_item.py` — dms.visit.item
+- [x] `addons/dms_visit/models/visit.py` — dms.visit（含 state 流轉、computed name、onchange）
+- [x] `addons/dms_visit/models/dealer_visit.py` — dms.dealer 繼承（visit_ids、visit_count、action_open_visits）
+- [x] `addons/dms_visit/models/__init__.py`
+- [x] `addons/dms_visit/__init__.py`
+- [x] `addons/dms_visit/__manifest__.py`
 
 ## Phase 3：安全設定
 
-- [ ] `addons/dms_visit/security/dms_visit_security.xml` — 群組定義
-- [ ] `addons/dms_visit/security/ir.model.access.csv` — 存取控制
-- [ ] `addons/dms_visit/security/record_rules.xml` — Record Rules
+- [x] `addons/dms_visit/security/dms_visit_security.xml` — 群組定義
+- [x] `addons/dms_visit/security/ir.model.access.csv` — 存取控制
+- [x] `addons/dms_visit/security/record_rules.xml` — Record Rules
 
 ## Phase 4：視圖
 
-- [ ] `addons/dms_visit/views/visit_views.xml` — Tree + Form + Calendar + Search + Actions + Menus
-- [ ] `addons/dms_visit/views/visit_purpose_views.xml` — 拜訪目的管理視圖
-- [ ] `addons/dms_visit/views/dealer_visit_inherit.xml` — Dealer form Smart Button
+- [x] `addons/dms_visit/views/visit_views.xml` — Tree + Form + Calendar + Search + Actions + Menus
+- [x] `addons/dms_visit/views/visit_purpose_views.xml` — 拜訪目的管理視圖
+- [x] `addons/dms_visit/views/dealer_visit_inherit.xml` — Dealer form Smart Button
 
 ## Phase 5：測試
 
-- [ ] `addons/dms_visit/tests/__init__.py`
-- [ ] `addons/dms_visit/tests/test_visit.py`
-  - [ ] test_01：必填欄位驗證
-  - [ ] test_02：車行拜訪計數
-  - [ ] test_03：送出物品明細
-  - [ ] test_04：Record Rule — user 只見自己的拜訪
-  - [ ] test_05：Record Rule — admin 可見所有拜訪
+- [x] `addons/dms_visit/tests/__init__.py`
+- [x] `addons/dms_visit/tests/test_visit.py`
+  - [x] test_01：必填欄位驗證
+  - [x] test_02：車行拜訪計數
+  - [x] test_03：送出物品明細
+  - [x] test_04：Record Rule — user 只見自己的拜訪
+  - [x] test_05：Record Rule — admin 可見所有拜訪
 
 ## Phase 6：收尾
 
-- [ ] 更新 `docs/erd.md`（新增 dms.visit 相關模型）
-- [ ] Commit 1：規格文件
-- [ ] Commit 2：模組程式碼
-- [ ] Commit 3：測試完成
-- [ ] Push 並建立 PR
+- [x] 更新 `docs/erd.md`（新增 dms.visit 相關模型）
+- [x] Commit 1：規格文件
+- [x] Commit 2：模組程式碼
+- [x] Commit 3：測試完成
+- [x] Push 並建立 PR

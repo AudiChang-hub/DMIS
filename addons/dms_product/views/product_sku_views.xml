@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="dms_sale.view_product_tree" model="ir.ui.view">
+    <field name="name">dms.product.tree.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <tree string="產品項">
+        <field name="internal_code" optional="show"/>
+        <field name="template_id" optional="show"/>
+        <field name="production_year" optional="show"/>
+        <field name="color" string="可售顏色" optional="show" readonly="1"/>
+        <field name="energy_type" optional="show"/>
+        <field name="brand_id" optional="hide"/>
+        <field name="name" optional="hide"/>
+        <field name="model" optional="hide"/>
+        <field name="year" optional="hide"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="dms_sale.view_product_form" model="ir.ui.view">
+    <field name="name">dms.product.form.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <form string="產品項">
+        <sheet>
+          <div class="oe_title">
+            <label for="internal_code" string="內部唯一代碼"/>
+            <h1><field name="internal_code" readonly="1" placeholder="系統自動生成"/></h1>
+          </div>
+          <group>
+            <group string="產品項資料">
+              <field name="template_id" attrs="{'readonly': [('template_id', '!=', False)]}"/>
+              <field name="production_year"/>
+              <field name="color" string="可售顏色" readonly="1" invisible="1"/>
+              <field name="active"/>
+            </group>
+            <group string="模板快照">
+              <field name="brand_id"/>
+              <field name="name"/>
+              <field name="model"/>
+              <field name="energy_type" readonly="1"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="產品顏色">
+              <field name="color_ids" context="{'default_product_id': id, 'active_test': False}">
+                <tree editable="bottom" decoration-muted="not active">
+                  <field name="name"/>
+                  <field name="active"/>
+                </tree>
+              </field>
+            </page>
+            <page string="定價與分期">
+              <group string="目前售價">
+                <group>
+                  <field name="cash_price"/>
+                  <field name="list_price"/>
+                </group>
+                <group>
+                  <field name="effective_price" readonly="1"/>
+                </group>
+              </group>
+              <group string="活動特殊價">
+                <group>
+                  <field name="promo_price"/>
+                  <field name="promo_note" placeholder="如：2026 Q2 原廠補助"/>
+                </group>
+                <group>
+                  <label for="promo_price" string=""/>
+                  <div class="o_field_widget">
+                    <span attrs="{'invisible': [('promo_price', '>', 0)]}" class="text-muted">目前無活動特殊價</span>
+                    <span attrs="{'invisible': [('promo_price', '=', 0)]}" class="text-warning">活動價啟用中，訂單將優先帶入活動價</span>
+                  </div>
+                </group>
+              </group>
+              <separator string="分期方案"/><field name="installment_line_ids" nolabel="1">
+                <tree editable="bottom" optional="show">
+                  <field name="periods"/>
+                  <field name="price_base"/>
+                  <field name="interest_rate" optional="hide"/>
+                  <field name="setup_fee"/>
+                  <field name="opening_fee"/>
+                  <field name="monthly_payment" readonly="1"/>
+                  <field name="note" optional="hide"/>
+                  <field name="installment_change_note" string="異動說明" optional="show"
+                         placeholder="如：銀行調整利率"/>
+                </tree>
+              </field>
+              <separator string="分期方案異動日誌"/>
+              <field name="installment_log_ids" nolabel="1" readonly="1">
+                <tree create="0" delete="0" editable="0">
+                  <field name="changed_at"/>
+                  <field name="user_id"/>
+                  <field name="action"/>
+                  <field name="periods"/>
+                  <field name="description"/>
+                  <field name="note" string="異動說明"/>
+                </tree>
+              </field>
+              <separator string="價格異動日誌"/>
+              <field name="price_log_ids" nolabel="1" readonly="1">
+                <tree create="0" delete="0" editable="0">
+                  <field name="changed_at"/>
+                  <field name="user_id"/>
+                  <field name="old_cash_price"/>
+                  <field name="new_cash_price"/>
+                  <field name="old_list_price"/>
+                  <field name="new_list_price"/>
+                  <field name="old_promo_price" optional="show"/>
+                  <field name="new_promo_price" optional="show"/>
+                  <field name="note"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_product_form_installment_dialog" model="ir.ui.view">
+    <field name="name">dms.product.form.sku.detail.dialog</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <form string="顏色 / 分期方案">
+        <sheet>
+          <div class="oe_title">
+            <label for="internal_code"/>
+            <h1><field name="internal_code" readonly="1"/></h1>
+          </div>
+          <group>
+            <group>
+              <field name="production_year"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="template_id" readonly="1"/>
+            </group>
+          </group>
+          <separator string="顏色"/>
+          <field name="color_ids" nolabel="1"
+                 context="{'default_product_id': id, 'active_test': False}">
+            <tree editable="bottom" decoration-muted="not active">
+              <field name="name"/>
+              <field name="active"/>
+            </tree>
+          </field>
+          <separator string="分期方案"/>
+          <field name="installment_line_ids" nolabel="1">
+            <tree editable="bottom">
+              <field name="finance_company" string="分期公司"
+                     placeholder="如：和潤、遠信、中信卡"/>
+              <field name="periods" string="期數"/>
+              <field name="price_base" string="計算基準"/>
+              <field name="interest_rate" string="年利率" optional="hide"/>
+              <field name="setup_fee" string="設定費"/>
+              <field name="opening_fee" string="開辦費"/>
+              <field name="monthly_payment" string="月付金" readonly="1"/>
+              <field name="note" string="備註" optional="hide"/>
+              <field name="installment_change_note" string="異動說明" optional="show"
+                     placeholder="如：銀行調整利率"/>
+            </tree>
+          </field>
+        </sheet>
+        <footer>
+          <button string="儲存" class="btn-primary" type="object" name="action_save_and_stay"/>
+          <button string="關閉" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="dms_sale.view_product_search" model="ir.ui.view">
+    <field name="name">dms.product.search.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <search string="搜尋產品項">
+        <field name="internal_code"/>
+        <field name="template_id"/>
+        <field name="brand_id"/>
+        <field name="color"/>
+        <field name="production_year"/>
+        <filter name="filter_oil" string="油車" domain="[('energy_type', '=', 'oil')]"/>
+        <filter name="filter_electric" string="電車" domain="[('energy_type', '=', 'electric')]"/>
+        <filter name="filter_active" string="啟用中" domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active', '=', False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_template" string="產品模板" context="{'group_by': 'template_id'}"/>
+          <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>
+          <filter name="groupby_year" string="出廠年份" context="{'group_by': 'production_year'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="dms_sale.action_product" model="ir.actions.act_window">
+    <field name="name">產品項</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+</odoo>

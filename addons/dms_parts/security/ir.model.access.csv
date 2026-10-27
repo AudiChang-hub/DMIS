@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dms_part_category,dms.part.category,dms_product.model_dms_part_category,base.group_user,1,1,1,1
+access_dms_part,dms.part,dms_product.model_dms_part,base.group_user,1,1,1,1
+access_dms_part_catalog,dms.part.catalog,dms_parts.model_dms_part_catalog,base.group_user,1,1,1,1
+access_dms_part_catalog_section,dms.part.catalog.section,dms_parts.model_dms_part_catalog_section,base.group_user,1,1,1,1
+access_dms_part_catalog_line,dms.part.catalog.line,dms_parts.model_dms_part_catalog_line,base.group_user,1,1,1,1
+access_dms_part_catalog_search_wizard,dms.part.catalog.search.wizard,dms_parts.model_dms_part_catalog_search_wizard,base.group_user,1,1,1,0
+access_dms_part_catalog_import_wizard,dms.part.catalog.import.wizard,dms_parts.model_dms_part_catalog_import_wizard,base.group_user,1,1,1,0
+access_dms_part_catalog_pdf_wizard,dms.part.catalog.pdf.wizard,dms_parts.model_dms_part_catalog_pdf_wizard,base.group_user,1,1,1,0

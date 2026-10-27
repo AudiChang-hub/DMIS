@@ -7,12 +7,13 @@ base（Odoo 核心）
  └── dms_customer          P1 客戶管理
 
 dms_core（車行管理）
- └── dms_sale ◄── dms_customer   P2 銷售 / 產品 / 價目整合
-      ├── dms_visit              拜訪管理
-      └── dms_finance            P3 財務結算
-           └── dms_report        P4 BI 報表
-                └── dms_report_rule
-                     └── dms_report_virtual
+ ├── dms_sale ◄── dms_customer   P2 銷售交易
+ │    ├── dms_visit              拜訪管理
+ │    └── dms_finance            P3 財務結算
+ │         └── dms_report        P4 BI 報表
+ │              └── dms_report_rule
+ │                   └── dms_report_virtual
+ └── dms_product ◄── dms_sale    P2 產品管理
 
 user_management（使用者管理）獨立提供菜單白名單與權限同步
 ```
@@ -23,7 +24,8 @@ user_management（使用者管理）獨立提供菜單白名單與權限同步
 |---|---|---|---|---|
 | `dms_core` | DMS 車行管理 | ✅ 已完成 | base, web | 車行、品牌、車行類型基礎資料 |
 | `dms_customer` | 客戶管理 | P1 | base | 客戶資料去重，取代 Excel 車主欄 |
-| `dms_sale` | 銷售管理 | P2 | dms_core, dms_customer | 訂單主檔、產品資料、價目資料、取代紙本/Excel |
+| `dms_sale` | 銷售管理 | P2 | dms_core, dms_customer | 訂單主檔、legacy 相容查價、取代紙本/Excel |
+| `dms_product` | 產品管理 | P2 | dms_core, dms_sale | 產品模板、SKU、價目版本、分期規則、費用規則 |
 | `dms_visit` | 拜訪紀錄 | P2 | dms_core, dms_sale | 車行拜訪紀錄、行事曆、送出物品與排程 |
 | `dms_finance` | 財務結算 | P3 | dms_sale | 收支明細、單筆淨利，取代 Excel 92 欄 |
 | `dms_report` | 銷售 BI | P4 | dms_finance | Pivot/Graph 報表，發揮歷史資料價值 |
@@ -37,12 +39,22 @@ user_management（使用者管理）獨立提供菜單白名單與權限同步
 - `dms.customer`（繼承 res.partner）：身分證字號、生日（國/民曆）、戶籍地址
 - `dms.old.vehicle`：舊車資訊（車主、車控帳號、車牌）
 
-### dms_sale（含原產品 / 價目模型）
-- `dms.product`：車款主檔
+### dms_product
+- `dms.product.template`：產品模板（品牌 / 機種 / 型式 / 型號）
+- `dms.product`：可販售產品項 / SKU（相容延用既有技術模型）
+- `dms.price.version`：價目版本
+- `dms.price.line`：價格基準（現金價 / 牌價）
+- `dms.installment.rule`：分期規則模板
+- `dms.installment.rule.line`：分期規則明細
+- `dms.fee.type`：費用類型
+- `dms.installment.rule.fee`：規則費用明細
+- `dms.installment.rule.binding`：SKU × 價目版本 × 規則掛接
+
+### dms_sale（交易主流程 + legacy 相容）
 - `dms.product.color`：車款顏色
-- `dms.vehicle.price`：車款售價（現金/分期/期數/有效月份/當月活動）
+- `dms.vehicle.price`：legacy 車款售價 fallback
 - `dms.accessory`：精品品項（名稱、型號）
-- `dms.installment.plan`：分期方案
+- `dms.installment.plan`：legacy 分期方案
 - `dms.ev.fee.schedule`：電車牌險費率
 - `dms.commission.rule`：車行傭金規則（依車行/車款/期數）
 - `dms.sale.order`：訂單主檔（來源：店面客戶 / 車行 B2B）
@@ -51,7 +63,7 @@ user_management（使用者管理）獨立提供菜單白名單與權限同步
 #### dms.sale.order 關鍵欄位對應 Excel
 | Excel 欄位 | 系統欄位 | 來源 |
 |---|---|---|
-| 車種型號 | product_id | dms_sale（內含 dms.product） |
+| 車種型號 | product_id | dms_sale（連到 dms_product 提供的 `dms.product` SKU） |
 | 車主名稱 | customer_name / customer_id.name | dms_sale / dms_customer |
 | 身分證字號 | id_number | dms_sale / dms_customer |
 | 生日/民國生日 | birthday_roc | dms_sale / dms_customer |

@@ -104,6 +104,16 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         &:last-child { border-right: none !important; }
     }
 
+    // 選欄下拉按鈕（列表右上角欄位切換按鈕）
+    // Odoo 16: toggler 為 <button class="btn p-0">，圖示為 <i class="o_optional_columns_dropdown_toggle oi oi-settings-adjust">
+    // btn 色彩由 --bs-btn-color CSS 變數控制，需同時覆蓋變數與 color
+    thead .o_optional_columns_dropdown button,
+    thead .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle {
+        --bs-btn-color: white;
+        --bs-btn-hover-color: rgba(255, 255, 255, 0.75);
+        color: white !important;
+    }
+
     // 所有資料格：右側分隔線 + 下分隔線
     .o_data_row > td {
         border-right: 1px solid #DDE8D5 !important;

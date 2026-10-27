@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 在使用者表單新增「存取群組」分頁（僅系統管理員可看到此頁籤） -->
+  <record id="view_users_um_form_inherit" model="ir.ui.view">
+    <field name="name">res.users.um.form.inherit</field>
+    <field name="model">res.users</field>
+    <field name="inherit_id" ref="base.view_users_form"/>
+    <field name="arch" type="xml">
+      <notebook position="inside">
+        <page string="存取群組" name="page_um_groups" groups="base.group_system">
+          <p class="text-muted">
+            指派自訂存取群組後，使用者可見菜單為所有群組的聯集。
+            若未指派任何群組，菜單可見性僅由 Odoo 原生群組決定。
+          </p>
+          <field name="um_group_ids" widget="many2many_tags"
+                 options="{'no_create': True}"/>
+        </page>
+      </notebook>
+    </field>
+  </record>
+
+</odoo>

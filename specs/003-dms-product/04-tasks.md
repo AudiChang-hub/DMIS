@@ -1,5 +1,7 @@
 # 任務清單（04-tasks）— dms_product 遷移
 
+> 歷史文件註記（2026-03-27）：本任務清單僅保留早期拆模記錄；現行產品相關維護已併入 `dms_sale`，請改看 [`specs/014-module-removal/04-tasks.md`](/home/audi/project/DMIS/specs/014-module-removal/04-tasks.md)。
+
 ## Step 1：建立模組骨架
 - [x] `addons/dms_product/__init__.py`
 - [x] `addons/dms_product/__manifest__.py`

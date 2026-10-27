@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  中華民國（台灣）國定假日種子資料
+  資料來源：行政院人事行政總處每年公告
+  ⚠️  此資料為初始參考值，每年請至「台灣假日設定」選單依最新公告更新。
+  補班日（例假彈性補班）不列入此表（補班日仍須出席，不影響順延邏輯）。
+  noupdate="1" 表示重新安裝模組時不覆蓋管理員手動修改的資料。
+-->
+<odoo noupdate="1">
+
+  <!-- ===== 2025 年 ===== -->
+  <record id="holiday_2025_0101" model="dms.public.holiday">
+    <field name="date">2025-01-01</field>
+    <field name="name">元旦</field>
+  </record>
+  <record id="holiday_2025_0127" model="dms.public.holiday">
+    <field name="date">2025-01-27</field>
+    <field name="name">農曆新年彈性放假</field>
+    <field name="note">補班日：1/18(六)</field>
+  </record>
+  <record id="holiday_2025_0128" model="dms.public.holiday">
+    <field name="date">2025-01-28</field>
+    <field name="name">農曆除夕</field>
+  </record>
+  <record id="holiday_2025_0129" model="dms.public.holiday">
+    <field name="date">2025-01-29</field>
+    <field name="name">春節初一（蛇年）</field>
+  </record>
+  <record id="holiday_2025_0130" model="dms.public.holiday">
+    <field name="date">2025-01-30</field>
+    <field name="name">春節初二</field>
+  </record>
+  <record id="holiday_2025_0131" model="dms.public.holiday">
+    <field name="date">2025-01-31</field>
+    <field name="name">春節初三</field>
+  </record>
+  <record id="holiday_2025_0228" model="dms.public.holiday">
+    <field name="date">2025-02-28</field>
+    <field name="name">和平紀念日</field>
+  </record>
+  <record id="holiday_2025_0403" model="dms.public.holiday">
+    <field name="date">2025-04-03</field>
+    <field name="name">兒童節/清明節彈性放假</field>
+    <field name="note">補班日：4/5(六)</field>
+  </record>
+  <record id="holiday_2025_0404" model="dms.public.holiday">
+    <field name="date">2025-04-04</field>
+    <field name="name">兒童節暨清明節</field>
+  </record>
+  <record id="holiday_2025_0501" model="dms.public.holiday">
+    <field name="date">2025-05-01</field>
+    <field name="name">勞動節</field>
+  </record>
+  <record id="holiday_2025_0602" model="dms.public.holiday">
+    <field name="date">2025-06-02</field>
+    <field name="name">端午節補假</field>
+    <field name="note">端午節5/31(六)，補假至6/2(一)；補班日：5/17(六)</field>
+  </record>
+  <record id="holiday_2025_1006" model="dms.public.holiday">
+    <field name="date">2025-10-06</field>
+    <field name="name">中秋節</field>
+  </record>
+  <record id="holiday_2025_1010" model="dms.public.holiday">
+    <field name="date">2025-10-10</field>
+    <field name="name">國慶日</field>
+  </record>
+
+  <!-- ===== 2026 年（請於行政院公告後更新彈性放假/補班日）===== -->
+  <record id="holiday_2026_0101" model="dms.public.holiday">
+    <field name="date">2026-01-01</field>
+    <field name="name">元旦</field>
+  </record>
+  <record id="holiday_2026_0216" model="dms.public.holiday">
+    <field name="date">2026-02-16</field>
+    <field name="name">農曆除夕</field>
+  </record>
+  <record id="holiday_2026_0217" model="dms.public.holiday">
+    <field name="date">2026-02-17</field>
+    <field name="name">春節初一（馬年）</field>
+  </record>
+  <record id="holiday_2026_0218" model="dms.public.holiday">
+    <field name="date">2026-02-18</field>
+    <field name="name">春節初二</field>
+  </record>
+  <record id="holiday_2026_0219" model="dms.public.holiday">
+    <field name="date">2026-02-19</field>
+    <field name="name">春節初三</field>
+  </record>
+  <record id="holiday_2026_0220" model="dms.public.holiday">
+    <field name="date">2026-02-20</field>
+    <field name="name">春節初四彈性放假</field>
+    <field name="note">待行政院公告確認</field>
+  </record>
+  <record id="holiday_2026_0228" model="dms.public.holiday">
+    <field name="date">2026-02-28</field>
+    <field name="name">和平紀念日</field>
+  </record>
+  <record id="holiday_2026_0404" model="dms.public.holiday">
+    <field name="date">2026-04-04</field>
+    <field name="name">兒童節</field>
+    <field name="note">清明節另請確認</field>
+  </record>
+  <record id="holiday_2026_0501" model="dms.public.holiday">
+    <field name="date">2026-05-01</field>
+    <field name="name">勞動節</field>
+  </record>
+  <record id="holiday_2026_1010" model="dms.public.holiday">
+    <field name="date">2026-10-10</field>
+    <field name="name">國慶日</field>
+  </record>
+
+</odoo>

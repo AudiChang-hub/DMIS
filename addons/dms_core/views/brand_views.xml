@@ -7,6 +7,7 @@
     <field name="model">dms.brand</field>
     <field name="arch" type="xml">
       <tree string="品牌">
+        <field name="image_128" widget="image" string="Logo" optional="show" width="40px"/>
         <field name="name"   optional="show"/>
         <field name="active" optional="show"/>
       </tree>
@@ -20,8 +21,14 @@
     <field name="arch" type="xml">
       <form string="品牌">
         <sheet>
+          <field name="image_1920" widget="image"
+                 class="oe_avatar"
+                 options="{'zoom': true, 'preview_image': 'image_128'}"/>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="品牌名稱"/></h1>
+          </div>
           <group>
-            <field name="name"/>
             <field name="active"/>
           </group>
         </sheet>

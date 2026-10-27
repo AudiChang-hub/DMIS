@@ -96,9 +96,9 @@ cd ~
 git clone https://github.com/<user>/DMIS.git
 cd DMIS
 
-# 確認目前所在分支（應顯示 feat/dealer-uiux 或 main）
+# 確認目前所在分支
 git branch -a
-git checkout feat/dealer-uiux   # 若主分支尚未合併，請切換至此分支
+git checkout feat/dms_visit   # 若要重現目前整併後版本，可切換至此分支
 ```
 
 ---
@@ -184,6 +184,7 @@ docker compose logs -f odoo
 # 建立資料庫並安裝 base（第一步）
 docker compose exec odoo odoo \
   -d dmis_dev \
+  --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo \
   --without-demo=all \
   -i base \
   --stop-after-init
@@ -191,7 +192,8 @@ docker compose exec odoo odoo \
 # 安裝所有 DMIS 自訂模組（第二步）
 docker compose exec odoo odoo \
   -d dmis_dev \
-  -i dms_core,dms_product,dms_customer,dms_pricelist,dms_sale,dms_finance,dms_report,dms_report_rule,dms_report_virtual \
+  --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo \
+  -i dms_core,dms_customer,dms_sale,dms_visit,dms_finance,dms_report,dms_report_rule,dms_report_virtual,user_management \
   --stop-after-init
 ```
 
@@ -208,14 +210,14 @@ docker compose exec odoo odoo \
 3. 點選 **「更新應用清單」**（右上角選單）
 4. 搜尋並依序安裝（數字順序代表依賴關係）：
    1. `DMS 車行管理`（dms_core）
-   2. `DMS 產品管理`（dms_product）
-   3. `DMS 客戶管理`（dms_customer）
-   4. `DMS 價目管理`（dms_pricelist）
-   5. `DMS 銷售管理`（dms_sale）
-   6. `DMS 財務結算`（dms_finance）
-   7. `DMS 報表分析`（dms_report）
-   8. `DMS 報表規則`（dms_report_rule）
-   9. `DMS 虛擬欄位`（dms_report_virtual）
+   2. `DMS 客戶管理`（dms_customer）
+   3. `DMS 銷售管理`（dms_sale，內含產品資料 / 價目資料）
+   4. `DMS 拜訪紀錄`（dms_visit）
+   5. `DMS 財務結算`（dms_finance）
+   6. `DMS 報表分析`（dms_report）
+   7. `報表規則設定`（dms_report_rule）
+   8. `報表虛擬欄位`（dms_report_virtual）
+   9. `使用者管理`（user_management）
 
 ---
 
@@ -235,14 +237,15 @@ bash scripts/smoke_odoo.sh
 
 1. 開啟瀏覽器前往 `http://<IP>:8069`
 2. 以管理員帳號登入
-3. 確認上方選單包含：**車行管理、產品管理、客戶管理、價目管理、銷售管理、財務結算、報表分析**
+3. 確認上方選單包含：**車行管理、客戶管理、銷售管理、財務結算、報表分析、使用者管理**
+4. 進入 **「銷售管理」** 後，確認可看到 **「產品資料」** 與 **「價目資料」** 子選單
 
 ### 模組安裝驗證指令（逐一確認無 ERROR）
 
 ```bash
 PGHOST=db PGUSER=odoo PGPASSWORD=odoo \
 docker compose exec -T odoo bash -lc \
-  "odoo -d dmis_dev --stop-after-init 2>&1 | grep -E 'ERROR|Module.*loaded' | tail -20"
+  "odoo -d dmis_dev --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init 2>&1 | grep -E 'ERROR|Module.*loaded' | tail -20"
 ```
 
 ---
@@ -258,13 +261,14 @@ docker compose exec -T odoo bash -lc \
 | 確認服務狀態 | `make ps` | `docker compose ps` |
 | Smoke 測試 | `make smoke` | `bash scripts/smoke_odoo.sh` |
 | 重啟 Odoo | — | `docker compose restart odoo` |
+| 清理已移除模組殘留 metadata / 舊頂層選單 / 模組登記 | — | `python3 scripts/cleanup_dms_catalog_metadata.py` |
 
 ### 手動安裝/更新模組
 
 ```bash
-docker compose exec odoo odoo -d dmis_dev -i <模組名稱> --stop-after-init
+docker compose exec odoo odoo -d dmis_dev --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -i <模組名稱> --stop-after-init
 # 更新（已安裝的模組重新載入）
-docker compose exec odoo odoo -d dmis_dev -u <模組名稱> --stop-after-init
+docker compose exec odoo odoo -d dmis_dev --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo -u <模組名稱> --stop-after-init
 ```
 
 安裝後記得重新啟動 Odoo：
@@ -281,14 +285,14 @@ docker compose up -d
 DMIS/
 ├── addons/                     # 所有 DMIS 自訂 Odoo 模組
 │   ├── dms_core/               # 車行管理（基礎模組）
-│   ├── dms_product/            # 產品管理（車款、顏色）
 │   ├── dms_customer/           # 客戶管理
-│   ├── dms_pricelist/          # 價目管理
-│   ├── dms_sale/               # 銷售管理
+│   ├── dms_sale/               # 銷售管理（含產品資料、價目資料）
+│   ├── dms_visit/              # 拜訪紀錄
 │   ├── dms_finance/            # 財務結算（含動態類別）
 │   ├── dms_report/             # 報表分析（pivot + graph）
 │   ├── dms_report_rule/        # 報表規則管理
-│   └── dms_report_virtual/     # 動態虛擬欄位（computed 分類）
+│   ├── dms_report_virtual/     # 動態虛擬欄位（computed 分類）
+│   └── user_management/        # 使用者管理（菜單白名單 / 稽核）
 ├── docs/                       # 文件
 │   ├── USER_MANUAL.md          # 使用者操作手冊
 │   ├── CHANGELOG.md            # 版本變更紀錄
@@ -296,7 +300,8 @@ DMIS/
 ├── scripts/                    # 維運腳本
 │   ├── smoke_odoo.sh           # Smoke 測試（bash）
 │   ├── smoke_odoo.ps1          # Smoke 測試（PowerShell）
-│   └── validate_views_fields.py # 視圖欄位驗證
+│   ├── validate_views_fields.py # 視圖欄位驗證
+│   └── cleanup_dms_catalog_metadata.py # 清理已移除模組 metadata、舊頂層選單與模組登記
 ├── specs/                      # 模組規格文件（spec-first）
 ├── logs/                       # 容器日誌（.gitignore 排除 *.log）
 ├── docker-compose.yml          # Docker Compose 設定
@@ -313,13 +318,13 @@ DMIS/
 dms_report_virtual
     └── dms_report_rule
             └── dms_report
-                    ├── dms_sale
-                    │       ├── dms_pricelist
-                    │       ├── dms_customer
-                    │       └── dms_product
+                    ├── dms_finance
+                    │       └── dms_sale
+                    │               ├── dms_customer
                     │               └── dms_core
-                    └── dms_finance
-                            └── dms_sale
+                    └── dms_visit
+                            ├── dms_sale
+                            └── dms_core
 ```
 
 ---
@@ -338,7 +343,7 @@ dms_report_virtual
    ```bash
    docker compose exec odoo ls /mnt/extra-addons
    ```
-   應看到 `dms_core dms_product ...` 等目錄
+   應看到 `dms_core dms_customer dms_sale dms_visit ...` 等目錄
 2. 進入 Odoo 後台 → Settings → 開啟 **Developer Mode** → Apps → 點擊 **「Update Apps List」**
 
 ### 問題：安裝模組時出現 ERROR

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 在車行表單視圖加入「拜訪紀錄」Smart Button -->
+  <record id="view_dealer_form_visit_inherit" model="ir.ui.view">
+    <field name="name">dms.dealer.form.visit.button</field>
+    <field name="model">dms.dealer</field>
+    <field name="inherit_id" ref="dms_core.view_dealer_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//form/sheet/div[hasclass('oe_title')]" position="before">
+        <div class="oe_button_box" name="button_box">
+          <button class="oe_stat_button"
+                  type="object"
+                  name="action_open_visits"
+                  icon="fa-calendar"
+                  groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin">
+            <field name="visit_count" widget="statinfo" string="拜訪紀錄"/>
+          </button>
+        </div>
+      </xpath>
+      <!-- 在備註頁籤後新增「自動拜訪」設定頁籤 -->
+      <xpath expr="//notebook" position="inside">
+        <page string="自動拜訪設定" groups="dms_visit.group_dms_visit_admin">
+          <field name="visit_schedule_ids" nolabel="1">
+            <tree editable="bottom" decoration-muted="not active">
+              <field name="active" optional="show"/>
+              <field name="purpose_id"/>
+              <field name="visitor_id"/>
+              <field name="interval_months"/>
+              <field name="schedule_type"/>
+              <field name="day_of_month"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'fixed_day')]}"/>
+              <field name="week_number"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'weekday_of_month')]}"/>
+              <field name="weekday"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'weekday_of_month')]}"/>
+              <field name="next_date" optional="show" readonly="1"/>
+              <button name="action_regenerate_visits"
+                      string="重新產生"
+                      type="object"
+                      icon="fa-refresh"
+                      title="重新產生未來排程草稿"
+                      confirm="將刪除此排程未來所有草稿並重新建立，確定嗎？"/>
+            </tree>
+          </field>
+          <p class="text-muted" style="font-size:12px; margin-top:4px;">
+            新增或修改排程後儲存，系統將自動產生未來 12 個月的草稿拜訪紀錄。
+          </p>
+        </page>
+      </xpath>
+    </field>
+  </record>
+
+</odoo>

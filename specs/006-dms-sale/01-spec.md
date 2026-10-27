@@ -6,10 +6,27 @@
 |---|---|
 | 技術名稱 | `dms_sale` |
 | 顯示名稱 | DMS 銷售管理 |
-| 版本 | 16.0.1.0.0 |
-| 依賴 | `dms_core`, `dms_product`, `dms_pricelist`, `dms_customer` |
+| 版本 | 16.0.2.0.0 |
+| 依賴 | `dms_core`, `dms_customer` |
 | installable | True |
 | application | True |
+
+---
+
+## 模組整併說明
+
+自 `014-module-removal` 起，`dms_sale` 除了銷售訂單本身，也承接原 `dms_product` / `dms_pricelist` 的核心模型與選單：
+
+- `dms.product`
+- `dms.product.color`
+- `dms.kanban.product.config`
+- `dms.accessory`
+- `dms.vehicle.price`
+- `dms.installment.plan`
+- `dms.ev.fee.schedule`
+- `dms.commission.rule`
+
+因此「產品資料」與「價目資料」現皆掛在 `dms_sale` 選單下。
 
 ---
 
@@ -44,7 +61,7 @@
 |---|---|---|---|
 | `product_id` | Many2one → dms.product | ✓ | 車款 |
 | `product_energy_type` | Selection（related） | | 能源型式（唯讀，store=False，供 invisible 判斷） |
-| `color_id` | Many2one → dms.vehicle.color | | 顏色（domain: product_id，可選清單） |
+| `color_id` | Many2one → dms.product.color | | 顏色（domain: product_id，可選清單） |
 | `engine_number` | Char | | 引擎號碼 |
 | `frame_number` | Char | | 車身號碼 |
 | `plate_number` | Char | | 車牌號碼 |
@@ -160,6 +177,7 @@
 ## 視圖規範
 
 - **tree**：所有欄位 optional（active=show，One2many 不顯示）
+- **kanban**：新增，顯示 name、state badge、customer_name、product_id、amount_total；action view_mode 改為 `kanban,tree,form`
 - **form**：5 個 notebook tab（客戶與車輛、金流、牌險費、精品、其他）
 - **search**：欄位搜尋 + 店面/車行/狀態篩選 + 月份 groupby
 

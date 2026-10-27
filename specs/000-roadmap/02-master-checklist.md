@@ -4,6 +4,11 @@
 > 每完成一個子項，勾選 `[x]`；模組全部完成後標記標題為 ✅。  
 > 開發順序：spec 文件 → 模型 → 視圖 → ACL → 測試 → 升級驗證。
 
+> 2026-03-27 現況快照：
+> - `dms_product`、`dms_pricelist` 已依 `014-module-removal` 整併至 `dms_sale`
+> - `dms_visit`、`dms_finance`、`dms_report`、`dms_report_rule`、`dms_report_virtual`、`user_management` 均已有程式碼與已安裝模組
+> - 下列 checklist 保留歷史開發軌跡，但目前架構應以 `dms_sale` 整併後版本為準
+
 ---
 
 ## ✅ Phase 0：基礎架構
@@ -21,7 +26,7 @@
 - [x] manifest：application=True，name="DMS 車行管理"
 - [x] 頂層選單：menu_dms_root（name="車行管理"）
 
-### dms_product（產品管理）
+### dms_product（產品管理，已整併至 dms_sale）
 - [x] 模型：dms.product（基本資料、油車/電車/車身規格，全 Char）
 - [x] 視圖：product tree（8 show + 22 hide）+ form（4 頁籤，動力依 energy_type 切換）
 - [x] 視圖：search（名稱/型號/品牌）+ 油/電/啟用篩選
@@ -70,7 +75,7 @@
 
 ---
 
-### ✅ dms_pricelist（價目管理）
+### ✅ dms_pricelist（價目管理，已整併至 dms_sale）
 > Spec 目錄：`specs/005-dms-pricelist/`
 
 - [x] **Spec**
@@ -106,7 +111,7 @@
 
 ---
 
-## 🔲 Phase 2（未完成）：P2 — 核心業務數位化
+## 🔲 Phase 2（持續驗證中）：P2 — 核心業務數位化
 
 ### ✅ dms_sale（銷售訂單）
 > Spec 目錄：`specs/006-dms-sale/`
@@ -152,46 +157,46 @@
 
 ---
 
-## 🔲 Phase 3：P3 — 財務結算
+## 🔲 Phase 3（已實作，待補齊驗證）：P3 — 財務結算
 
 ### dms_finance（財務結算）
 > Spec 目錄：`specs/007-dms-finance/`
 
-- [ ] **Spec**
-  - [ ] 00-charter.md
-  - [ ] 01-spec.md（收入/支出分類定義，對應 Excel 欄位）
-  - [ ] 04-tasks.md
-  - [ ] 05-acceptance.md
+- [x] **Spec**
+  - [x] 00-charter.md
+  - [x] 01-spec.md（收入/支出分類定義，對應 Excel 欄位）
+  - [x] 04-tasks.md
+  - [x] 05-acceptance.md
 
-- [ ] **模型：dms.sale.ledger**
-  - [ ] 收入欄位（15 項）：車款收入、領牌稅金收入、強制險收入、代辦費收入、選號收入、中古車收入、報廢車收入、刷卡手續費收入、分期手續費收入、山葉獎金、友善車行獎金、其他收入、實銷獎勵金、促銷補助金、分期補貼息、強制險傭金、信用卡傭金
-  - [ ] 支出欄位（11 項）：成本、信用卡手續費支出、分期手續費支出、領牌稅金支出、強制險支出、選號支出、中古車支出、贈品及運費支出、車行傭金支出、友善車行獎金支出、首賣/台數獎金支出
-  - [ ] 結算：`net_profit`（Computed = 所有收入 - 所有支出）
-  - [ ] 其他：補助方案、補助金額、銀行、匯款帳戶、申請日
+- [x] **模型：dms.sale.finance**
+  - [x] `dms.sale.finance`（主檔）
+  - [x] `dms.sale.finance.income`（收入明細）
+  - [x] `dms.sale.finance.expense`（支出明細）
+  - [x] `dms.finance.category`（收入/支出分類）
+  - [x] 結算：`net_profit`（Computed = 所有收入 - 所有支出）
 
-- [ ] **視圖**
-  - [ ] 每筆訂單財務分錄 tree/form
-  - [ ] 從 sale.order 嵌入 Smart Button 進入財務分錄
+- [x] **視圖**
+  - [x] 每筆訂單財務分錄 tree/form
+  - [x] 從 sale.order 嵌入 Smart Button 進入財務分錄
 
 - [ ] **驗證**
-  - [ ] 建立訂單後自動產生财務分錄
-  - [ ] 修改收支項目後 net_profit 自動更新
+  - [ ] 建立訂單後自動產生財務分錄
+  - [x] 修改收支項目後 net_profit 自動更新
   - [ ] 單筆淨利顯示正確
 
 ---
 
-## 🔲 Phase 4：P4 — BI 報表
+## 🔲 Phase 4（已實作，待補齊驗證）：P4 — BI 報表
 
 ### dms_report（銷售 BI）
 > Spec 目錄：`specs/008-dms-report/`
 
-- [ ] **Spec**（同上格式）
+- [x] **Spec**（同上格式）
 
 - [ ] **報表**
-  - [ ] `dms.report.sales`：銷售分析 Pivot/Graph（車行/品牌/車款/月份/銷售員）
-  - [ ] `dms.report.profit`：利潤分析（各車款/車行單筆淨利）
-  - [ ] `dms.report.accessory`：精品銷售組合、安裝費貢獻
-  - [ ] `dms.report.commission`：車行傭金趨勢
+  - [x] 銷售與利潤相關 Pivot / Graph 視圖
+  - [x] `dms_report_rule`：動態報表規則
+  - [x] `dms_report_virtual`：虛擬欄位分群
 
 - [ ] **驗證**
   - [ ] Pivot 可依月份/品牌/車款自由切換分組

@@ -308,6 +308,8 @@
       });
     }
     if (Array.isArray(payload.locked_payments)) lockPayments(payload.locked_payments);
+    // 收款狀態（還差什麼才算收清）跟著收款列即時更新（使用者 2026-11-03 p3）。
+    if (payload.receipt_status_html) root.querySelectorAll('[data-receipt-status]').forEach(node => { node.outerHTML = payload.receipt_status_html; });
     if (typeof payload.delivery_ready === 'boolean') {
       // 與頁面同一判斷（使用者 2026-10-21 T-56）：尾款可在交車表單一併登記時不擋；
       // 但頁面載入時沒有尾款欄位（當時已收妥）就無法在這裡收，改用含尾款的判斷。原因清單同步顯示在按鈕下方。

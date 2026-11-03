@@ -1,0 +1,10 @@
+{% comment %}收款狀態（使用者 2026-11-03 p3）：取代不能勾的「確認收款」勾選框；全部應收收清時系統自動標記，否則列出還差什麼、去哪裡處理。{% endcomment %}
+<div class="receipt-status{% if receipt_status.settled %} is-settled{% endif %}" data-receipt-status role="status">
+  <p class="receipt-status__state"><span aria-hidden="true">{% if receipt_status.settled %}✓{% else %}!{% endif %}</span>{% if receipt_status.settled %}款項已全部收清{% else %}款項還沒收清{% endif %}</p>
+  {% if not receipt_status.settled %}
+  <p class="receipt-status__hint">收清後系統會自動標成「已收清」，不用手動勾。還差：</p>
+  <ul class="receipt-status__todo">
+    {% for item in receipt_status.items %}<li><span>{{ item.text }}</span>{% if item.href %}<a href="{{ item.href }}">{{ item.action }}</a>{% elif item.action %}<span>{{ item.action }}</span>{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>

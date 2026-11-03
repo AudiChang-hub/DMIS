@@ -76,7 +76,8 @@
     {% if order.source_type != "store" %}{# 本店單沒有車行，也不需另看車行收款確認 #}
     <div class="operation-grid">
       {% include "sales/_field.html" with field=form.dealer_name %}
-      {% include "sales/_field.html" with field=form.payment_confirmed %}
+      {# 「確認收款」不能手動勾：改顯示收款狀態與還差什麼（使用者 2026-11-03 p3） #}
+      {% include "sales/_receipt_status.html" %}
     </div>
     {% endif %}
     {% comment %}收款區只留表頭、收款列與新增收款（使用者 2026-10-21 T-61）：說明、應收摘要與「收款明細」小標都拿掉；

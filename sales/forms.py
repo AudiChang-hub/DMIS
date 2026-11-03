@@ -2371,6 +2371,34 @@ class VehicleInventoryForm(forms.ModelForm):
             cleaned["transfer_source_name"] = self.instance.transfer_source_name
         return cleaned
 
+    IDENTIFIER_FIELDS = (
+        ("engine_number", "normalized_engine_number", "引擎號碼"),
+        ("frame_number", "normalized_frame_number", "車身號碼"),
+    )
+
+    def _post_clean(self):
+        super()._post_clean()
+        # 模型驗證之後才查重複：先加錯誤會讓欄位變空，再多冒出「油車必須填寫引擎號碼」。
+        self._check_duplicate_identifiers()
+
+    def _check_duplicate_identifiers(self):
+        # 儲存時以標準化號碼（去空格、連字號，轉大寫）判斷唯一；
+        # 只比原始輸入會漏掉大小寫不同的重複，等到 model.save() 才變成 500（UAT U-01）。
+        for field_name, normalized_field, label in self.IDENTIFIER_FIELDS:
+            if field_name not in self.fields or self.fields[field_name].disabled or self.has_error(field_name):
+                continue
+            normalized = normalize_vehicle_identifier(self.cleaned_data.get(field_name))
+            if not normalized:
+                continue
+            duplicate = VehicleInventory.objects.filter(**{normalized_field: normalized})
+            if self.instance.pk:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                self.add_error(
+                    field_name,
+                    f"此{label}已存在（大小寫、空格與連字號視為相同），請到車輛庫存搜尋這台車。",
+                )
+
     def save(self, commit=True):
         vehicle = super().save(commit=False)
         if "condition_hold" in self.fields:

@@ -95,5 +95,12 @@ class DataMaintenanceDraftTests(TestCase):
         for name in ("vehicle_model_price_versions", "settlement_cost_rule_form", "incentive_rule_form"):
             template = Path(f"templates/sales/{name}.html").read_text(encoding="utf-8")
             self.assertIn("套用", template)
+        # UAT U-11：頁尾「放棄變更／取消」也會清掉本機草稿，提示框按鈕同名同效果。
+        self.assertIn("a[data-discard-draft]", script)
+        self.assertIn("/^(放棄|取消)/", script)
+        self.assertNotIn("捨棄草稿", script)
+        for name in ("catalog_edit", "vehicle_model_form"):
+            template = Path(f"templates/sales/{name}.html").read_text(encoding="utf-8")
+            self.assertIn('class="button ghost" data-discard-draft', template)
         # 訂單頁不載入草稿腳本（訂單頁是直接自動儲存）。
         self.assertNotIn("js/form-draft.js", Path("templates/sales/order_detail.html").read_text(encoding="utf-8"))

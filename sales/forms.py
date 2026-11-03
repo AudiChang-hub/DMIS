@@ -2182,6 +2182,28 @@ OrderPageOtherFeeFormSet = inlineformset_factory(
 )
 
 
+def existing_vehicle_message(vehicle):
+    """重複號碼要說清楚那台車在哪、什麼狀態、該怎麼處理，並連到車輛與訂單（UAT U-01、莊涴竹單）。"""
+    from django.urls import reverse
+    Status = VehicleInventory.Status
+    order = SalesOrder.objects.filter(allocated_vehicle=vehicle).only("pk", "number").first()
+    order_part = (
+        format_html('，已配給訂單 <a href="{}">{}</a>', reverse("order_detail", args=[order.pk]), order.number)
+        if order else ""
+    )
+    if vehicle.status == Status.AVAILABLE:
+        hint = "這台車已在庫存，不必再進車；請直接到訂單配車。"
+    elif vehicle.status in {Status.SOLD, Status.DELIVERED, Status.RESERVED}:
+        hint = "同一台車不能再進車；若是另一台新車，請核對號碼。若這張訂單與上面的訂單是同一筆交易，請不要重複開單。"
+    else:
+        hint = "同一台車不能再進車；要恢復這台車，請到車輛資料處理。"
+    return format_html(
+        "此號碼已存在：{}／{}，狀態「{}」{}。{} <a href=\"{}\">查看這台車</a>",
+        vehicle.vehicle_model, vehicle.color.name, vehicle.get_status_display(), order_part, hint,
+        reverse("inventory_edit", args=[vehicle.pk]),
+    )
+
+
 class VehicleInventoryForm(forms.ModelForm):
     CORE_FIELDS = (
         "vehicle_model",
@@ -2393,10 +2415,11 @@ class VehicleInventoryForm(forms.ModelForm):
             duplicate = VehicleInventory.objects.filter(**{normalized_field: normalized})
             if self.instance.pk:
                 duplicate = duplicate.exclude(pk=self.instance.pk)
-            if duplicate.exists():
+            existing = duplicate.select_related("vehicle_model", "color").first()
+            if existing:
                 self.add_error(
                     field_name,
-                    f"此{label}已存在（大小寫、空格與連字號視為相同），請到車輛庫存搜尋這台車。",
+                    format_html("此{}已存在（大小寫、空格與連字號視為相同）。{}", label, existing_vehicle_message(existing)),
                 )
 
     def save(self, commit=True):
@@ -4099,6 +4122,13 @@ class QuickInventoryEntryForm(forms.Form):
                 vehicle_model_id=model_id,
             ).select_related("vehicle_model").order_by("name")
             self.fields["color"].empty_label = "請選擇車色"
+        # 車型清單很長：打字篩選品牌、車型、原廠型號、年份（使用者 2026-11-03）。
+        self.fields["vehicle_model"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "輸入品牌、車型或原廠型號"}
+        )
+        self.fields["color"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "請先選擇車型"}
+        )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -4155,21 +4185,17 @@ class BaseQuickInventoryEntryFormSet(BaseFormSet):
                 identifiers[normalized_identifier] = index
         if not active_forms:
             raise forms.ValidationError("請至少填寫一台車輛。")
-        existing = set(
-            VehicleInventory.objects.filter(
-                Q(normalized_engine_number__in=identifiers)
-                | Q(normalized_frame_number__in=identifiers)
-            ).values_list("normalized_engine_number", "normalized_frame_number")
-        )
-        existing_identifiers = {
-            value
-            for pair in existing
-            for value in pair
-            if value
-        }
+        existing_identifiers = {}
+        for vehicle in VehicleInventory.objects.filter(
+            Q(normalized_engine_number__in=identifiers)
+            | Q(normalized_frame_number__in=identifiers)
+        ).select_related("vehicle_model", "color"):
+            for value in (vehicle.normalized_engine_number, vehicle.normalized_frame_number):
+                if value:
+                    existing_identifiers[value] = vehicle
         for form, identifier in active_forms:
             if identifier in existing_identifiers:
-                form.add_error("identifier", "此號碼已存在於車輛庫存。")
+                form.add_error("identifier", existing_vehicle_message(existing_identifiers[identifier]))
 
 
 QuickInventoryEntryFormSet = formset_factory(

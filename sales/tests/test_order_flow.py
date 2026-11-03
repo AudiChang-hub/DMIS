@@ -1041,7 +1041,7 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "此號碼已存在於車輛庫存")
+        self.assertContains(response, "此號碼已存在：")
         self.assertEqual(VehicleInventory.objects.count(), 1)
 
     def test_quick_inventory_page_is_list_based_and_hides_location(self):

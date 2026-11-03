@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.models import VehicleColor, VehicleInventory, VehicleInventoryHistory, VehicleModel
+from sales.models import SalesOrder, VehicleColor, VehicleInventory, VehicleInventoryHistory, VehicleModel
 from sales.tests import test_order_lifecycle as lifecycle
 
 TRANSFER = VehicleInventory.AcquisitionType.DEALER_TRANSFER
@@ -11,6 +11,7 @@ COMPANY = VehicleInventory.AcquisitionType.COMPANY
 
 class InventoryAcquisitionTests(TestCase):
     setUp = lifecycle.OrderLifecycleTests.setUp
+    make_order = lifecycle.OrderLifecycleTests.make_order
 
     def vehicle(self, tag, **extra):
         return VehicleInventory.objects.create(
@@ -130,6 +131,26 @@ class InventoryAcquisitionTests(TestCase):
                 self.assertContains(response, field_label)
                 self.assertNotContains(response, "必須填寫")
         self.assertEqual(VehicleInventory.objects.count(), 2)
+
+    def test_duplicate_message_names_vehicle_status_and_order(self):
+        # 莊涴竹單：重複號碼要說出那台車的狀態、配給哪張單，並能點過去。
+        sold = self.vehicle("SOLD", status=VehicleInventory.Status.SOLD)
+        order = self.make_order()[0]
+        SalesOrder.objects.filter(pk=order.pk).update(allocated_vehicle=sold)
+        available = self.vehicle("STOCK")
+        before = VehicleInventory.objects.count()
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("inventory_quick_create"), self.quick_payload([
+            {"vehicle_model": self.model.pk, "color": self.color.pk, "identifier": "acq sold", "received_on": "2026-10-05"},
+            {"vehicle_model": self.model.pk, "color": self.color.pk, "identifier": "ACQ-STOCK", "received_on": "2026-10-05"},
+        ]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "狀態「已售出」")
+        self.assertContains(response, f'已配給訂單 <a href="{reverse("order_detail", args=[order.pk])}">{order.number}</a>', html=False)
+        self.assertContains(response, f'<a href="{reverse("inventory_edit", args=[sold.pk])}">查看這台車</a>', html=False)
+        self.assertContains(response, "這台車已在庫存，不必再進車")
+        self.assertContains(response, f'<a href="{reverse("inventory_edit", args=[available.pk])}">查看這台車</a>', html=False)
+        self.assertEqual(VehicleInventory.objects.count(), before)
 
     def test_editing_keeps_own_identifier_in_other_case(self):
         vehicle = self.vehicle("SELF")

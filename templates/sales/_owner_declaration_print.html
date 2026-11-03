@@ -1,0 +1,11 @@
+{% load screen_access %}{% comment %}新舊車主不同人聲明書的列印入口（使用者 2026-11-03）：原本只寫「要補齊聲明書」，卻要到「全部訂單 › 套表列印」找訂單。
+這裡直接開這張訂單的聲明書 PDF（套表列印同一份），帶入已儲存的新舊車主、車牌與引擎號碼；缺的欄位空白可手寫。
+只有勾「新舊車主不同人」才顯示（data-old-owner-field，跟舊車主欄位一起收合）。印好請舊車主簽名，再到下方「補助文件」的「新舊車主不同人聲明書」上傳（選填，不擋流程）。{% endcomment %}
+{% if_access 'order_owner_declaration_pdf' order.pk %}
+<div class="owner-declaration-print" data-old-owner-field{% if hidden %} hidden{% endif %}>
+  <a class="button secondary owner-declaration-print__button" href="{% url 'order_owner_declaration_pdf' order.pk %}" target="_blank" rel="noopener" data-declaration-print>
+    <span aria-hidden="true">⎙</span>列印新舊車主不同人聲明書
+  </a>
+  <p class="owner-declaration-print__note">帶入已儲存的新舊車主與車牌資料{% if not order.trade_in_plate or not order.operations.old_vehicle_engine_number %}；舊車車牌或引擎號碼還沒填，印出後空白處可手寫{% endif %}。請舊車主簽名後，到下方「補助文件」上傳。</p>
+</div>
+{% endif_access %}

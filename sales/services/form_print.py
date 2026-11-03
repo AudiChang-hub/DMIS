@@ -44,7 +44,8 @@ class FormSpec:
 
 FORMS = (
     FormSpec("envelope", "信封", "Word 檔・21×17 cm", "依車種自動套用油車或電車版"),
-    FormSpec("tax_declaration", "減徵貨物稅聲明書", "A4", "汰舊換新、新舊車主不同人時使用"),
+    # 使用者都叫它「新舊車主不同人聲明書」（2026-11-03）；正式名稱是減徵貨物稅的車主非同一人聲明書。
+    FormSpec("tax_declaration", "新舊車主不同人聲明書（減徵貨物稅）", "A4", "汰舊換新、新舊車主不同人時使用"),
     FormSpec("receipt", "簽收單", "A4", "送車時給客人簽收"),
 )
 FORM_KEYS = tuple(form.key for form in FORMS)

@@ -77,6 +77,14 @@ class OrderAutosaveTests(TestCase):
         self.assertIn("AUTOSAVE_DELAY", script)
         self.assertIn("typed.has(name) ? 'keep'", script)
 
+    def test_autosave_resends_after_reconnect_without_raw_browser_errors(self):
+        """UAT U-08：恢復連線先三方合併最新頁面再補送；失敗訊息不直接顯示瀏覽器英文原文。"""
+        script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
+        self.assertIn("window.addEventListener('online', resume)", script)
+        self.assertIn("syncFrom(new DOMParser()", script)
+        self.assertIn("offlineText(unsavedLabels(form))", script)
+        self.assertNotIn(": error.message;", script)
+
 
 class DataMaintenanceDraftTests(TestCase):
     """1.83.0：資料維護區輸入自動保留成草稿，按「套用」才生效。"""

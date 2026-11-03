@@ -35,7 +35,13 @@
     });
     return updates;
   };
-  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues};
+  // 儲存失敗分類（UAT U-08，2026-11）：瀏覽器的英文技術訊息（Failed to fetch 等）一律不顯示，
+  // 只有我方寫好的中文說明（known）才原樣顯示，其他都換成白話說明。
+  const failureKind = (error, online = true) => error?.name === 'AbortError' ? 'timeout'
+    : error?.network || !online ? 'network' : error?.known ? 'known' : 'other';
+  const listFields = labels => labels.length ? labels.map(label => `「${label}」`).join('、') : '這一區的修改';
+  const offlineText = labels => `網路中斷，${listFields(labels)}還沒存。恢復連線後會自動補存，請先不要關閉或重新整理頁面。`;
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues, failureKind, listFields, offlineText};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -58,7 +64,8 @@
   const fields = form => [...form.elements].filter(f => f.name && !['submit', 'button'].includes(f.type));
   const capture = form => snapshot(fields(form));
   const changedNames = (form, base = bases.get(form)) => [...capture(form)].filter(([name, current]) => current !== base?.get(name)).map(([name]) => name);
-  const dirty = form => changedNames(form).some(name => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(name));
+  const BOOKKEEPING = ['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'];
+  const dirty = form => changedNames(form).some(name => !BOOKKEEPING.includes(name));
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
   const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
   const behavior = () => reduceMotion.matches ? 'instant' : 'smooth';
@@ -364,9 +371,8 @@
   }
   // 上傳文件等原地更新只換部分區塊，但伺服器可能連帶改了訂單或收支（例如最後一份領牌文件自動完成領牌、帶入促銷補助）。
   // 沒被換掉的自動儲存表單從新頁面取現值與版本號再合併，之後的儲存才不會被當成舊資料擋下（使用者 2026-10-22 T-92）。
-  document.addEventListener('inplace:updated', event => {
-    const doc = event.detail?.doc;
-    if (!doc) return;
+  document.addEventListener('inplace:updated', event => { if (event.detail?.doc) syncFrom(event.detail.doc); });
+  function syncFrom(doc) {
     const fresh = [...doc.querySelectorAll('form[data-workspace-save]')];
     const hidden = name => doc.querySelector(`input[name="${name}"]`)?.value;
     const revisions = {revision: hidden('_order_revision'), financial: hidden('operations-financial_revision')};
@@ -381,7 +387,7 @@
       if (autosaving(form) && dirty(form) && !conflicts.has(form)) schedule(form);
     });
     indicators();
-  });
+  }
   function formFields(form) {
     // 以 form 屬性併入、放在表單外的欄位也算（解析後的頁面不一定把它們列進 form.elements）。
     const outside = form.id ? [...form.ownerDocument.querySelectorAll(`[form="${form.id}"]`)] : [];
@@ -435,10 +441,59 @@
   const autosaving = form => !form.hasAttribute('data-autosave-off');
   const clock = () => new Date().toLocaleTimeString('zh-TW', {hour: '2-digit', minute: '2-digit', hour12: false});
   const visible = field => field.type !== 'hidden' && !field.disabled && field.getClientRects().length > 0;
-  function labelOf(field) {
-    const label = field.id && root.querySelector(`label[for="${CSS.escape(field.id)}"]`);
-    return (label?.textContent || field.getAttribute('aria-label') || field.name).replace(/必填|選填/g, '').trim();
+  function fieldLabel(field) {
+    const label = (field.id && root.querySelector(`label[for="${CSS.escape(field.id)}"]`)) || field.labels?.[0];
+    return (label?.textContent || field.getAttribute('aria-label') || '').replace(/必填|選填/g, '').replace(/\s+/g, ' ').trim();
   }
+  const labelOf = field => fieldLabel(field) || field.name;
+  // 列出這一區還沒存的欄位名稱（只列畫面上有標籤的欄位，不露出技術欄名）。
+  function unsavedLabels(form) {
+    const labels = changedNames(form).filter(name => !BOOKKEEPING.includes(name)).map(name => {
+      const found = form.elements.namedItem(name);
+      const field = found?.tagName ? found : found?.[0];
+      return field && field.type !== 'hidden' ? fieldLabel(field) : '';
+    });
+    return [...new Set(labels.filter(Boolean))];
+  }
+  // 斷線補存（UAT U-08，2026-11）：網路斷掉時送不出去的區塊記下來並列出還沒存的欄位；
+  // 恢復連線先取最新頁面三方合併（斷線期間別人改的欄位換新值、版本號跟上，同一欄兩邊都改才標衝突、不覆寫），再自動補送。
+  const RETRY_DELAY = 15000;
+  const waiting = new Set();
+  const resumed = new Set();
+  let retryTimer = null;
+  let resuming = false;
+  function waitForNetwork(form) {
+    waiting.add(form); resumed.delete(form);
+    setStatus(form, offlineText(unsavedLabels(form)), 'error');
+    notify(offlineText([...new Set([...waiting].flatMap(unsavedLabels))]), true);
+    // 瀏覽器仍顯示有連線（例如 Wi-Fi 有訊號但連不到外網）時不會再收到 online 事件，改為定時重試。
+    if (navigator.onLine && !retryTimer) retryTimer = setTimeout(() => { retryTimer = null; resume(); }, RETRY_DELAY);
+  }
+  async function resume() {
+    if (resuming || !navigator.onLine) return;
+    clearTimeout(retryTimer); retryTimer = null;
+    const pending = forms.filter(form => autosaving(form) && dirty(form));
+    waiting.clear();
+    if (!pending.length) return;
+    resuming = true;
+    pending.forEach(form => { if (!conflicts.has(form)) setStatus(form, '已恢復連線，正在補存…', 'saving'); });
+    notify('已恢復連線，正在補存剛才的修改…');
+    try {
+      const response = await fetch(location.href, {headers: {'X-Inplace-Refresh': '1', 'Accept': 'text/html'}, credentials: 'same-origin'});
+      if (response.ok && response.headers.get('Content-Type')?.includes('text/html')) {
+        syncFrom(new DOMParser().parseFromString(await response.text(), 'text/html'));
+      }
+    } catch (_error) { /* 仍連不上：下面補送會失敗，再列出未存欄位並定時重試 */ }
+    resuming = false;
+    pending.forEach(form => {
+      if (conflicts.has(form)) {
+        setStatus(form, '斷線期間別人也改了同一欄，您的修改沒有覆寫上去。請記下修改，重新載入核對後再輸入。', 'error');
+      } else if (dirty(form)) { resumed.add(form); schedule(form, 0); }
+    });
+    if (!resumed.size && pending.some(form => conflicts.has(form))) notify('斷線期間別人也改了同一欄，您的修改沒有覆寫上去，請核對標示的欄位。', true);
+    else if (!resumed.size) notify('已恢復連線，剛才的修改都已儲存。');
+  }
+  window.addEventListener('online', resume);
   function statusOf(form) {
     let node = form.querySelector('[data-autosave-status]');
     if (!node) {
@@ -474,6 +529,7 @@
       invalid.setAttribute('aria-invalid', 'true');
       return false;
     }
+    if (!navigator.onLine) { waitForNetwork(form); return false; }
     form.requestSubmit();
     return true;
   }
@@ -551,14 +607,17 @@
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 45000);
       try {
-        const response = await fetch(form.action || location.href, {method: 'POST', body: new FormData(form), headers: {'X-Order-Workspace': '1', 'Accept': 'application/json'}, signal: controller.signal});
-        if (!response.headers.get('Content-Type')?.includes('application/json')) throw new Error('登入狀態或權限可能已變更。您的輸入仍保留，請另開頁面確認後再試。');
-        const payload = await response.json();
+        const response = await fetch(form.action || location.href, {method: 'POST', body: new FormData(form), headers: {'X-Order-Workspace': '1', 'Accept': 'application/json'}, signal: controller.signal})
+          .catch(error => { if (error.name !== 'AbortError') error.network = true; throw error; });
+        const known = text => Object.assign(new Error(text), {known: true});
+        if (response.status >= 500) throw known('系統暫時無法儲存，您的輸入仍保留。請稍候一分鐘再改一次這一欄；若仍無法儲存，請通知管理員。');
+        if (!response.headers.get('Content-Type')?.includes('application/json')) throw known('登入狀態或權限可能已變更。您的輸入仍保留，請另開頁面確認後再試。');
+        const payload = await response.json().catch(() => { throw known('系統回應不完整，這一區可能還沒存。請重新整理頁面核對。'); });
         if (!response.ok || !payload.ok) {
           const entries = Object.entries(payload.errors || {});
           const detail = [payload.error || '未能儲存。', ...entries.flatMap(([, errors]) => errors)];
           entries.forEach(([name]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) field.setAttribute('aria-invalid', 'true'); });
-          if (auto) { setStatus(form, '尚未儲存：' + detail.join(' '), 'error'); return; }
+          if (auto) { resumed.delete(form); setStatus(form, '尚未儲存：' + detail.join(' '), 'error'); return; }
           notify(detail.join('\n'), true);
           const first = entries.map(([name]) => form.elements.namedItem(name)).find(f => f?.focus);
           if (first) reveal(first);
@@ -596,16 +655,28 @@
         bases.set(form, base);
         form.dispatchEvent(new CustomEvent('workspace-saved', {detail: payload}));
         indicators();
-        if (auto) setStatus(form, conflicts.size ? '已自動儲存，但其他區塊有重疊修改，請核對。' : `已自動儲存 ${clock()}`, conflicts.size ? 'error' : 'saved');
-        else notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ''), conflicts.size > 0);
+        if (auto) {
+          setStatus(form, conflicts.size ? '已自動儲存，但其他區塊有重疊修改，請核對。' : `已自動儲存 ${clock()}`, conflicts.size ? 'error' : 'saved');
+          if (resumed.delete(form) && !resumed.size && !waiting.size) notify('已恢復連線，剛才的修改都已補存。');
+        } else notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ''), conflicts.size > 0);
         if (finishing && !conflicts.size) {
           await flush();
           if (!forms.some(dirty)) { allowLeave = true; location.href = button.dataset.finishUrl; return; }
         }
         if (typed.size) schedule(form);
       } catch (error) {
-        const reason = error.name === 'AbortError' ? '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。' : error.message;
-        if (auto) setStatus(form, '尚未儲存：' + reason, 'error'); else notify(reason, true);
+        const kind = failureKind(error, navigator.onLine);
+        if (kind === 'network' && auto) waitForNetwork(form);
+        else {
+          const reason = {
+            timeout: '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。',
+            network: '網路中斷，這次沒有儲存。恢復連線後請再按一次。',
+            known: error.message,
+            other: '畫面更新時發生問題，儲存結果尚未確認。請先記下這一區的修改，再重新整理頁面核對。',
+          }[kind];
+          resumed.delete(form);
+          if (auto) setStatus(form, '尚未儲存：' + reason, 'error'); else notify(reason, true);
+        }
       } finally {
         clearTimeout(timeout); busy = false;
         if (button) { button.disabled = false; button.textContent = text; }

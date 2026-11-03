@@ -10,6 +10,7 @@ from . import import_review_views
 from . import historical_delivery_views
 from . import transfer_signoff_views
 from . import inventory_restore_views
+from . import stock_count_views
 from . import order_return_views
 from . import subsidy_program_views
 from . import vehicle_model_tool_views
@@ -559,6 +560,8 @@ urlpatterns = [
     path("data/inventory/transfer-signoffs/<int:pk>/void/", transfer_signoff_views.transfer_signoff_void, name="transfer_signoff_void"),
     path("data/inventory/transfer-signoffs/<int:pk>/cancel/", transfer_signoff_views.transfer_signoff_cancel, name="transfer_signoff_cancel"),
     path("data/inventory/receipts/", transfer_signoff_views.inventory_receipt_list, name="inventory_receipt_list"),
+    path("data/inventory/stock-count/", stock_count_views.inventory_stock_count, name="inventory_stock_count"),
+    path("data/inventory/stock-count/export/", stock_count_views.inventory_stock_count_export, name="inventory_stock_count_export"),
     path(
         "data/vehicle-models/",
         views.vehicle_model_list,

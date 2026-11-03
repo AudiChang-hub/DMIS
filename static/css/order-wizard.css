@@ -36,16 +36,16 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .wizard-nav { justify-content: flex-end; }
 
 /* 訂金頁的目前金額：車價＋牌險費＋配件＝三項合計，運算符號放在格與格之間，合計格以品牌色強調。
+   分期單（UAT U-04）改列分期外應收：牌險費＋配件＋開辦費（＋自付車款、選號費、其他費用），車價分期另列一行。
    依卡片實際寬度（不是視窗寬度）調整：窄一點縮小數字，再窄改成逐行明細。 */
 .intake-totals { container: intake-totals / inline-size; }
 .intake-totals__grid {
   --totals-gap: var(--space-6); --totals-value: var(--text-xl);
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.2fr); align-items: stretch;
+  display: grid; grid-template-columns: repeat(var(--totals-cols, 3), minmax(0, 1fr)) minmax(0, 1.2fr); align-items: stretch;
   gap: var(--totals-gap); margin: var(--space-3) 0 0; padding: var(--inset-pad) var(--space-5);
   background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
-/* 指定號碼有選號費時多一格：前四格等寬＋合計。 */
-.intake-totals__grid:has([data-intake-total-cell="selection"]:not([hidden])) { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.2fr); }
+/* 格數（--totals-cols）由畫面依看得到的項目設定：指定號碼的選號費、分期的開辦費與其他費用各多一格。 */
 .intake-totals__cell { position: relative; display: grid; align-content: center; gap: var(--space-1); min-width: 0; }
 .intake-totals__cell[hidden] { display: none; }
 .intake-totals__cell dt { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
@@ -69,25 +69,37 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .intake-totals__cell--sum dt, .intake-totals__cell--sum dd { color: var(--action-text); }
 /* 牌險費留空＝由系統計算：不露出金額，寫「另計」並退成淡色，不列入合計（使用者 2026-10-20）。 */
 .intake-totals__cell dd.is-pending { color: var(--muted); font-family: var(--font-sans); font-weight: 600; letter-spacing: .04em; }
+/* 車價分期：分期公司付的車款，另列一行、不加進分期外應收。 */
+.intake-totals__financed {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0; padding: var(--space-3) var(--space-5);
+  border: 1px dashed var(--line); border-radius: var(--radius-lg);
+}
+.intake-totals__financed[hidden] { display: none; }
+.intake-totals__financed-label { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.intake-totals__financed strong { font-family: var(--font-display); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.intake-totals__financed-note { color: var(--muted); font-size: var(--text-sm); }
 .intake-totals__note { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-sm); }
 @container intake-totals (max-width: 760px) {
   .intake-totals__grid { --totals-gap: var(--space-5); --totals-value: var(--text-lg); padding-inline: var(--space-4); }
 }
 /* 窄卡片（手機）：改成逐行明細，合計以底色隔開，不放運算符號。
-   多了選號費（五格）時一行放不下，卡片 760px 以下就改逐行。 */
+   超過三格（加上合計五格以上）時一行放不下，卡片 760px 以下就改逐行。 */
 @container intake-totals (max-width: 520px) {
   .intake-totals__grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
   .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
   .intake-totals__cell dd { text-align: right; }
   .intake-totals__cell--plus::before, .intake-totals__cell--sum::before { content: none; }
   .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
+  .intake-totals__financed { padding: var(--space-3) var(--inset-pad); }
+  .intake-totals__financed-note { flex-basis: 100%; }
 }
 @container intake-totals (max-width: 760px) {
-  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
-  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
-  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell dd { text-align: right; }
-  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) :is(.intake-totals__cell--plus, .intake-totals__cell--sum)::before { content: none; }
-  .intake-totals__grid:has(.intake-totals__cell[data-intake-total-cell]:not([hidden])) .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
+  .intake-totals__grid[data-totals-wide] { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
+  .intake-totals__grid[data-totals-wide] .intake-totals__cell { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-3); }
+  .intake-totals__grid[data-totals-wide] .intake-totals__cell dd { text-align: right; }
+  .intake-totals__grid[data-totals-wide] :is(.intake-totals__cell--plus, .intake-totals__cell--sum)::before { content: none; }
+  .intake-totals__grid[data-totals-wide] .intake-totals__cell--sum { margin: var(--space-1) calc(var(--space-2) * -1) calc(var(--space-2) * -1); padding: var(--space-3) var(--space-2); }
 }
 
 @media (max-width: 720px) {

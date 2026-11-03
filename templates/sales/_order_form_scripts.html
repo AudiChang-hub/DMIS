@@ -1883,33 +1883,79 @@
       return sum + unit * Number(row.querySelector('[name$="-quantity"]')?.value || 0);
     }, 0);
   }
+  function otherFeeTotal() {
+    return [...document.querySelectorAll("#other-fee-forms [data-dynamic-row]")].reduce((sum, row) => {
+      if (row.classList.contains("is-pending-delete") || !row.querySelector('[name$="-name"]')?.value.trim()) return sum;
+      return sum + (Number(row.querySelector('[name$="-amount"]')?.value || 0) || 0);
+    }, 0);
+  }
+  // 分期公司負擔的車款＝付款明細裡分期那幾筆；沒有明細時視為整筆車價（與 SalesOrder.installment_split_amount 一致）。
+  function installmentFinancedAmount() {
+    let rows = [];
+    try { rows = JSON.parse(byId("id_payment_splits")?.value || "[]"); if (typeof rows === "string") rows = JSON.parse(rows); } catch (error) { rows = []; }
+    if (!Array.isArray(rows) || !rows.length) return Number(byId("id_vehicle_price")?.value || 0) || 0;
+    return rows.reduce((sum, row) => sum + (row?.method === "installment" ? Number(row.amount || 0) || 0 : 0), 0);
+  }
   function depositGuidance() {
     if (!depositHint || !depositAmount || depositAmount.disabled || editingOrderId) return;
-    const total = accessoryPurchaseTotal();
     depositHint.textContent = paymentType.value === "installment"
-      ? `分期：依實際收款填寫；配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考。沒有收訂金請留空。`
+      ? "分期：訂金從上面的「分期外應收」扣，依客人這次實際付的金額填寫；沒有收訂金請留空。"
       : "現金：請依客人這次實際要付的金額填寫；沒有收訂金請留空。";
   }
   paymentType.addEventListener("change", depositGuidance);
   depositGuidance();
   // 訂金頁的目前金額：車價＋牌險費＋（指定號碼的選號費）＋配件（只計加購），與總價試算同一組欄位。
   // 牌險費留空時寫「另計」、不列入合計，客人看不到也推算不出系統算出的金額（使用者 2026-10-20）。
+  // 分期單改列「分期外應收」（UAT U-04）：客人自付的車款（多筆付款時）＋牌險費＋選號費＋配件＋開辦費＋其他費用，
+  // 車價分期金額另列一行、不加進合計，與訂購單、交車對帳同一口徑（customer_receivable.installment_customer_part）。
   const intakeTotals = orderForm.querySelector("[data-intake-totals]");
   function updateIntakeTotals() {
     if (!intakeTotals) return;
     const amountOf = id => { const node = byId(id); return node && node.value !== "" ? Number(node.value) || 0 : null; };
+    const installment = paymentType.value === "installment";
     // 選號費只在「指定號碼」且有填金額時列出，與 preDiscountTotal 的計算條件一致（使用者 2026-10-17）。
     const selection = plateChoice.value === "watch" ? amountOf("id_plate_selection_fee") : null;
     const showSelection = Boolean(selection);
     // 填 0 就照實顯示 0。
     const typedPlate = amountOf("id_plate_insurance_fee");
     const platePending = typedPlate == null;
-    const values = {vehicle: amountOf("id_vehicle_price"), plate: typedPlate, accessories: accessoryPurchaseTotal()};
+    const vehicle = amountOf("id_vehicle_price");
+    const financed = installment ? Math.min(installmentFinancedAmount(), vehicle || 0) : 0;
+    const values = {
+      vehicle: installment ? Math.max((vehicle || 0) - financed, 0) : vehicle,
+      plate: typedPlate,
+      accessories: accessoryPurchaseTotal(),
+    };
     if (showSelection) values.selection = selection;
+    if (installment) {
+      values.opening = amountOf("id_installment_opening_fee") || 0;
+      values.other = otherFeeTotal();
+    }
     values.sum = Object.values(values).reduce((sum, value) => sum + (value || 0), 0);
-    intakeTotals.querySelector('[data-intake-total-cell="selection"]').hidden = !showSelection;
+    values.financed = financed;
+    const shown = {
+      vehicle: !installment || values.vehicle > 0,
+      selection: showSelection,
+      opening: installment,
+      other: installment && values.other > 0,
+    };
+    Object.entries(shown).forEach(([key, visible]) => {
+      intakeTotals.querySelector(`[data-intake-total-cell="${key}"]`).hidden = !visible;
+    });
+    intakeTotals.querySelector("[data-intake-total-vehicle-label]").textContent = installment ? "自付車款" : "車價";
+    // 第一個看得到的格子不放「＋」；欄數跟著格數走，超過三格時窄卡片改逐行明細（order-wizard.css）。
+    const grid = intakeTotals.querySelector(".intake-totals__grid");
+    const addends = [...grid.querySelectorAll(".intake-totals__cell:not(.intake-totals__cell--sum)")].filter(cell => !cell.hidden);
+    addends.forEach((cell, index) => cell.classList.toggle("intake-totals__cell--plus", index > 0));
+    grid.style.setProperty("--totals-cols", String(addends.length));
+    grid.toggleAttribute("data-totals-wide", addends.length > 3);
+    intakeTotals.querySelector("[data-intake-financed]").hidden = !installment;
+    const sumLabel = installment ? "分期外應收" : showSelection ? "四項合計" : "三項合計";
     intakeTotals.querySelector("[data-intake-total-label]").textContent = platePending
-      ? "合計（牌險另計）" : showSelection ? "四項合計" : "三項合計";
+      ? (installment ? "分期外應收（牌險另計）" : "合計（牌險另計）") : sumLabel;
+    intakeTotals.querySelector("[data-intake-total-note-text]").textContent = installment
+      ? "分期外應收＝客人自己要付的錢（訂金從這裡扣）。配件只計加購（不含贈品）；優惠另計，送出時依實際明細重新計算。"
+      : "配件只計加購（不含贈品）；其他費用與優惠另計，送出時依實際明細重新計算。";
     intakeTotals.querySelector("[data-intake-plate-pending-note]").hidden = !platePending;
     intakeTotals.querySelectorAll("[data-intake-total]").forEach(node => {
       const value = values[node.dataset.intakeTotal];
@@ -1934,12 +1980,6 @@
     const afterOutput = discountBox.querySelector("[data-discount-after]");
     const deltaOutput = discountBox.querySelector("[data-discount-delta]");
     const currentMode = () => discountModes.find(input => input.checked)?.value || "amount";
-    function otherFeeTotal() {
-      return [...document.querySelectorAll("#other-fee-forms [data-dynamic-row]")].reduce((sum, row) => {
-        if (row.classList.contains("is-pending-delete") || !row.querySelector('[name$="-name"]')?.value.trim()) return sum;
-        return sum + (Number(row.querySelector('[name$="-amount"]')?.value || 0) || 0);
-      }, 0);
-    }
     function preDiscountTotal() {
       const installment = paymentType.value === "installment";
       const plateSelection = plateChoice.value === "watch" ? numberOf("id_plate_selection_fee") : 0;

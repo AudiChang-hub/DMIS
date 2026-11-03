@@ -205,6 +205,16 @@ class OrderWizardTests(TestCase):
         self.assertIn('"合計（牌險另計）"', page)
         self.assertIn('node.textContent = pending ? "另計"', page)
         self.assertNotIn("系統預估", page)
+        # UAT U-04：分期單改列分期外應收（含開辦費、其他費用），車價分期另列一行、不加進合計。
+        for key in ("opening", "other", "financed"):
+            self.assertIn(f'data-intake-total="{key}"', panel)
+        self.assertIn('data-intake-total-cell="opening" hidden', panel)
+        self.assertIn("data-intake-financed hidden", panel)
+        self.assertIn("由分期公司支付，不算在上面的合計", panel)
+        self.assertNotIn("UAT U-04", panel)  # 樣板註解不可露到畫面
+        self.assertIn('installment ? "分期外應收（牌險另計）" : "合計（牌險另計）"', page)
+        self.assertIn('values.opening = amountOf("id_installment_opening_fee") || 0;', page)
+        self.assertIn("values.financed = financed;", page.split("values.sum =", 1)[1])
         self.assertEqual(self.post("deposit", draft=self.draft(), **lines).status_code, 302)
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]

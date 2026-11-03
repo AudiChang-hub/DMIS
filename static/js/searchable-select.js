@@ -159,10 +159,14 @@
     }
 
     function renderOptions(query = "") {
-      const needle = normalizeSearch(query);
+      // 空白分開的多個關鍵字都要符合，例如「suzuki uc125」「saluto 2026」。
+      const needles = String(query || "").split(/\s+/).map(normalizeSearch).filter(Boolean);
       const recents = recentValues();
       const options = availableOptions()
-        .filter(option => !needle || normalizeSearch(option.textContent).includes(needle))
+        .filter(option => {
+          const haystack = normalizeSearch(option.textContent);
+          return needles.every(needle => haystack.includes(needle));
+        })
         .sort((left, right) => {
           const leftIndex = recents.indexOf(left.value);
           const rightIndex = recents.indexOf(right.value);

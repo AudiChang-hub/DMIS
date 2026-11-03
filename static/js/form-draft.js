@@ -31,8 +31,13 @@
     };
     form.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(save, 400); });
     form.addEventListener('change', save);
+    const discard = () => { clearTimeout(timer); try { storage.removeItem(key); } catch (_error) { /* 略過 */ } };
     // 按「套用」送出後清掉草稿；伺服器驗證失敗時頁面會帶回剛送出的內容，不會遺失。
-    form.addEventListener('submit', () => { clearTimeout(timer); try { storage.removeItem(key); } catch (_error) { /* 略過 */ } });
+    form.addEventListener('submit', discard);
+    // 頁尾「放棄變更／取消」是明確不要這些輸入：先清草稿再照連結離開，回來才是正式資料（UAT U-11）。
+    form.querySelectorAll('a[data-discard-draft], a.button').forEach(link => {
+      if (link.hasAttribute('data-discard-draft') || /^(放棄|取消)/.test(link.textContent.trim())) link.addEventListener('click', discard);
+    });
 
     let draft = null;
     try { draft = JSON.parse(storage.getItem(key) || 'null'); } catch (_error) { draft = null; }
@@ -55,10 +60,11 @@
     const banner = document.createElement('div');
     banner.className = 'form-draft-banner';
     banner.setAttribute('role', 'status');
-    banner.innerHTML = '<span><strong>已帶回上次還沒套用的輸入</strong><small></small></span><button type="button" class="button ghost compact">捨棄草稿</button>';
-    banner.querySelector('small').textContent = `${time(draft.savedAt)} 保留在這台裝置；按「套用」後才會生效。`;
+    // 與頁尾「放棄變更」同名同效果，只留一種說法。
+    banner.innerHTML = '<span><strong>已帶回上次還沒套用的輸入</strong><small></small></span><button type="button" class="button ghost compact">放棄變更</button>';
+    banner.querySelector('small').textContent = `${time(draft.savedAt)} 保留在這台裝置；按「套用」才會生效，按「放棄變更」回到正式資料。`;
     banner.querySelector('button').addEventListener('click', () => {
-      try { storage.removeItem(key); } catch (_error) { /* 略過 */ }
+      discard();
       location.reload();
     });
     form.prepend(banner);

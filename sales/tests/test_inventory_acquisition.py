@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.models import VehicleInventory, VehicleInventoryHistory
+from sales.models import VehicleColor, VehicleInventory, VehicleInventoryHistory, VehicleModel
 from sales.tests import test_order_lifecycle as lifecycle
 
 TRANSFER = VehicleInventory.AcquisitionType.DEALER_TRANSFER
@@ -103,6 +103,44 @@ class InventoryAcquisitionTests(TestCase):
             "ACQ-Q2": (COMPANY, ""),
             "ACQ-Q3": (COMPANY, ""),
         })
+
+    def test_single_create_blocks_identifier_duplicates_after_normalizing(self):
+        # U-01：大小寫、空格或連字號不同的重複號碼要回到表單，不能變成 500。
+        self.vehicle("DUP")
+        ev_model = VehicleModel.objects.create(
+            brand="SUZUKI", name="EV 測試", model_number="EVQA1", model_year=2026,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+        ev_color = VehicleColor.objects.create(vehicle_model=ev_model, name="白")
+        VehicleInventory.objects.create(
+            vehicle_model=ev_model, color=ev_color, frame_number="FRAME-DUP-01",
+            ownership_store=self.store, location_store=self.store,
+        )
+        self.client.force_login(self.user)
+        url = reverse("inventory_create")
+        ev_frame = {"vehicle_model": ev_model.pk, "color": ev_color.pk, "engine_number": ""}
+        for overrides, field_label in (
+            ({"engine_number": "acq-dup"}, "此引擎號碼已存在"),
+            ({"engine_number": "ACQ DUP"}, "此引擎號碼已存在"),
+            ({**ev_frame, "frame_number": "frame dup01"}, "此車身號碼已存在"),
+        ):
+            with self.subTest(overrides=overrides):
+                response = self.client.post(url, self.single_payload(**overrides))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, field_label)
+                self.assertNotContains(response, "必須填寫")
+        self.assertEqual(VehicleInventory.objects.count(), 2)
+
+    def test_editing_keeps_own_identifier_in_other_case(self):
+        vehicle = self.vehicle("SELF")
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("inventory_edit", args=[vehicle.pk]),
+            self.single_payload(engine_number="acq-self"),
+        )
+        self.assertRedirects(response, reverse("inventory_list"), fetch_redirect_response=False)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.engine_number, "ACQ-SELF")
 
     def test_editing_source_writes_inventory_history(self):
         vehicle = self.vehicle("EDIT")

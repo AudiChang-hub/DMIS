@@ -121,6 +121,9 @@
    開關列是整段可點的列，收妥後轉綠底；欄位鎖定時沿用停用樣式。 */
 .deposit-step { display: grid; gap: var(--stack-gap-sm); }
 .deposit-step .deposit-step__fields { padding: 0; }
+/* 分期訂金超過分期外應收：只提醒、不擋（U-06 方案 A），緊接在金額欄下方。 */
+.deposit-step__warning { grid-column: 1 / -1; margin: calc(var(--space-2) * -1) 0 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--amber-border); border-radius: var(--radius-md); background: var(--amber-soft); color: var(--amber-ink); font-size: var(--text-sm); }
+.deposit-step__warning[hidden] { display: none; }
 .deposit-receipt {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
   padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft);

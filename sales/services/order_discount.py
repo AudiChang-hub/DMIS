@@ -135,6 +135,34 @@ def validate_intake_discount(form, formset, fee_formset):
     return preview
 
 
+def validate_intake_deposit(form, formset, fee_formset):
+    """建單填的訂金會直接入帳，不可超過優惠後總價（UAT U-06，使用者 2026-11-03 選 A）。
+
+    總價與優惠試算同一組項目；牌險留空時用系統試算值，但訊息不寫總價，客人推算不出試算的牌險（使用者 2026-10-20）。
+    分期單訂金超過分期外應收但未超過總價不擋（尾款停在 0），由畫面提醒。影響總價的欄位或明細有錯時先不判斷。
+    """
+    data = getattr(form, "cleaned_data", None) or {}
+    deposit = data.get("deposit_amount")
+    if not deposit or deposit <= ZERO or "deposit_amount" in form.errors or TOTAL_FIELDS & set(form.errors):
+        return
+    if any(formset.errors) or any(fee_formset.errors) or formset.non_form_errors() or fee_formset.non_form_errors():
+        return
+    total = intake_pre_discount_total(form, formset, fee_formset)
+    if total is None:
+        return
+    preview = intake_discount_preview(form, formset, fee_formset)
+    if preview is not None and not discount_error(preview["amount"], preview["before"]):
+        total = preview["after"]
+    if deposit <= total:
+        return
+    if form.instance.plate_insurance_auto:
+        message = "訂金比這張單的總價還多，請確認金額（例如是不是多打了一個 0）。沒有收訂金請留空。"
+    else:
+        message = (f"訂金 {deposit:,.0f} 元比這張單的總價 {total:,.0f} 元還多，"
+                   "請確認金額（例如是不是多打了一個 0）。沒有收訂金請留空。")
+    form.add_error("deposit_amount", message)
+
+
 def apply_intake_discount(order, form, actor_name):
     """建立訂單後以實際明細重新換算並直接核定；超過總價時回傳錯誤訊息、不寫入。"""
     if not intake_discount_requested(form):

@@ -9,6 +9,8 @@ from google.cloud import vision
 from google.oauth2 import service_account
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from sales.services.identity_number import validate_taiwan_id  # noqa: F401  證號檢查只維護一份（UAT U-05）
+
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_IMAGE_PIXELS = 24_000_000
@@ -528,24 +530,6 @@ def _extract_resident_name_from_layout(front):
     name = "".join(value for _left, value in sorted(candidates))
     return name if 2 <= len(name) <= 6 else ""
 
-
-def validate_taiwan_id(id_number):
-    value = (id_number or "").strip().upper()
-    if not re.fullmatch(r"[A-Z][12]\d{8}", value):
-        return False
-    city_codes = {
-        "A": 10, "B": 11, "C": 12, "D": 13, "E": 14, "F": 15,
-        "G": 16, "H": 17, "I": 34, "J": 18, "K": 19, "L": 20,
-        "M": 21, "N": 22, "O": 35, "P": 23, "Q": 24, "R": 25,
-        "S": 26, "T": 27, "U": 28, "V": 29, "W": 32, "X": 30,
-        "Y": 31, "Z": 33,
-    }
-    code = city_codes[value[0]]
-    digits = [int(char) for char in value[1:]]
-    total = code // 10 + (code % 10) * 9
-    total += sum(digit * weight for digit, weight in zip(digits[:8], range(8, 0, -1)))
-    total += digits[8]
-    return total % 10 == 0
 
 
 def recognize_resident_certificate(front_bytes, back_bytes):

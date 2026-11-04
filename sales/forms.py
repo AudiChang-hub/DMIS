@@ -2187,8 +2187,10 @@ def existing_vehicle_message(vehicle):
     from django.urls import reverse
     Status = VehicleInventory.Status
     order = SalesOrder.objects.filter(allocated_vehicle=vehicle).only("pk", "number").first()
-    order_part = (
-        format_html('，已配給訂單 <a href="{}">{}</a>', reverse("order_detail", args=[order.pk]), order.number)
+    order_part = format_html("，已配給訂單 {}", order.number) if order else ""
+    # 連結做成 44px 高的按鈕，手機上點得到。
+    order_link = (
+        format_html('<a class="button ghost compact" href="{}">打開訂單 {}</a>', reverse("order_detail", args=[order.pk]), order.number)
         if order else ""
     )
     if vehicle.status == Status.AVAILABLE:
@@ -2198,9 +2200,10 @@ def existing_vehicle_message(vehicle):
     else:
         hint = "同一台車不能再進車；要恢復這台車，請到車輛資料處理。"
     return format_html(
-        "此號碼已存在：{}／{}，狀態「{}」{}。{} <a href=\"{}\">查看這台車</a>",
+        '此號碼已存在：{}／{}，狀態「{}」{}。{}<span class="field-error__actions">'
+        '<a class="button ghost compact" href="{}">查看這台車</a>{}</span>',
         vehicle.vehicle_model, vehicle.color.name, vehicle.get_status_display(), order_part, hint,
-        reverse("inventory_edit", args=[vehicle.pk]),
+        reverse("inventory_edit", args=[vehicle.pk]), order_link,
     )
 
 
@@ -4129,6 +4132,8 @@ class QuickInventoryEntryForm(forms.Form):
         self.fields["color"].widget.attrs.update(
             {"data-searchable-select": "1", "data-search-placeholder": "請先選擇車型"}
         )
+        # 驗證失敗重畫時與前端載入的一樣只顯示車色名稱，不重複整串車型。
+        self.fields["color"].label_from_instance = lambda color: color.name
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)

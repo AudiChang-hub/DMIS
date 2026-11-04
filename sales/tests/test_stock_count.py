@@ -149,6 +149,8 @@ class StockCountTests(TestCase):
         groups = [group for block in response.context["blocks"] for group in block.visible_groups]
         self.assertTrue(all(row.total for group in groups for row in group.visible_rows))
         self.assertNotIn("EV060L", [group.code for group in groups])
+        self.assertNotIn("eReady", [block.brand for block in response.context["blocks"]])
+        self.assertEqual(response.context["totals"]["total"], 6)
 
     def test_inventory_page_links_to_stock_count(self):
         self.assertContains(self.client.get(reverse("inventory_list")), reverse("inventory_stock_count"))

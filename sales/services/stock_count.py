@@ -167,8 +167,8 @@ def build_stock_count(brand=""):
     for block in blocks.values():
         block.groups.sort(key=lambda g: _key(g.code))
         for group in block.groups:
-            # 車色順序固定（依名稱），每次看位置都一樣；不生產且 0 台的放最後。
-            group.colors = dict(sorted(group.colors.items(), key=lambda item: (not item[1].active and not item[1].total, item[1].name)))
+            # 車色依主檔建立順序（與機種頁一致），每次看位置都一樣；不生產且 0 台的放最後。
+            group.colors = dict(sorted(group.colors.items(), key=lambda item: not item[1].active and not item[1].total))
     # 品牌對不到（例如網址打錯）時視同全部品牌，不顯示空白表。
     selected = brands.get(_key(brand), {}).get("value", "")
     ordered = sorted((b for b in blocks.values() if not selected or _key(b.brand) == _key(selected)), key=lambda b: b.order)

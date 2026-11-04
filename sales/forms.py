@@ -3593,12 +3593,18 @@ class DepositStepForm(forms.Form):
             confirm["data-autosave-confirm"] = "確認這筆訂金已收妥？打開後即入帳，金額、日期與方式會鎖定。"
         if payment.pk and payment.reversal_entries.exists():
             self.fields["confirmed"].disabled = True
+        from sales.services.deposit_step import deposit_warning
+        self.deposit_warning = "" if confirmed else deposit_warning(order)
 
     def clean(self):
         cleaned = super().clean()
         if self.payment.confirmed:
             return cleaned
         amount = cleaned.get("amount") or Decimal("0")
+        from sales.services.deposit_step import deposit_limit_error
+        limit_error = deposit_limit_error(self.order, amount)
+        if limit_error:
+            self.add_error("amount", limit_error)
         if cleaned.get("confirmed"):
             if amount <= 0:
                 self.add_error("amount", "請先填訂金金額，才能標記已收妥。")

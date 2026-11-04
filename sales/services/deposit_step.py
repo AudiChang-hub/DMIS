@@ -123,6 +123,32 @@ def save_deposit_step(order, payment, data, actor_name):
     return "修改訂金收款資料（待收妥）"
 
 
+def deposit_limit_error(order, amount):
+    """訂金上限（使用者 2026-11-03 選 U-06 方案 A）：訂金大於總價直接擋。
+    牌險留空由系統計算時不寫出總價，免得客人從總價推算出牌險金額。"""
+    total = order.discounted_total
+    if not amount or amount <= total:
+        return ""
+    if order.plate_insurance_auto:
+        return "訂金不能大於這張單的總價，請確認金額（例如是否多打了一個 0）。"
+    return f"訂金不能大於總價 {total:,.0f} 元，請確認金額（例如是否多打了一個 0）。"
+
+
+def deposit_warning(order, amount=None):
+    """分期單訂金只超過分期外應收（客人自付的部分）時只提醒、不擋（U-06 方案 A）。"""
+    from sales.services.customer_receivable import installment_customer_part
+
+    amount = order.deposit_amount if amount is None else amount
+    if order.payment_type != order.PaymentType.INSTALLMENT or not amount or amount > order.discounted_total:
+        return ""
+    part = installment_customer_part(order)
+    if amount <= part:
+        return ""
+    if order.plate_insurance_auto:
+        return "提醒：訂金超過分期外應收（客人自付的部分），多收的部分不會抵到分期金額，請確認是否正確。"
+    return f"提醒：訂金超過分期外應收 {part:,.0f} 元，多收的部分不會抵到分期金額，請確認是否正確。"
+
+
 def deposit_state(order):
     """給畫面即時更新用：收妥狀態、是否鎖定與步驟摘要。"""
     payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
@@ -133,6 +159,7 @@ def deposit_state(order):
         "locked": confirmed,
         "summary": deposit_summary(order, payment),
         "amount": str(amount),
+        "warning": "" if confirmed else deposit_warning(order),
     }
 
 

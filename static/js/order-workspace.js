@@ -276,6 +276,7 @@
       if (toggle) toggle.checked = state.confirmed;
       const title = form.querySelector('[data-deposit-title]'); if (title) title.textContent = state.confirmed ? '訂金已收妥' : '訂金待收妥';
       const hint = form.querySelector('[data-deposit-hint]'); if (hint) hint.textContent = state.confirmed ? '已入帳；要修改先關掉。' : '收到款項後打開，即入帳。';
+      const warning = form.querySelector('[data-deposit-warning]'); if (warning) { warning.textContent = state.warning || ''; warning.hidden = !state.warning; }
     }
     const panel = document.getElementById('panel-deposit');
     setStepState(panel, state.step_state);
@@ -547,10 +548,29 @@
   const touched = new Set();
   const rebase = () => forms.forEach(form => { if (!touched.has(form) && !timers.has(form)) bases.set(form, capture(form)); });
   window.addEventListener('load', () => { setTimeout(rebase, 0); setTimeout(() => { rebase(); indicators(); }, 2000); }, {once: true});
+  // 自動儲存被擋時，原因直接標在該欄旁（使用者 2026-11-03 U-06），改了該欄就收起。
+  function showFieldError(field, errors) {
+    const box = field.closest('[data-field-container]') || field.parentElement;
+    if (!box) return;
+    let node = box.querySelector('[data-autosave-error]');
+    if (!node) {
+      node = document.createElement('small');
+      node.className = 'field-error'; node.dataset.autosaveError = ''; node.setAttribute('role', 'alert');
+      if (field.id) node.id = `${field.id}_autosave_error`;
+      box.append(node);
+    }
+    node.textContent = errors.join(' ');
+    if (node.id) field.setAttribute('aria-describedby', [...new Set([...(field.getAttribute('aria-describedby') || '').split(' ').filter(Boolean), node.id])].join(' '));
+  }
+  function clearFieldError(field) {
+    const box = field.closest?.('[data-field-container]') || field.parentElement;
+    box?.querySelector('[data-autosave-error]')?.remove();
+  }
   function onAutosaveInput(form, event) {
     if (event.isTrusted) touched.add(form);
     indicators();
     event.target.removeAttribute('aria-invalid');
+    clearFieldError(event.target);
     if (event.target.type !== 'file') schedule(form);
   }
   function onAutosaveChange(form, event) {
@@ -618,13 +638,16 @@
         if (!response.ok || !payload.ok) {
           const entries = Object.entries(payload.errors || {});
           const detail = [payload.error || '未能儲存。', ...entries.flatMap(([, errors]) => errors)];
-          entries.forEach(([name]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) field.setAttribute('aria-invalid', 'true'); });
-          if (auto) { resumed.delete(form); setStatus(form, '尚未儲存：' + detail.join(' '), 'error'); return; }
+          let marked = entries.length > 0;
+          entries.forEach(([name, errors]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) { field.setAttribute('aria-invalid', 'true'); showFieldError(field, errors); } else marked = false; });
+          // 原因已標在欄位旁時，狀態列只指路，不重複整段訊息。
+          if (auto) { resumed.delete(form); setStatus(form, marked ? '尚未儲存：請依欄位旁的紅字修正。' : '尚未儲存：' + detail.join(' '), 'error'); return; }
           notify(detail.join('\n'), true);
           const first = entries.map(([name]) => form.elements.namedItem(name)).find(f => f?.focus);
           if (first) reveal(first);
           return;
         }
+        fields(form).forEach(clearFieldError);
         // 重編後欄位會改名；送出後才打的字改用新名稱保留，基準仍取送出時的值（新名稱 → 送出時名稱）。
         const typedBefore = changedNames(form, sent);
         const renamed = acceptRows(form, payload, sent);

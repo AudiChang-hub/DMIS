@@ -301,9 +301,19 @@
 }
 @media (max-width: 860px) {
   .order-nav__panel { bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom)); width: min(86vw, var(--order-nav-width)); }
-  .order-nav.is-open .order-nav__handle { transform: translateX(min(86vw, var(--order-nav-width))); }
-  /* 手機：把手放在左下角、底部導覽列上方，不壓到頁首姓名與按鈕。 */
-  .order-nav__handle { top: auto; bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom) + var(--space-5)); }
+  /* 手機（UAT U-12）：與 .side-nav__handle 相同，改成頁首左側 44px 高的膠囊，不再貼著底部按鈕與內容；頁首讓位規則在 app.css。 */
+  .order-nav__handle {
+    top: calc(env(safe-area-inset-top, 0px) + (var(--app-header-height, 62px) - env(safe-area-inset-top, 0px) - 44px) / 2); bottom: auto; left: var(--space-4);
+    display: inline-flex; width: var(--nav-handle-width, 7rem); min-height: 44px; padding: 0 var(--space-3); align-items: center; justify-content: center; gap: var(--space-1);
+    border: 1px solid var(--line); border-radius: var(--radius-pill); box-shadow: none; font-size: var(--text-sm-plus);
+  }
+  .order-nav__handle-text { writing-mode: horizontal-tb; letter-spacing: .04em; }
+  .order-nav__handle-icon { order: 1; transform: rotate(90deg); }
+  .order-nav.is-open .order-nav__handle { transform: none; color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  .order-nav.is-open .order-nav__handle-icon { transform: rotate(-90deg); }
+  /* 面板的收合鈕放大到 44×44；釘選只在 1100px 以上有作用（比照機種清單），手機不顯示，免得按了沒反應。 */
+  .order-nav__pin { display: none; }
+  .order-nav__close { width: 44px; min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .order-nav__panel, .order-nav__handle, .order-nav__backdrop { transition: none; }

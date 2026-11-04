@@ -18,8 +18,8 @@
   <dl class="stock-count-summary__parts">
     <div><dt>本店</dt><dd>{{ totals.store }}</dd></div>
     <div class="is-dealer"><dt>車行</dt><dd>{{ totals.dealer }}</dd></div>
-    <div class="is-sub"><dt>其中已配車</dt><dd>{{ totals.reserved }}</dd></div>
-    <div class="is-sub"><dt>其中車況異常</dt><dd>{{ totals.issue }}</dd></div>
+    <div class="is-sub"><dt>已配車</dt><dd>{{ totals.reserved }}</dd></div>
+    <div class="is-sub"><dt>車況異常</dt><dd>{{ totals.issue }}</dd></div>
   </dl>
 </section>
 
@@ -33,7 +33,7 @@
 </nav>
 
 {% if blocks %}
-<div class="stock-count-legend" aria-hidden="true"><span class="is-stock">數量</span>本店＋車行合計<span class="is-dealer">車行</span>其中放在車行<span class="is-off">不生產</span>車色或型號已停用</div>
+<div class="stock-count-legend" aria-hidden="true"><span class="is-stock">數量</span>含車行<span class="is-dealer">車行</span>放在車行<span class="is-off">不生產</span>已停用</div>
 {% for block in blocks %}
 <section class="stock-block" aria-labelledby="stock-block-{{ forloop.counter }}"{% if block.color %} style="--block-accent: {{ block.color }}"{% endif %}>
   <header class="stock-block__head">
@@ -44,9 +44,9 @@
   <div class="stock-block__grid">
     {% for group in block.visible_groups %}
     <article class="stock-model{% if not group.total %} is-empty{% endif %}" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+      <header class="stock-model__head"><h3 id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="stock-model__code">{{ group.code }}</h3>{% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}<p class="stock-model__sum{% if group.total %} has-stock{% endif %}"><b>{{ group.total }}</b>{% if group.dealer %}<small>車行 {{ group.dealer }}</small>{% endif %}<span class="visually-hidden"> 台小計</span></p></header>
       <div class="inventory-table-wrap stock-model__wrap">
-      <table class="inventory-table inventory-table--fit stock-count-table">
-        <caption id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"><span class="stock-model__code">{{ group.code }}</span>{% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}</caption>
+      <table class="inventory-table inventory-table--fit stock-count-table" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
         <thead><tr><th scope="col">顏色</th><th scope="col" class="is-number">數量</th><th scope="col" class="is-number">車行</th></tr></thead>
         <tbody>
           {% for row in group.visible_rows %}
@@ -57,7 +57,6 @@
           </tr>
           {% endfor %}
         </tbody>
-        <tfoot><tr><th scope="row">小計</th><td data-label="數量" class="is-number">{{ group.total }}</td><td data-label="車行" class="is-number">{{ group.dealer }}</td></tr></tfoot>
       </table>
       </div>
     </article>

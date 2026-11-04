@@ -35,6 +35,9 @@ def inventory_stock_count(request):
                 row.inventory_url = _inventory_url(group, row) if row.total else ""
             group.visible_rows = [row for row in group.rows if row.total] if only_stock else group.rows
         block.visible_groups = [group for group in block.groups if group.visible_rows]
+    if only_stock:
+        # 只看有車時整區沒車的區塊直接不顯示，縮短滑動距離。
+        data["blocks"] = [block for block in data["blocks"] if block.visible_groups]
 
     def link(brand_value, stock):
         query = {key: value for key, value in (("brand", brand_value), ("show", "stock" if stock else "")) if value}

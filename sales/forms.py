@@ -993,6 +993,20 @@ class SalesOrderForm(forms.ModelForm):
         # 交車頁會提醒尚未填寫，實際交付時由交付核對（DeliveryCompletionForm）要求填寫。
 
         # 證件照片與人工核對改為選填（使用者 2026-10-14）：後續流程沒有任何步驟依賴，簽署前也不必補齊。
+
+        # 證件號碼格式（UAT U-05，使用者 2026-11-03 選 A）：只檢查新單與有改動的證號／車主類型，
+        # 既有訂單沿用舊值時不擋，訂單頁自動儲存其他欄位不會被舊資料卡住。
+        id_number = (data.get("owner_id_number") or "").strip().upper()
+        owner_type = data.get("owner_type")
+        if id_number and (
+            not self.instance.pk
+            or id_number != (self.instance.owner_id_number or "").strip().upper()
+            or owner_type != self.instance.owner_type
+        ):
+            from sales.services.identity_number import owner_id_number_problem
+            problem = owner_id_number_problem(owner_type, id_number)
+            if problem:
+                self.add_error("owner_id_number", problem)
         return data
 
 

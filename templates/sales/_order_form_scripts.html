@@ -1870,6 +1870,64 @@
   orderForm.addEventListener("input", () => {
     validationSummary.hidden = true;
   });
+  // 證件號碼即時檢查（UAT U-05，使用者 2026-11-03 選 A）：規則同 sales/services/identity_number.py，以伺服器為準。
+  // 錯誤直接寫在欄位下方；setCustomValidity 讓「下一步」先擋下並捲到這一格。
+  const ownerIdNumber = byId("id_owner_id_number");
+  const TW_CITY_CODES = {A: 10, B: 11, C: 12, D: 13, E: 14, F: 15, G: 16, H: 17, I: 34, J: 18, K: 19, L: 20, M: 21,
+    N: 22, O: 35, P: 23, Q: 24, R: 25, S: 26, T: 27, U: 28, V: 29, W: 32, X: 30, Y: 31, Z: 33};
+  function ownerIdProblem(type, raw) {
+    const value = (raw || "").trim().toUpperCase();
+    if (!value) return "";
+    if (type === "company") {
+      return /^\d{8}$/.test(value) ? "" : "統一編號要 8 個數字，請對照公司資料重新輸入。如果車主是個人，請先把上方「車主類型」改掉。";
+    }
+    if (type === "foreign") {
+      return /^[A-Z0-9]{6,20}$/.test(value) ? "" : "證件號碼只能有英文字母和數字，長度 6 到 20 碼，請對照居留證或護照重新輸入。";
+    }
+    if (!/^[A-Z][12]\d{8}$/.test(value)) {
+      return "身分證字號格式不對：共 10 碼，第 1 碼是英文字母、第 2 碼是 1 或 2，後面 8 個數字。請對照證件重新輸入；外籍或公司請先把上方「車主類型」改掉。";
+    }
+    const code = TW_CITY_CODES[value[0]];
+    const digits = [...value.slice(1)].map(Number);
+    const total = Math.floor(code / 10) + (code % 10) * 9
+      + digits.slice(0, 8).reduce((sum, digit, index) => sum + digit * (8 - index), 0) + digits[8];
+    return total % 10 === 0 ? "" : "身分證字號的檢查碼對不上，應該有一碼打錯了，請對照證件逐碼重新輸入。";
+  }
+  // 既有訂單沿用原本的證號與車主類型時不檢查（與伺服器相同），舊資料不會卡住訂單頁的自動儲存。
+  const savedOwnerId = [ownerIdNumber?.value.trim().toUpperCase(), ownerType?.value];
+  function checkOwnerIdNumber(show) {
+    if (!ownerIdNumber || ownerIdNumber.disabled || ownerIdNumber.readOnly) return;
+    const unchanged = editingOrderId && ownerIdNumber.value.trim().toUpperCase() === savedOwnerId[0]
+      && ownerType?.value === savedOwnerId[1];
+    const problem = unchanged ? "" : ownerIdProblem(ownerType?.value, ownerIdNumber.value);
+    ownerIdNumber.setCustomValidity(problem);
+    const field = ownerIdNumber.closest("[data-field-container]");
+    if (!field) return;
+    let live = field.querySelector("[data-id-number-error]");
+    if (!live) {
+      live = document.createElement("small");
+      live.className = "field-error";
+      live.dataset.idNumberError = "";
+      live.id = "id_owner_id_number_live_error";
+      live.hidden = true;
+      field.append(live);
+    }
+    // 伺服器退回的錯誤在使用者改過之後交給即時檢查，避免同一句出現兩次。
+    if (show) byId("id_owner_id_number_errors")?.remove();
+    const visible = Boolean(problem) && (show || !live.hidden);
+    live.textContent = problem;
+    live.hidden = !visible;
+    field.classList.toggle("has-error", visible || Boolean(byId("id_owner_id_number_errors")));
+    if (visible) ownerIdNumber.setAttribute("aria-describedby", live.id);
+    ownerIdNumber.toggleAttribute("aria-invalid", visible);
+  }
+  if (ownerIdNumber) {
+    ownerIdNumber.addEventListener("input", () => checkOwnerIdNumber(false));
+    ownerIdNumber.addEventListener("change", () => checkOwnerIdNumber(true));
+    ownerIdNumber.addEventListener("invalid", () => checkOwnerIdNumber(true));
+    ownerType?.addEventListener("change", () => checkOwnerIdNumber(Boolean(ownerIdNumber.value.trim())));
+    checkOwnerIdNumber(false);
+  }
   // 訂金一律留空由人員填寫，不自動帶入（使用者 2026-10-10）；分期時提示配件加購金額供參考。
   const depositAmount = byId("id_deposit_amount");
   const depositHint = byId("deposit-hint");
@@ -1963,6 +2021,24 @@
       node.classList.toggle("is-pending", pending);
       node.textContent = pending ? "另計" : value == null ? "—" : `${Math.round(value).toLocaleString("zh-TW")} 元`;
     });
+    // 分期單訂金超過分期外應收只提醒、不擋（UAT U-06 方案 A）；超過總價由伺服器擋下。牌險另計時合計不完整，不提醒。
+    const depositField = depositAmount?.closest("[data-field-container]");
+    if (depositField) {
+      let overHint = depositField.querySelector("[data-deposit-over-hint]");
+      if (!overHint) {
+        overHint = document.createElement("small");
+        overHint.className = "help-text";
+        overHint.dataset.depositOverHint = "";
+        overHint.setAttribute("role", "status");
+        depositField.append(overHint);
+      }
+      const deposit = Number(depositAmount.value || 0) || 0;
+      const over = installment && !platePending && deposit > values.sum;
+      overHint.hidden = !over;
+      overHint.textContent = over
+        ? `訂金比分期外應收多 ${Math.round(deposit - values.sum).toLocaleString("zh-TW")} 元；多收的部分尾款會停在 0，請確認客人真的多付。`
+        : "";
+    }
   }
   orderForm.addEventListener("input", updateIntakeTotals);
   orderForm.addEventListener("change", updateIntakeTotals);

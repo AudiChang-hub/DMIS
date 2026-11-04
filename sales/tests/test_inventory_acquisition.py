@@ -146,10 +146,13 @@ class InventoryAcquisitionTests(TestCase):
         ]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "狀態「已售出」")
-        self.assertContains(response, f'已配給訂單 <a href="{reverse("order_detail", args=[order.pk])}">{order.number}</a>', html=False)
-        self.assertContains(response, f'<a href="{reverse("inventory_edit", args=[sold.pk])}">查看這台車</a>', html=False)
+        self.assertContains(response, f"已配給訂單 {order.number}")
+        self.assertContains(response, f'<a class="button ghost compact" href="{reverse("order_detail", args=[order.pk])}">打開訂單 {order.number}</a>', html=False)
+        self.assertContains(response, f'<a class="button ghost compact" href="{reverse("inventory_edit", args=[sold.pk])}">查看這台車</a>', html=False)
         self.assertContains(response, "這台車已在庫存，不必再進車")
-        self.assertContains(response, f'<a href="{reverse("inventory_edit", args=[available.pk])}">查看這台車</a>', html=False)
+        self.assertContains(response, f'<a class="button ghost compact" href="{reverse("inventory_edit", args=[available.pk])}">查看這台車</a>', html=False)
+        # 重畫時車色只列名稱，不重複整串車型。
+        self.assertContains(response, f'<option value="{self.color.pk}" selected>{self.color.name}</option>', html=False)
         self.assertEqual(VehicleInventory.objects.count(), before)
 
     def test_editing_keeps_own_identifier_in_other_case(self):

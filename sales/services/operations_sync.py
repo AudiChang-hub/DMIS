@@ -196,6 +196,12 @@ def sync_order_operations(order_id, *, update_receivables=False):
     if changed:
         profile.save(update_fields=[*changed, "updated_at"])
 
+    if order.status == SalesOrder.Status.CANCELLED:
+        # 已取消的單不再產生或重建系統應收列（使用者 2026-11-06 選 B，services/cancelled_receivables.py）；
+        # 已確認的實收與退款紀錄照舊保留，人工刪掉的系統列也不會被補回。
+        refresh_payment_confirmation(order.pk)
+        return profile
+
     active_keys = {"deposit"}
     _upsert_system_payment(
         order,

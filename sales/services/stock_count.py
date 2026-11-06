@@ -3,13 +3,14 @@
 口徑（2026-11-03 方案 A）：與車輛庫存頁「現有庫存」分頁相同，可銷售＋已預留（已配車）＋車況異常；
 已交車、已售出、已調出、停用不算。「數量」含放在車行的車，「車行」是其中 current_dealer 有值的台數。
 0 台的車色照列；車色停用或該型號所有版本停用標「不生產」。停用且沒有車的型號不列。
-庫位（T-115，使用者 2026-11-06）：每列寫出車放在哪裡、各幾台；current_dealer 空白＝本店，有值寫車行名稱。
+庫位（T-115，使用者 2026-11-06）：每列寫出車實際放在哪裡、各幾台；current_dealer 空白寫實際存放門市（location_store）名稱，
+有值寫車行名稱。門市依門市主檔順序排前面，車行接在後面、台數多的在前。
 """
 from dataclasses import dataclass, field
 
 from django.db.models import Count, F, Q
 
-from sales.models import VehicleBrand, VehicleColor, VehicleInventory, VehicleModel
+from sales.models import Store, VehicleBrand, VehicleColor, VehicleInventory, VehicleModel
 from sales.reporting.classification import classification_expression, published_snapshot
 
 # 必須與 views.inventory_list 的 current_statuses 一致；test_stock_count 以庫存頁篩選結果鎖住。
@@ -32,6 +33,7 @@ class ColorRow:
     reserved: int = 0
     issue: int = 0
     active: bool = False
+    store_counts: dict = field(default_factory=dict)
     dealer_counts: dict = field(default_factory=dict)
 
     @property
@@ -40,8 +42,9 @@ class ColorRow:
 
     @property
     def locations(self):
-        """[(位置, 台數, 是否車行)]：本店在前，車行依台數多到少、同台數依名稱；0 台時為空。"""
-        places = [("本店", self.store, False)] if self.store else []
+        """[(位置, 台數, 是否車行)]：門市依主檔順序在前，車行依台數多到少、同台數依名稱；0 台時為空。"""
+        stores = sorted(self.store_counts.items(), key=lambda item: item[0][0])
+        places = [(name, count, False) for (_, name), count in stores]
         dealers = sorted(self.dealer_counts.items(), key=lambda item: (-item[1], item[0]))
         return places + [(place, count, True) for place, count in dealers]
 
@@ -127,6 +130,15 @@ def build_stock_count(brand=""):
         )
     ):
         counts[row["color_id"]] = row
+    # 門市主檔順序（Store.Meta.ordering）；鍵帶順序值，同名不同門市不會合併。
+    store_order = {pk: index for index, pk in enumerate(Store.objects.values_list("pk", flat=True))}
+    store_counts = {}
+    for row in (
+        current_vehicles().filter(current_dealer__isnull=True)
+        .values("color_id", "location_store_id", "location_store__name").annotate(total=Count("id"))
+    ):
+        key = ((store_order.get(row["location_store_id"], len(store_order)), row["location_store_id"]), row["location_store__name"].strip())
+        store_counts.setdefault(row["color_id"], {})[key] = row["total"]
     dealer_counts = {}
     for row in (
         current_vehicles().filter(current_dealer__isnull=False)
@@ -169,6 +181,8 @@ def build_stock_count(brand=""):
             row.dealer += count["dealer"]
             row.reserved += count["reserved"]
             row.issue += count["issue"]
+            for key, total in store_counts.get(color.pk, {}).items():
+                row.store_counts[key] = row.store_counts.get(key, 0) + total
             for place, total in dealer_counts.get(color.pk, {}).items():
                 row.dealer_counts[place] = row.dealer_counts.get(place, 0) + total
 

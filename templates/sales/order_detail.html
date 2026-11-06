@@ -422,14 +422,15 @@
           <div class="registration-document-row__actions">
             {% if row.document %}
               {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
-              {% if not order.is_registration_complete %}
+              {% if order.status != 'cancelled' and order.status != 'exception_closed' %}{% if_access 'registration_document_delete' order.pk row.document.pk %}
               <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-inplace-form data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
                 {% csrf_token %}
                 <button class="button danger-outline compact" type="submit">刪除</button>
               </form>
-              {% endif %}
+              {% endif_access %}{% endif %}
             {% endif %}
-            {% if not order.is_registration_complete or not row.document %}
+            {# 傳錯的檔案隨時可替換或刪除（使用者 2026-11-06 T-121）；取消或例外結案後才鎖定。 #}
+            {% if order.status != 'cancelled' and order.status != 'exception_closed' %}
             <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
               {% csrf_token %}
               <input type="hidden" name="document_type" value="{{ row.type }}">
@@ -447,9 +448,9 @@
       {% comment %}其他保險單（T-100）與其他領牌相關資料（T-101）共用同一個區塊：標題下直接是多檔上傳區，清單在同一塊、名稱可直接改。
       其他保險單領牌完成後不能刪；其他領牌相關資料是補充檔，領牌後仍可補傳與刪除。{% endcomment %}
       {% site_text 'order_detail.694d2fbee690' as insurance_description %}
-      {% include "sales/_registration_multi_documents.html" with key="other-insurance" title="其他保險單" description=insurance_description documents=other_insurance_documents document_type="other_insurance" accept="image/jpeg,image/png,image/webp,application/pdf" accept_label="圖片或 PDF" upload_label="選擇保險單上傳" hint="可一次選多個檔案，也可以直接拖曳進來；圖片或 PDF，每個檔案上限 20 MB。" name_label="保險名稱" delete_after_registration=False confirm_text="確定刪除這份保險單嗎？刪除後無法復原。" %}
+      {% include "sales/_registration_multi_documents.html" with key="other-insurance" title="其他保險單" description=insurance_description documents=other_insurance_documents document_type="other_insurance" accept="image/jpeg,image/png,image/webp,application/pdf" accept_label="圖片或 PDF" upload_label="選擇保險單上傳" hint="可一次選多個檔案，也可以直接拖曳進來；圖片或 PDF，每個檔案上限 20 MB。" name_label="保險名稱" confirm_text="確定刪除這份保險單嗎？刪除後無法復原。" %}
       {% site_text 'order_detail.98bfed2bc1c1' as other_registration_hint %}
-      {% include "sales/_registration_multi_documents.html" with key="other-registration" title="其他領牌相關資料" description="監理站收據、委託書、選號截圖等其他資料都可以放這裡，可上傳多份；名稱自動用檔名，點名稱即可改名。選填，不影響領牌完成。" documents=other_registration_documents document_type="other" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" accept_label="圖片、PDF、Office 文件、文字檔" upload_label="選擇資料上傳" hint=other_registration_hint name_label="資料名稱" delete_after_registration=True confirm_text="確定刪除這份資料嗎？刪除後無法復原。" %}
+      {% include "sales/_registration_multi_documents.html" with key="other-registration" title="其他領牌相關資料" description="監理站收據、委託書、選號截圖等其他資料都可以放這裡，可上傳多份；名稱自動用檔名，點名稱即可改名。選填，不影響領牌完成。" documents=other_registration_documents document_type="other" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" accept_label="圖片、PDF、Office 文件、文字檔" upload_label="選擇資料上傳" hint=other_registration_hint name_label="資料名稱" confirm_text="確定刪除這份資料嗎？刪除後無法復原。" %}
     </div>
 
     {% include "sales/_registration_completion.html" %}
@@ -743,11 +744,11 @@
             <a href="{{ row.existing_evidence.url }}" data-preview-name="{{ row.existing_evidence.name }}" target="_blank">已沿用下訂附件</a>
           {% endif %}
           {% if row.document %}
-            {% if order.can_manage_subsidy %}
+            {% if order.can_manage_subsidy %}{% if_access 'subsidy_document_delete' order.pk row.document.pk %}
             <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-inplace-form data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
             </form>
-            {% endif %}
+            {% endif_access %}{% endif %}
           {% endif %}
           {% if order.can_manage_subsidy %}
           <form class="document-upload-form" data-document-upload data-auto-upload data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
@@ -795,11 +796,11 @@
         </span>
         <div>
           {% if_access 'subsidy_document_file' document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
-          {% if order.can_manage_subsidy %}
+          {% if order.can_manage_subsidy %}{% if_access 'subsidy_document_delete' order.pk document.pk %}
           <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
             {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
           </form>
-          {% endif %}
+          {% endif_access %}{% endif %}
         </div>
       </article>
       {% empty %}

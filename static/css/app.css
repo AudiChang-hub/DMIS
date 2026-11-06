@@ -1899,7 +1899,8 @@ input[type="file"].form-control { padding: var(--space-3); }
   background: var(--surface-soft);
 }
 .dynamic-row { position: relative; }
-.dynamic-row.is-pending-delete { display: none; }
+/* 按「刪除」的明細列一律收起（T-121）：配件區等版面規則（.accessory-section .accessory-row { display: grid }）在後面，不能蓋過。 */
+.dynamic-row.is-pending-delete { display: none !important; }
 .remove-row-button {
   position: absolute; z-index: 2; top: 8px; right: 0; padding: var(--space-2) var(--space-3);
   color: var(--red); background: var(--surface); border: 1px solid var(--red-border);

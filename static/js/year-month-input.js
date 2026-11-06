@@ -4,8 +4,16 @@
   const MIN_YEAR = 1950;
   const EMPTY_HINT = '6 碼數字，例 201309';
 
+  // 收到「2012-02-01」「2012/2」這類日期寫法時換回 6 碼（T-121）；其他一律只留數字、最多 6 碼。
+  function normalize(value) {
+    const date = String(value || '').match(/^(\d{4})[-/.](\d{1,2})(?:[-/.]\d{1,2})?$/);
+    if (date) return date[1] + date[2].padStart(2, '0');
+    return String(value || '').replace(/\D/g, '').slice(0, 6);
+  }
+
   function evaluate(value, today = new Date()) {
     if (!value) return {state: 'empty', text: EMPTY_HINT, error: ''};
+    if (!/^\d+$/.test(value)) return {state: 'error', text: '請輸入 6 碼數字，例 201309', error: '請輸入 6 碼數字，例 201309'};
     if (value.length < 6) {
       const text = `還差 ${6 - value.length} 碼，例 201309`;
       return {state: 'partial', text, error: text};
@@ -20,11 +28,18 @@
     return {state: 'ok', text: `${year} 年 ${month} 月・民國 ${year - 1911} 年`, error: ''};
   }
 
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    module.exports = {normalize, evaluate};
+    return;
+  }
+
   function hintOf(input) {
     return document.getElementById(`${input.id}_ym`) || input.parentElement?.querySelector('[data-year-month-hint]');
   }
 
   function render(input, {settled = false} = {}) {
+    const normalized = normalize(input.value);
+    if (normalized !== input.value) input.value = normalized;
     const result = evaluate(input.value);
     input.setCustomValidity(result.error);
     // 打字途中還差幾碼只當提示；離開欄位或已打滿 6 碼才標成錯誤。

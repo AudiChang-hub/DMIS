@@ -7137,18 +7137,15 @@ def _store_registration_document(request, order, files):
             ),
             status=400,
         ), None
-    # 領牌完成後仍可補上傳還沒有的文件（例如晚到的發票、選號單）；已上傳的不能替換（使用者 2026-10-15）。
-    if (
-        (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
-        and form.cleaned_data["document_type"] not in RegistrationDocument.multi_document_types()
-        and order.registration_documents.filter(document_type=form.cleaned_data["document_type"]).exists()
-    ):
+    # 傳錯的檔案隨時可替換（使用者 2026-11-06 T-121「每個上傳的位置都要能刪」，取代 2026-10-15 領牌後鎖定）：
+    # 只有例外結案後鎖定（取消已在上方擋下）；領牌完成狀態與已鎖定的成本、獎勵不受影響。
+    if order.status == SalesOrder.Status.EXCEPTION_CLOSED:
         return _document_upload_response(
             request,
             order_pk=pk,
             tab="registration",
             ok=False,
-            message="此訂單的領牌階段已完成，已上傳的文件無法替換。",
+            message="此訂單已例外結案，無法修改文件。",
             status=409,
         ), None
 
@@ -7227,13 +7224,10 @@ def registration_document_delete(request, pk, document_pk):
         pk=document_pk,
         order=order,
     )
-    # 其他領牌相關資料是選填的補充檔，領牌完成後仍可刪除傳錯的檔案（使用者 2026-10-22 T-101）；其餘文件領牌後鎖定。
-    locked = order.status == SalesOrder.Status.CANCELLED or (
-        document.document_type != RegistrationDocument.DocumentType.OTHER
-        and (order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED)
-    )
-    if locked:
-        messages.error(request, "此訂單的領牌階段已完成，無法刪除文件。")
+    # 領牌文件都可刪除傳錯的檔案（使用者 2026-11-06 T-121）：只有取消或例外結案後鎖定；
+    # 刪除不會讓領牌回到未完成，已鎖定的成本、獎勵與傭金也不變（上傳一律選填，不擋流程）。
+    if order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
+        messages.error(request, "此訂單已取消或例外結案，無法刪除文件。")
         return redirect("order_detail", pk=pk)
     display_name = document.display_name
     previous_file = getattr(document.file, "name", "")
@@ -7852,13 +7846,43 @@ def order_attachment_upload(request, pk):
 
 @login_required
 @transaction.atomic
+def order_intake_attachment_delete(request, pk, attachment_pk):
+    """刪除下訂時上傳的附件（使用者 2026-11-06 T-121）：傳錯檔可刪；留處理紀錄並清掉實體檔，取消的訂單鎖定。"""
+    from sales.models import OrderIntakeAttachment
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect(order_step_url(pk, "attachments"))
+    if order.status == SalesOrder.Status.CANCELLED:
+        messages.error(request, "已取消訂單無法刪除附件。")
+        return redirect(order_step_url(pk, "attachments"))
+    attachment = get_object_or_404(OrderIntakeAttachment, pk=attachment_pk, order=order)
+    label = f"{attachment.get_kind_display()}「{attachment.name}」"
+    previous_file = getattr(attachment.file, "name", "")
+    attachment.delete()
+    _schedule_model_file_cleanup(OrderIntakeAttachment, "file", previous_file)
+    OrderEvent.objects.create(
+        order=order,
+        event_type="order_intake_attachment_deleted",
+        description=f"已刪除下訂附件：{label}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{label}已刪除。")
+    return redirect(order_step_url(pk, "attachments"))
+
+
+@login_required
+@transaction.atomic
 def order_attachment_delete(request, pk, attachment_pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect(order_step_url(pk, "attachments"))
     attachment = get_object_or_404(OrderAttachment, pk=attachment_pk, order=order)
     name = attachment.name
+    previous_file = getattr(attachment.file, "name", "")
     attachment.delete()
+    # 刪除時一併清掉實體檔（使用者 2026-11-06 T-121）；交易完成後才刪，沒有其他列引用時才清。
+    _schedule_model_file_cleanup(OrderAttachment, "file", previous_file)
     OrderEvent.objects.create(
         order=order,
         event_type="order_attachment_deleted",

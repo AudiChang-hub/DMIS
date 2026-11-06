@@ -6187,7 +6187,8 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "<summary><strong>收款</strong>")
-        self.assertTrue(
+        # 打開頁面不寫入（T-114 方案 B）：收支資料在第一次送出時才建立。
+        self.assertFalse(
             OrderOperationsProfile.objects.filter(order=self.order).exists()
         )
 

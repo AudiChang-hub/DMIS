@@ -1,4 +1,5 @@
 """現有台數表（使用者 2026-11-03 簡報第 7 頁，口徑方案 A）：數字必須與車輛庫存「現有庫存」的篩選結果一致。"""
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 
@@ -7,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from openpyxl import load_workbook
 
-from sales.models import SalesSource, Store, VehicleColor, VehicleInventory, VehicleModel
+from sales.models import SalesOrder, SalesSource, Store, VehicleColor, VehicleInventory, VehicleModel
 from sales.services.stock_count import CURRENT_STATUSES, build_stock_count
 
 Status = VehicleInventory.Status
@@ -204,6 +205,75 @@ class StockCountTests(TestCase):
     def test_inventory_page_links_to_stock_count(self):
         self.assertContains(self.client.get(reverse("inventory_list")), reverse("inventory_stock_count"))
 
+    def allocate(self, vehicle):
+        """建一張配了這台車的訂單；客戶資料只用來確認台數表不會帶出個資。"""
+        return SalesOrder.objects.create(
+            owner_name="王小明", owner_phone="0912345678", owner_address="新北市汐止區", owner_id_number="A123456789",
+            vehicle_model=vehicle.vehicle_model, color=vehicle.color, source_type=SalesOrder.SourceType.STORE,
+            vehicle_price=Decimal("75000"), deposit_amount=Decimal("5000"), actual_balance=Decimal("70000"),
+            status=SalesOrder.Status.ALLOCATED, allocated_vehicle=vehicle,
+        )
+
+    def grey_vehicles(self):
+        return self.rows()[("UC125DA", "灰")].vehicles
+
+    def test_vehicle_details_list_identifier_place_and_status(self):
+        """每台車明細（T-115）：引擎號碼＋位置；已配車附訂單號、車況異常另標；順序同庫位（門市在前、車行在後）。"""
+        reserved = VehicleInventory.objects.get(vehicle_model=self.uc_2025, status=Status.RESERVED)
+        order = self.allocate(reserved)
+        vehicles = self.grey_vehicles()
+        self.assertEqual(len(vehicles), 4)
+        self.assertEqual([vehicle.at_dealer for vehicle in vehicles], [False, False, False, True])
+        self.assertEqual(vehicles[-1].place, "車行甲")
+        self.assertEqual({vehicle.place for vehicle in vehicles[:3]}, {"總店"})
+        by_id = {vehicle.identifier: vehicle for vehicle in vehicles}
+        self.assertEqual(by_id[reserved.engine_number].status_label, "已配車")
+        self.assertEqual(by_id[reserved.engine_number].order_number, order.number)
+        issue = VehicleInventory.objects.get(color=self.grey, status=Status.CONDITION_ISSUE)
+        self.assertEqual(by_id[issue.engine_number].status_label, "車況異常")
+        self.assertEqual(sum(1 for vehicle in vehicles if vehicle.at_dealer), self.rows()[("UC125DA", "灰")].dealer)
+        ev = self.vehicle(self.ev, self.ev_white)
+        self.assertEqual(self.rows()[("EV060L", "白")].vehicles[0].identifier, ev.frame_number)  # 電動車用車身號碼
+
+    def test_detail_rows_open_when_few_and_link_each_vehicle_to_inventory(self):
+        order = self.allocate(VehicleInventory.objects.get(vehicle_model=self.uc_2025, status=Status.RESERVED))
+        response = self.client.get(reverse("inventory_stock_count"), {"brand": "SUZUKI"})
+        content = response.content.decode()
+        rows = {(group.code, row.name): row for block in response.context["blocks"] for group in block.groups for row in group.rows}
+        self.assertFalse(rows[("UC125DA", "灰")].detail_open)  # 4 台：預設收起
+        self.assertTrue(rows[("UC125DA", "紅")].detail_open)  # 1 台：預設展開
+        self.assertIn('aria-expanded="false" aria-controls="stock-detail-', content)
+        self.assertIn('aria-expanded="true" aria-controls="stock-detail-', content)
+        self.assertEqual(content.count('class="stock-detail-row"'), sum(1 for row in rows.values() if row.total))
+        self.assertIn(f"已配車 <b>{order.number}</b>", content)
+        self.assertIn("車況異常</span>", content)
+        self.assertIn("data-stock-expand-all", content)
+        self.assertIn("js/stock-count.js", content)
+        # 只放車的資料與訂單號：所有能看庫存的人都看得到，不可帶出客戶個資。
+        for private in ("王小明", "0912345678", "A123456789", "新北市汐止區"):
+            self.assertNotIn(private, content)
+        vehicle = rows[("UC125DA", "紅")].vehicles[0]
+        self.assertIn(f'href="{reverse("inventory_list")}?q={vehicle.identifier}"', content)
+        found = self.client.get(reverse("inventory_list"), {"q": vehicle.identifier}).context["vehicles"]
+        self.assertEqual([item.pk for item in found], [vehicle.pk])
+
+    def test_export_detail_sheet_lists_each_vehicle_without_customer_data(self):
+        order = self.allocate(VehicleInventory.objects.get(vehicle_model=self.uc_2025, status=Status.RESERVED))
+        response = self.client.get(reverse("inventory_stock_count_export"))
+        workbook = load_workbook(BytesIO(response.content))
+        self.assertEqual(workbook.sheetnames, ["現有台數", "明細"])
+        values = [[cell.value for cell in row] for row in workbook["明細"].iter_rows()]
+        self.assertEqual(values[0], ["品牌", "型號", "車色", "引擎號碼", "車身號碼", "位置", "狀態", "訂單號"])
+        self.assertEqual(len(values) - 1, build_stock_count()["totals"]["total"])
+        reserved = next(row for row in values if row[7] == order.number)
+        self.assertEqual(reserved[:3], ["SUZUKI", "UC125DA", "灰"])
+        self.assertEqual(reserved[5:7], ["總店", "已配車"])
+        self.assertIn(["SUZUKI", "GSX-R150", "黑"], [row[:3] for row in values])
+        self.assertEqual(next(row for row in values if row[1] == "GSX-R150")[5], "車行甲")
+        flat = {str(cell) for row in values for cell in row}
+        for private in ("王小明", "0912345678", "A123456789"):
+            self.assertNotIn(private, flat)
+
     def test_export_matches_page(self):
         response = self.client.get(reverse("inventory_stock_count_export"), {"brand": "SUZUKI"})
         self.assertEqual(response["Content-Type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -226,5 +296,7 @@ class StockCountTests(TestCase):
         css = Path("static/css/stock-count.css").read_text(encoding="utf-8")
         self.assertIn(".inventory-table.stock-count-table thead { display: table-header-group; }", css)
         self.assertIn("min-height: 44px", css)
+        self.assertIn(".inventory-table.stock-count-table tr[hidden] { display: none; }", css)
+        self.assertIn("  .stock-qty-toggle, .stock-vehicle__link, .stock-detail-more { min-height: 44px; }", css)
         self.assertIn("@container (max-width: 300px)", css)
         self.assertIn(".inventory-table.stock-count-table .stock-loc-col { display: none; }", css)

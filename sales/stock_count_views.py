@@ -24,6 +24,10 @@ def _inventory_url(group, row):
     return f"{reverse('inventory_list')}?{urlencode(params)}"
 
 
+# 明細預設展開的台數上限：車少的列直接看得到每台車，車多的列先收起來，點台數或整列再展開。
+DETAIL_OPEN_MAX = 2
+
+
 @login_required
 def inventory_stock_count(request):
     brand, only_stock = _options(request)
@@ -33,6 +37,10 @@ def inventory_stock_count(request):
         for group in block.groups:
             for row in group.rows:
                 row.inventory_url = _inventory_url(group, row) if row.total else ""
+                row.detail_open = row.total <= DETAIL_OPEN_MAX
+                for vehicle in row.vehicles:
+                    # 只連到車輛庫存的查詢結果（GET 唯讀）；看庫存的人都能開，不需要編輯權限。
+                    vehicle.inventory_url = f"{reverse('inventory_list')}?{urlencode({'q': vehicle.identifier})}"
             group.visible_rows = [row for row in group.rows if row.total] if only_stock else group.rows
         block.visible_groups = [group for group in block.groups if group.visible_rows]
     if only_stock:
@@ -115,6 +123,26 @@ def inventory_stock_count_export(request):
     for row in sheet.iter_rows(min_row=4):
         for cell in row[3:5]:
             cell.alignment = Alignment(horizontal="right")
+
+    # 明細：每台車一列；只放車的資料與訂單號，不放客戶個資（所有能看庫存的人都能匯出）。
+    detail = workbook.create_sheet("明細")
+    detail.append(["品牌", "型號", "車色", "引擎號碼", "車身號碼", "位置", "狀態", "訂單號"])
+    for cell in detail[1]:
+        cell.font, cell.fill = bold, head_fill
+    for block in data["blocks"]:
+        for group in block.groups:
+            for row in group.rows:
+                for vehicle in row.vehicles:
+                    detail.append(sanitize_excel_row([
+                        group.brand, group.code, row.name, vehicle.engine_number, vehicle.frame_number,
+                        vehicle.place, vehicle.status_label, vehicle.order_number,
+                    ]))
+                    if vehicle.at_dealer:
+                        detail.cell(detail.max_row, 6).fill = dealer_fill
+    detail.freeze_panes = "A2"
+    detail.auto_filter.ref = detail.dimensions
+    for letter, width in zip("ABCDEFGH", (12, 18, 12, 20, 20, 16, 12, 18)):
+        detail.column_dimensions[letter].width = width
 
     output = BytesIO()
     workbook.save(output)

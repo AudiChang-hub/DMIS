@@ -11,7 +11,7 @@ from pypdf import PdfReader, PdfWriter
 
 from sales.announcement_views import AnnouncementForm
 from sales.forms import AccessoryLineForm, PaymentRecordForm, SubsidyDataForm
-from sales.models import AnnouncementImage, AnnouncementAttachment, SystemAnnouncement, OrderIntakeAttachment, SalesOrder
+from sales.models import AnnouncementImage, AnnouncementAttachment, SystemAnnouncement, OrderIntakeAttachment, PaymentRecord, SalesOrder
 from sales.services.operations_sync import sync_order_operations
 from sales.services.settlement_cost import apply_order_settlement_cost
 from sales.tests import test_order_workspace as workspace_fixtures
@@ -184,8 +184,8 @@ class PptRefinementTests(TestCase):
     def test_deposit_edit_updates_balance_without_inventing_receipt(self):
         self.order.cash_receivable_v2 = True
         self.order.save()
+        deposit = PaymentRecord.objects.create(order=self.order, system_key="deposit", item_name="訂金")  # T-125：沒有訂金就不建訂金列；這裡模擬 1.86.73 前已建立的訂金列。
         data = self.operations_data()
-        deposit = self.order.payment_records.get(system_key="deposit")
         index = next(i for i in range(int(data['payments-TOTAL_FORMS'])) if data.get(f'payments-{i}-id') == str(deposit.pk))
         # 1.86.3x（T-46）：收支頁不能改應收；訂金請在「訂金」步驟修改。
         data[f'payments-{index}-expected_amount'] = '1000'
@@ -202,11 +202,12 @@ class PptRefinementTests(TestCase):
         # 1.86.3x（使用者 2026-10-21 T-47）：系統收款列也能刪，刪除後由同步重建為未收的應收列。
         data = self.operations_data()
         removed = data['payments-0-id']
+        key = PaymentRecord.objects.get(pk=removed).system_key
         data['payments-0-DELETE'] = 'on'
         response = self.post('order_operations', data)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertFalse(self.order.payment_records.filter(pk=removed).exists())
-        self.assertTrue(self.order.payment_records.filter(system_key='deposit', confirmed=False).exists())
+        self.assertTrue(self.order.payment_records.filter(system_key=key, confirmed=False).exists())
 
     def test_confirming_lender_receipt_updates_financial_single_source(self):
         self.order.payment_type = 'installment'

@@ -5673,7 +5673,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     collect_balance, delivery_blockers = order_workspace.delivery_gate(request, order, detail_summary, balance_payment)
     deposit_payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
     deposit_payment_form = None
-    if deposit_payment is not None and can_edit_finance(request.user):
+    if (deposit_payment is not None or not order.is_cancelled_sale) and can_edit_finance(request.user):
         deposit_payment_form = DepositStepForm(prefix="deposit", order=order, payment=deposit_payment)
     exception_close_ready = (
         order.is_registration_complete and not order.is_delivered and not order.is_cancelled_sale
@@ -7402,7 +7402,8 @@ def deposit_payment_update(request, pk):
     if order.is_cancelled_sale:
         return fail("此訂單已進入取消或結案流程，不能修改訂金。")
     sync_order_operations(order.pk)
-    payment = get_object_or_404(PaymentRecord.objects.select_for_update(), order=order, system_key="deposit")
+    # 沒有訂金的單沒有訂金列（T-125），填了訂金才由服務建立。
+    payment = PaymentRecord.objects.select_for_update().filter(order=order, system_key="deposit").first()
     form = DepositStepForm(request.POST, prefix="deposit", order=order, payment=payment)
     if not form.is_valid():
         return fail("訂金未儲存：" + _form_error_text(form), form)

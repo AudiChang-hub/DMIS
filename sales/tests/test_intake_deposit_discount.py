@@ -119,8 +119,8 @@ class IntakeDepositDiscountTests(IntakeFixtures):
     def test_no_deposit_creates_nothing_to_confirm(self):
         self.grant_intake_only()
         order = self.assert_created(self.submit_to("order_start", deposit_amount="", deposit_method=""))
-        deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
-        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (0, 0, False))
+        # T-125：沒有訂金就不建訂金列。
+        self.assertFalse(PaymentRecord.objects.filter(order=order, system_key="deposit").exists())
 
     def test_blank_deposit_is_zero_and_negative_is_rejected(self):
         self.grant_intake_only()

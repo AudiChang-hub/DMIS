@@ -79,7 +79,7 @@ def save_deposit_step(order, payment, data, actor_name):
     from sales.services.operations_sync import sync_order_operations
 
     note = data.get("note") or ""
-    if payment.confirmed:
+    if payment is not None and payment.confirmed:
         if data.get("confirmed"):
             if payment.note == note:
                 return ""
@@ -104,6 +104,13 @@ def save_deposit_step(order, payment, data, actor_name):
     method = data.get("method") or ""
     day = data.get("received_on") or (timezone.localdate() if amount else None)
     order_changed = _sync_order_deposit(order, amount=amount, day=day, method=method, actor_name=actor_name)
+    if payment is None:
+        # 沒有訂金列的單（T-125）：訂金存成 0 不建列；填了訂金由同步建立訂金列後再寫收款資料。
+        from sales.models import PaymentRecord
+        sync_order_operations(order.pk)
+        payment = PaymentRecord.objects.select_for_update().filter(order=order, system_key="deposit").first()
+        if payment is None:
+            return "修改訂金為 $0（沒有訂金）" if order_changed else ""
     payment.refresh_from_db()
     if not payment.expected_amount_overridden:
         payment.expected_amount = amount

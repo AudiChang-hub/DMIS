@@ -320,7 +320,7 @@ class FinancialConsistencyTests(TestCase):
         response = self.client.post(reverse("order_operations", args=[order.pk]), payload)
         self.assertEqual(response.status_code, 302, getattr(response, "context", None))
         self.assertEqual(self.profile(order).actual_disbursement, 71000)
-        self.assertEqual(order.payment_records.count(), 2)
+        self.assertEqual(order.payment_records.count(), 1)  # T-125：沒有訂金就沒有訂金列
         payload["operations-actual_disbursement"] = "72000"
         response = self.client.post(reverse("order_operations", args=[order.pk]), payload)
         self.assertEqual(response.status_code, 200)

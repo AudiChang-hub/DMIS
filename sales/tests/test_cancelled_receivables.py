@@ -110,7 +110,7 @@ class CancelledReceivablesTests(FinanceLedgerTestBase):
     def test_not_cancelled_order_is_untouched(self):
         order = self.make_order(source_type="store", source=self.staff)
         self.assertEqual(clear_cancelled_receivables(order, actor_name="測試人員"), [])
-        self.assertEqual(self.keys(order), ["balance", "deposit"])
+        self.assertEqual(self.keys(order), ["balance"])  # T-125：沒有訂金就沒有訂金列
 
     def test_command_dry_run_apply_and_rollback(self):
         order = self.make_order(source_type="store", source=self.staff, deposit_amount=Decimal("2000"),

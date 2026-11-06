@@ -44,7 +44,8 @@ def _upsert_system_payment(order, key, defaults, *, update_receivables=False):
         return payment
     before = {name: getattr(payment, name) for name in defaults}
     protected = payment.confirmed or payment.received_amount or payment.proof
-    payment.item_name = defaults["item_name"]
+    if not payment.item_name_overridden:
+        payment.item_name = defaults["item_name"]
     if (not protected or update_receivables) and not payment.expected_amount_overridden:
         payment.expected_amount = defaults["expected_amount"]
     if key == "deposit" and not protected:
@@ -218,21 +219,24 @@ def sync_order_operations(order_id, *, update_receivables=False):
         refresh_payment_confirmation(order.pk)
         return profile
 
-    active_keys = {"deposit"}
-    _upsert_system_payment(
-        order,
-        "deposit",
-        {
-            "item_name": "訂金",
-            "expected_amount": _money(order.deposit_amount),
-            "received_amount": Decimal("0") if order.cash_receivable_v2 else _money(order.deposit_amount),
-            "received_on": order.deposit_date,
-            "payment_method": order.get_deposit_method_display()
-            if order.deposit_method
-            else "",
-        },
-        update_receivables=update_receivables,
-    )
+    active_keys = set()
+    # 沒有訂金就不建訂金列（T-125 問題 1 方案 B）；已經有的訂金列照舊同步、不在這裡刪，空列由 clear_empty_deposit_rows 清理。
+    if _money(order.deposit_amount) > 0 or PaymentRecord.objects.filter(order=order, system_key="deposit").exists():
+        active_keys.add("deposit")
+        _upsert_system_payment(
+            order,
+            "deposit",
+            {
+                "item_name": "訂金",
+                "expected_amount": _money(order.deposit_amount),
+                "received_amount": Decimal("0") if order.cash_receivable_v2 else _money(order.deposit_amount),
+                "received_on": order.deposit_date,
+                "payment_method": order.get_deposit_method_display()
+                if order.deposit_method
+                else "",
+            },
+            update_receivables=update_receivables,
+        )
 
     if order.payment_type == SalesOrder.PaymentType.INSTALLMENT:
         expected_disbursement = _expected_installment_disbursement(order)

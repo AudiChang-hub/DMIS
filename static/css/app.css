@@ -1665,6 +1665,8 @@ input[type="date"].form-control {
 }
 .form-control:focus, .login-card input:focus { background: var(--surface); border-color: var(--forest); box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest) 16%, transparent); }
 input[type="file"].form-control { padding: var(--space-3); }
+/* 檔案上傳框的預設寬度依字級與語系而定，手機上會比欄位寬、撐出水平捲動（UAT U-07）。 */
+:where(main) input[type="file"] { max-width: 100%; }
 .searchable-select { position: relative; min-width: 0; }
 .searchable-select__native {
   position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important;
@@ -4859,7 +4861,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .page-shell > * { min-width: 0; max-width: 100%; }
   .mobile-nav {
     position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; display: grid;
-    grid-template-columns: repeat(5, 1fr); padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
+    grid-template-columns: repeat(5, minmax(0, 1fr)); padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
     background: var(--surface-raised); border-top: 1px solid var(--line); box-shadow: 0 -8px 28px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
   }
   .mobile-nav > a, .mobile-data-menu > summary { display: grid; min-height: 48px; place-items: center; align-content: center; color: var(--muted); font-size: var(--text-2xs); font-weight: 800; }
@@ -5009,7 +5011,9 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .allocation-summary > .allocation-lock-note { margin: var(--stack-gap-sm); }
   .conditional-panel .form-grid { padding-inline: 0; }
   .mobile-submit span { display: none; }
-  .mobile-submit .button { flex: 1; }
+  .mobile-submit .button { flex: 1; padding-inline: var(--space-4); }
+  /* 刪除類按鈕不換行、只佔字寬，並與其他按鈕至少隔 16px，避免想按「上一步」卻按到刪除（UAT U-12）。 */
+  .mobile-submit .button.danger-outline { flex: 0 0 auto; margin-right: max(0px, var(--space-4) - var(--stack-gap-sm)); white-space: nowrap; }
   .action-card { grid-template-columns: 1fr; padding: var(--inset-pad); gap: var(--stack-gap-sm); }
   .document-archive-grid { grid-template-columns: 1fr; gap: var(--stack-gap-sm); padding: var(--inset-pad); }
 
@@ -7696,6 +7700,15 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .catalog-prices dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 .catalog-prices dd { margin: 0; color: var(--ink); font-size: var(--text-md); font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .catalog-prices--empty { color: var(--muted); }
+/* 手機兩欄時卡片只剩約 150px，兩個價格並排會超出卡片、撐出水平捲動（UAT U-07）：
+   卡片窄於兩格所需寬度時改成上下兩列、共用一塊底色，金額依卡片寬度縮放，最窄的手機也不截斷。 */
+.catalog-card { container: catalog-card / inline-size; }
+@container catalog-card (max-width: 280px) {
+  .catalog-prices { grid-template-columns: minmax(0, 1fr); gap: 0; background: var(--surface-soft); border-radius: var(--radius-md); }
+  .catalog-prices > div { padding: var(--space-2) var(--space-3); background: none; border-radius: 0; }
+  .catalog-prices > div + div { border-top: 1px solid var(--line-soft); }
+  .catalog-prices dd { font-size: min(var(--text-md), 11.5cqi); }
+}
 
 .model-tool-future-date { display: inline-block; margin-top: var(--space-1); padding: var(--space-1) var(--space-2); color: var(--amber-strong); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; }
 
@@ -7814,8 +7827,27 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 }
 @media (max-width: 860px) {
   .side-nav__panel { bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom)); width: min(86vw, var(--side-nav-width)); }
-  .side-nav.is-open .side-nav__handle { transform: translateX(min(86vw, var(--side-nav-width))); }
-  .side-nav__handle { top: auto; bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom) + var(--space-5)); }
+  /* 手機（UAT U-12）：左下角 28px 寬的直式把手會貼著「刪除草稿」等底部按鈕、又壓在內容上。
+     改成頁首左側 44px 高的膠囊（與機種清單、訂單步驟共用尺寸），面板從頁首正下方滑出；頁首品牌只留圖示讓位。 */
+  :root { --nav-handle-width: 7rem; }
+  .side-nav__handle {
+    top: calc(env(safe-area-inset-top, 0px) + (var(--app-header-height, 62px) - env(safe-area-inset-top, 0px) - 44px) / 2); left: var(--space-4);
+    display: inline-flex; width: var(--nav-handle-width); min-height: 44px; padding: 0 var(--space-3); align-items: center; justify-content: center; gap: var(--space-1);
+    border: 1px solid var(--line); border-radius: var(--radius-pill); box-shadow: none; font-size: var(--text-sm-plus);
+  }
+  .side-nav__handle-text { writing-mode: horizontal-tb; letter-spacing: .04em; }
+  .side-nav__handle-icon { order: 1; transform: rotate(90deg); }
+  .side-nav.is-open .side-nav__handle { transform: none; color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  .side-nav.is-open .side-nav__handle-icon { transform: rotate(-90deg); }
+  /* 面板的收合鈕放大到 44×44；釘選只在 1100px 以上有作用（比照機種清單），手機不顯示，免得按了沒反應。 */
+  .side-nav__pin { display: none; }
+  .side-nav__close { width: 44px; min-height: 44px; }
+  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand {
+    min-width: 44px; margin-left: calc(var(--nav-handle-width) + var(--space-3)); padding-right: 0; justify-content: center;
+  }
+  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand-copy {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
 }
 @media (prefers-reduced-motion: reduce) { .side-nav__panel, .side-nav__handle, .side-nav__backdrop, .side-nav__link { transition: none; } }
 @media print { .side-nav { display: none; } body.is-side-nav-pinned .page-shell { padding-left: 0; } }

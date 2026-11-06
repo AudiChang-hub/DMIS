@@ -42,7 +42,9 @@
   const describe = element => (
     element.id
       ? `#${element.id}`
-      : `.${[...element.classList].join(".")}` || element.tagName.toLowerCase()
+      : element.classList.length
+        ? `.${[...element.classList].join(".")}`
+        : element.tagName.toLowerCase()
   );
 
   function auditLayout() {
@@ -100,6 +102,30 @@
         issues.push(`${describe(element)} 超出畫面左右邊界`);
       }
     });
+
+    // 整頁水平捲動（UAT U-07）：上面只檢查表單與卡片，價格等文字元素超出時抓不到。
+    // 手機版面視窗會跟著被撐寬，固定定位的底部導覽也一起變寬，所以只列最內層、非固定定位的超出元素。
+    const pageOverflow = document.documentElement.scrollWidth - viewportWidth;
+    if (pageOverflow > 1) {
+      const culprits = [...document.body.querySelectorAll("*")].filter(element => {
+        if (!isVisible(element) || getComputedStyle(element).position === "fixed") return false;
+        if (element.closest(".mobile-nav")) return false;
+        if (element.getBoundingClientRect().right <= viewportWidth + 1) return false;
+        if (getContainingHorizontalScrollport(element)) return false;
+        return ![...element.children].some(child => (
+          isVisible(child) && child.getBoundingClientRect().right > viewportWidth + 1
+        ));
+      });
+      const locate = element => {
+        if (element.id || element.classList.length) return describe(element);
+        const owner = element.parentElement?.closest("[id], [class]");
+        return owner ? `${describe(owner)} ${describe(element)}` : describe(element);
+      };
+      const names = [...new Set(culprits.map(locate))].slice(0, 5);
+      issues.push(
+        `頁面水平溢出 ${Math.round(pageOverflow)}px（scrollWidth ${document.documentElement.scrollWidth}）${names.length ? `：${names.join("、")}` : ""}`,
+      );
+    }
 
     const submitBar = document.querySelector(".mobile-submit");
     const mobileNav = document.querySelector(".mobile-nav");

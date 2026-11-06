@@ -417,3 +417,71 @@ class NumberWheelGuardTests(SimpleTestCase):
         self.assertIn('document.addEventListener("wheel"', script)
         self.assertIn('input.type === "number"', script)
         self.assertIn("form-feedback.js", (TEMPLATES / "base.html").read_text(encoding="utf-8"))
+
+
+class MobileUatLayoutTests(SimpleTestCase):
+    """上線前驗收（UAT 2026-11）手機版面：U-07 水平捲動、U-12 步驟把手與刪除按鈕太近。"""
+
+    HANDLES = (
+        ("app.css", "side-nav"),
+        ("order-steps.css", "order-nav"),
+        ("vehicle-model-workspace.css", "model-nav"),
+    )
+
+    @staticmethod
+    def mobile_block(css, start="@media (max-width: 860px) {"):
+        """回傳檔案中每個 860px 以下區塊的內容（到對應的右括號為止）。"""
+        blocks = []
+        for match in re.finditer(re.escape(start), css):
+            depth, index = 1, match.end()
+            while depth:
+                depth += {"{": 1, "}": -1}.get(css[index], 0)
+                index += 1
+            blocks.append(css[match.end():index - 1])
+        return "\n".join(blocks)
+
+    def test_step_handles_move_to_header_on_phones(self):
+        """手機的步驟把手要至少 44px 高、放在頁首左側，不能再留在左下角貼著底部按鈕。"""
+        for filename, name in self.HANDLES:
+            mobile = self.mobile_block((CSS_DIR / filename).read_text(encoding="utf-8").replace("\r\n", "\n"))
+            rule = re.search(rf"\n  \.{name}__handle \{{([^}}]*)\}}", mobile)
+            self.assertIsNotNone(rule, f"{filename} 缺少手機版 .{name}__handle")
+            self.assertIn("min-height: 44px", rule.group(1))
+            self.assertIn("var(--nav-handle-width", rule.group(1))
+            self.assertIn("var(--app-header-height", rule.group(1))
+            self.assertNotIn("bottom: calc(", rule.group(1))
+            self.assertIn(f".{name}.is-open .{name}__handle {{ transform: none;", mobile)
+            self.assertIn(f".{name}__close {{ width: 44px; min-height: 44px; }}", mobile)
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+        # 頁首品牌讓位給把手；品牌文字只做視覺隱藏，連結仍有可讀名稱。
+        self.assertIn("min-width: 44px; margin-left: calc(var(--nav-handle-width) + var(--space-3));", app)
+        self.assertRegex(app, r"\.brand-copy \{\s*position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect\(0 0 0 0\);")
+        self.assertIn('class="brand-copy"', (TEMPLATES / "base.html").read_text(encoding="utf-8"))
+
+    def test_delete_button_keeps_distance_in_mobile_action_bar(self):
+        """手機操作列的刪除類按鈕不換行，與其他按鈕的間距補到 16px（列本身的間距是 --stack-gap-sm）。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn(
+            ".mobile-submit .button.danger-outline { flex: 0 0 auto; margin-right: max(0px, var(--space-4) - var(--stack-gap-sm)); white-space: nowrap; }",
+            app,
+        )
+
+    def test_phone_layout_cannot_scroll_sideways(self):
+        """U-07：底部導覽欄寬可縮、選車卡價格窄卡改上下排、檔案上傳框不超過欄寬。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn("grid-template-columns: repeat(5, minmax(0, 1fr));", app)
+        self.assertNotIn("grid-template-columns: repeat(5, 1fr);", app)
+        self.assertIn(".catalog-card { container: catalog-card / inline-size; }", app)
+        self.assertIn("@container catalog-card (max-width: 280px) {", app)
+        self.assertIn(':where(main) input[type="file"] { max-width: 100%; }', app)
+
+    def test_layout_audit_reports_page_overflow(self):
+        """?ui_audit=1 要檢查整頁 scrollWidth，並列出最內層的超出元素（排除跟著被撐寬的固定定位導覽）。"""
+        script = Path("static/js/layout-audit.js").read_text(encoding="utf-8")
+
+        self.assertIn("document.documentElement.scrollWidth - viewportWidth", script)
+        self.assertIn('getComputedStyle(element).position === "fixed"', script)
+        self.assertIn('element.closest(".mobile-nav")', script)
+        self.assertIn("頁面水平溢出", script)

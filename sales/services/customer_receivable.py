@@ -25,7 +25,25 @@ def default_customer_balance(order):
         if order.cash_receivable_v2:
             return max(installment_customer_part(order) - (order.deposit_amount or zero), zero)
         return max((order.actual_balance or zero) - (order.installment_amount or zero), zero)
+    dealer_due = dealer_cash_credit(order)
+    if dealer_due is not None:
+        return max(dealer_due - (order.deposit_amount or zero), zero)
     return order.actual_balance or zero
+
+
+def dealer_cash_credit(order):
+    """車行現金單的掛帳應收＝車行結算的「向車行收」金額（原現金價－傭金＋牌險＋選號＋配件），
+    傭金直接在掛帳裡抵掉（T-120 p16，使用者 2026-11-06 選 A，取代 10-17「掛帳不扣傭金」）。
+    只適用系統建立的車行現金單；分期車行單、Excel 匯入單照舊，回傳 None。"""
+    from sales.services.dealer_settlement import dealer_settlement
+
+    if (order.source_type != "dealer" or order.payment_type == "installment" or not order.cash_receivable_v2
+            or not order.pk or hasattr(order, "legacy_snapshot")):
+        return None
+    settlement = dealer_settlement(order)
+    if settlement is None:
+        return None
+    return max(settlement["total"], Decimal("0"))
 
 
 PLATE_INCOME_FIELDS = (

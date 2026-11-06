@@ -72,6 +72,16 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         order.registration_date,
     )
     protected_fields = set(profile.manual_financial_fields or [])
+    released = set()
+    if rule:
+        # 領牌日期前先手動填了獎勵（T-120 p13）：找到車型版本後，人工值與版本金額相同的欄位改回「系統帶入」，
+        # 之後隨版本更新；金額不同的人工值照舊保留、不覆寫。
+        for field_name in INCENTIVE_FIELDS:
+            if field_name == "promotion_subsidy" and order.source_type != order.SourceType.PLATFORM:
+                continue
+            if field_name in protected_fields and getattr(profile, field_name) == getattr(rule, field_name):
+                released.add(field_name)
+        protected_fields -= released
     for field_name in INCENTIVE_FIELDS:
         if field_name not in protected_fields:
             value = getattr(rule, field_name) if rule else 0
@@ -107,6 +117,9 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         "incentive_registration_date",
         "updated_at",
     ]
+    if released:
+        profile.manual_financial_fields = sorted(set(profile.manual_financial_fields or []) - released)
+        update_fields.append("manual_financial_fields")
     if lock:
         profile.incentive_locked_at = timezone.now()
         profile.incentive_locked_by = actor_name

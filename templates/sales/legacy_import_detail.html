@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy screen_access %}
 {% load static pagination_tags %}
 {% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -22,6 +22,12 @@
       {% endif %}
       <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" data-confirm="確定刪除此匯入批次？上傳檔與所有暫存修正會一併刪除。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
     {% elif batch.status == 'completed' %}
+      {% with deleted=batch.result_summary.source_file_deleted replaced=batch.result_summary.source_file_replacements|last %}
+      {% if deleted %}<span class="status-pill">原始檔已由 {{ deleted.by }} 刪除（{{ deleted.at|slice:":10" }}）</span>{% endif %}
+      {% if replaced %}<span class="status-pill">原始檔已由 {{ replaced.by }} 於 {{ replaced.at|slice:":10" }} 替換（舊檔：{{ replaced.old_filename }}）</span>{% endif %}
+      {% if_access 'legacy_import_source_replace' batch.pk %}<form class="import-source-replace" method="post" enctype="multipart/form-data" action="{% url 'legacy_import_source_replace' batch.pk %}" data-confirm="確定替換原始檔？只會換存檔，已匯入的資料不會重新匯入，之後這個批次也不能再重新處理。">{% csrf_token %}<label class="button ghost file-button">替換原始檔<input type="file" name="source_file" accept=".xlsx,.xlsm" required onchange="this.form.requestSubmit()"></label></form>{% endif_access %}
+      {% if not deleted and batch.source_file %}{% if_access 'legacy_import_source_delete' batch.pk %}<form method="post" action="{% url 'legacy_import_source_delete' batch.pk %}" data-confirm="確定刪除原始檔「{{ batch.original_filename }}」？匯入結果與正式資料不受影響，但之後無法再下載原檔。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除原始檔</button></form>{% endif_access %}{% endif %}
+      {% endwith %}
       {% if counts.error %}<a class="button primary" href="?action=error#row-preview">修正 {{ counts.error }} 筆失敗資料</a>{% endif %}
       {% if batch.archived_at %}<form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">恢復顯示</button></form>{% else %}<form method="post" action="{% url 'legacy_import_archive' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">封存此紀錄</button></form>{% endif %}
     {% elif batch.status == 'processing' %}

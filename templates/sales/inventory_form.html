@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy static %}
+{% extends "base.html" %}{% load site_copy static screen_access %}
 {% block title %}{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}{% if is_editing %}page-shell--wide{% else %}page-shell--compact{% endif %}{% endblock %}
 {% block content %}
@@ -95,7 +95,7 @@
           <div><small>當下狀態</small><strong>{{ history.get_status_snapshot_display }}</strong></div>
           <div><small>當下車況</small><strong>{{ history.condition_note_snapshot|default:"未記錄異常" }}</strong></div>
           <div><small>當下處理結果</small><strong>{{ history.condition_resolution_snapshot|default:"尚未填寫" }}</strong></div>
-          {% if history.condition_photo_snapshot %}<a class="button ghost small" href="{% url 'protected_media' 'vehicle_history' history.pk 'condition_photo_snapshot' %}" target="_blank">查看當下照片</a>{% endif %}
+          {% if history.condition_photo_snapshot %}<a class="button ghost small" href="{% url 'protected_media' 'vehicle_history' history.pk 'condition_photo_snapshot' %}" target="_blank">查看當下照片</a>{% if_access 'inventory_history_photo_delete' vehicle.pk history.pk %}<form class="inline-delete-form" method="post" action="{% url 'inventory_history_photo_delete' vehicle.pk history.pk %}" data-confirm="確定刪除這筆歷程的當下車況照片嗎？刪除後無法復原。">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除照片</button></form>{% endif_access %}{% elif history.changes.photo_deleted %}<small class="muted">照片已由 {{ history.changes.photo_deleted.by }} 刪除</small>{% endif %}
         </div>
       </div>
     </details>

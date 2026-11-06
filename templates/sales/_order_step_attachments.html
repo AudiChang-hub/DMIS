@@ -138,7 +138,7 @@
     <div>
       <p class="eyebrow">全部檔案</p>
       <h2>各步驟已上傳的檔案</h2>
-      <small>簽署文件、證件、收款證明、領牌與補助文件都集中在這裡；下訂附件可在這裡刪除，領牌與補助文件在上方「該上傳的文件」替換或刪除。</small>
+      <small>簽署文件、證件、收款證明、領牌與補助文件都集中在這裡；傳錯的檔可直接刪除（刪除前會確認），已簽署文件保留不能刪。</small>
     </div>
   </div>
   {% for group in order_file_groups %}
@@ -157,9 +157,9 @@
         </div>
         {% endif %}
         {% if file.uploaded_at %}<small class="order-file__meta">{% if file.uploaded_by %}{{ file.uploaded_by }} · {% endif %}{{ file.uploaded_at|date:"Y/m/d H:i" }}</small>{% endif %}
-        {% if file.delete_url %}<form method="post" action="{{ file.delete_url }}" data-inplace-form data-confirm="確定刪除「{{ file.name }}」嗎？刪除後無法復原。">
+        {% if file.delete_url %}<form method="post" action="{{ file.delete_url }}" data-inplace-form data-confirm="確定刪除「{{ file.label }}」（{{ file.name }}）嗎？刪除後無法復原。">
           {% csrf_token %}<button class="button danger-outline compact block" type="submit">刪除</button>
-        </form>{% endif %}
+        </form>{% elif file.locked_note %}<small class="order-file__locked"><span aria-hidden="true">🔒</span> {{ file.locked_note }}</small>{% endif %}
       </div>
       {% endfor %}
     </div>

@@ -3947,6 +3947,68 @@ def legacy_import_delete(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_source_delete(request, pk):
+    """刪除已完成批次的原始 Excel（使用者 2026-11-06「全部都改成可以刪除修改」）：正式資料與逐列結果都不變，
+    批次頁照常開；誰、何時、原檔名記在批次的處理紀錄。未完成的批次重新預覽會讀原始檔，請改用「刪除此批次」。"""
+    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+    if batch.status != LegacyImportBatch.Status.COMPLETED:
+        messages.error(request, "尚未完成匯入的批次還會用到原始檔，請改用「刪除此批次」。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    stored_name = batch.source_file.name
+    if not stored_name:
+        messages.info(request, "原始檔已經刪除。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    storage = batch.source_file.storage
+    batch.source_file = ""
+    batch.result_summary = {**(batch.result_summary or {}), "source_file_deleted": {
+        "by": _editing_name(request.user), "at": timezone.now().isoformat(), "filename": batch.original_filename,
+    }}
+    batch.save(update_fields=["source_file", "result_summary", "updated_at"])
+    transaction.on_commit(lambda: storage.delete(stored_name))
+    messages.success(request, f"已刪除原始檔：{batch.original_filename}。匯入結果與正式資料不受影響。")
+    return redirect("legacy_import_detail", pk=batch.pk)
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_source_replace(request, pk):
+    """替換已完成批次的原始 Excel（使用者 2026-11-06 選擇開放）：只換存檔，絕不重新匯入、不動正式資料；
+    誰、何時、舊檔名記在批次，之後這個批次也不能再重新處理（build_import_preview 會擋下）。"""
+    from sales.services.upload_validation import validate_excel_upload
+
+    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+    if batch.status != LegacyImportBatch.Status.COMPLETED:
+        messages.error(request, "尚未完成匯入的批次請改用「刪除此批次」後重新上傳。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    upload = request.FILES.get("source_file")
+    if not upload:
+        messages.error(request, "請先選擇要替換的 Excel 檔案。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    try:
+        validate_excel_upload(upload)
+    except ValidationError as exc:
+        messages.error(request, "原始檔替換失敗：" + " ".join(exc.messages))
+        return redirect("legacy_import_detail", pk=batch.pk)
+    previous_name = batch.source_file.name
+    summary = dict(batch.result_summary or {})
+    current_name = (summary.get("source_file_replacements") or [{}])[-1].get("new_filename") or batch.original_filename
+    summary["source_file_replacements"] = [*summary.get("source_file_replacements", []), {
+        "by": _editing_name(request.user), "at": timezone.now().isoformat(),
+        "old_filename": current_name, "new_filename": upload.name,
+    }]
+    summary.pop("source_file_deleted", None)
+    batch.source_file = upload
+    batch.result_summary = summary
+    batch.save(update_fields=["source_file", "result_summary", "updated_at"])
+    _schedule_model_file_cleanup(LegacyImportBatch, "source_file", previous_name)
+    messages.success(request, f"已替換原始檔為「{upload.name}」。已匯入的資料不受影響，也不會重新匯入。")
+    return redirect("legacy_import_detail", pk=batch.pk)
+
+
+@login_required
+@require_http_methods(["POST"])
 def legacy_import_archive(request, pk):
     batch = get_object_or_404(LegacyImportBatch, pk=pk)
     if batch.status != LegacyImportBatch.Status.COMPLETED:
@@ -7867,9 +7929,9 @@ def order_attachment_upload(request, pk):
 
 @login_required
 @transaction.atomic
-def order_file_delete(request, pk, kind):
-    """刪除退款證明或舊交車照片（使用者 2026-11-06 選擇開放）：比照其他上傳，先確認、留處理紀錄、清掉實體檔。
-    退款證明本來就在取消後才產生，所以不以訂單狀態鎖定，只看權限。"""
+def order_file_delete(request, pk, kind, item_pk=None):
+    """刪除訂單上的單一檔案欄位（退款證明、舊交車照片；T-126 起含車主證件照片與收款證明）：
+    比照其他上傳，先確認、留處理紀錄、清掉實體檔；不以訂單狀態鎖定，只看權限。"""
     from sales.models import DeliveryRecord
 
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
@@ -7880,15 +7942,29 @@ def order_file_delete(request, pk, kind):
     elif kind == "handover_photo":
         owner = get_object_or_404(DeliveryRecord, order=order)
         model, label = DeliveryRecord, "交車照片"
+    elif kind in {"id_front", "id_back"}:
+        owner, model, label = order, SalesOrder, "車主證件正面" if kind == "id_front" else "車主證件反面"
+    elif kind in {"signed_contract", "privacy_consent"}:
+        # 簽署檔也可刪（使用者 2026-11-06「全部都改成可以刪除修改」）：簽署方式、指紋、上傳時間一起清掉，訂單回到未簽署。
+        owner, model, label = order, SalesOrder, "訂購合約簽署檔" if kind == "signed_contract" else "個資同意書簽署檔"
+    elif kind == "payment_proof" and item_pk:
+        owner = get_object_or_404(PaymentRecord, pk=item_pk, order=order)
+        model, label = PaymentRecord, f"收款證明（{owner.item_name or '收款'}）"
     else:
         raise Http404
-    previous_file = getattr(getattr(owner, kind), "name", "")
+    field_name = "proof" if kind == "payment_proof" else kind
+    previous_file = getattr(getattr(owner, field_name), "name", "")
     if not previous_file:
         messages.info(request, f"{label}已經刪除。")
         return redirect(order_step_url(pk, "attachments"))
-    setattr(owner, kind, "")
-    owner.save(update_fields=[kind, "updated_at"])
-    _schedule_model_file_cleanup(model, kind, previous_file)
+    setattr(owner, field_name, "")
+    cleared = [field_name, "updated_at"]
+    if kind in {"signed_contract", "privacy_consent"}:
+        for suffix, empty in (("_uploaded_at", None), ("_method", ""), ("_fingerprint", "")):
+            setattr(owner, f"{kind}{suffix}", empty)
+            cleared.append(f"{kind}{suffix}")
+    owner.save(update_fields=cleared)
+    _schedule_model_file_cleanup(model, field_name, previous_file)
     OrderEvent.objects.create(
         order=order,
         event_type=f"{kind}_deleted",
@@ -10666,6 +10742,24 @@ def inventory_allocation_priority(request, pk):
     ):
         next_url = reverse("inventory_list")
     return redirect(next_url)
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def inventory_history_photo_delete(request, pk, history_pk):
+    """刪除調車歷程裡的當下車況照片（使用者 2026-11-06 選擇開放）：先確認，誰、何時、原檔名記在該筆歷程，清掉實體檔。"""
+    history = get_object_or_404(VehicleInventoryHistory.objects.select_for_update(), pk=history_pk, vehicle_id=pk)
+    stored_name = history.condition_photo_snapshot.name
+    if stored_name:
+        history.condition_photo_snapshot = ""
+        history.changes = {**(history.changes or {}), "photo_deleted": {
+            "by": _editing_name(request.user), "at": timezone.now().isoformat(), "filename": Path(stored_name).name,
+        }}
+        history.save(update_fields=["condition_photo_snapshot", "changes"])
+        _schedule_model_file_cleanup(VehicleInventoryHistory, "condition_photo_snapshot", stored_name)
+        messages.success(request, "已刪除這筆歷程的當下車況照片。")
+    return redirect("inventory_edit", pk=pk)
 
 
 @login_required

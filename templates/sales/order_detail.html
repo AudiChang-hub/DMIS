@@ -160,7 +160,7 @@
       <p>{% site_text 'order_detail.8f7144ef61f6' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">列印空白合約</a>{% endif_access %}
-        {% if order.signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" data-preview-name="{{ order.signed_contract.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" data-preview-name="{{ order.signed_contract.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}{% if order.signed_contract %}{% if_access 'order_file_delete' order.pk 'signed_contract' %}<form class="inline-delete-form" method="post" action="{% url 'order_file_delete' order.pk 'signed_contract' %}" data-inplace-form data-confirm="確定刪除訂購合約簽署檔嗎？刪除後訂單回到未簽署，無法復原。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除簽署檔</button></form>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
         {% csrf_token %}{{ contract_form.signed_contract }}
@@ -175,7 +175,7 @@
       <p>{% site_text 'order_detail.d97010d7fe91' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印空白同意書</a>{% endif_access %}
-        {% if order.privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" data-preview-name="{{ order.privacy_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" data-preview-name="{{ order.privacy_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}{% if order.privacy_consent %}{% if_access 'order_file_delete' order.pk 'privacy_consent' %}<form class="inline-delete-form" method="post" action="{% url 'order_file_delete' order.pk 'privacy_consent' %}" data-inplace-form data-confirm="確定刪除個資同意書簽署檔嗎？刪除後訂單回到未簽署，無法復原。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除簽署檔</button></form>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
         {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
@@ -529,7 +529,7 @@
           {% if order.delivered_at %}<h3>{{ order.delivered_at|date:"Y/m/d H:i" }} 完成交付</h3>{% else %}<h3>已完成交付（時間未記錄）</h3>{% endif %}
           {% if delivery_record %}<p>{% if delivery_record.completed_by %}由 {{ delivery_record.completed_by }} 登記{% else %}登記人員未記錄{% endif %}，訂單與實體車輛已鎖定。</p>{% else %}<p>基本交付狀態已保存。</p>{% endif %}
         </div>
-        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% endif %}
+        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% if_access 'order_file_delete' order.pk 'handover_photo' %}<form class="inline-delete-form" method="post" action="{% url 'order_file_delete' order.pk 'handover_photo' %}" data-inplace-form data-confirm="確定刪除交付照片嗎？刪除後無法復原。">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除照片</button></form>{% endif_access %}{% endif %}
       </div>
 
       {% if order.status == "delivered_docs_pending" %}

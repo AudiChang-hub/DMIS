@@ -669,6 +669,7 @@
         <div data-old-owner-field{% if order.is_trade_in_subsidy and owner_same %} hidden{% endif %}><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
         <div data-old-owner-field{% if order.is_trade_in_subsidy and owner_same %} hidden{% endif %}><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
       </div>
+      {% if order.is_trade_in_subsidy %}{% include "sales/_owner_declaration_print.html" with hidden=owner_same %}{% endif %}
       {% endwith %}
       {% if workspace_finance %}{% include "sales/_ops_old_vehicle_inline.html" with form=operations_old_vehicle_form plate=subsidy_form.trade_in_plate %}{% else %}{% include "sales/_ops_old_vehicle_inline.html" with form=None plate=subsidy_form.trade_in_plate %}{% endif %}
     </section>

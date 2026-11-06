@@ -16,6 +16,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (different) subsidyForm.querySelector('[name="old_owner_name"]')?.focus({preventScroll: true});
   });
+  // 列印聲明書（2026-11-03）：PDF 帶已儲存的資料；游標還在補助欄位時先離開欄位觸發自動儲存，存好再開聲明書。
+  // 先開空白分頁再換網址，避免瀏覽器把延遲開窗當成彈出視窗擋掉。
+  document.addEventListener("click", event => {
+    const link = event.target.closest?.("[data-declaration-print]");
+    const active = document.activeElement;
+    if (!link || !subsidyForm || !active || active === link || !subsidyForm.contains(active) || !active.name) return;
+    event.preventDefault();
+    const win = window.open("", "_blank");
+    if (win) win.opener = null;
+    let opened = false;
+    const open = () => { if (opened) return; opened = true; if (win) win.location.href = link.href; else location.href = link.href; };
+    subsidyForm.addEventListener("workspace-save-finished", open, {once: true});
+    active.blur();
+    setTimeout(open, 900);
+  });
   // 汰舊流程改由補助項目推導（使用者 2026-10-22 T-81）：存檔後汰舊狀態改變時重新載入，文件區、完成條件與「新舊車主不同人」一起更新。
   const ownerDifferent = subsidyForm?.querySelector('[name="old_owner_different"]');
   let savedOwnerDifferent = ownerDifferent?.checked;

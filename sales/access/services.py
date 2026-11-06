@@ -134,6 +134,11 @@ class AccessPolicy:
         return self.screen(key, action)
 
 
+def unconfigured_accounts():
+    """沒有畫面權限紀錄（或尚未設定）的帳號：沿用舊制，大部分畫面可開（UAT U-09 方案 B，先標示提醒）。"""
+    return get_user_model().objects.exclude(username="admin").exclude(screen_access_state__configured=True)
+
+
 def policy_for(request):
     if not hasattr(request, "_screen_access_policy"):
         request._screen_access_policy = AccessPolicy(request.user)

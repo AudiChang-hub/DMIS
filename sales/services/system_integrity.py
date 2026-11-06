@@ -16,8 +16,11 @@ AUDIT_REVISION = "2026-09-07.1"
 def build_system_integrity_report():
     """Return the immutable content for the latest completed audit."""
 
+    from sales.access.services import unconfigured_accounts
     return {
         "restore_drill": restore_drill_status(),
+        # 即時檢查：沒有畫面權限紀錄的啟用帳號（UAT U-09 方案 B）。
+        "unconfigured_accounts": list(unconfigured_accounts().filter(is_active=True).order_by("username")),
         "audit_date": AUDIT_COMPLETED_ON,
         "revision": AUDIT_REVISION,
         "conclusion": (

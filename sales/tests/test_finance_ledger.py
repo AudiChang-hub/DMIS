@@ -474,10 +474,12 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
     def test_store_order_hides_dealer_receipt_fields(self):
         _page, finance = self.finance_panel(self.make_order(source_type="store", source=self.staff))
         self.assertNotIn('name="operations-dealer_name"', finance)
-        self.assertNotIn('name="operations-payment_confirmed"', finance)
+        self.assertNotIn('data-receipt-status', finance)
         _page, finance = self.finance_panel(self.make_order())
         self.assertIn('name="operations-dealer_name"', finance)
-        self.assertIn('name="operations-payment_confirmed"', finance)
+        # 「確認收款」改成收款狀態（使用者 2026-11-03 p3），不再是不能勾的勾選框。
+        self.assertNotIn('name="operations-payment_confirmed"', finance)
+        self.assertIn('data-receipt-status', finance)
 
     def test_net_profit_shows_without_unlock_for_profit_grant(self):
         # 2026-10-15 起不再需要本人密碼解鎖；admin 有淨利授權直接看到。

@@ -3126,6 +3126,15 @@ class OrderOperationsForm(forms.ModelForm):
         help_text="請先逐項確認金額，並填寫本次更新說明；不會變更收款確認狀態。",
     )
     financial_revision = forms.CharField(required=False, widget=forms.HiddenInput())
+    # 系統同步、不能在此修改的欄位：說明從哪裡來、要改去哪裡（使用者 2026-11-03 p3：「自動同步」不算說明清楚）。
+    SYNCED_FIELD_HELP = {
+        "dealer_name": "跟著訂單的車行；要改請按頁首「變更車行」。",
+        "installment_fee_income": "＝訂單的分期開辦費；要改請到「訂車與配件」的分期資料。",
+        "installment_transfer_confirmed": "分期公司撥款在「統一撥款對帳」入帳後自動打勾。",
+        "card_fee_income": "＝下方收款列「向客戶收取手續費」的合計。",
+        "card_fee_expense": "＝收款紀錄的銀行實扣手續費合計。",
+        "actual_disbursement": "已在「統一撥款對帳」入帳；要更正請到對帳頁取消入帳。",
+    }
     # 直接打 6 碼年月（使用者 2026-10-22 T-93）；資料庫仍是日期欄位，存成當月 1 日。
     old_vehicle_manufactured_on = YearMonthDateField(label="舊車出廠年月", required=False)
     vehicle_control_password = forms.CharField(
@@ -3256,7 +3265,7 @@ class OrderOperationsForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
             if name in synced_fields:
                 field.disabled = True
-                field.help_text = "由訂單或收款紀錄自動同步。"
+                field.help_text = self.SYNCED_FIELD_HELP.get(name, "由訂單或收款紀錄自動同步。")
             if isinstance(field, forms.DecimalField):
                 field.required = False
                 if name in {
@@ -3598,12 +3607,18 @@ class DepositStepForm(forms.Form):
             confirm["data-autosave-confirm"] = "確認這筆訂金已收妥？打開後即入帳，金額、日期與方式會鎖定。"
         if payment.pk and payment.reversal_entries.exists():
             self.fields["confirmed"].disabled = True
+        from sales.services.deposit_step import deposit_warning
+        self.deposit_warning = "" if confirmed else deposit_warning(order)
 
     def clean(self):
         cleaned = super().clean()
         if self.payment.confirmed:
             return cleaned
         amount = cleaned.get("amount") or Decimal("0")
+        from sales.services.deposit_step import deposit_limit_error
+        limit_error = deposit_limit_error(self.order, amount)
+        if limit_error:
+            self.add_error("amount", limit_error)
         if cleaned.get("confirmed"):
             if amount <= 0:
                 self.add_error("amount", "請先填訂金金額，才能標記已收妥。")

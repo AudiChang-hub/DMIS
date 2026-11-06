@@ -16,6 +16,8 @@
     {% if form.confirmed.errors %}<p class="field-error" role="alert">{{ form.confirmed.errors|join:" " }}</p>{% endif %}
     <div class="form-grid deposit-step__fields">
       {% include "sales/_field.html" with field=form.amount %}
+      {# 分期單訂金只超過分期外應收時只提醒、不擋（U-06 方案 A）；大於總價的錯誤由自動儲存標在金額欄旁。 #}
+      <p class="deposit-step__warning" data-deposit-warning role="status" aria-live="polite" {% if not form.deposit_warning %}hidden{% endif %}>{{ form.deposit_warning }}</p>
       {% include "sales/_field.html" with field=form.received_on %}
       {% include "sales/_field.html" with field=form.method %}
       {% include "sales/_field.html" with field=form.note %}

@@ -4243,6 +4243,17 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-list-head { color: var(--muted); font-weight: 700; }
 .payment-record-row.receipt-row { margin-bottom: var(--space-3); background: var(--surface); }
 .receipt-row[hidden] { display: none; }
+/* 收款狀態（使用者 2026-11-03 p3）：取代不能勾的「確認收款」，寫出還差什麼、連到處理的地方。 */
+.receipt-status { align-self: start; min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-subtle); }
+.receipt-status__state { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-weight: 700; }
+.receipt-status__state span { display: inline-grid; place-items: center; width: 1.4em; height: 1.4em; border-radius: 50%; background: var(--red-soft); color: var(--red); font-size: .85em; }
+.receipt-status.is-settled { border-color: var(--green-border); }
+.receipt-status.is-settled .receipt-status__state { color: var(--green-ink); }
+.receipt-status.is-settled .receipt-status__state span { background: var(--green); color: var(--on-status); }
+.receipt-status__hint { margin: var(--space-2) 0 var(--space-1); color: var(--muted); }
+.receipt-status__todo { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.receipt-status__todo li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+.receipt-status__todo a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
 .receipt-row input, .receipt-row select { max-width: 100%; min-width: 0; }
 .receipt-row .field { margin: 0; gap: var(--space-2); }
 .receipt-name .field + .field { margin-top: var(--space-2); }

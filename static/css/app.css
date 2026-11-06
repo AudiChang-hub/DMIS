@@ -2833,6 +2833,19 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .balance-equation__result span { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 .balance-equation__result strong { color: var(--action-text); font-size: var(--text-xl); line-height: 1; }
+/* 收款進度（p15）：應收合計－已確認收款＝還要收，一橫列；窄螢幕三格直排。 */
+.balance-equation__progress {
+  display: grid; padding: var(--space-3) var(--space-4); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3);
+  border-top: 1px solid var(--line-mid);
+}
+.balance-equation__progress div { display: grid; min-width: 0; padding-left: var(--space-2); gap: 2px; border-left: 3px solid var(--line); }
+.balance-equation__progress .deduction { border-left-color: var(--gold); }
+.balance-equation__progress .is-due { border-left-color: var(--action-text); }
+.balance-equation__progress span { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; white-space: nowrap; }
+.balance-equation__progress strong { font-size: var(--text-sm-plus); font-variant-numeric: tabular-nums; }
+.balance-equation__progress b { font-weight: inherit; }
+.balance-equation__progress .is-due strong { color: var(--action-text); }
+@media (max-width: 560px) { .balance-equation__progress { grid-template-columns: 1fr; } }
 .money-list .registration-breakdown {
   grid-column: 1 / -1; display: block; margin-top: 2px; padding: var(--space-4) var(--space-4);
   background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-lg);
@@ -4245,12 +4258,15 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .add-operation-row { margin: var(--stack-gap-sm) var(--stack-gap) var(--stack-gap); }
 .receipt-list { margin: var(--stack-gap); min-width: 0; }
 .receipt-list h3 { margin: 0 0 var(--stack-gap-sm); }
+/* 收款明細比照配件精簡列（使用者 2026-11-05 p9）：一筆一橫列、列與列以分隔線區隔，不再是上下兩層的卡片。 */
 .receipt-list-head, .payment-record-row.receipt-row {
-  display: grid; grid-template-columns: 76px minmax(150px, 1.6fr) minmax(105px, 1fr) minmax(145px, 1fr) minmax(115px, 1fr) 100px;
-  gap: var(--stack-gap-sm); align-items: start; padding: var(--inset-pad);
+  display: grid; grid-template-columns: 104px minmax(140px, 1.5fr) minmax(112px, .9fr) minmax(100px, .9fr) minmax(140px, 1fr) minmax(110px, .9fr) 84px;
+  gap: var(--space-2) var(--stack-gap-sm); align-items: center; padding: var(--space-2) var(--space-3);
 }
-.receipt-list-head { color: var(--muted); font-weight: 700; }
-.payment-record-row.receipt-row { margin-bottom: var(--space-3); background: var(--surface); }
+.receipt-list-head { color: var(--muted); font-size: var(--text-xs); font-weight: 700; border-bottom: 1px solid var(--line); }
+.receipt-list .payment-records { gap: 0; padding: 0; }
+.payment-record-row.receipt-row { margin: 0; background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.payment-record-row.receipt-row.is-locked { background: color-mix(in srgb, var(--surface-soft) 60%, transparent); }
 .receipt-row[hidden] { display: none; }
 /* 收款狀態（使用者 2026-11-03 p3）：取代不能勾的「確認收款」，寫出還差什麼、連到處理的地方。 */
 .receipt-status { align-self: start; min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-subtle); }
@@ -4265,10 +4281,12 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-status__todo a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; }
 .receipt-row input, .receipt-row select { max-width: 100%; min-width: 0; }
 .receipt-row .field { margin: 0; gap: var(--space-2); }
-.receipt-name .field + .field { margin-top: var(--space-2); }
-.receipt-name .help-text { display: none; }
-.receipt-name select { min-height: 36px; padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.receipt-name .help-text, .receipt-kind .help-text { display: none; }
+.receipt-confirm { display: flex; align-items: center; gap: var(--space-2); }
+.receipt-confirm .status-pill { padding: 2px var(--space-2); font-size: var(--text-2xs); white-space: nowrap; }
 .receipt-confirm .checkbox-label { min-height: 44px; white-space: nowrap; }
+/* 已入帳的說明改在「已入帳」標籤的提示（title）與螢幕報讀，畫面不另起一行。 */
+.receipt-amount .help-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (min-width: 1100.02px) {
   .receipt-row > div > .field > label:not(.checkbox-label),
   .receipt-confirm .checkbox-label span {
@@ -4278,11 +4296,11 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 /* 收款明細（使用者 2026-10-21 T-54）：刷卡手續費放在收款方式下方，刪除在列尾，確認人與時間是列下方小字。 */
 .receipt-card-fee { margin-top: var(--space-2); }
 @media (min-width: 1100.02px) { .receipt-card-fee label { color: var(--muted); font-size: var(--text-xs); font-weight: 700; } }
-.receipt-actions { display: flex; justify-content: flex-end; align-self: start; }
+.receipt-actions { display: flex; justify-content: flex-end; align-self: center; }
 .receipt-row .receipt-actions .button { min-height: 44px; padding: 0 var(--space-4); }
 .receipt-duplicate, .receipt-meta { grid-column: 1 / -1; }
 .receipt-duplicate:not(.is-shown):not(:has(input:checked, input[aria-invalid="true"])) { display: none; }
-.receipt-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: calc(var(--space-2) * -1) 0 0; color: var(--muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.receipt-meta { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: calc(var(--space-1) * -1) 0 0; padding-left: 112px; color: var(--muted); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 /* Excel 匯入、未完成訂單的尾款：未收清琥珀、已收清綠。 */
 .imported-balance {
   display: grid; margin: 0 var(--stack-gap) var(--stack-gap); padding: var(--inset-pad); gap: var(--space-2);
@@ -4305,12 +4323,13 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-expectation-row { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: var(--stack-gap-sm); padding: var(--space-4) 0; align-items: center; }
 @media (max-width: 1100px) {
   .receipt-list-head { display: none; }
-  .payment-record-row.receipt-row { grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr); }
+  .payment-record-row.receipt-row { grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1fr); padding: var(--space-3); }
+  .receipt-meta { padding-left: 0; }
 }
 @media (max-width: 600px) {
   .receipt-list, .receipt-expectations { margin: var(--stack-gap-sm); }
   .payment-record-row.receipt-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); padding: var(--inset-pad); }
-  .receipt-confirm, .receipt-name, .receipt-date, .receipt-method, .receipt-amount, .receipt-actions { grid-column: 1 / -1; }
+  .receipt-confirm, .receipt-name, .receipt-kind, .receipt-date, .receipt-method, .receipt-amount, .receipt-actions { grid-column: 1 / -1; }
   .receipt-expectation-row { grid-template-columns: minmax(0, 1fr); padding: var(--space-3) 0; }
 }
 .operation-change-reason { padding: var(--card-pad); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }

@@ -473,6 +473,8 @@
   <legend>尾款</legend>
   {% include "sales/_delivery_balance_sheet.html" %}
 </fieldset>
+{% elif balance_breakdown %}
+{% include "sales/_delivery_due_overview.html" %}
 {% endif %}
 {% if workspace_finance %}<section class="section-block delivery-prep" aria-labelledby="delivery-prep-title">
   <div class="section-title"><div><p class="eyebrow">交車資料</p><h2 id="delivery-prep-title">交車前確認</h2></div>{% if order.is_electric_vehicle %}{% if order.operations.vehicle_control_confirmed_at %}<span class="archive-status done">✓ 已確認</span>{% else %}<span class="archive-status">交車時確認</span>{% endif %}{% endif %}</div>

@@ -225,6 +225,28 @@ def delivery_gate(request, order, summary=None, balance=None):
                                             balance_hint=balance_hint(request))
 
 
+def delivery_breakdown(order, summary, collect_balance):
+    """交車頁的應收計算式：在交車表單收尾款時一定有；不收時（應收 0、已交車、沒有交車權限）也列出應收，含 0 元
+    （使用者 2026-11-05 p15）。車行單的掛帳另由車行結算處理、已取消類訂單沒有交車，都不列。"""
+    from sales.services.payment_summary import balance_breakdown
+    if not collect_balance and (order.source_type == order.SourceType.DEALER or order.is_cancelled_sale):
+        return None
+    return balance_breakdown(order, summary)
+
+
+def delivery_balance_payload(request, order, summary, collect_balance):
+    """收款列自動儲存後，交車頁的應收計算式與金額跟著換新（使用者 2026-11-05 p10：加了分批匯款，應收卻只扣訂金）。"""
+    breakdown = delivery_breakdown(order, summary, collect_balance)
+    if breakdown is None:
+        return {}
+    context = {'order': order, 'balance_breakdown': breakdown}
+    return {
+        'delivery_due': str(breakdown['due']),
+        'delivery_ledger_html': render_to_string('sales/_delivery_balance_ledger.html', context, request=request),
+        'delivery_overview_html': render_to_string('sales/_delivery_due_overview.html', context, request=request),
+    }
+
+
 def can_collect_balance(request):
     """交車時收尾款看交車（訂單作業 work）權限，與交車按鈕同一權限（UAT U-03，使用者 2026-11-06 選 A）。"""
     return policy_for(request).route('delivery_complete', 'POST')
@@ -286,6 +308,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'delivery_collect_balance': collect_balance,
         'delivery_blockers_strict': strict_blockers,
         'receipt_summary': {key: str(value) for key, value in summary.items()},
+        **delivery_balance_payload(request, order, summary, collect_balance),
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
         'receipt_status_html': render_to_string('sales/_receipt_status.html', {'order': order, 'receipt_status': receipt_status(order, summary)}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',

@@ -1,0 +1,32 @@
+{% load sales_format %}{% comment %}交車應收的計算式（T-73、T-76）。收款列自動儲存後由 order_workspace.saved 重新產生替換（使用者 2026-11-05 p10），
+數字與交車判斷同一份 payment_summary。{% endcomment %}{% with b=balance_breakdown %}
+  <section class="balance-ledger" aria-labelledby="balance-ledger-title" data-balance-ledger>
+    <h3 class="balance-ledger__title" id="balance-ledger-title">應收怎麼算</h3>
+    {% if b.exact %}
+    <dl class="ledger">
+      {% for row in b.charges %}
+      <div class="ledger__row"><dt>{{ row.label }}{% if row.items|length == 1 %}<span class="ledger__hint">{{ row.items.0.0 }}</span>{% elif row.items %}<span class="ledger__hint">{{ row.items|length }} 項</span>{% endif %}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>
+      {% if row.items|length > 1 %}{% for name, amount in row.items %}<div class="ledger__row is-item"><dt>{{ name }}</dt><dd>${{ amount|number_with_commas }}</dd></div>{% endfor %}{% endif %}
+      {% endfor %}
+      {% if b.discount %}
+      <div class="ledger__row is-subtotal"><dt>費用合計</dt><dd>${{ b.charges_total|number_with_commas }}</dd></div>
+      <div class="ledger__row is-minus"><dt>已核准優惠</dt><dd>−${{ b.discount|number_with_commas }}</dd></div>
+      {% endif %}
+      <div class="ledger__row is-subtotal is-total"><dt>總價</dt><dd>${{ b.total|number_with_commas }}</dd></div>
+      {% if b.extras %}<div class="ledger__row"><dt>其他應收</dt><dd>${{ b.extras|number_with_commas }}</dd></div>{% endif %}
+      {% for row in b.deductions %}
+      <div class="ledger__row is-minus"><dt>{{ row.label }}</dt><dd>−${{ row.amount|number_with_commas }}</dd></div>
+      {% endfor %}
+      <div class="ledger__row is-due"><dt>應收</dt><dd>${{ b.due|number_with_commas }}</dd></div>
+    </dl>
+    {% else %}
+    <dl class="ledger">
+      {% for row in b.fallback %}
+      <div class="ledger__row{% if row.sign == '-' %} is-minus{% endif %}"><dt>{{ row.label }}</dt><dd>{% if row.sign == '-' %}−{% endif %}${{ row.amount|number_with_commas }}</dd></div>
+      {% endfor %}
+      <div class="ledger__row is-due"><dt>應收</dt><dd>${{ b.due|number_with_commas }}</dd></div>
+    </dl>
+    <p class="ledger__note" role="note">這張單的尾款有人工調整或屬舊資料，逐項加總對不上，這裡改列收支合計；明細請到「收入與支出」核對。</p>
+    {% endif %}
+  </section>
+{% endwith %}

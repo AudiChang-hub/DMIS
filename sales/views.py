@@ -249,7 +249,7 @@ from .services.order_search import (
 from .services.customer_receivable import PLATE_INCOME_FIELDS
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
-from .services.payment_summary import balance_breakdown, payment_summary
+from .services.payment_summary import payment_summary
 from .services.payment_ledger import (
     refund_overpayment,
     reverse_payment,
@@ -5761,7 +5761,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 else None
             ),
             # 尾款應收的計算式（使用者 2026-10-22 T-73），與交車判斷同一份 payment_summary。
-            "balance_breakdown": balance_breakdown(order, detail_summary) if collect_balance else None,
+            "balance_breakdown": order_workspace.delivery_breakdown(order, detail_summary, collect_balance),
             "delivery_blockers": delivery_blockers,
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
             "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,

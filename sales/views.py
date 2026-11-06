@@ -7315,9 +7315,9 @@ def delivery_complete(request, pk):
         return redirect(detail_url)
     if request.POST.get("balance-received_amount", "").strip():
         # 交車同時收尾款：尾款與交付在同一交易，任一失敗全部不寫入。
-        from .services.order_intake import can_edit_finance
+        # 交車收尾款看交車權限（UAT U-03，使用者 2026-11-06 選 A），與交車按鈕同一權限。
         balance = PaymentRecord.objects.select_for_update().filter(order=order, system_key="balance").first()
-        if balance is None or balance.confirmed or not can_edit_finance(request.user):
+        if balance is None or balance.confirmed or not order_workspace.can_collect_balance(request):
             messages.error(request, "交付未完成：尾款已入帳或沒有收款權限，請重新整理後再試。")
             return redirect(detail_url)
         data = request.POST.copy()

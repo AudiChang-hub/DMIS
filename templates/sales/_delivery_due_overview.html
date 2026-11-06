@@ -1,0 +1,20 @@
+{% load sales_format %}{% comment %}交車頁的應收（使用者 2026-11-05 p15）：不在交車表單收尾款時（應收 0、已交車、沒有交車權限）也列出應收怎麼算與應收金額，含 0 元。
+數字與交車判斷同一份 payment_summary；收款列自動儲存後整塊換新（order_workspace.saved 的 delivery_overview_html）。{% endcomment %}
+{% with b=balance_breakdown %}
+<section class="delivery-balance delivery-balance--readonly" data-delivery-overview aria-label="應收">
+  <div class="balance-sheet">
+    {% include "sales/_delivery_balance_ledger.html" %}
+    <div class="balance-entry">
+      <aside class="balance-summary" data-state="{% if b.due > 0 %}short{% else %}ok{% endif %}" aria-live="polite">
+        <span class="balance-summary__label">應收</span>
+        <strong class="balance-summary__due" data-delivery-due-amount>${{ b.due|number_with_commas }}</strong>
+        <dl class="balance-summary__meta">
+          <div><dt>已確認收款</dt><dd>${{ b.received|number_with_commas }}</dd></div>
+          <div><dt>{% if b.due > 0 %}尚差{% else %}差額{% endif %}</dt><dd>${{ b.due|number_with_commas }}</dd></div>
+        </dl>
+        <p class="balance-summary__state">{% if order.is_delivered %}{% if b.due > 0 %}已交車，還有 ${{ b.due|number_with_commas }} 未收，請在「收入與支出」登記收款。{% else %}已交車，客戶款項已收清。{% endif %}{% elif b.due > 0 %}還差 ${{ b.due|number_with_commas }}，見下方交車條件。{% else %}應收 $0：客戶款項已收清，不用再收尾款。{% endif %}</p>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endwith %}

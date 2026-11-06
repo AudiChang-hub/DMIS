@@ -9,7 +9,8 @@ function bindDeliveryForms(scope = document) {
     const amount = form.elements.namedItem("balance-received_amount");
     const button = form.querySelector('.delivery-completion-actions button[type="submit"]');
     if (!fieldset || !amount || !button) return;
-    const due = Number(fieldset.dataset.deliveryDue || 0);
+    // 應收會隨收款列自動儲存更新（使用者 2026-11-05 p10），每次判斷都讀最新的 data-delivery-due。
+    const dueNow = () => Number(fieldset.dataset.deliveryDue || 0);
     const hint = fieldset.querySelector("[data-balance-hint]");
     const blockers = form.querySelector("[data-delivery-blockers]");
     // 對帳單右欄（使用者 2026-10-22 T-76）：實收與尚差跟著輸入即時更新。
@@ -17,6 +18,7 @@ function bindDeliveryForms(scope = document) {
     const money = (value) => `$${Math.round(value).toLocaleString("zh-TW")}`;
     const syncSummary = () => {
       if (!summary) return;
+      const due = dueNow();
       const received = Number(amount.value || 0);
       const filled = amount.value !== "";
       const gap = due - received;
@@ -30,6 +32,7 @@ function bindDeliveryForms(scope = document) {
     };
     const sync = () => {
       syncSummary();
+      const due = dueNow();
       const short = due > 0 && !(Number(amount.value || 0) >= due);
       button.dataset.balanceShort = short ? "1" : "";
       const blocked = Boolean(blockers && !blockers.hidden);
@@ -39,6 +42,7 @@ function bindDeliveryForms(scope = document) {
     };
     amount.addEventListener("input", sync);
     amount.addEventListener("change", sync);
+    fieldset.addEventListener("delivery:due", sync);
     new MutationObserver(sync).observe(blockers || button, {attributes: true, attributeFilter: ["hidden"]});
     sync();
   });

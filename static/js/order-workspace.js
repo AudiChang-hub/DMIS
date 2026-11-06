@@ -311,6 +311,19 @@
     if (Array.isArray(payload.locked_payments)) lockPayments(payload.locked_payments);
     // 收款狀態（還差什麼才算收清）跟著收款列即時更新（使用者 2026-11-03 p3）。
     if (payload.receipt_status_html) root.querySelectorAll('[data-receipt-status]').forEach(node => { node.outerHTML = payload.receipt_status_html; });
+    // 交車應收（使用者 2026-11-05 p10、p15）：收款列存檔後，應收計算式與金額跟著換新（後端同一份 payment_summary），
+    // 交車表單的實收足額判斷改用新的應收。
+    if (payload.delivery_ledger_html != null) {
+      root.querySelectorAll('#delivery-balance [data-balance-ledger]').forEach(node => { node.outerHTML = payload.delivery_ledger_html; });
+      root.querySelectorAll('[data-delivery-overview]').forEach(node => { node.outerHTML = payload.delivery_overview_html; });
+      const fieldset = root.querySelector('#delivery-balance');
+      if (fieldset && payload.delivery_due != null) {
+        fieldset.dataset.deliveryDue = payload.delivery_due;
+        const text = '$' + Number(payload.delivery_due).toLocaleString('zh-TW');
+        fieldset.querySelectorAll('[data-delivery-due-amount]').forEach(node => { node.textContent = text; });
+        fieldset.dispatchEvent(new CustomEvent('delivery:due'));
+      }
+    }
     if (typeof payload.delivery_ready === 'boolean') {
       // 與頁面同一判斷（使用者 2026-10-21 T-56）：尾款可在交車表單一併登記時不擋；
       // 但頁面載入時沒有尾款欄位（當時已收妥）就無法在這裡收，改用含尾款的判斷。原因清單同步顯示在按鈕下方。

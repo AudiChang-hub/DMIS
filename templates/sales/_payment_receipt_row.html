@@ -1,10 +1,9 @@
 <div class="payment-record-row receipt-row{% if payment.payment_locked %} is-locked{% endif %}" data-payment-row{% if payment.payment_locked %} data-payment-locked{% endif %}{% if payment.instance.system_key %} data-payment-system{% endif %}>
   {{ payment.id }}{{ payment.non_field_errors }}{{ payment.expected_amount.as_hidden }}
-  <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill" data-payment-locked-only>已入帳</span>{% endif %}</div>
-  <div class="receipt-name">
-    {% include "sales/_field.html" with field=payment.item_name %}
-    {% include "sales/_field.html" with field=payment.receipt_kind %}
-  </div>
+  <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}{% if payment.payment_reversed %}<span class="status-pill">已沖銷</span>{% elif payment.payment_locked %}<span class="status-pill" data-payment-locked-only title="已確認入帳；勾錯可取消勾選「已確認」後修改。">已入帳</span>{% endif %}</div>
+  {# 收款明細一筆一橫列（使用者 2026-11-05 p9）：收款對象獨立一欄，不再疊在收款項目下方。 #}
+  <div class="receipt-name">{% include "sales/_field.html" with field=payment.item_name %}</div>
+  <div class="receipt-kind">{% include "sales/_field.html" with field=payment.receipt_kind %}</div>
   <div class="receipt-amount">{% include "sales/_field.html" with field=payment.received_amount %}</div>
   <div class="receipt-date">{% include "sales/_field.html" with field=payment.received_on %}</div>
   {% comment %}收款明細只留「向客戶收取手續費」（使用者 2026-10-21 T-54），放在收款方式下方，只有刷卡才顯示；

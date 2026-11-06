@@ -94,7 +94,7 @@
     {% endif %}{% endwith %}
     {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
-      <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span></span></div>
+      <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>收款對象</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span></span></div>
       <div class="payment-records" id="payment-records">
         {% for payment in payment_formset %}
           {% if not payment.instance.is_receivable_only %}

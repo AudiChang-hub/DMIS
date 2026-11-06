@@ -267,6 +267,7 @@ jobs:
           sales.tests.test_cancelled_receivables
           sales.tests.test_p6_compulsory_commission
           sales.tests.test_p4_installment_plate_costs
+          sales.tests.test_t120_delivery_receivable
 
   django-migrations:
     name: Django migration 資料轉換測試

@@ -37,7 +37,8 @@ def filter_order_analysis(rows, params, *, business_default=False):
     if params.get("payment_status") == "confirmed":
         rows = rows.filter(operations__payment_confirmed=True)
     elif params.get("payment_status") == "pending":
-        rows = rows.exclude(operations__payment_confirmed=True)
+        # 與「風險：未收」同口徑：已取消類的單沒有待收款（使用者 2026-11-06，T-113）。
+        rows = rows.exclude(operations__payment_confirmed=True).exclude(status__in=CANCELLED_STATUSES)
     field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at__date"}.get(params.get("date_basis"), "registration_date")
     dates = {}
     for key, lookup in (("date_from", "gte"), ("date_to", "lte")):

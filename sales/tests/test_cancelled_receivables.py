@@ -10,9 +10,10 @@ from io import StringIO
 from django.core.management import call_command
 from django.urls import reverse
 
-from sales.models import OrderChange, PaymentRecord, SalesOrder
+from sales.models import OrderChange, OrderOperationsProfile, PaymentRecord, SalesOrder
 from sales.services.cancelled_receivables import CLEAR_REASON, clear_cancelled_receivables
 from sales.services.operations_sync import sync_order_operations
+from sales.services.payment_summary import payment_summary
 from sales.tests.test_finance_ledger import FinanceLedgerTestBase
 from sales.tests import test_payout_reconciliation_t96 as t96
 
@@ -134,3 +135,57 @@ class CancelledReceivablesTests(FinanceLedgerTestBase):
             self.assertEqual({k: v for k, v in after[pk].items() if k != "updated_at"},
                              {k: v for k, v in row.items() if k != "updated_at"})
         self.assertTrue(order.events.filter(event_type="cancelled_receivables_restored").exists())
+
+    def test_cleared_cancelled_order_is_not_unpaid_even_with_agreed_deposit(self):
+        # T-113：應收列清空後，訂單上的約定訂金不能再把應收推算回來，也不出現在「未收款」篩選。
+        self.client.force_login(self.admin)
+        order = self.make_order(source_type="store", source=self.staff, deposit_amount=Decimal("2000"),
+                                cash_receivable_v2=True)
+        order.request_cancellation("測試人員", "重複開單")
+        order.refresh_from_db()
+        self.assertEqual((order.deposit_amount, self.keys(order)), (Decimal("2000"), []))
+        summary = payment_summary(order)
+        self.assertEqual((summary["customer_expected"], summary["customer_due"], summary["lender_due"]),
+                         (Decimal("0"), Decimal("0"), Decimal("0")))
+        self.assertTrue(summary["settled"])
+        self.assertTrue(OrderOperationsProfile.objects.get(order=order).payment_confirmed)
+        response = self.client.get(reverse("order_list"), {"payment_status": "pending"})
+        self.assertNotContains(response, order.number)
+        # 即使旗標還沒重算，篩選也依狀態排除（與「風險：未收」同口徑）。
+        OrderOperationsProfile.objects.filter(order=order).update(payment_confirmed=False)
+        response = self.client.get(reverse("order_list"), {"payment_status": "pending"})
+        self.assertNotContains(response, order.number)
+
+    def test_forfeited_money_is_not_overpaid_and_manual_receivable_still_counts(self):
+        order = self.make_order(source_type="store", source=self.staff, deposit_amount=Decimal("2000"),
+                                cash_receivable_v2=True)
+        self.confirm_deposit(order)
+        order.request_cancellation("測試人員", "")
+        order.complete_refund("測試人員", Decimal("2000"), date(2026, 9, 5), "", forfeit_reason="客戶放棄")
+        order.refresh_from_db()
+        summary = payment_summary(order)
+        self.assertEqual((summary["customer_expected"], summary["customer_overpaid"]), (Decimal("0"), Decimal("0")))
+        self.assertTrue(summary["settled"])
+        PaymentRecord.objects.create(order=order, item_name="人工應收", expected_amount=Decimal("500"))
+        summary = payment_summary(order)
+        self.assertEqual((summary["customer_expected"], summary["customer_due"]), (Decimal("500"), Decimal("0")))
+
+    def test_command_recomputes_settled_flag_with_dry_run_apply_and_rollback(self):
+        # 模擬 1.86.66 已清除應收、但「已收清」仍是舊值的已取消訂單（正式站 31D05F 的情況）。
+        order = self.make_order(source_type="store", source=self.staff, deposit_amount=Decimal("2000"),
+                                cash_receivable_v2=True)
+        order.request_cancellation("測試人員", "")
+        OrderOperationsProfile.objects.filter(order=order).update(payment_confirmed=False)
+        out = StringIO()
+        call_command("clear_cancelled_receivables", "--order", order.number, stdout=out)
+        self.assertIn("符合：0 張已取消訂單、0 筆", out.getvalue())
+        self.assertIn(f"{order.number}（已取消）｜已收清 否→是", out.getvalue())
+        self.assertFalse(OrderOperationsProfile.objects.get(order=order).payment_confirmed, "dry-run 不寫入")
+
+        call_command("clear_cancelled_receivables", "--apply", "--order", order.number, stdout=StringIO())
+        self.assertTrue(OrderOperationsProfile.objects.get(order=order).payment_confirmed)
+        change = OrderChange.objects.get(order=order, reason__startswith="重算已取消訂單")
+        self.assertEqual(change.changes["已收清"]["before"], "否")
+
+        call_command("clear_cancelled_receivables", "--rollback", "--order", order.number, stdout=StringIO())
+        self.assertFalse(OrderOperationsProfile.objects.get(order=order).payment_confirmed)

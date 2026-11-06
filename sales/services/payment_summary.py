@@ -3,6 +3,10 @@ from decimal import Decimal
 
 ZERO = Decimal("0")
 EXPECTED_KEYS = {"deposit", "balance", "installment_disbursement", "platform_disbursement"}
+# 已取消類的單（取消、取消待退款、例外結案）不再推算系統應收（使用者 2026-11-06 B 方案，T-113）。
+CLOSED_SALE_STATUSES = {"cancelled", "cancel_refund_pending", "exception_closed"}
+# 其中已結束的（不再等退款結算），沒有待收就算已收清。
+FINAL_CLOSED_STATUSES = {"cancelled", "exception_closed"}
 
 
 def payment_summary(order, records=None):
@@ -45,6 +49,12 @@ def payment_summary(order, records=None):
         # 已完成 Excel 訂單沒有當時完整價款快照，不憑現在欄位補出未曾存在的應收。
         customer_expected = sum((p.expected_amount for p in records if p.effective_receipt_kind == "customer"), ZERO)
         lender_expected = sum((p.expected_amount for p in records if p.effective_receipt_kind == "lender"), ZERO)
+    closed_sale = order.status in CLOSED_SALE_STATUSES
+    if closed_sale:
+        # 取消後系統應收列已清除，不能再從訂單的約定訂金、尾款、撥款欄位推算回來；只算人工新增的應收列。
+        manual = [p for p in records if p.system_key not in EXPECTED_KEYS and not p.system_key.startswith("legacy_")]
+        customer_expected = sum((p.expected_amount or ZERO for p in manual if p.effective_receipt_kind != "lender"), ZERO)
+        lender_expected = sum((p.expected_amount or ZERO for p in manual if p.effective_receipt_kind == "lender"), ZERO)
     customer_due = max(customer_expected - totals["customer"], ZERO)
     lender_due = max(lender_expected - totals["lender"], ZERO)
     delivery_due = customer_due
@@ -55,7 +65,8 @@ def payment_summary(order, records=None):
     # 有既定應收的舊實收列仍須各自收清；新自由收款列的應收為零。
     legacy_settled = all(p.is_settled for p in records if (historical or p.system_key not in EXPECTED_KEYS) and p.expected_amount > 0)
     # 溢收只在系統建立的新口徑訂單推算；舊資料應收依據不完整，不自動判定多收。
-    overpay_known = order.cash_receivable_v2 and not historical
+    # 取消單的實收是沒收或待退的錢，由取消結算處理，不算溢收。
+    overpay_known = order.cash_receivable_v2 and not historical and not closed_sale
     customer_overpaid = max(totals["customer"] - customer_expected, ZERO) if overpay_known else ZERO
     lender_overpaid = max(totals["lender"] - lender_expected, ZERO) if overpay_known and order.payment_type == "installment" else ZERO
     unconfirmed = sum((p.received_amount for p in records if not p.confirmed and p.received_amount > 0), ZERO)
@@ -66,7 +77,8 @@ def payment_summary(order, records=None):
                 unconfirmed_received=unconfirmed,
                 customer_settled=delivery_due <= 0, delivery_due=delivery_due,
                 legacy_settled=legacy_settled,
-                settled=bool(customer_expected + lender_expected > 0 and customer_due <= 0 and lender_due <= 0 and legacy_settled))
+                settled=bool((customer_expected + lender_expected > 0 or order.status in FINAL_CLOSED_STATUSES)
+                             and customer_due <= 0 and lender_due <= 0 and legacy_settled))
 
 
 def balance_breakdown(order, summary=None, records=None):

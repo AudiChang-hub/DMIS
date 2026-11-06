@@ -60,29 +60,31 @@ def _upsert_system_payment(order, key, defaults, *, update_receivables=False):
     return payment
 
 
-def refresh_payment_confirmation(order_id):
+def payment_confirmation_changes(order_id, records=None):
+    """重算「已收清／分期已撥款」旗標；回傳 (profile, {欄位: (目前, 重算後)})，只列有變的欄位、不存檔。"""
     from sales.models import OrderOperationsProfile, PaymentRecord
 
-    profile = OrderOperationsProfile.objects.filter(order_id=order_id).first()
+    profile = OrderOperationsProfile.objects.filter(order_id=order_id).select_related("order").first()
     if not profile:
-        return
+        return None, {}
     from .payment_summary import effective_records, payment_summary
-    records = list(PaymentRecord.objects.filter(order_id=order_id))
+    records = list(PaymentRecord.objects.filter(order_id=order_id)) if records is None else list(records)
     confirmed = payment_summary(profile.order, records)["settled"]
     # 匯款已確認不等於所有款項已收清；短款仍由 payment_confirmed／應收差額呈現。
     installment_confirmed = profile.order.payment_type == "installment" and any(
         p.confirmed and p.effective_receipt_kind == "lender" and p.entry_type == "receipt"
         for p in effective_records(records)
     )
-    updates = []
-    if profile.payment_confirmed != confirmed:
-        profile.payment_confirmed = confirmed
-        updates.append("payment_confirmed")
-    if profile.installment_transfer_confirmed != installment_confirmed:
-        profile.installment_transfer_confirmed = installment_confirmed
-        updates.append("installment_transfer_confirmed")
-    if updates:
-        profile.save(update_fields=[*updates, "updated_at"])
+    proposed = {"payment_confirmed": confirmed, "installment_transfer_confirmed": installment_confirmed}
+    return profile, {name: (getattr(profile, name), value) for name, value in proposed.items() if getattr(profile, name) != value}
+
+
+def refresh_payment_confirmation(order_id):
+    profile, changes = payment_confirmation_changes(order_id)
+    if changes:
+        for name, (_before, after) in changes.items():
+            setattr(profile, name, after)
+        profile.save(update_fields=[*changes, "updated_at"])
 
 
 @transaction.atomic

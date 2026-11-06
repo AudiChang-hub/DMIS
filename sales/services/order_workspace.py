@@ -59,7 +59,38 @@ def payment_ledger_context(order, summary=None):
         'overpayment_refund_form': refund_form if refund_form and refund_form.has_overpayment else None,
         'settlement_gap': settlement_gap(order, summary),
         'payments_read_only': order.is_settled_closed,
+        'receipt_status': receipt_status(order, summary),
     }
+
+
+def receipt_status(order, summary):
+    """收款狀態（使用者 2026-11-03 簡報 p3）：「確認收款」由系統依 payment_summary 的 settled 判斷，不能手動勾。
+    畫面改寫成「已收清／還差什麼、去哪裡處理」，不再只寫「由訂單或收款紀錄自動同步」。判斷規則不變。"""
+    from django.urls import reverse
+    from sales.services.order_steps import order_step_url
+
+    items = []
+    customer_due = summary['customer_due']
+    if customer_due > 0:
+        dealer = order.source_type == order.SourceType.DEALER
+        if not dealer and not order.is_delivered:
+            items.append({'text': f'客戶尾款還差 {customer_due:,.0f} 元', 'action': '到「交車與收尾款」收款',
+                          'href': order_step_url(order.pk, 'delivery')})
+        else:
+            items.append({'text': f'{"車行掛帳" if dealer else "客戶尾款"}還差 {customer_due:,.0f} 元',
+                          'action': f'收到{"車行" if dealer else "客戶"}付款後，按下方「＋新增收款」登記並勾「已確認」',
+                          'href': '#add-payment'})
+    if summary['lender_due'] > 0:
+        items.append({'text': f'分期公司撥款還差 {summary["lender_due"]:,.0f} 元', 'action': '到「統一撥款對帳」入帳',
+                      'href': reverse('reconciliation_list')})
+    if summary['unconfirmed_received'] > 0:
+        items.append({'text': f'有 {summary["unconfirmed_received"]:,.0f} 元已填實收、還沒勾「已確認」',
+                      'action': '在下方收款列勾「已確認」', 'href': '#finance-receipts'})
+    if not summary['legacy_settled']:
+        items.append({'text': '舊資料的應收列還沒收清', 'action': '在下方收款列核對實收', 'href': '#finance-receipts'})
+    if not summary['settled'] and not items:
+        items.append({'text': '這張單目前沒有應收金額，所以不會標成已收清', 'action': '', 'href': ''})
+    return {'settled': summary['settled'], 'items': items}
 
 
 def payment_formset_for(order, data=None, files=None):
@@ -238,6 +269,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'delivery_blockers_strict': strict_blockers,
         'receipt_summary': {key: str(value) for key, value in summary.items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
+        'receipt_status_html': render_to_string('sales/_receipt_status.html', {'order': order, 'receipt_status': receipt_status(order, summary)}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
         # 匯入單第一次存檔後，訂單編號下方的來源標記即時改為「Excel 匯入已修改」（services/order_origin.py）。
         'origin_html': {variant: render_to_string('sales/_order_origin.html', {'origin': origin, 'detail': variant == 'detail'})

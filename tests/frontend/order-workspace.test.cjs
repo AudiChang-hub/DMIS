@@ -73,3 +73,21 @@ test('原地更新後依 id、儲存種類、網址與營運區段認同一張�
   assert.notEqual(identity(form('ops-subsidy-form', 'operations', '/orders/1/operations/', 'subsidy')),
     identity(form('ops-old-vehicle-form', 'operations', '/orders/1/operations/', 'old_vehicle')));
 });
+test('儲存失敗分類：斷線、逾時、我方說明與其他錯誤分開，不露出瀏覽器英文訊息（UAT U-08）', () => {
+  const {failureKind} = require('../../static/js/order-workspace.js');
+  const offline = Object.assign(new TypeError('Failed to fetch'), {network: true});
+  assert.equal(failureKind(offline), 'network');
+  assert.equal(failureKind(new TypeError('Failed to fetch'), false), 'network');
+  assert.equal(failureKind(Object.assign(new Error('x'), {name: 'AbortError'})), 'timeout');
+  assert.equal(failureKind(Object.assign(new Error('登入狀態可能已變更'), {known: true})), 'known');
+  // 程式本身的錯誤（例如畫面更新失敗）不可誤判為斷線，也不顯示英文原文。
+  assert.equal(failureKind(new TypeError("Cannot read properties of null (reading 'value')")), 'other');
+});
+test('斷線提示列出還沒存的欄位，沒有標籤時改說這一區（UAT U-08）', () => {
+  const {listFields, offlineText} = require('../../static/js/order-workspace.js');
+  assert.equal(listFields(['車主電話', '地址']), '「車主電話」、「地址」');
+  assert.equal(listFields([]), '這一區的修改');
+  const text = offlineText(['車主電話']);
+  assert.match(text, /^網路中斷，「車主電話」還沒存。恢復連線後會自動補存/);
+  assert.doesNotMatch(text, /[A-Za-z]/);
+});

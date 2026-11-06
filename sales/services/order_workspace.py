@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 
 from sales.access.services import policy_for
-from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm
+from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm, YearMonthDateInput
 from sales.models import OrderOperationsProfile
 from sales.services.audit_note import discount_summary
 from sales.services.order_intake import can_edit_finance
@@ -252,7 +252,12 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
     context = finance_context(request, order)
     profile = context.get('profile')
     def field_values(current):
-        return {field.html_name: field.value() for field in current
+        # 6 碼年月欄位回傳畫面上的 YYYYMM（T-121）：原本送回日期物件，存好後輸入框被換成「2012-02-01」。
+        def shown(field):
+            value = field.value()
+            widget = field.field.widget
+            return widget.format_value(value) if isinstance(widget, YearMonthDateInput) else value
+        return {field.html_name: shown(field) for field in current
                 if getattr(field.field.widget, 'input_type', '') not in ('file', 'password')}
     sync = {'subsidy': field_values(SubsidyDataForm(instance=order))}
     if policy_for(request).route('order_edit', kwargs={'pk': order.pk}) and can_edit_finance(request.user):

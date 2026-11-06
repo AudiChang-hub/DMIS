@@ -90,7 +90,7 @@ class OptionalUploadTests(TestCase):
         self.assertEqual(self.order.status, SalesOrder.Status.DELIVERY_PENDING)
         self.assertFalse(self.order.registration_documents.filter(document_type=Doc.COMPULSORY_INSURANCE).exists())
 
-    def test_missing_documents_can_be_added_after_registration_but_uploaded_ones_stay_locked(self):
+    def test_documents_can_be_added_and_replaced_after_registration(self):
         self.upload(Doc.NEW_LICENSE)
         self.upload(Doc.REGISTRATION_APPLICATION)
         self.order.refresh_from_db()
@@ -101,7 +101,9 @@ class OptionalUploadTests(TestCase):
             for t in RegistrationDocument.active_fixed_document_types()
         ]
         slots = {slot.document_type: slot for group in self.slots(registration_rows=rows) for slot in group["slots"]}
-        self.assertFalse(slots[Doc.NEW_LICENSE].open)
+        # 傳錯的也能替換或刪除（使用者 2026-11-06 T-121）。
+        self.assertTrue(slots[Doc.NEW_LICENSE].open)
+        self.assertIsNotNone(slots[Doc.NEW_LICENSE].delete_url)
         self.assertTrue(slots[Doc.COMPULSORY_INSURANCE].open)
         self.assertFalse(slots[Doc.COMPULSORY_INSURANCE].required)
         self.assertEqual(slots[Doc.COMPULSORY_INSURANCE].status, "未上傳")

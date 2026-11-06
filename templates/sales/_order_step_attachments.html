@@ -48,6 +48,10 @@
             </label>
           </form>
           {% endif_access %}{% endif %}
+          {# 傳錯的檔案在這裡也能刪（使用者 2026-11-06 T-121）；刪除前確認，刪了可以再上傳。 #}
+          {% if slot.delete_url %}<form method="post" action="{{ slot.delete_url }}" data-inplace-form data-confirm="確定刪除「{{ slot.label }}」嗎？刪除後無法復原，之後可以再上傳。">
+            {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
+          </form>{% endif %}
         </div>
       </div>
       {% endfor %}
@@ -134,7 +138,7 @@
     <div>
       <p class="eyebrow">全部檔案</p>
       <h2>各步驟已上傳的檔案</h2>
-      <small>簽署文件、證件、收款證明、領牌與補助文件都集中在這裡；要替換或刪除請到原本的步驟。</small>
+      <small>簽署文件、證件、收款證明、領牌與補助文件都集中在這裡；下訂附件可在這裡刪除，領牌與補助文件在上方「該上傳的文件」替換或刪除。</small>
     </div>
   </div>
   {% for group in order_file_groups %}
@@ -153,6 +157,9 @@
         </div>
         {% endif %}
         {% if file.uploaded_at %}<small class="order-file__meta">{% if file.uploaded_by %}{{ file.uploaded_by }} · {% endif %}{{ file.uploaded_at|date:"Y/m/d H:i" }}</small>{% endif %}
+        {% if file.delete_url %}<form method="post" action="{{ file.delete_url }}" data-inplace-form data-confirm="確定刪除「{{ file.name }}」嗎？刪除後無法復原。">
+          {% csrf_token %}<button class="button danger-outline compact block" type="submit">刪除</button>
+        </form>{% endif %}
       </div>
       {% endfor %}
     </div>

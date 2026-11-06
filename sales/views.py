@@ -1234,9 +1234,12 @@ def user_management(request):
         status = "all"
 
     users = list(users.order_by("-is_active", "-is_superuser", "username"))
+    from .access.services import unconfigured_accounts
+    unconfigured_ids = set(unconfigured_accounts().values_list("pk", flat=True))
     for account in users:
         profile = getattr(account, "security_profile", None)
         account.must_change_password = bool(profile and profile.must_change_password)
+        account.access_unconfigured = account.pk in unconfigured_ids
 
     all_users = get_user_model().objects.all()
     return render(
@@ -3406,7 +3409,13 @@ def dealer_volume_bonus_revise(request, pk):
 
 @login_required
 def legacy_import_list(request):
+    from .services.profit_access import can_view_profit
+    # 檢查預覽含 Excel 原始財務欄位，需要淨利權限（UAT U-10 方案 B）：上傳前就說明並擋下，不先建立批次。
+    upload_blocked = not can_view_profit(request)
     form = LegacyImportUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and upload_blocked:
+        messages.error(request, "未上傳：這個帳號缺「查看淨利」權限，看不到上傳後的檢查預覽。請 admin 到帳號管理 › 畫面權限勾選「查看淨利」。")
+        return redirect("legacy_import_list")
     if request.method == "POST" and form.is_valid():
         uploaded = form.cleaned_data["source_file"]
         batch = form.save(commit=False)
@@ -3433,7 +3442,7 @@ def legacy_import_list(request):
     return render(
         request,
         "sales/legacy_import_list.html",
-        {"form": form, "batches": batches[:50], "show_archived": show_archived},
+        {"form": form, "batches": batches[:50], "show_archived": show_archived, "upload_blocked": upload_blocked},
     )
 
 

@@ -13,6 +13,7 @@
 <p class="muted">{% site_text 'edit.4a78066416ae' %}</p>
 <p class="muted">{% site_text 'edit.d0562249ba5e' %}</p>
 {% if preview %}
+{% if import_without_profit %}<p class="access-notice" role="alert"><strong>提醒：</strong>{{ import_without_profit }}</p>{% endif %}
 <section class="access-notice"><h2>確認變更 · {{ changed_count }} 個項目</h2><p>{% site_text 'edit.d994cd9a96b0' %}</p>
 <details><summary>預覽可見功能（{{ visible_rows|length }} 項）</summary><ul>{% for row in visible_rows %}<li>{{ row.label }}</li>{% empty %}<li>不開放任何業務功能，只保留個人功能。</li>{% endfor %}</ul></details></section>
 {% else %}
@@ -25,7 +26,7 @@
 {% for group in groups %}<section class="access-category" id="access-{{ group.key }}" data-access-category aria-labelledby="access-heading-{{ group.key }}">
 <div class="favorites-heading"><h2 id="access-heading-{{ group.key }}">{{ group.label }}</h2>{% if not preview %}<div class="hero-actions"><button type="button" class="button ghost small" data-access-bulk="1">本大項全選</button><button type="button" class="button ghost small" data-access-bulk="0">全部取消</button></div>{% endif %}</div><p class="muted">{% site_text 'edit.1ff5da23cd11' %}</p>
 {% for section in group.sections %}<section class="access-subcategory" data-access-subcategory><h3>{{ section.label }}</h3><div class="access-grid">
-{% for row in section.rows %}<fieldset class="access-row{% if row.changed %} is-changed{% endif %}" data-access-row data-label="{{ group.label }} {{ section.label }} {{ row.label }}"><legend>{{ row.label }}</legend>
+{% for row in section.rows %}<fieldset class="access-row{% if row.changed %} is-changed{% endif %}" data-access-row data-label="{{ group.label }} {{ section.label }} {{ row.label }}"><legend>{{ row.label }}</legend>{% if row.hint %}<p class="muted access-row__hint">{{ row.hint }}</p>{% endif %}
 <div class="access-checks">{% for cell in row.cells %}<label><input type="checkbox" name="{{ cell.name }}" data-action="{{ cell.action }}" data-before="{{ cell.before|yesno:'1,0' }}" {% if cell.checked %}checked{% endif %} {% if preview %}disabled{% endif %}> {{ cell.label }}{% if preview and cell.checked != cell.before %}<strong>{% if cell.checked %}新增{% else %}收回{% endif %}</strong>{% endif %}</label>{% endfor %}</div></fieldset>{% endfor %}
 </div></section>{% empty %}<p class="muted">尚無已發布報表可設定。</p>{% endfor %}</section>{% endfor %}
 <p class="access-empty" data-access-empty hidden>{% site_text 'edit.6cfca5e34bf9' %}</p>

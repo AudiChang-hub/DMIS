@@ -10,6 +10,7 @@ class Screen:
     operate: bool = True
     export: bool = False
     ceiling: str = ""
+    hint: str = ""
 
 
 SCREENS = (
@@ -43,7 +44,8 @@ SCREENS = (
     Screen("subsidy_programs", "補助方案", "subsidy_program_list"),
     Screen("fees", "領牌與強制險規則", "brand_registration_fee_rule_list"),
     Screen("holidays", "工作日與假日設定", "business_holiday_list"),
-    Screen("imports", "舊資料匯入與歷史修正", "legacy_import_list"),
+    Screen("imports", "舊資料匯入與歷史修正", "legacy_import_list",
+           hint="上傳後的檢查預覽含 Excel 原始財務欄位，需同時勾選「查看淨利」才能完成匯入。"),
     Screen("templates", "列印範本設定", "positioned_template_list", True, True),
     Screen("diagnostics", "系統狀態檢查", "system_diagnostics", False),
     Screen("integrity", "系統完整性報告", "system_integrity_report", False, ceiling="superuser"),

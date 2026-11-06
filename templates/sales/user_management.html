@@ -67,13 +67,14 @@
           {% endif %}
           {% if account.is_superuser %}<span class="status-pill warning">系統管理者</span>{% else %}<span class="status-pill neutral">一般人員</span>{% endif %}
           {% if account.must_change_password %}<span class="status-pill info">待變更密碼</span>{% endif %}
+          {% if account.access_unconfigured %}<span class="status-pill warning" title="沒有畫面權限紀錄：沿用舊制，大部分畫面都能開（淨利仍隱藏）">尚未設定權限</span>{% endif %}
         </div>
         <div class="account-login">
           <span>最近登入</span>
           <strong>{% if account.last_login %}{{ account.last_login|date:"Y/m/d H:i" }}{% else %}尚未登入{% endif %}</strong>
         </div>
         <div class="account-actions">
-          {% if can_manage_screen_access %}<a class="button primary small" href="{% url 'permission_workspace' account.pk %}">管理帳號與權限</a>{% elif not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯基本資料</a>{% endif %}
+          {% if can_manage_screen_access and account.access_unconfigured %}<a class="button primary small" href="{% url 'permission_workspace' account.pk %}?tab=features">設定畫面權限</a>{% elif can_manage_screen_access %}<a class="button primary small" href="{% url 'permission_workspace' account.pk %}">管理帳號與權限</a>{% elif not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯基本資料</a>{% endif %}
           {% if not screen_read_only and account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}
         </div>
       </article>

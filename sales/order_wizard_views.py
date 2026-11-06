@@ -25,8 +25,9 @@ def _validate_draft(request, draft, reception):
     form.is_valid()
     formset.is_valid()
     fee_formset.is_valid()
-    from sales.services.order_discount import validate_intake_discount
+    from sales.services.order_discount import validate_intake_deposit, validate_intake_discount
     validate_intake_discount(form, formset, fee_formset)
+    validate_intake_deposit(form, formset, fee_formset)
     grouped = wizard.collect_step_errors(form, {"accessories": formset, "other_fees": fee_formset})
     return form, formset, fee_formset, grouped
 

@@ -317,10 +317,11 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         self.assertEqual((profile.agency_fee_income, balance), (1400, 1500))
         order, profile, balance = self.plate_case(plate_insurance_fee=2100, plate_insurance_auto=True, **self.INSTALLMENT)
         self.assertEqual((profile.agency_fee_income, balance), (0, 2100))
-        # 分期單填 0：分期公司吸收，不列規費與強制險，牌險手續費 0、不標少收，客人尾款 0。
+        # 分期單填 0：與現金單相同由本店支付，規費與強制險照列支出、收入 0（UAT p4，使用者 2026-11-06 選 A），
+        # 牌險手續費 0、不標少收，客人尾款 0。
         order, profile, balance = self.plate_case(plate_insurance_fee=0, **self.INSTALLMENT)
         self.assertEqual(balance, 0)
-        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (0, 0))
+        self.assertEqual((profile.registration_tax_expense, profile.compulsory_insurance_expense), (1100, 1000))
         self.assertEqual((profile.registration_tax_income, profile.compulsory_insurance_income), (0, 0))
         self.assertEqual(profile.agency_fee_income, 0)
         self.assertFalse(order.plate_fee_shortfall)
@@ -328,7 +329,7 @@ class AgencyFeeTests(FinanceLedgerTestBase):
         mixed = dict(self.INSTALLMENT, installment_amount=Decimal("45000"),
                      payment_splits=[{"method": "cash", "amount": 30000}, {"method": "installment", "amount": 45000}])
         order, profile, balance = self.plate_case(plate_insurance_fee=0, deposit_amount=2000, **mixed)
-        self.assertEqual((profile.registration_tax_expense, balance), (0, 28000))
+        self.assertEqual((profile.registration_tax_expense, balance), (1100, 28000))
         profile.registration_tax_expense = 900
         profile.manual_financial_fields = ["registration_tax_expense"]
         profile.save()

@@ -12,15 +12,19 @@ INCENTIVE_FIELDS = (
     "installment_interest_subsidy",
 )
 
-# 強制險傭金（使用者 2026-10-15）：油車與電動車依強制險年期固定金額；微型電動二輪車另計，不自動帶入。
+# 強制險傭金（使用者 2026-10-15）：油車、電動車、輕型電動車依強制險年期一年 145、兩年 215，沒有其他分級。
 COMPULSORY_INSURANCE_COMMISSION = {1: Decimal("145"), 2: Decimal("215")}
+# 微型電動二輪車強制險一律三年，傭金固定 100（UAT p6，使用者 2026-11-06 選 A），不看訂單填的年期。
+MICRO_ELECTRIC_COMPULSORY_INSURANCE_COMMISSION = Decimal("100")
 
 
 def compulsory_insurance_commission(order):
     """回傳應帶入的強制險傭金；None 表示此訂單不套用固定規則。"""
     vehicle_model = order.vehicle_model if order.vehicle_model_id else None
-    if vehicle_model is None or vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+    if vehicle_model is None:
         return None
+    if vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+        return MICRO_ELECTRIC_COMPULSORY_INSURANCE_COMMISSION
     return COMPULSORY_INSURANCE_COMMISSION.get(order.compulsory_insurance_period)
 
 

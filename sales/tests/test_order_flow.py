@@ -5665,13 +5665,13 @@ class OrderOperationsTests(TestCase):
         profile.manual_financial_fields = ["insurance_commission"]
         profile.save()
         self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("300"))
-        # 微型電動二輪車不套用固定傭金，保留原值。
+        # 微型電動二輪車強制險一律三年，傭金固定 100、不看年期（UAT p6，使用者 2026-11-06 選 A）。
         profile.manual_financial_fields = []
         profile.insurance_commission = Decimal("0")
         profile.save()
         VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC)
         self.order.refresh_from_db()
-        self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("0"))
+        self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("100"))
 
     def test_installment_disbursement_uses_order_installment_plan_snapshot(self):
         VehicleIncentiveRule.objects.create(

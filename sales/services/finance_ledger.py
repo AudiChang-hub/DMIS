@@ -72,7 +72,7 @@ def _source_tag(profile, form, name, manual):
 
 def _order_overrides(profile):
     """依訂單狀況調整個別列的名稱與提示；只影響顯示。"""
-    from sales.services.agency_fee import plate_cost_absorbed_by_lender, plate_fee_waived
+    from sales.services.agency_fee import plate_fee_waived
 
     order = profile.order
     labels, hints = {}, {}
@@ -89,9 +89,6 @@ def _order_overrides(profile):
     if hasattr(order, "legacy_snapshot"):
         labels["agency_fee_income"] = "代辦費收入"
         hints["agency_fee_income"] = "Excel 匯入的代辦費"
-    elif plate_cost_absorbed_by_lender(order):
-        for name in ("registration_tax_expense", "compulsory_insurance_expense"):
-            hints[name] = "分期單牌險費 0：由分期公司吸收，不列支出"
     elif plate_fee_waived(order):
         for name in ("registration_tax_income", "compulsory_insurance_income"):
             hints[name] = "牌險費 0：沒有向客人收，支出由店家吸收"

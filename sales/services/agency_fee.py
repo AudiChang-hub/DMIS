@@ -3,8 +3,8 @@
 牌險費不含選號；牌險手續費＝牌險費－領牌規費－強制險，少收時為負數。
 選號另計：選號收入＝客人付的選號費、選號支出預設監理站 1,000，差額留在選號（使用者 2026-10-15 更正）。
 油車沒有領牌日時規費依訂單日預估（`registration_fee_date`），領牌時依領牌日重算；電動類規費與強制險為固定口徑。
-牌險費填 0（不向客人收，使用者 2026-10-19）：牌險手續費 0、不標少收；分期單視為分期公司吸收、不列規費與強制險支出，
-現金單照列支出（店家吸收）。
+規費與強制險支出一律由本店付、照試算帶入，分期公司不負擔牌險（UAT p4，使用者 2026-11-06 選 A，取代 10-19「分期公司吸收」）；
+收入看客人付的牌險費：填 0（不向客人收）＝本店自己出，規費與強制險收入 0、牌險手續費 0、不標少收。
 """
 from decimal import Decimal
 
@@ -114,13 +114,6 @@ def _is_legacy(order):
 def plate_fee_waived(order):
     """牌險費填 0＝不向客人收；空白（照系統試算）的 0 不算。Excel 匯入單的牌險含在收款價裡，不適用。"""
     return not order.plate_insurance_auto and not _money(order.plate_insurance_fee) and not _is_legacy(order)
-
-
-def plate_cost_absorbed_by_lender(order):
-    """分期單牌險填 0：視為分期公司吸收，收支不列規費與強制險（使用者 2026-10-19 選 b）。"""
-    from sales.models import SalesOrder
-
-    return plate_fee_waived(order) and order.payment_type == SalesOrder.PaymentType.INSTALLMENT
 
 
 def plate_fee_surplus(order, profile=None):

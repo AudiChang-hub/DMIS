@@ -4,7 +4,7 @@
 
 ## 本次完成
 
-全專案盤點結案：正式站 1.85.4（`439dda9`）與 main 一致、CI 全綠；各工作階段皆已完成。使用者 2026-10-17 的決定已寫入 [CURRENT_STATE](CURRENT_STATE.md) 與 [BUSINESS_RULES](BUSINESS_RULES.md)（車行單掛帳記客戶應收尾款不扣傭金、本店單指定車行不算基礎傭金、車行結算全員可看、不設預設店別、簽名 PDF 不另實測、不使用 Email 通知）。教學影片工具 `tools/tutorials/` 已提交保留。
+全專案盤點結案：正式站 1.85.4（`439dda9`）與 main 一致、CI 全綠；各工作階段皆已完成。使用者 2026-10-17 的決定已寫入 [CURRENT_STATE](CURRENT_STATE.md) 與 [BUSINESS_RULES](BUSINESS_RULES.md)（車行單掛帳記客戶應收尾款不扣傭金（11-06 起現金單改扣傭金）、本店單指定車行不算基礎傭金、車行結算全員可看、不設預設店別、簽名 PDF 不另實測、不使用 Email 通知）。教學影片工具 `tools/tutorials/` 已提交保留。
 
 10-02 舊交接項目結案：官網檢查排程每週一正常執行；五組訂單合併因 2026-10-05 正式資料清空而不再適用；簡訊／LINE 通知使用者未要求；`claude/code-setup` 分支（`07deedc`，舊版 AI 工具文件，已被 main 取代）已刪除本機與遠端。已合併的殘留 worktree 已移除。
 

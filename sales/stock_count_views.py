@@ -75,14 +75,14 @@ def inventory_stock_count_export(request):
     top = Border(top=thin)
 
     stamp = timezone.localtime().strftime("%Y/%m/%d %H:%M")
-    sheet.append(sanitize_excel_row([f"現有台數表（{data['selected_brand'] or '全部品牌'}）", "", "", "", "", f"匯出時間 {stamp}"]))
+    sheet.append(sanitize_excel_row([f"現有台數表（{data['selected_brand'] or '全部品牌'}）", "", "", "", "", "", f"匯出時間 {stamp}"]))
     sheet["A1"].font = Font(bold=True, size=14)
-    sheet.append(["口徑：可銷售＋已預留（已配車）＋車況異常；數量含放在車行的車，車行為其中放在車行的台數。"])
+    sheet.append(["口徑：可銷售＋已預留（已配車）＋車況異常；數量含放在車行的車，車行為其中放在車行的台數；庫位寫出車放在哪裡、各幾台。"])
     sheet.append([])
     for block in data["blocks"]:
-        sheet.append(sanitize_excel_row([block.title, "", "", "", "", ""]))
+        sheet.append(sanitize_excel_row([block.title, "", "", "", "", "", ""]))
         sheet.cell(sheet.max_row, 1).font = Font(bold=True, size=12)
-        sheet.append(["車種型號", "車名", "顏色", "數量", "車行", "備註"])
+        sheet.append(["車種型號", "車名", "顏色", "數量", "車行", "庫位", "備註"])
         for cell in sheet[sheet.max_row]:
             cell.font, cell.fill = bold, head_fill
         for group in block.groups:
@@ -91,26 +91,26 @@ def inventory_stock_count_export(request):
                 notes = [text for flag, text in ((not row.active, "不生產"), (row.reserved, f"已配車 {row.reserved}"), (row.issue, f"車況異常 {row.issue}")) if flag]
                 sheet.append(sanitize_excel_row([
                     group.code if index == 0 else "", group.subtitle if index == 0 else "", row.name,
-                    row.total, row.dealer, "、".join(notes),
+                    row.total, row.dealer, row.location_text, "、".join(notes),
                 ]))
                 line = sheet.max_row
                 if index == 0:
                     sheet.cell(line, 1).font = bold
-                    for column in range(1, 7):
+                    for column in range(1, 8):
                         sheet.cell(line, column).border = top
                 if row.total:
                     sheet.cell(line, 4).fill = stock_fill
                 if row.dealer:
                     sheet.cell(line, 5).fill = dealer_fill
-        sheet.append(sanitize_excel_row(["合計", "", "", block.total, block.dealer, ""]))
+        sheet.append(sanitize_excel_row(["合計", "", "", block.total, block.dealer, "", ""]))
         for cell in sheet[sheet.max_row]:
             cell.font, cell.border = bold, top
         sheet.append([])
-    sheet.append(sanitize_excel_row(["總計", "", "", data["totals"]["total"], data["totals"]["dealer"],
+    sheet.append(sanitize_excel_row(["總計", "", "", data["totals"]["total"], data["totals"]["dealer"], "",
                                      f"本店 {data['totals']['store']}、已配車 {data['totals']['reserved']}、車況異常 {data['totals']['issue']}"]))
     for cell in sheet[sheet.max_row]:
         cell.font = Font(bold=True, size=12)
-    for letter, width in zip("ABCDEF", (18, 20, 14, 8, 8, 30)):
+    for letter, width in zip("ABCDEFG", (18, 20, 14, 8, 8, 26, 30)):
         sheet.column_dimensions[letter].width = width
     for row in sheet.iter_rows(min_row=4):
         for cell in row[3:5]:

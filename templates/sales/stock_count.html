@@ -33,7 +33,7 @@
 </nav>
 
 {% if blocks %}
-<div class="stock-count-legend" aria-hidden="true"><span class="is-stock">數量</span>含車行<span class="is-dealer">車行</span>放在車行<span class="is-off">不生產</span>已停用</div>
+<div class="stock-count-legend" aria-hidden="true"><span class="is-stock">數量</span>含車行<span class="is-dealer">車行</span>放在車行<span class="is-off">不生產</span>已停用<span class="is-place">庫位</span>車放在哪裡、各幾台</div>
 {% for block in blocks %}
 <section class="stock-block" aria-labelledby="stock-block-{{ forloop.counter }}"{% if block.color %} style="--block-accent: {{ block.color }}"{% endif %}>
   <header class="stock-block__head">
@@ -47,13 +47,14 @@
       <header class="stock-model__head"><h3 id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="stock-model__code">{{ group.code }}</h3>{% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}<p class="stock-model__sum{% if group.total %} has-stock{% endif %}"><b>{{ group.total }}</b>{% if group.dealer %}<small>車行 {{ group.dealer }}</small>{% endif %}<span class="visually-hidden"> 台小計</span></p></header>
       <div class="inventory-table-wrap stock-model__wrap">
       <table class="inventory-table inventory-table--fit stock-count-table" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
-        <thead><tr><th scope="col">顏色</th><th scope="col" class="is-number">數量</th><th scope="col" class="is-number">車行</th></tr></thead>
+        <thead><tr><th scope="col">顏色</th><th scope="col" class="is-number">數量</th><th scope="col" class="is-number">車行</th><th scope="col" class="stock-loc-col">庫位</th></tr></thead>
         <tbody>
           {% for row in group.visible_rows %}
           <tr class="{% if not row.active %}is-off{% endif %}">
-            <th scope="row">{{ row.name }}{% if not row.active %}<span class="stock-off-tag">不生產</span>{% endif %}{% if row.reserved or row.issue %}<small class="stock-row-note">{% if row.reserved %}配車 {{ row.reserved }}{% endif %}{% if row.reserved and row.issue %}・{% endif %}{% if row.issue %}異常 {{ row.issue }}{% endif %}</small>{% endif %}</th>
+            <th scope="row">{{ row.name }}{% if not row.active %}<span class="stock-off-tag">不生產</span>{% endif %}{% if row.reserved or row.issue %}<small class="stock-row-note">{% if row.reserved %}配車 {{ row.reserved }}{% endif %}{% if row.reserved and row.issue %}・{% endif %}{% if row.issue %}異常 {{ row.issue }}{% endif %}</small>{% endif %}{% if row.total %}<span class="stock-locs stock-locs--inline">{% for place, count, at_dealer in row.locations %}<span class="stock-loc{% if at_dealer %} is-dealer{% endif %}">{{ place }}<b>{{ count }}</b></span>{% endfor %}</span>{% endif %}</th>
             <td data-label="數量" class="is-number stock-qty{% if row.total %} has-stock{% endif %}">{% if row.total %}<a href="{{ row.inventory_url }}" aria-label="{{ group.code }} {{ row.name }} {{ row.total }} 台，到車輛庫存查看">{{ row.total }}</a>{% else %}0{% endif %}</td>
             <td data-label="車行" class="is-number stock-dealer{% if row.dealer %} has-stock{% endif %}">{{ row.dealer }}</td>
+            <td data-label="庫位" class="stock-loc-col">{% if row.total %}<span class="stock-locs">{% for place, count, at_dealer in row.locations %}<span class="stock-loc{% if at_dealer %} is-dealer{% endif %}">{{ place }}<b>{{ count }}</b></span>{% endfor %}</span>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

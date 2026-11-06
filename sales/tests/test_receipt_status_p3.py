@@ -28,7 +28,7 @@ class ReceiptStatusTests(TestCase):
         status = receipt_status(order, payment_summary(order))
         self.assertFalse(status["settled"])
         texts = " ".join(item["text"] for item in status["items"])
-        self.assertIn("車行掛帳還差", texts)
+        self.assertIn("車行掛帳（已扣傭金）還差", texts)
         self.assertTrue(any(item["href"] == "#add-payment" for item in status["items"]))
 
         self.client.force_login(get_root())

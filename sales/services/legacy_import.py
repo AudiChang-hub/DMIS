@@ -1206,6 +1206,10 @@ def build_import_preview(batch, sheets=None):
     selected = [sheet for sheet in OPERATIONS_SHEETS if sheets is None or sheet in sheets]
     if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS and not selected:
         raise ValueError("請至少選一個要匯入的頁籤。")
+    summary = batch.result_summary or {}
+    if batch.status == LegacyImportBatch.Status.COMPLETED or summary.get("source_file_replacements") or summary.get("source_file_deleted"):
+        # 已匯入的批次換過或刪過原始檔（使用者 2026-11-06）：新檔和已匯入的資料對不上，絕不重新產生預覽、不動正式資料。
+        raise ValueError("這個批次已完成匯入，原始檔也已替換或刪除，不能重新處理；要匯入新檔請另開一個新批次。")
     batch.rows.all().delete()
     batch.source_file.open("rb")
     workbook = load_workbook(batch.source_file, read_only=True, data_only=True)

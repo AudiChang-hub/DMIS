@@ -52,7 +52,7 @@ class RefundHandoverDeleteTests(inplace.InplaceUploadTests.__bases__[0]):
     def test_get_and_unknown_kind_never_write(self):
         self.with_files()
         self.client.get(self.url("refund_proof"))
-        self.assertEqual(self.client.post(self.url("signed_contract")).status_code, 404)
+        self.assertEqual(self.client.post(self.url("vehicle_cost")).status_code, 404)
         self.order.refresh_from_db()
         self.assertTrue(self.order.refund_proof)
 

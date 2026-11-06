@@ -206,6 +206,8 @@ urlpatterns = [
     path("data/imports/<uuid:pk>/confirm/", views.legacy_import_confirm, name="legacy_import_confirm"),
     path("data/imports/<uuid:pk>/delete/", views.legacy_import_delete, name="legacy_import_delete"),
     path("data/imports/<uuid:pk>/archive/", views.legacy_import_archive, name="legacy_import_archive"),
+    path("data/imports/<uuid:pk>/source/delete/", views.legacy_import_source_delete, name="legacy_import_source_delete"),
+    path("data/imports/<uuid:pk>/source/replace/", views.legacy_import_source_replace, name="legacy_import_source_replace"),
     path("data/imports/<uuid:pk>/restore/", views.legacy_import_restore, name="legacy_import_restore"),
     path(
         "data/imports/<uuid:pk>/rows/<int:row_pk>/decide/",
@@ -520,6 +522,11 @@ urlpatterns = [
         name="order_file_delete",
     ),
     path(
+        "orders/<int:pk>/files/<str:kind>/<int:item_pk>/delete/",
+        views.order_file_delete,
+        name="order_item_file_delete",
+    ),
+    path(
         "files/attachments/<int:attachment_pk>/",
         views.order_attachment_file,
         name="order_attachment_file",
@@ -706,6 +713,11 @@ urlpatterns = [
         "data/inventory/<int:pk>/edit/",
         views.inventory_edit,
         name="inventory_edit",
+    ),
+    path(
+        "data/inventory/<int:pk>/history/<int:history_pk>/photo/delete/",
+        views.inventory_history_photo_delete,
+        name="inventory_history_photo_delete",
     ),
     path(
         "data/inventory/<int:pk>/allocation-priority/",

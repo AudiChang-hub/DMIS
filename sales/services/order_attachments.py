@@ -33,6 +33,7 @@ class OrderFile:
     uploaded_by: str = ""
     file: object = field(default=None, compare=False, repr=False)
     delete_url: str | None = None
+    locked_note: str = ""
 
     @property
     def extension(self):
@@ -67,13 +68,18 @@ def collect_order_file_groups(order, request):
         url = _allowed(policy, "protected_media", [model_name, pk, field_name])
         return url and OrderFile(label, Path(field_file.name).name, url, file=field_file, **extra)
 
+    # 「全部檔案」也能直接刪（使用者 2026-11-06 T-126）：沿用各自原本的刪除路由與權限；不能刪的寫出原因。
     group("簽署文件", [
-        media("訂購合約", "order", order.pk, "signed_contract", order.signed_contract),
-        media("個資同意書", "order", order.pk, "privacy_consent", order.privacy_consent),
+        media("訂購合約", "order", order.pk, "signed_contract", order.signed_contract,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "signed_contract"])),
+        media("個資同意書", "order", order.pk, "privacy_consent", order.privacy_consent,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "privacy_consent"])),
     ])
     group("車主證件", [
-        media("證件正面", "order", order.pk, "id_front", order.id_front),
-        media("證件反面", "order", order.pk, "id_back", order.id_back),
+        media("證件正面", "order", order.pk, "id_front", order.id_front,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "id_front"])),
+        media("證件反面", "order", order.pk, "id_back", order.id_back,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "id_back"])),
     ])
     group("下訂附件", [
         (url := _allowed(policy, "order_intake_attachment", [attachment.pk]))
@@ -89,14 +95,18 @@ def collect_order_file_groups(order, request):
         media(
             f"{record.item_name or '收款'}" + (f"（{record.received_on:%Y/%m/%d}）" if record.received_on else ""),
             "payment", record.pk, "proof", record.proof, uploaded_at=record.created_at,
+            delete_url=_allowed(policy, "order_item_file_delete", [order.pk, "payment_proof", record.pk]),
         )
         for record in order.payment_records.exclude(proof="").order_by("pk")
     ])
+    registration_locked = order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}
     group("領牌文件", [
         (url := _allowed(policy, "registration_document_file", [document.pk]))
         and OrderFile(
             document.display_name, Path(document.file.name).name, url,
             document.created_at, document.uploaded_by, document.file,
+            delete_url=None if registration_locked else _allowed(policy, "registration_document_delete", [order.pk, document.pk]),
+            locked_note="已取消或例外結案的訂單不能刪除" if registration_locked else "",
         )
         for document in order.registration_documents.all()
         if document.file
@@ -106,6 +116,8 @@ def collect_order_file_groups(order, request):
         and OrderFile(
             document.name or document.get_document_type_display(), Path(document.file.name).name, url,
             document.created_at, document.uploaded_by, document.file,
+            delete_url=_allowed(policy, "subsidy_document_delete", [order.pk, document.pk]) if order.can_manage_subsidy else None,
+            locked_note="" if order.can_manage_subsidy else "已取消或例外結案的訂單不能刪除",
         )
         for document in order.subsidy_documents.all()
         if document.file
@@ -226,12 +238,15 @@ def _signing_slot(order, policy, key, label, field_name, route):
     view_url = None
     if stored and stored.name:
         view_url = _allowed(policy, "protected_media", ["order", order.pk, field_name])
+    delete_url = (stored and stored.name
+                  and _allowed(policy, "order_file_delete", [order.pk, field_name])) or None
     return DocumentSlot(
         # 簽署改為選用（使用者 2026-10-22 T-95）：沒簽顯示「未上傳」，不算缺項。
         key=key, group="簽署文件", label=label, required=False, status=status, done=done,
         route=route, field_name=field_name, document_type="", accept=DOCUMENT_ACCEPT,
         extensions=frozenset(DOCUMENT_EXTENSIONS), open=True,
         view_url=view_url, view_name=Path(stored.name).name if stored else "",
+        delete_url=delete_url,
     )
 
 

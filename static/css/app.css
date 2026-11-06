@@ -7259,6 +7259,8 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .order-file .document-card{padding:0;border:0;background:none}
 .order-file>a[data-preview-name]{overflow-wrap:anywhere}
 .order-file__meta{color:var(--muted);font-size:var(--text-xs);line-height:1.5;overflow-wrap:anywhere}
+.order-file__locked{display:flex;gap:var(--space-1);align-items:center;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
+.inline-delete-form{display:inline-flex;margin:0 0 0 var(--space-2)}
 .document-thumbnail.is-file{cursor:default;font-weight:800;letter-spacing:.06em;color:var(--ink-soft);background:var(--surface-tint);font-size:var(--text-lg)}
 .order-files__empty{margin:var(--space-2) 0 0}
 .order-files__upload .document-upload-progress{grid-column:1/-1}

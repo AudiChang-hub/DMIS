@@ -1,0 +1,29 @@
+{% comment %}套表列印預覽的內容（T-118）：A4 頁面取自和「產生 A4 PDF」同一份 PDF；信封依下載 Word 檔的同一段內容排版。只讀。{% endcomment %}
+{% if error %}
+<div class="print-preview__state is-error" role="alert"><strong>無法預覽</strong><p>{{ error }}</p></div>
+{% else %}
+<div class="print-preview__doc" data-preview-doc>
+  {% for section in sections %}
+  <section class="print-preview__section" data-section="{{ section.key }}" data-total="{{ section.total }}" aria-labelledby="print-preview-{{ section.key }}">
+    <header class="print-preview__section-head">
+      <h3 id="print-preview-{{ section.key }}">{{ section.title }}</h3>
+      <span>{{ section.total }} {{ section.unit }}</span>
+    </header>
+    {% for page in section.pages %}
+    <figure class="print-preview__page print-preview__page--{{ section.key }}" data-page data-label="{{ page.label }}・{{ page.name }}" style="--i: {{ forloop.counter0 }}">
+      <figcaption>
+        <span class="print-preview__index">{{ forloop.counter }}</span>
+        <span class="print-preview__who"><strong>{{ page.label }}</strong><small>{{ page.name }}・{{ page.number }}</small></span>
+        <span class="print-preview__paper">{{ page.paper }}</span>
+      </figcaption>
+      <div class="print-preview__sheet">
+        <img src="{{ page.src }}" width="{{ page.width }}" height="{{ page.height }}" alt="{{ page.label }}：{{ page.name }}（{{ page.number }}）的列印內容" decoding="async">
+      </div>
+      {% if page.masked %}<p class="print-preview__note">車控密碼在預覽不顯示，下載 Word 檔時才帶入。</p>{% endif %}
+    </figure>
+    {% endfor %}
+    {% if section.hidden %}<p class="print-preview__more">另有 {{ section.hidden }} {{ section.unit }}不在預覽中，列印時都會包含。</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% endif %}

@@ -166,6 +166,20 @@ def sync_order_operations(order_id, *, update_receivables=False):
         and "actual_disbursement" not in (profile.manual_financial_fields or [])
     ):
         profile.actual_disbursement = _money(order.vehicle_price)
+    elif (
+        order.source_type != order.SourceType.PLATFORM
+        and order.payment_type == order.PaymentType.INSTALLMENT
+        and "actual_disbursement" not in (profile.manual_financial_fields or [])
+        and not profile.payment_disbursement_snapshot
+        and not profile.incentive_locked_at
+        and not order.is_cancelled_sale
+    ):
+        # 分期單建立後就帶入預估車價收入＝分期那筆×撥款比例＋客人自付車款（UAT U-02，使用者 2026-11-06 選 A），
+        # 不必等到領牌；統一撥款對帳入帳後改為實收（由 sync_payment_financials 接手）。算不出比例時維持原值。
+        from .incentive_rule import _calculated_disbursement
+        estimate = _calculated_disbursement(order)
+        if estimate is not None:
+            profile.actual_disbursement = _money(estimate)
     installment_fee = (
         _money(order.installment_opening_fee)
         if order.payment_type == SalesOrder.PaymentType.INSTALLMENT

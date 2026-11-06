@@ -97,7 +97,8 @@ class DeliveryBalanceTests(TestCase):
         from unittest import mock
         order, _vehicle = self.registered_v2()
         self.client.force_login(self.user)
-        with mock.patch("sales.services.order_workspace.can_edit_finance", return_value=False):
+        # 2026-11-06 U-03：交車收尾款改看交車權限（can_collect_balance）。
+        with mock.patch("sales.services.order_workspace.can_collect_balance", return_value=False):
             delivery = delivery_panel(self.client.get(reverse("order_detail", args=[order.pk])).content.decode())
         self.assertNotIn("尾款已收清或由車行掛帳", delivery)
         self.assertIn("尾款尚未收清", delivery)

@@ -2,7 +2,7 @@
 標題下直接是上傳區（data-multi-upload、other-subsidy-upload.js），可一次多選或拖曳、逐檔進度、名稱自動帶原始檔名；
 清單在同一塊，點名稱即可改名（data-rename-form）。選填，不算領牌完成條件；沒有文件時不寫「目前沒有」。
 參數：key、title、description、documents、document_type、accept、accept_label、upload_label、hint、name_label、
-delete_after_registration（領牌完成後仍可刪）、confirm_text。{% endcomment %}
+confirm_text。{% endcomment %}
 {% if order.status != 'cancelled' or documents %}
 <section class="other-insurance other-registration-documents" aria-labelledby="{{ key }}-title" data-multi-documents="{{ document_type }}">
   <div class="other-subsidy-documents__heading">
@@ -36,11 +36,11 @@ delete_after_registration（領牌完成後仍可刪）、confirm_text。{% endc
     {% endif %}
     <div>
       {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
-      {% if order.status != 'cancelled' and delete_after_registration or not order.is_registration_complete and order.status != 'cancelled' and order.status != 'completed' %}
+      {% if order.status != 'cancelled' and order.status != 'exception_closed' %}{% if_access 'registration_document_delete' order.pk document.pk %}
       <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-inplace-form data-confirm="{{ confirm_text }}">
         {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
       </form>
-      {% endif %}
+      {% endif_access %}{% endif %}
     </div>
   </article>
   {% endfor %}

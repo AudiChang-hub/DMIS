@@ -3788,8 +3788,8 @@ class OrderFlowTests(TestCase):
         self.assertIn("已取消", response.json()["message"])
         self.assertFalse(order.registration_documents.exists())
 
-    def test_completed_registration_accepts_missing_documents_but_not_replacements(self):
-        # 領牌完成後仍可補傳還沒有的文件（發票、選號單等）；已上傳的不能替換（使用者 2026-10-15）。
+    def test_completed_registration_accepts_missing_documents_and_replacements(self):
+        # 領牌完成後仍可補傳還沒有的文件；傳錯的也能替換（使用者 2026-11-06 T-121，取代 2026-10-15 的鎖定）。
         order = self.make_order()
         order.allocate(self.vehicle)
         for document_type in (
@@ -3805,7 +3805,7 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
         detail = self.client.get(order_step_url(order.pk, "registration")).content.decode()
         self.assertIn('name="document_type" value="invoice"', detail)
-        self.assertNotIn('name="document_type" value="new_license"', detail)
+        self.assertIn('name="document_type" value="new_license"', detail)
         response = self.client.post(reverse("registration_document_upload", args=[order.pk]), {
             "document_type": RegistrationDocument.DocumentType.INVOICE, "name": "", "file": uploaded_test_pdf("late.pdf"),
         })
@@ -3814,7 +3814,10 @@ class OrderFlowTests(TestCase):
         response = self.client.post(reverse("registration_document_upload", args=[order.pk]), {
             "document_type": RegistrationDocument.DocumentType.NEW_LICENSE, "name": "", "file": uploaded_test_pdf("again.pdf"),
         }, HTTP_ACCEPT="application/json", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(order.registration_documents.filter(document_type="new_license").count(), 1)
+        order.refresh_from_db()
+        self.assertTrue(order.is_registration_complete)
 
     def test_legacy_retired_document_does_not_lock_reallocation(self):
         order = self.make_order()

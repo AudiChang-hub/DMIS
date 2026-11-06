@@ -1,0 +1,142 @@
+/* 現有台數表（templates/sales/stock_count.html）：只加本頁修飾，表格沿用 inventory-table。 */
+.stock-count-summary {
+  --stock-fill: color-mix(in srgb, var(--green) 14%, var(--surface));
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4) var(--space-6);
+  padding: var(--card-pad); background: var(--surface-raised); border: 1px solid var(--line-soft);
+  border-radius: var(--radius); box-shadow: var(--shadow-soft);
+}
+.stock-count-summary__main { display: flex; align-items: baseline; gap: var(--space-2); color: var(--muted); font-weight: 800; }
+.stock-count-summary__main strong {
+  color: var(--ink); font-family: var(--font-display); font-size: clamp(44px, 6vw, 64px); font-weight: 800;
+  line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+}
+.stock-count-summary__parts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+.stock-count-summary__parts > div {
+  display: grid; min-width: 96px; padding: var(--space-2) var(--space-4); background: var(--surface-soft);
+  border-radius: var(--radius-md); box-shadow: inset 3px 0 0 var(--green);
+}
+.stock-count-summary__parts > div.is-dealer { box-shadow: inset 3px 0 0 var(--amber-border-strong); }
+.stock-count-summary__parts > div.is-sub { box-shadow: none; }
+.stock-count-summary__parts dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.stock-count-summary__parts dd { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-xl); font-weight: 800; font-variant-numeric: tabular-nums; }
+.stock-count-summary__parts .is-sub dd { color: var(--ink-soft); font-size: var(--text-md); }
+
+.stock-count-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.stock-count-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.stock-count-chip, .stock-count-toggle a {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4);
+  color: var(--ink); font-weight: 800; text-decoration: none; border-radius: var(--radius-pill);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
+}
+.stock-count-chip { background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--line-mid); }
+.stock-count-chip b {
+  min-width: 28px; padding: 0 var(--space-2); color: var(--ink-soft); font-size: var(--text-sm); text-align: center;
+  background: var(--surface-soft); border-radius: var(--radius-pill); font-variant-numeric: tabular-nums;
+}
+.stock-count-chip:hover { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.stock-count-chip.is-active { color: var(--on-accent); background: var(--ink); box-shadow: none; }
+.stock-count-chip.is-active b { color: var(--ink); background: var(--surface); }
+.stock-count-toggle { display: inline-flex; padding: var(--space-1); background: var(--surface-soft); border-radius: var(--radius-pill); box-shadow: inset 0 0 0 1px var(--line-soft); }
+.stock-count-toggle a { min-height: 40px; color: var(--muted); }
+.stock-count-toggle a.is-active { color: var(--ink); background: var(--surface-raised); box-shadow: var(--shadow-soft); }
+.stock-count-chip:focus-visible, .stock-count-toggle a:focus-visible, .stock-qty a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+.stock-count-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); color: var(--muted); font-size: var(--text-xs); }
+.stock-count-legend span { margin-left: var(--space-2); padding: 1px var(--space-2); color: var(--ink); font-weight: 800; border-radius: var(--radius-xs); }
+.stock-count-legend span:first-child { margin-left: 0; }
+.stock-count-legend .is-stock { color: var(--green-ink); background: color-mix(in srgb, var(--green) 14%, var(--surface)); }
+.stock-count-legend .is-dealer { color: var(--amber-ink); background: var(--amber-soft); }
+.stock-count-legend .is-off { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line-mid); }
+
+.stock-block { --block-accent: var(--forest); display: grid; gap: var(--stack-gap-sm); }
+.stock-block__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-4);
+  padding-top: var(--space-4); border-top: 3px solid var(--block-accent);
+}
+.stock-block__head h2 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-xl); }
+.stock-block__head h2 span { color: var(--muted); font-size: var(--text-sm); font-weight: 800; letter-spacing: .04em; }
+.stock-block__head p { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; color: var(--muted); font-weight: 700; }
+.stock-block__head p strong { color: var(--ink); font-family: var(--font-display); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.stock-block__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: var(--stack-gap-sm); align-items: start; }
+
+.stock-model { min-width: 0; background: var(--surface-raised); border: 1px solid var(--line-soft); border-radius: var(--radius-md); box-shadow: var(--shadow-soft); overflow: hidden; }
+.stock-model__wrap { overflow: visible; }
+.stock-model__head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2); box-shadow: inset 0 3px 0 var(--block-accent);
+}
+.stock-model__code { grid-column: 1; margin: 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.stock-model__head small { grid-column: 1; color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
+.stock-model__sum { display: grid; grid-column: 2; grid-row: 1 / span 2; justify-items: end; margin: 0; color: var(--muted); }
+.stock-model__sum b {
+  min-width: 32px; padding: 2px var(--space-2); font-family: var(--font-display); font-size: var(--text-base); text-align: center;
+  background: var(--surface-soft); border-radius: var(--radius-pill); font-variant-numeric: tabular-nums;
+}
+.stock-model__sum.has-stock b { color: var(--green-ink); background: color-mix(in srgb, var(--green) 14%, var(--surface)); }
+.stock-model__sum small { color: var(--amber-ink); font-size: var(--text-2xs); font-weight: 800; }
+.stock-model.is-empty .stock-model__code { color: var(--ink-soft); }
+.inventory-table.stock-count-table th, .inventory-table.stock-count-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--line-soft); }
+.inventory-table.stock-count-table thead th { padding-block: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.inventory-table.stock-count-table thead th.is-number, .inventory-table.stock-count-table td.is-number { width: 56px; }
+.inventory-table.stock-count-table tbody th { font-weight: 700; }
+.inventory-table.stock-count-table td { color: var(--muted); font-weight: 700; }
+.inventory-table.stock-count-table td.stock-qty.has-stock { color: var(--green-ink); background: color-mix(in srgb, var(--green) 14%, var(--surface)); font-weight: 900; }
+.inventory-table.stock-count-table td.stock-dealer.has-stock { color: var(--amber-ink); background: var(--amber-soft); font-weight: 900; }
+.stock-qty a { display: block; margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); padding: var(--space-2) var(--space-3); color: inherit; text-decoration: none; }
+.stock-qty a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.inventory-table.stock-count-table tr.is-off th { color: var(--muted); font-weight: 600; }
+.stock-off-tag {
+  display: inline-block; margin-left: var(--space-2); padding: 0 var(--space-1); color: var(--muted);
+  font-size: var(--text-2xs); font-weight: 800; vertical-align: 1px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1px var(--line-mid);
+}
+.stock-row-note { display: block; color: var(--ink-soft); font-size: var(--text-2xs); font-weight: 700; }
+
+.stock-count-total {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: var(--space-2);
+  padding: var(--space-4) 0; color: var(--muted); font-weight: 800; border-top: 2px solid var(--ink);
+}
+.stock-count-total strong { color: var(--ink); font-family: var(--font-display); font-size: var(--text-3xl); font-variant-numeric: tabular-nums; }
+.stock-count-total em { margin-left: var(--space-3); color: var(--amber-ink); font-style: normal; }
+
+/* 手機：表格維持三欄小表（不轉成卡片），型號卡兩欄並排，縮短滑動距離；最窄時改一欄。 */
+@media (max-width: 860px) {
+  .stock-count-summary { padding: var(--inset-pad); }
+  .stock-count-summary { gap: var(--space-3); }
+  .stock-count-summary__parts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); width: 100%; }
+  .stock-count-summary__parts > div { min-width: 0; padding: var(--space-2); }
+  .stock-count-summary__parts dt { font-size: var(--text-2xs); white-space: nowrap; }
+  .stock-count-summary__parts dd { font-size: var(--text-md); }
+  .stock-count-summary__parts .is-sub dd { font-size: var(--text-base); }
+  .stock-count-controls { align-items: stretch; }
+  .stock-count-toggle { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .stock-count-toggle a { justify-content: center; min-height: 44px; }
+  .stock-block__grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2); }
+}
+@media (max-width: 600px) {
+  .inventory-table.stock-count-table { display: table; width: 100%; }
+  .inventory-table.stock-count-table thead { display: table-header-group; }
+  .inventory-table.stock-count-table tbody { display: table-row-group; }
+  .inventory-table.stock-count-table tr { display: table-row; padding: 0; border-bottom: 0; }
+  .inventory-table.stock-count-table th, .inventory-table.stock-count-table td { display: table-cell; width: auto; padding: var(--space-2); border-bottom: 1px solid var(--line-soft); }
+  .inventory-table.stock-count-table tbody th { display: table-cell; padding: var(--space-2); border-bottom: 1px solid var(--line-soft); }
+  .inventory-table.stock-count-table td::before, .inventory-table.stock-count-table th::before { display: none; content: none; }
+  .inventory-table.stock-count-table .is-number { text-align: right; }
+  .inventory-table.stock-count-table thead th.is-number, .inventory-table.stock-count-table td.is-number { width: 40px; }
+  .stock-model__head { padding: var(--space-2); }
+  .stock-model__code { font-size: var(--text-base); }
+  .stock-qty a { margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
+  .stock-off-tag { display: table; margin: 2px 0 0; }
+}
+@media (max-width: 359px) {
+  .stock-block__grid { grid-template-columns: 1fr; }
+}
+@media (pointer: coarse) {
+  .inventory-table.stock-count-table tbody th, .inventory-table.stock-count-table tbody td { height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stock-count-chip, .stock-count-toggle a { transition: none; }
+}
+@media print {
+  .stock-count-controls, .hero-actions { display: none; }
+  .stock-model { box-shadow: none; break-inside: avoid; }
+}

@@ -32,6 +32,7 @@ class OrderFile:
     uploaded_at: datetime | None = None
     uploaded_by: str = ""
     file: object = field(default=None, compare=False, repr=False)
+    delete_url: str | None = None
 
     @property
     def extension(self):
@@ -50,6 +51,7 @@ def _allowed(policy, route, args):
 def collect_order_file_groups(order, request):
     """依類別分組的既有訂單檔案（其他附件另行處理）；空的分組不列出。"""
     from sales.access.services import policy_for
+    from sales.models import SalesOrder
 
     policy = policy_for(request)
     groups = []
@@ -75,7 +77,12 @@ def collect_order_file_groups(order, request):
     ])
     group("下訂附件", [
         (url := _allowed(policy, "order_intake_attachment", [attachment.pk]))
-        and OrderFile(attachment.get_kind_display(), attachment.name, url, attachment.created_at, file=attachment.file)
+        and OrderFile(
+            attachment.get_kind_display(), attachment.name, url, attachment.created_at, file=attachment.file,
+            # 下訂附件可刪除傳錯的檔案（使用者 2026-11-06 T-121）；取消後鎖定。
+            delete_url=(order.status != SalesOrder.Status.CANCELLED
+                        and _allowed(policy, "order_intake_attachment_delete", [order.pk, attachment.pk])) or None,
+        )
         for attachment in order.intake_attachments.order_by("created_at", "pk")
     ])
     group("收款證明", [
@@ -199,6 +206,7 @@ class DocumentSlot:
     closed_note: str = ""
     view_url: str | None = None
     view_name: str = ""
+    delete_url: str | None = None
 
     def accepts(self, filename):
         return Path(filename).suffix.lower() in self.extensions
@@ -235,26 +243,26 @@ def document_slots(order, request, registration_rows=(), subsidy_rows=()):
         slots.append(_signing_slot(order, policy, "contract", "訂購合約", "signed_contract", "contract_upload"))
         slots.append(_signing_slot(order, policy, "privacy", "個資同意書", "privacy_consent", "privacy_consent_upload"))
 
-    # 領牌完成後已上傳的文件鎖定，還沒上傳的仍可補傳；與訂單頁領牌文件列、上傳檢查一致（使用者 2026-10-22 T-95）。
-    registration_done = order.is_registration_complete or order.status == SalesOrder.Status.COMPLETED
+    # 傳錯的檔案隨時可替換或刪除（使用者 2026-11-06 T-121）；與訂單頁領牌文件列、上傳與刪除檢查一致。
     if not order.allocated_vehicle_id:
         registration_open, registration_note = False, "配車後開放上傳"
-    elif order.status == SalesOrder.Status.CANCELLED:
-        registration_open, registration_note = False, "已取消訂單無法修改領牌文件"
+    elif order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
+        registration_open, registration_note = False, "已取消或例外結案的訂單無法修改領牌文件"
     else:
         registration_open, registration_note = True, ""
     for row in registration_rows:
         document = row["document"]
-        slot_open = registration_open and not (registration_done and document)
+        slot_open = registration_open
         slots.append(DocumentSlot(
             key=f"registration:{row['type']}", group="領牌文件", label=row["label"],
             required=row["required"], status="已上傳" if document else ("缺少" if row["required"] else "未上傳"),
             done=bool(document),
             route="registration_document_upload", field_name="file", document_type=row["type"],
             accept=DOCUMENT_ACCEPT, extensions=frozenset(DOCUMENT_EXTENSIONS),
-            open=slot_open, closed_note=registration_note or "領牌已完成，已上傳的文件不能替換",
+            open=slot_open, closed_note=registration_note,
             view_url=document and _allowed(policy, "registration_document_file", [document.pk]),
             view_name=Path(document.file.name).name if document else "",
+            delete_url=(document and slot_open and _allowed(policy, "registration_document_delete", [order.pk, document.pk])) or None,
         ))
 
     if order.is_trade_in_subsidy:
@@ -276,6 +284,7 @@ def document_slots(order, request, registration_rows=(), subsidy_rows=()):
                 open=subsidy_open, closed_note="" if subsidy_open else "已取消訂單無法修改補助文件",
                 view_url=document and _allowed(policy, "subsidy_document_file", [document.pk]),
                 view_name=Path(document.file.name).name if document else "",
+                delete_url=(document and subsidy_open and _allowed(policy, "subsidy_document_delete", [order.pk, document.pk])) or None,
             ))
     return slots
 

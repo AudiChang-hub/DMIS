@@ -96,7 +96,7 @@ class RegistrationOtherDocumentTests(TestCase):
             self.client.post(self.url, {"document_type": document_type, "file": png()})
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
-        # 領牌完成後仍可再上傳、也可刪除傳錯的補充檔；固定文件照舊鎖定。
+        # 領牌完成後仍可再上傳、也可刪除傳錯的補充檔；固定文件也能刪除傳錯的檔（使用者 2026-11-06 T-121）。
         self.assertTrue(self.upload(png("晚到收據.png")).json()["ok"])
         self.assertEqual(len(self.others()), 2)
         mistake = self.others()[-1]
@@ -104,7 +104,9 @@ class RegistrationOtherDocumentTests(TestCase):
         self.assertEqual(len(self.others()), 1)
         license_doc = self.order.registration_documents.get(document_type=Doc.NEW_LICENSE)
         self.client.post(reverse("registration_document_delete", args=[self.order.pk, license_doc.pk]))
-        self.assertTrue(RegistrationDocument.objects.filter(pk=license_doc.pk).exists())
+        self.assertFalse(RegistrationDocument.objects.filter(pk=license_doc.pk).exists())
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.is_registration_complete)
 
     def test_page_block_and_attachments_listing(self):
         self.upload(png("監理站收據.png"))

@@ -508,6 +508,11 @@ urlpatterns = [
         name="order_attachment_delete",
     ),
     path(
+        "orders/<int:pk>/intake-attachments/<int:attachment_pk>/delete/",
+        views.order_intake_attachment_delete,
+        name="order_intake_attachment_delete",
+    ),
+    path(
         "files/attachments/<int:attachment_pk>/",
         views.order_attachment_file,
         name="order_attachment_file",

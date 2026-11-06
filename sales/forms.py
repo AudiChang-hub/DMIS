@@ -1975,8 +1975,8 @@ class OrderEditForm(SalesOrderForm):
         if self.instance.allocated_vehicle_id:
             # 已配車時改車型／車色先跳警告，確認後才取消配車並存檔（使用者 2026-11-06 T-122 方案 B）。
             warning = (
-                f"這張單已配車（{self.instance.allocated_vehicle.identifier}）。改車型或車色會取消這次配車，"
-                "車輛回到可銷售、訂單回到待配車。確定要繼續嗎？"
+                f"這張單已經配了 {self.instance.allocated_vehicle.identifier} 這台車，確定要換車嗎？"
+                "按「確定」會取消原本的配車、改成新的車型或車色，原車回到可銷售，訂單回到待配車；按「取消」維持原樣。"
             )
             for name in ("vehicle_model", "color"):
                 if name in self.fields:
@@ -2001,7 +2001,7 @@ class OrderEditForm(SalesOrderForm):
                     if blocker:
                         self.add_error(name, f"已配車（{vehicle}），不能改{label}：{blocker}")
                     elif self.data.get("_confirm_unallocate") != "1":
-                        self.add_error(name, f"已配車（{vehicle}），改{label}會取消配車；請在確認視窗按「確定」後再存。")
+                        self.add_error(name, f"已配了 {vehicle} 這台車，換{label}要先在確認視窗按「確定」換車。")
                 if not blocker and self.data.get("_confirm_unallocate") == "1":
                     self.unallocate_requested = True
         return data

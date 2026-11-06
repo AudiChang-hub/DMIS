@@ -37,6 +37,17 @@
   <p class="muted">{% site_text 'system_integrity_report.6151d982d0a1' %}</p>
 </section>
 
+<section class="integrity-summary-card{% if integrity_report.unconfigured_accounts %} integrity-restore--attention{% endif %}" aria-labelledby="access-unconfigured-title">
+  <h2 id="access-unconfigured-title">帳號畫面權限設定</h2>
+  {% if integrity_report.unconfigured_accounts %}
+  <p><strong>{{ integrity_report.unconfigured_accounts|length }} 個啟用中的帳號尚未設定畫面權限</strong></p>
+  <p>這些帳號沿用舊制，大部分畫面都能開（淨利仍隱藏）。請到帳號管理逐一設定：</p>
+  <div class="integrity-account-actions">{% for account in integrity_report.unconfigured_accounts %}<a class="button ghost compact" href="{% url 'permission_workspace' account.pk %}?tab=features">設定 {{ account.get_full_name|default:account.username }}（@{{ account.username }}）</a>{% endfor %}</div>
+  {% else %}
+  <p><strong>所有啟用中的帳號都已設定畫面權限</strong></p>
+  {% endif %}
+</section>
+
 <section class="integrity-summary-grid" aria-label="稽核摘要">
   {% for item in integrity_report.summary %}
   <article class="integrity-summary-card integrity-tone--{{ item.tone }}">

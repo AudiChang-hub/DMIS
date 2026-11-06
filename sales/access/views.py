@@ -47,10 +47,22 @@ def overview(request):
     return redirect("user_management")
 
 
+IMPORT_WITHOUT_PROFIT = (
+    "只勾了「舊資料匯入」、沒勾「查看淨利」：這個人看得到匯入頁，但上傳後的檢查預覽含原始財務欄位，"
+    "所以無法上傳與完成匯入。要讓他能匯入，請一併勾選「全部訂單 › 查看淨利」的查看。"
+)
+
+
+def import_without_profit(data):
+    """匯入需要搭配淨利（UAT U-10 方案 B）：只勾匯入、沒勾淨利時提醒。"""
+    screens = data.get("screens", {})
+    return bool(screens.get("imports", {}).get("view") and not screens.get("profit", {}).get("view"))
+
+
 def rows_for(user, data, before, reports):
     rows = []
     for screen in SCREENS:
-        rows.append({"key": screen.key, "kind": "screens", "label": screen.label,
+        rows.append({"key": screen.key, "kind": "screens", "label": screen.label, "hint": screen.hint,
                      "eligible": True,
                      "operate": screen.operate, "export": screen.export})
     for report in reports:
@@ -112,6 +124,8 @@ def edit(request, pk):
                     raise PermissionDenied
                 apply_policy(actor=request.user, user=account, expected_version=payload["version"], data=payload["draft"], reports=reports)
                 messages.success(request, "畫面權限已套用，該人員下一次請求即生效。")
+                if import_without_profit(payload["draft"]):
+                    messages.warning(request, IMPORT_WITHOUT_PROFIT)
                 return redirect("access_edit", pk=account.pk)
             if action == "copy":
                 source = get_object_or_404(get_user_model(), pk=positive_id(request.POST.get("source")))
@@ -149,6 +163,7 @@ def edit(request, pk):
     return render(request, "sales/access/edit.html", {
         "account": account, "before": before, "rows": rows, "groups": grouped_rows(rows), "preview": preview, "preview_token": token,
         "error": error, "changed_count": sum(row["changed"] for row in rows),
+        "import_without_profit": import_without_profit(draft) and IMPORT_WITHOUT_PROFIT,
         "visible_rows": [r for r in rows if r["cells"][0]["checked"]],
         "copy_accounts": get_user_model().objects.exclude(pk=account.pk).exclude(username="admin").order_by("username"),
         "revisions": revisions,

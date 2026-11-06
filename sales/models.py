@@ -3645,6 +3645,12 @@ class SalesOrder(TimeStampedModel):
             self.Status.EXCEPTION_CLOSED,
         }
 
+    def get_status_display(self):
+        # 「已取消／已退款」只在真的有退款時才這樣寫；沒退款（沒收或沒收過錢）只寫「已取消」（使用者 2026-11-06）。
+        if self.status == self.Status.CANCELLED and not self.refund_amount:
+            return "已取消"
+        return self._get_FIELD_display(self._meta.get_field("status"))
+
     @property
     def is_cancelled_sale(self):
         """取消、待退款與領牌後例外結案都不是有效售出。"""
@@ -4057,6 +4063,9 @@ class SalesOrder(TimeStampedModel):
                 "updated_at",
             ]
         )
+        if self.status == self.Status.CANCELLED:
+            from sales.services.cancelled_receivables import clear_cancelled_receivables
+            clear_cancelled_receivables(self, actor_name=actor_name)
 
     @transaction.atomic
     def withdraw_cancellation(self, actor_name, reason):

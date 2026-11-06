@@ -303,6 +303,14 @@
     </details>
     {% endif %}
   {% endif %}
+  {# 取消配車（使用者 2026-11-06 T-122）：已交車、結案、取消或已開始領牌不能取消，直接寫出原因。 #}
+  {% with blocker=order.unallocation_blocker %}
+  <form method="post" action="{% url 'unallocate_vehicle' order.pk %}" class="unallocate-form" data-confirm="這張單已配車（{{ order.allocated_vehicle.identifier }}）。取消配車後，這台車回到可銷售，訂單回到待配車，之後要重新配車。確定要取消配車嗎？">
+    {% csrf_token %}
+    <button class="button danger-outline" type="submit"{% if blocker %} disabled aria-describedby="unallocate-blocker"{% endif %}>取消配車</button>
+    {% if blocker %}<small class="muted" id="unallocate-blocker">{{ blocker }}</small>{% else %}<small class="muted">車輛回到可銷售、訂單回到待配車；收入、成本與傭金不受影響。</small>{% endif %}
+  </form>
+  {% endwith %}
 </section>
 {% else %}
 <section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>{% site_text 'order_detail.70cd34ac680c' %}</p></div></section>

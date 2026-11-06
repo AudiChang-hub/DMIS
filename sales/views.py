@@ -6429,6 +6429,9 @@ def order_edit(request, pk):
         )
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
+            if form.unallocate_requested:
+                # 使用者已在警告視窗確認：同一交易內先取消配車（車輛回到可銷售、留紀錄），再存新車型／車色。
+                order.unallocate(actor_name=_editing_name(request.user), reason="修改車型／車色")
             if (
                 order.actual_balance != order.calculate_balance()
                 and not order.balance_adjustment_reason
@@ -6502,7 +6505,8 @@ def order_edit(request, pk):
             if completed_correction:
                 _record_settlement_gap(order, gap_before, request.user)
             if order_workspace.is_workspace_save(request):
-                return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset))
+                return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset),
+                                             extra={"reload": True} if form.unallocate_requested else None)
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
             if completed_correction:
                 messages.info(request, "完成後修正已保存，交付狀態不變；如有調整金額，請至訂單作業確認應收差額。")
@@ -6987,6 +6991,22 @@ def reallocate_vehicle(request, pk):
         actor_name=_editing_name(request.user),
     )
     messages.success(request, f"改配完成，新配車輛為 {replacement}。")
+    return redirect(detail_url)
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def unallocate_vehicle(request, pk):
+    """取消配車（使用者 2026-11-06 T-122 方案 A）：按下前前端先確認。"""
+    order = get_object_or_404(SalesOrder.objects.select_for_update(of=("self",)), pk=pk)
+    detail_url = order_step_url(pk, "allocation")
+    try:
+        vehicle = order.unallocate(actor_name=_editing_name(request.user), reason=request.POST.get("reason", ""))
+    except ValidationError as exc:
+        messages.error(request, "取消配車未完成：" + " ".join(exc.messages))
+        return redirect(detail_url)
+    messages.success(request, f"已取消配車：{vehicle} 回到可銷售，訂單回到待配車。")
     return redirect(detail_url)
 
 

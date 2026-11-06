@@ -76,9 +76,9 @@ class UnallocateTests(TestCase):
         other = VehicleColor.objects.create(vehicle_model=self.model, name="黑")
         page, response = self._edit(order, color=str(other.pk))
         self.assertContains(page, "data-unallocate-confirm")
-        self.assertContains(page, f"這張單已配車（{vehicle.identifier}）。改車型或車色會取消這次配車")
+        self.assertContains(page, f"這張單已經配了 {vehicle.identifier} 這台車，確定要換車嗎？")
         self.assertEqual(response.status_code, 400, response.content)
-        self.assertIn("改車色會取消配車", response.json()["errors"]["color"][0])
+        self.assertIn("換車色要先在確認視窗按「確定」換車", response.json()["errors"]["color"][0])
         order.refresh_from_db()
         self.assertEqual((order.color_id, order.allocated_vehicle_id), (self.color.pk, vehicle.pk), "沒確認就不改")
 

@@ -1768,6 +1768,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .span-2 { grid-column: 1 / -1; }
 .has-error .form-control { border-color: var(--red); }
 .field-error { display: block; margin-top: var(--space-1); color: var(--red); font-size: var(--text-sm); font-weight: 750; }
+.field-error__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .help-text { display: block; margin-top: var(--space-1); color: var(--field-hint); font-size: var(--text-sm); }
 /* 6 碼年月輸入（T-93）：數字等寬、下方即時換算；合法時綠色勾、錯誤時紅色，打字途中只是淡色提示。 */
 .year-month-input { display: block; }

@@ -27,8 +27,11 @@
   <div class="stock-count-chips" aria-label="品牌">
     {% for item in brand_links %}<a class="stock-count-chip{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label }}<b>{{ item.total }}</b></a>{% endfor %}
   </div>
+  <div class="stock-count-actions">
+  <button type="button" class="button secondary stock-count-expand" data-stock-expand-all aria-pressed="false"><span class="ui-chevron" aria-hidden="true"></span><span data-stock-expand-label>展開每台車</span></button>
   <div class="stock-count-toggle" aria-label="顯示車色">
     {% for item in show_links %}<a class="{% if item.active %}is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+  </div>
   </div>
 </nav>
 
@@ -49,14 +52,33 @@
       <table class="inventory-table inventory-table--fit stock-count-table" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
         <thead><tr><th scope="col">顏色</th><th scope="col" class="is-number">數量</th><th scope="col" class="is-number">車行</th><th scope="col" class="stock-loc-col">庫位</th></tr></thead>
         <tbody>
-          {% for row in group.visible_rows %}
-          <tr class="{% if not row.active %}is-off{% endif %}">
+          {% for row in group.visible_rows %}{% with block_index=forloop.parentloop.parentloop.counter|stringformat:"d" group_index=forloop.parentloop.counter|stringformat:"d" row_index=forloop.counter|stringformat:"d" %}
+          {% with detail_id="stock-detail-"|add:block_index|add:"-"|add:group_index|add:"-"|add:row_index %}
+          <tr class="{% if not row.active %}is-off{% endif %}{% if row.total %} has-detail{% if row.detail_open %} is-open{% endif %}{% endif %}"{% if row.total %} data-stock-row="{{ detail_id }}"{% endif %}>
             <th scope="row">{{ row.name }}{% if not row.active %}<span class="stock-off-tag">不生產</span>{% endif %}{% if row.reserved or row.issue %}<small class="stock-row-note">{% if row.reserved %}配車 {{ row.reserved }}{% endif %}{% if row.reserved and row.issue %}・{% endif %}{% if row.issue %}異常 {{ row.issue }}{% endif %}</small>{% endif %}{% if row.total %}<span class="stock-locs stock-locs--inline">{% for place, count, at_dealer in row.locations %}<span class="stock-loc{% if at_dealer %} is-dealer{% endif %}">{{ place }}<b>{{ count }}</b></span>{% endfor %}</span>{% endif %}</th>
-            <td data-label="數量" class="is-number stock-qty{% if row.total %} has-stock{% endif %}">{% if row.total %}<a href="{{ row.inventory_url }}" aria-label="{{ group.code }} {{ row.name }} {{ row.total }} 台，到車輛庫存查看">{{ row.total }}</a>{% else %}0{% endif %}</td>
+            <td data-label="數量" class="is-number stock-qty{% if row.total %} has-stock{% endif %}">{% if row.total %}<button type="button" class="stock-qty-toggle" aria-expanded="{% if row.detail_open %}true{% else %}false{% endif %}" aria-controls="{{ detail_id }}"><b>{{ row.total }}</b><span class="ui-chevron" aria-hidden="true"></span><span class="visually-hidden"> 台，{{ group.code }} {{ row.name }} 每台車明細</span></button>{% else %}0{% endif %}</td>
             <td data-label="車行" class="is-number stock-dealer{% if row.dealer %} has-stock{% endif %}">{{ row.dealer }}</td>
             <td data-label="庫位" class="stock-loc-col">{% if row.total %}<span class="stock-locs">{% for place, count, at_dealer in row.locations %}<span class="stock-loc{% if at_dealer %} is-dealer{% endif %}">{{ place }}<b>{{ count }}</b></span>{% endfor %}</span>{% endif %}</td>
           </tr>
-          {% endfor %}
+          {% if row.total %}
+          <tr class="stock-detail-row" id="{{ detail_id }}"{% if not row.detail_open %} hidden{% endif %}>
+            <td colspan="4">
+              <ul class="stock-vehicles" aria-label="{{ group.code }} {{ row.name }} 每台車">
+                {% for vehicle in row.vehicles %}
+                <li class="stock-vehicle{% if vehicle.at_dealer %} is-dealer{% endif %}">
+                  <a class="stock-vehicle__link" href="{{ vehicle.inventory_url }}" title="到車輛庫存查看這台車">
+                    <span class="stock-vehicle__id">{{ vehicle.identifier|default:"未填號碼" }}</span>
+                    <span class="stock-vehicle__tags"><span class="stock-loc{% if vehicle.at_dealer %} is-dealer{% endif %}">{{ vehicle.place }}</span>{% if vehicle.is_reserved %}<span class="stock-flag is-reserved">已配車{% if vehicle.order_number %} <b>{{ vehicle.order_number }}</b>{% endif %}</span>{% elif vehicle.is_issue %}<span class="stock-flag is-issue">車況異常</span>{% endif %}{% if vehicle.registered %}<span class="stock-flag">已領牌</span>{% endif %}</span>
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+              {% if row.total > 1 %}<a class="stock-detail-more" href="{{ row.inventory_url }}">到車輛庫存看這 {{ row.total }} 台<span aria-hidden="true"> →</span></a>{% endif %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endwith %}
+          {% endwith %}{% endfor %}
         </tbody>
       </table>
       </div>
@@ -73,3 +95,4 @@
 <div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>還沒有機種與車色</h3><p>先到「機種與售價」建立機種與車色，進車後這裡就會算出每個車色的台數。</p></div>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/stock-count.js' %}?v={{ app_version }}" defer></script>{% endblock %}

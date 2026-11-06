@@ -5,6 +5,8 @@
 0 台的車色照列；車色停用或該型號所有版本停用標「不生產」。停用且沒有車的型號不列。
 庫位（T-115，使用者 2026-11-06）：每列寫出車實際放在哪裡、各幾台；current_dealer 空白寫實際存放門市（location_store）名稱，
 有值寫車行名稱。門市依門市主檔順序排前面，車行接在後面、台數多的在前。
+每台車明細（T-115，使用者 2026-11-06「庫位要細到每台車」）：引擎號碼（電動車為車身號碼）＋位置，已配車附訂單號、車況異常另標。
+所有能看庫存的人都看得到，只放車的資料與訂單號，不放客戶個資。
 """
 from dataclasses import dataclass, field
 
@@ -26,6 +28,38 @@ def _key(value):
 
 
 @dataclass
+class StockVehicle:
+    """明細一台車；位置規則同庫位摘要。"""
+    pk: int
+    engine_number: str
+    frame_number: str
+    place: str
+    at_dealer: bool
+    status: str
+    order_number: str = ""
+    registered: bool = False
+    sort_key: tuple = ()
+
+    @property
+    def identifier(self):
+        return self.engine_number or self.frame_number
+
+    @property
+    def is_reserved(self):
+        return self.status == VehicleInventory.Status.RESERVED
+
+    @property
+    def is_issue(self):
+        return self.status == VehicleInventory.Status.CONDITION_ISSUE
+
+    @property
+    def status_label(self):
+        if self.is_reserved:
+            return "已配車"
+        return "車況異常" if self.is_issue else "可銷售"
+
+
+@dataclass
 class ColorRow:
     name: str
     total: int = 0
@@ -35,6 +69,7 @@ class ColorRow:
     active: bool = False
     store_counts: dict = field(default_factory=dict)
     dealer_counts: dict = field(default_factory=dict)
+    vehicles: list = field(default_factory=list)
 
     @property
     def store(self):
@@ -139,6 +174,23 @@ def build_stock_count(brand=""):
     ):
         key = ((store_order.get(row["location_store_id"], len(store_order)), row["location_store_id"]), row["location_store__name"].strip())
         store_counts.setdefault(row["color_id"], {})[key] = row["total"]
+    vehicles = {}
+    for item in (
+        current_vehicles()
+        .values(
+            "pk", "color_id", "engine_number", "frame_number", "status", "registered_plate_number",
+            "location_store_id", "location_store__name", "current_dealer_id", "current_dealer__name", "active_order__number",
+        )
+    ):
+        at_dealer = item["current_dealer_id"] is not None
+        vehicles.setdefault(item["color_id"], []).append(StockVehicle(
+            pk=item["pk"], engine_number=item["engine_number"] or "", frame_number=item["frame_number"] or "",
+            place=(item["current_dealer__name"] if at_dealer else item["location_store__name"]).strip(),
+            at_dealer=at_dealer, status=item["status"], order_number=item["active_order__number"] or "",
+            registered=bool(item["registered_plate_number"]),
+            sort_key=(at_dealer, 0 if at_dealer else store_order.get(item["location_store_id"], len(store_order)),
+                      (item["current_dealer__name"] or "") if at_dealer else "", item["engine_number"] or item["frame_number"] or ""),
+        ))
     dealer_counts = {}
     for row in (
         current_vehicles().filter(current_dealer__isnull=False)
@@ -181,6 +233,7 @@ def build_stock_count(brand=""):
             row.dealer += count["dealer"]
             row.reserved += count["reserved"]
             row.issue += count["issue"]
+            row.vehicles = sorted(row.vehicles + vehicles.get(color.pk, []), key=lambda vehicle: vehicle.sort_key)
             for key, total in store_counts.get(color.pk, {}).items():
                 row.store_counts[key] = row.store_counts.get(key, 0) + total
             for place, total in dealer_counts.get(color.pk, {}).items():

@@ -3139,7 +3139,7 @@ class SalesOrder(TimeStampedModel):
         Status.DRAFT: {Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATION_PENDING: {Status.ALLOCATED, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATED: {
-            Status.ALLOCATED, Status.DELIVERY_PENDING, Status.DELIVERED_DOCS_PENDING, Status.COMPLETED,
+            Status.ALLOCATION_PENDING, Status.ALLOCATED, Status.DELIVERY_PENDING, Status.DELIVERED_DOCS_PENDING, Status.COMPLETED,
             Status.CANCELLED, Status.CANCEL_REFUND_PENDING, Status.EXCEPTION_CLOSED,
         },
         Status.DELIVERY_PENDING: {Status.DELIVERED_DOCS_PENDING, Status.COMPLETED, Status.EXCEPTION_CLOSED},
@@ -4469,6 +4469,54 @@ class SalesOrder(TimeStampedModel):
         self.status = self.Status.ALLOCATED
         self.save(update_fields=["allocated_vehicle", "allocated_at", "status", "updated_at"])
         return original, replacement
+
+    @property
+    def unallocation_blocker(self):
+        """不能取消配車的原因；可以取消時回傳空字串（使用者 2026-11-06 T-122）。"""
+        if not self.allocated_vehicle_id:
+            return "此訂單尚未配車。"
+        if self.is_delivered or not self.is_editable:
+            return "訂單已交車、結案或進入取消流程，不能取消配車。"
+        if self.has_registration_started:
+            return "已開始領牌（已有車牌、領牌完成或已上傳領牌文件），為避免車輛與文件對錯，不能取消配車。"
+        return ""
+
+    @transaction.atomic
+    def unallocate(self, actor_name="", reason=""):
+        """取消配車：車輛由已預留回到可銷售，訂單回到待配車並依原接單時間排隊；留 OrderEvent／OrderChange。
+
+        預估成本與傭金依車型與領牌日計算、不綁實體車，取消配車不影響收支；之後若改車型，存檔時照舊依新車型重算。"""
+        self.lock_for_update()
+        blocker = self.unallocation_blocker
+        if blocker:
+            raise ValidationError(blocker)
+        vehicle = VehicleInventory.objects.select_for_update().get(pk=self.allocated_vehicle_id)
+        before = vehicle.status
+        if vehicle.status == VehicleInventory.Status.RESERVED:
+            vehicle.status = VehicleInventory.Status.AVAILABLE
+            vehicle.save(update_fields=["status", "updated_at"])
+        reason = (reason or "").strip()
+        suffix = f"；原因：{reason}" if reason else ""
+        record_vehicle_history(vehicle, actor_name=actor_name, reason=f"訂單 {self.number} 取消配車，釋回此車{suffix}",
+                               before_status=before, order_number=self.number)
+        # Excel 匯入、改回「待交車」後才配車的舊單（allocate 的 unallocated_reopened）維持待交車，其餘回到待配車。
+        new_status = self.Status.DELIVERY_PENDING if self.status == self.Status.DELIVERY_PENDING else self.Status.ALLOCATION_PENDING
+        if new_status != self.status:
+            self.ensure_transition(new_status)
+        self.allocated_vehicle = None
+        self.allocated_at = None
+        self.allocation_skip_reason = ""
+        self.status = new_status
+        self.save(update_fields=["allocated_vehicle", "allocated_at", "allocation_skip_reason", "status", "updated_at"])
+        OrderChange.objects.create(
+            order=self, actor_name=actor_name, reason=reason or f"取消配車 {vehicle}",
+            changes={"已配車輛": {"before": str(vehicle), "after": "未配車"}},
+        )
+        OrderEvent.objects.create(
+            order=self, event_type="unallocated", actor_name=actor_name,
+            description=f"取消配車：{vehicle}，車輛回到可銷售，訂單回到待配車{suffix}",
+        )
+        return vehicle
 
     def __str__(self):
         return f"{self.number}／{self.owner_name}"

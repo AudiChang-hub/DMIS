@@ -973,7 +973,7 @@
   },
   "order_detail.16d07928b807": {
     "page": "訂單內容",
-    "default": "同一人不用勾；勾選後要補齊舊車主姓名、證號、存摺封面與聲明書。",
+    "default": "同一人不用勾。勾選後填下方舊車主姓名與證號；舊車主存摺封面和簽好的聲明書，到下方「補助文件」上傳，聲明書可按「列印新舊車主不同人聲明書」印出。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.6033f4a4b570": {

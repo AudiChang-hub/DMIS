@@ -78,7 +78,8 @@ class SubsidyOwnerDifferentTests(SubsidyPageHelpers):
         self.assertNotIn("新舊車主為同一人", html)
         self.assertRegex(html, r'<input type="checkbox" name="old_owner_different"(?![^>]*checked)')
         self.assertRegex(html, r'data-old-owner-same>')
-        self.assertEqual(len(re.findall(r"data-old-owner-field hidden", html)), 3)
+        # 舊車主姓名、證號、電話三格，加上「列印聲明書」（2026-11-03）都跟著勾選框收起。
+        self.assertEqual(len(re.findall(r"data-old-owner-field hidden", html)), 4)
         different = self.trade_in_order(False)
         html = self.page(different)
         self.assertRegex(html, r'<input type="checkbox" name="old_owner_different"[^>]*checked')

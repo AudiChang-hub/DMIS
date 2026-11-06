@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import FileResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from sales.models import OrderEvent, SalesOrder
@@ -134,6 +134,18 @@ def form_print_pdf(request):
     return _file_response(
         pdf, content_type="application/pdf", ascii_name="forms.pdf",
         quoted_name=quote("套表列印.pdf"), inline=True,
+    )
+
+
+@login_required
+def order_owner_declaration_pdf(request, pk):
+    """單張訂單的新舊車主不同人聲明書（使用者 2026-11-03）：補助頁勾「新舊車主不同人」旁直接列印，
+    不必到「套表列印」找訂單；帶入已儲存的新舊車主、車牌與引擎號碼，空白處可手寫。只讀不寫。"""
+    order = get_object_or_404(_orders(request.user), pk=pk)
+    pdf = form_print.build_forms_pdf([form_print.PrintJob(order, "tax_declaration")])
+    return _file_response(
+        pdf, content_type="application/pdf", ascii_name=f"owner-declaration-{order.pk}.pdf",
+        quoted_name=quote(f"新舊車主不同人聲明書-{order.number}.pdf"), inline=True,
     )
 
 

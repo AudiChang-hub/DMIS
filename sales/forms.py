@@ -3473,9 +3473,10 @@ class PaymentRecordForm(forms.ModelForm):
             "received_on": DateInput(),
         }
 
-    def __init__(self, *args, read_only=False, **kwargs):
+    def __init__(self, *args, read_only=False, parent_order=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.read_only = read_only
+        self.parent_order = parent_order
         self.original_expected_amount = self.instance.expected_amount or Decimal("0")
         self.fields["payment_method"].widget = forms.Select(
             choices=[
@@ -3495,10 +3496,19 @@ class PaymentRecordForm(forms.ModelForm):
         widget = self.fields["payment_method"].widget
         if original_method and original_method not in {key for key, _label in widget.choices}:
             widget.choices = [*widget.choices, (original_method, f"{original_method}（原資料）")]
+        order = self.instance.order if self.instance.order_id else self.parent_order
+        if order is not None and order.source_type == SalesOrder.SourceType.DEALER:
+            # 車行單向車行收錢：款項分類顯示「車行收款」，資料值仍是 customer（T-125 問題 2 方案 A）。
+            self.fields["receipt_kind"].choices = [
+                (value, "車行收款" if value == PaymentRecord.ReceiptKind.CUSTOMER else label)
+                for value, label in self.fields["receipt_kind"].choices
+            ]
         if self.instance and self.instance.system_key:
-            for name in ("item_name", "receipt_kind"):
-                self.fields[name].disabled = True
-                self.fields[name].help_text = "由訂單自動同步。"
+            self.fields["receipt_kind"].disabled = True
+            self.fields["receipt_kind"].help_text = "由訂單自動同步。"
+            # 系統列的項目名稱可以改，改過後同步不再覆寫（T-125 問題 1 方案 B）。
+            self.fields["item_name"].help_text = "可以改名；改過後不會被系統改回。"
+            self.fields["item_name"].required = False
             self.initial["receipt_kind"] = self.instance.effective_receipt_kind
             if self.instance.system_key == "platform_disbursement":
                 # 平台撥款列與分期公司撥款同屬撥款，畫面上照實稱「平台撥款」（T-96）。
@@ -3518,6 +3528,9 @@ class PaymentRecordForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         cleaned["receipt_kind"] = cleaned.get("receipt_kind") or self.instance.effective_receipt_kind
+        if self.instance.system_key and not (cleaned.get("item_name") or "").strip():
+            # 系統列沒送項目名稱（或清空）時保留原名稱，不算改名。
+            cleaned["item_name"] = self.instance.item_name
         card_fee = cleaned.get("card_fee_charged") or Decimal("0")
         for name, field in self.fields.items():
             if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
@@ -3537,6 +3550,8 @@ class PaymentRecordForm(forms.ModelForm):
 
     def save(self, commit=True):
         payment = super().save(commit=False)
+        if payment.system_key and "item_name" in self.changed_data and payment.item_name:
+            payment.item_name_overridden = True
         if commit:
             payment.save()
         return payment
@@ -3659,6 +3674,8 @@ class DepositStepForm(forms.Form):
     def __init__(self, *args, order, payment, **kwargs):
         from sales.services.deposit_step import method_value
         super().__init__(*args, **kwargs)
+        # 沒有訂金的單沒有訂金列（T-125）：用未存的空白列顯示表單，填了訂金才由服務建立。
+        payment = payment if payment is not None else PaymentRecord(order=order, system_key="deposit")
         self.order, self.payment = order, payment
         self.fields["method"].choices = [("", "請選擇"), *SalesOrder.PaymentMethod.choices]
         confirmed = bool(payment.confirmed)
@@ -4072,6 +4089,10 @@ DealerVehicleRewardItemFormSet = inlineformset_factory(
 
 
 class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
+    def get_form_kwargs(self, index):
+        # 新增列（含空白範本列）也要知道訂單來源，車行單的款項分類才會顯示「車行收款」（T-125）。
+        return {**super().get_form_kwargs(index), "parent_order": self.instance}
+
     def get_queryset(self):
         # 沖銷／退款為帳本調整紀錄，另以唯讀清單呈現，不進入可編輯明細。
         return super().get_queryset().filter(entry_type=PaymentRecord.EntryType.RECEIPT)

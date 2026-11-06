@@ -66,7 +66,7 @@ class DeliveryReceivableTests(TestCase):
     def test_zero_due_still_shows_receivable_before_and_after_delivery(self):
         order, _vehicle = self.registered_v2()
         total = payment_summary(order)["customer_expected"]
-        PaymentRecord.objects.filter(order=order, system_key="deposit").update(received_amount=total, confirmed=True)
+        PaymentRecord.objects.create(order=order, item_name="客戶付款", received_amount=total, confirmed=True)
         order = SalesOrder.objects.get(pk=order.pk)
         delivery = delivery_panel(self.page(order))
         self.assertNotIn('id="delivery-balance"', delivery)

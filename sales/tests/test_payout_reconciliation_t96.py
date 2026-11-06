@@ -181,7 +181,7 @@ class PayoutReconciliationTests(FinanceLedgerTestBase):
 
     def test_out_of_scope_rows_cannot_be_posted(self):
         order = self.platform_order()
-        balance = order.payment_records.get(system_key="deposit")
+        balance = PaymentRecord.objects.create(order=order, system_key="deposit", item_name="訂金")  # T-125：沒有訂金就不建訂金列；這裡模擬 1.86.73 前已建立的訂金列。
         response = self.post(balance, 2100)
         self.assertEqual(response.status_code, 302)
         balance.refresh_from_db()

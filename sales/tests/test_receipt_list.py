@@ -37,8 +37,9 @@ class ReceiptListTests(TestCase):
         markup = response.content.decode()
         receipt_markup = markup.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
         # 尾款只在「交車與收尾款」登記，未收的系統尾款列不列在收款明細（使用者 2026-10-21 T-60），回到隱藏的應收列。
-        self.assertEqual(receipt_markup.count('data-payment-row'), 1)
-        self.assertIn('value="訂金"', receipt_markup)
+        # T-125：沒有訂金就不建訂金列，收款明細沒有空白的「訂金」列。
+        self.assertEqual(receipt_markup.count('data-payment-row'), 0)
+        self.assertNotIn('value="訂金"', receipt_markup)
         self.assertNotIn('data-balance-due', markup)
         self.assertEqual(markup.count('data-payment-expectation'), 1)
         self.assertNotContains(response, "訂金、客戶收款與分期撥款")
@@ -118,7 +119,7 @@ class ReceiptListTests(TestCase):
 
     def test_legacy_payment_method_remains_selectable_when_editing(self):
         from sales.forms import PaymentRecordForm
-        deposit = self.order.payment_records.get(system_key="deposit")
+        deposit = PaymentRecord.objects.create(order=self.order, system_key="deposit", item_name="訂金")  # T-125：沒有訂金就不建訂金列；這裡模擬 1.86.73 前已建立的訂金列。
         deposit.payment_method = "舊通路匯款"
         deposit.save()
         form = PaymentRecordForm(instance=deposit)

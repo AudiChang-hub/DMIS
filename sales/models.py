@@ -4969,7 +4969,8 @@ class PaymentRecord(TimeStampedModel):
     @property
     def receipt_kind_label(self):
         if self.effective_receipt_kind != self.ReceiptKind.LENDER:
-            return "客戶收款"
+            # 車行單向車行收錢，畫面寫「車行收款」；資料值仍是 customer，計算不變（T-125 問題 2 方案 A）。
+            return "車行收款" if self.order.source_type == SalesOrder.SourceType.DEALER else "客戶收款"
         return "平台撥款" if self.order.source_type == SalesOrder.SourceType.PLATFORM else "分期公司撥款"
 
     @property
@@ -4991,6 +4992,8 @@ class PaymentRecord(TimeStampedModel):
         max_length=250,
         blank=True,
     )
+    # 系統列（訂金、尾款、撥款）的項目名稱可以改；改過就不再被同步覆寫（T-125 問題 1 方案 B）。
+    item_name_overridden = models.BooleanField("項目名稱已手動修改", default=False, db_default=False, editable=False)
     received_amount = models.DecimalField("實收金額", max_digits=12, decimal_places=0, default=0)
     card_principal = models.DecimalField(
         "刷卡本金",

@@ -269,6 +269,7 @@ jobs:
           sales.tests.test_p4_installment_plate_costs
           sales.tests.test_t120_delivery_receivable
           sales.tests.test_t120_dealer_credit_incentive
+          sales.tests.test_t125_deposit_row_dealer_receipt
 
   django-migrations:
     name: Django migration 資料轉換測試

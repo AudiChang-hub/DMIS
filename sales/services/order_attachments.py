@@ -112,9 +112,12 @@ def collect_order_file_groups(order, request):
     ])
     from sales.models import DeliveryRecord
     delivery = DeliveryRecord.objects.filter(order=order).first()
+    # 交車照片（舊資料）與退款證明也能刪除傳錯的檔（使用者 2026-11-06 選擇開放）。
     group("交車與退款", [
-        delivery and media("交車照片", "delivery", delivery.pk, "handover_photo", delivery.handover_photo),
-        media("退款證明", "order", order.pk, "refund_proof", order.refund_proof),
+        delivery and media("交車照片", "delivery", delivery.pk, "handover_photo", delivery.handover_photo,
+                           delete_url=_allowed(policy, "order_file_delete", [order.pk, "handover_photo"])),
+        media("退款證明", "order", order.pk, "refund_proof", order.refund_proof,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "refund_proof"])),
     ])
     return groups
 

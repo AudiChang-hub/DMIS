@@ -515,6 +515,11 @@ urlpatterns = [
         name="order_intake_attachment_delete",
     ),
     path(
+        "orders/<int:pk>/files/<str:kind>/delete/",
+        views.order_file_delete,
+        name="order_file_delete",
+    ),
+    path(
         "files/attachments/<int:attachment_pk>/",
         views.order_attachment_file,
         name="order_attachment_file",

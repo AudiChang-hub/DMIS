@@ -7866,6 +7866,40 @@ def order_attachment_upload(request, pk):
 
 @login_required
 @transaction.atomic
+def order_file_delete(request, pk, kind):
+    """刪除退款證明或舊交車照片（使用者 2026-11-06 選擇開放）：比照其他上傳，先確認、留處理紀錄、清掉實體檔。
+    退款證明本來就在取消後才產生，所以不以訂單狀態鎖定，只看權限。"""
+    from sales.models import DeliveryRecord
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect(order_step_url(pk, "attachments"))
+    if kind == "refund_proof":
+        owner, model, label = order, SalesOrder, "退款證明"
+    elif kind == "handover_photo":
+        owner = get_object_or_404(DeliveryRecord, order=order)
+        model, label = DeliveryRecord, "交車照片"
+    else:
+        raise Http404
+    previous_file = getattr(getattr(owner, kind), "name", "")
+    if not previous_file:
+        messages.info(request, f"{label}已經刪除。")
+        return redirect(order_step_url(pk, "attachments"))
+    setattr(owner, kind, "")
+    owner.save(update_fields=[kind, "updated_at"])
+    _schedule_model_file_cleanup(model, kind, previous_file)
+    OrderEvent.objects.create(
+        order=order,
+        event_type=f"{kind}_deleted",
+        description=f"已刪除{label}：{Path(previous_file).name}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{label}已刪除。")
+    return redirect(order_step_url(pk, "attachments"))
+
+
+@login_required
+@transaction.atomic
 def order_intake_attachment_delete(request, pk, attachment_pk):
     """刪除下訂時上傳的附件（使用者 2026-11-06 T-121）：傳錯檔可刪；留處理紀錄並清掉實體檔，取消的訂單鎖定。"""
     from sales.models import OrderIntakeAttachment

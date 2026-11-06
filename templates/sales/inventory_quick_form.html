@@ -74,10 +74,16 @@
     row.querySelector('[name$="-identifier"]').placeholder = `請輸入${label}`;
   }
 
+  function setColorPlaceholder(row, text) {
+    const search = row.querySelector('[name$="-color"] + .searchable-select .searchable-select__input');
+    if (search) search.placeholder = text;
+  }
+
   async function loadColors(row, modelId) {
     const color = row.querySelector('[name$="-color"]');
     color.innerHTML = '<option value="">請選擇車色</option>';
     updateIdentifierLabel(row, modelId);
+    setColorPlaceholder(row, modelId ? "輸入或選擇車色" : "請先選擇車型");
     if (!modelId) {
       color.innerHTML = '<option value="">請先選擇車型</option>';
       return;
@@ -91,6 +97,10 @@
     const model = row.querySelector('[name$="-vehicle_model"]');
     model.addEventListener("change", () => loadColors(row, model.value));
     updateIdentifierLabel(row, model.value);
+    // 可搜尋選單由 defer 腳本或 MutationObserver 掛上，之後才補車色提示。
+    const hint = () => setColorPlaceholder(row, model.value ? "輸入或選擇車色" : "請先選擇車型");
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", hint, {once: true});
+    else requestAnimationFrame(hint);
     row.querySelector("[data-delete-row]").addEventListener("click", () => {
       const deleteField = row.querySelector('[name$="-DELETE"]');
       if (deleteField) deleteField.checked = true;
@@ -107,7 +117,8 @@
     rows.appendChild(row);
     total.value = index + 1;
     bindRow(row);
-    row.querySelector('[name$="-vehicle_model"]').focus();
+    requestAnimationFrame(() => (row.querySelector('[name$="-vehicle_model"] + .searchable-select .searchable-select__input')
+      || row.querySelector('[name$="-vehicle_model"]')).focus());
   });
 })();
 </script>

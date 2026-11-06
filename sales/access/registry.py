@@ -100,6 +100,9 @@ register("inventory", "inventory_create inventory_quick_create inventory_edit in
 register("inventory", "transfer_signoff_list transfer_signoff_detail inventory_receipt_list")
 register("inventory", "transfer_signoff_create transfer_signoff_cancel", "operate")
 register("inventory", "transfer_signoff_pdf", "export")
+# 現有台數表：查看需庫存畫面，Excel 屬匯出。
+register("inventory", "inventory_stock_count")
+register("inventory", "inventory_stock_count_export", "export")
 register("brands", "vehicle_brand_list")
 register("models", "vehicle_model_list vehicle_model_price_versions vehicle_installment_plan_list vehicle_model_rules")
 register("models", "vehicle_model_create vehicle_model_edit", "operate")

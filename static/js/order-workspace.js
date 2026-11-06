@@ -583,6 +583,27 @@
     if (field.type === 'file') return;
     schedule(form, field.matches('select, [type="checkbox"], [type="radio"], [type="date"]') ? 250 : AUTOSAVE_DELAY);
   }
+  // 已配車的單改車型／車色（T-122 方案 B）：在捕捉階段先警告，早於車價、車色重載與自動儲存。
+  // 按「取消」就還原並擋下這次 change，其他監聽都不會執行；按「確定」才帶確認旗標存檔並取消配車。
+  // 車型、車色是可搜尋選單（change 由程式送出），所以以伺服器給的原值判斷是不是改了。
+  document.addEventListener('change', event => {
+    const field = event.target;
+    if (!field?.dataset?.unallocateConfirm || !field.form || field.value === field.dataset.unallocateOriginal) return;
+    if (!confirm(field.dataset.autosaveConfirm)) {
+      event.stopImmediatePropagation();
+      field.value = field.dataset.unallocateOriginal;
+      const search = field.nextElementSibling?.querySelector?.('.searchable-select__input');
+      if (search) search.value = field.selectedOptions[0]?.textContent.trim() || '';
+      return;
+    }
+    let flag = field.form.querySelector('input[name="_confirm_unallocate"]');
+    if (!flag) {
+      flag = Object.assign(document.createElement('input'), {type: 'hidden', name: '_confirm_unallocate'});
+      field.form.append(flag);
+    }
+    flag.value = '1';
+    field.form.querySelectorAll('[data-unallocate-confirm]').forEach(item => { delete item.dataset.unallocateConfirm; });
+  }, true);
   // 放在表單外、以 form 屬性併入的欄位，事件不會冒泡到表單：改由文件層轉給所屬表單的自動儲存（使用者 2026-10-21）。
   const ownedOutside = event => {
     const form = event.target?.form;
@@ -648,6 +669,8 @@
           return;
         }
         fields(form).forEach(clearFieldError);
+        // 改車型／車色同時取消了配車（T-122）：配車步驟、車輛資料都變了，整頁重新載入。
+        if (payload.reload) { bases.set(form, capture(form)); location.reload(); return; }
         // 重編後欄位會改名；送出後才打的字改用新名稱保留，基準仍取送出時的值（新名稱 → 送出時名稱）。
         const typedBefore = changedNames(form, sent);
         const renamed = acceptRows(form, payload, sent);

@@ -1971,18 +1971,39 @@ class OrderEditForm(SalesOrderForm):
         # 訂金只在左側「訂金與費用」步驟修改（使用者 2026-10-21 T-44）；訂單表單不再帶訂金欄位，自動儲存不會動到訂金。
         for name in ("deposit_amount", "deposit_date", "deposit_method"):
             self.fields.pop(name, None)
+        self.unallocate_requested = False
+        if self.instance.allocated_vehicle_id:
+            # 已配車時改車型／車色先跳警告，確認後才取消配車並存檔（使用者 2026-11-06 T-122 方案 B）。
+            warning = (
+                f"這張單已配車（{self.instance.allocated_vehicle.identifier}）。改車型或車色會取消這次配車，"
+                "車輛回到可銷售、訂單回到待配車。確定要繼續嗎？"
+            )
+            for name in ("vehicle_model", "color"):
+                if name in self.fields:
+                    # 車色選項會由前端依車型重建，原值另外帶給前端比對。
+                    self.fields[name].widget.attrs.update({
+                        "data-autosave-confirm": warning, "data-unallocate-confirm": "1",
+                        "data-unallocate-original": str(getattr(self.instance, f"{name}_id") or ""),
+                    })
 
     def clean(self):
         data = super().clean()
         data["trade_in_intent"] = (data.get("trade_in_intent") or "unknown") if "trade_in_intent" in self.data else self.instance.trade_in_intent
         if self.instance.allocated_vehicle_id:
-            if (
-                data.get("vehicle_model")
-                and data["vehicle_model"].pk != self.instance.vehicle_model_id
-            ):
-                self.add_error("vehicle_model", "訂單已配車，需先解除配車才能修改車型。")
-            if data.get("color") and data["color"].pk != self.instance.color_id:
-                self.add_error("color", "訂單已配車，需先解除配車才能修改車色。")
+            changed = [
+                (name, label) for name, label in (("vehicle_model", "車型"), ("color", "車色"))
+                if data.get(name) and data[name].pk != getattr(self.instance, f"{name}_id")
+            ]
+            if changed:
+                blocker = self.instance.unallocation_blocker
+                vehicle = self.instance.allocated_vehicle.identifier
+                for name, label in changed:
+                    if blocker:
+                        self.add_error(name, f"已配車（{vehicle}），不能改{label}：{blocker}")
+                    elif self.data.get("_confirm_unallocate") != "1":
+                        self.add_error(name, f"已配車（{vehicle}），改{label}會取消配車；請在確認視窗按「確定」後再存。")
+                if not blocker and self.data.get("_confirm_unallocate") == "1":
+                    self.unallocate_requested = True
         return data
 
 

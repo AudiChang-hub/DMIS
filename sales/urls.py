@@ -415,6 +415,7 @@ urlpatterns = [
         views.reallocate_vehicle,
         name="reallocate_vehicle",
     ),
+    path("orders/<int:pk>/unallocate/", views.unallocate_vehicle, name="unallocate_vehicle"),
     path(
         "orders/<int:pk>/registration/save/",
         views.registration_save,

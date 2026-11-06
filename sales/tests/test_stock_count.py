@@ -53,11 +53,11 @@ class StockCountTests(TestCase):
     def color(self, model, name, active=True):
         return VehicleColor.objects.create(vehicle_model=model, name=name, active=active)
 
-    def vehicle(self, model, color, status=Status.AVAILABLE, current_dealer=None):
+    def vehicle(self, model, color, status=Status.AVAILABLE, current_dealer=None, location_store=None):
         self.serial += 1
         identifier = {"engine_number": f"ENG-{self.serial}"} if model.energy_type == VehicleModel.EnergyType.GAS else {"frame_number": f"FRM-{self.serial}"}
         return VehicleInventory.objects.create(
-            vehicle_model=model, color=color, ownership_store=self.store, location_store=self.store,
+            vehicle_model=model, color=color, ownership_store=self.store, location_store=location_store or self.store,
             status=status, current_dealer=current_dealer, **identifier,
         )
 
@@ -105,15 +105,23 @@ class StockCountTests(TestCase):
         self.assertEqual((white.total, white.dealer, white.active), (0, 0, True))
 
     def test_locations_list_store_then_dealers_with_counts(self):
-        """庫位（T-115）：本店在前，車行依台數多到少；只算現有庫存，0 台留空。"""
+        """庫位（T-115）：不在車行的寫實際存放門市，門市依主檔順序在前；車行依台數多到少；只算現有庫存，0 台留空。"""
         other = SalesSource.objects.create(name="旭昶", source_type=SalesSource.SourceType.DEALER)
+        yongzhan = Store.objects.create(name="永湛", code="YZ")
+        Store.objects.create(name="馭盛", code="YS")  # 沒有車的門市不列
         self.vehicle(self.uc, self.grey, current_dealer=other)
         self.vehicle(self.uc, self.grey, current_dealer=other)
         self.vehicle(self.uc, self.grey, current_dealer=other, status=Status.SOLD)
+        self.vehicle(self.uc, self.grey, location_store=yongzhan)
+        self.vehicle(self.uc, self.grey, location_store=yongzhan, status=Status.DELIVERED)
         rows = self.rows()
         grey = rows[("UC125DA", "灰")]
-        self.assertEqual(grey.locations, [("本店", 3, False), ("旭昶", 2, True), ("車行甲", 1, True)])
-        self.assertEqual(grey.location_text, "本店 3、旭昶 2、車行甲 1")
+        store_counts = {"總店": 3, "永湛": 1}
+        stores = [(name, store_counts[name], False) for name in Store.objects.values_list("name", flat=True) if name in store_counts]
+        self.assertEqual(grey.locations, stores + [("旭昶", 2, True), ("車行甲", 1, True)])
+        self.assertEqual(grey.location_text, "、".join(f"{name} {count}" for name, count, _ in grey.locations))
+        self.assertNotIn("本店", grey.location_text)
+        self.assertEqual(grey.dealer, 3)  # 「車行」欄口徑不變
         self.assertEqual(sum(count for _, count, _ in grey.locations), grey.total)
         self.assertEqual(rows[("GSX-R150", "黑")].location_text, "車行甲 1")
         self.assertEqual(rows[("EV060L", "白")].locations, [])  # 已售出等放在車行的車不算，0 台留空
@@ -121,22 +129,28 @@ class StockCountTests(TestCase):
     def test_location_counts_match_inventory_location_filter(self):
         other = SalesSource.objects.create(name="旭昶", source_type=SalesSource.SourceType.DEALER)
         self.vehicle(self.uc, self.red, current_dealer=other)
+        self.vehicle(self.uc, self.red, location_store=Store.objects.create(name="永湛", code="YZ"))
         dealer_ids = {self.dealer.name: self.dealer.pk, other.name: other.pk}
         for block in build_stock_count()["blocks"]:
             for group in block.groups:
                 for row in group.rows:
                     params = {"brand": group.brand, "vehicle_family": sorted(group.family_ids), "color": row.name}
+                    with self.subTest(code=group.code, color=row.name):
+                        # 庫存頁的「本店」篩選＝不在車行；各門市台數加總要對得上。
+                        in_stores = sum(count for _, count, at_dealer in row.locations if not at_dealer)
+                        self.assertEqual(in_stores, self.inventory_count(**params, location="store"))
                     for place, count, at_dealer in row.locations:
-                        location = f"dealer-{dealer_ids[place]}" if at_dealer else "store"
-                        with self.subTest(code=group.code, color=row.name, place=place):
-                            self.assertEqual(count, self.inventory_count(**params, location=location))
+                        if at_dealer:
+                            with self.subTest(code=group.code, color=row.name, place=place):
+                                self.assertEqual(count, self.inventory_count(**params, location=f"dealer-{dealer_ids[place]}"))
 
     def test_page_shows_location_column_and_inline_copy(self):
         response = self.client.get(reverse("inventory_stock_count"), {"brand": "SUZUKI"})
         self.assertContains(response, '<th scope="col" class="stock-loc-col">庫位</th>', html=True)
         content = response.content.decode()
         self.assertIn('<span class="stock-loc is-dealer">車行甲<b>1</b></span>', content)
-        self.assertIn('<span class="stock-loc">本店<b>3</b></span>', content)
+        self.assertIn('<span class="stock-loc">總店<b>3</b></span>', content)
+        self.assertNotIn('<span class="stock-loc">本店', content)
         self.assertIn('stock-locs stock-locs--inline', content)
 
     def test_discontinued_marks_and_hides_inactive_models_without_stock(self):
@@ -198,7 +212,7 @@ class StockCountTests(TestCase):
         self.assertIn("現有台數表（SUZUKI）", values[0][0])
         grey = next(row for row in values if row[2] == "灰")
         self.assertEqual(grey[3:5], [4, 1])
-        self.assertEqual(grey[5], "本店 3、車行甲 1")
+        self.assertEqual(grey[5], "總店 3、車行甲 1")
         self.assertIn("已配車 1", grey[6])
         brown = next(row for row in values if row[2] == "棕")
         self.assertIsNone(brown[5])

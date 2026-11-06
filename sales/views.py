@@ -5066,8 +5066,11 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         form.add_error(None, exc)
     if not (form.is_valid() and formset.is_valid() and fee_formset.is_valid()):
         return None, form, formset, fee_formset
-    from sales.services.order_discount import apply_intake_discount, intake_discount_detail, validate_intake_discount
+    from sales.services.order_discount import (
+        apply_intake_discount, intake_discount_detail, validate_intake_deposit, validate_intake_discount,
+    )
     validate_intake_discount(form, formset, fee_formset)
+    validate_intake_deposit(form, formset, fee_formset)
     if not form.is_valid():
         return None, form, formset, fee_formset
     savepoint = transaction.savepoint()

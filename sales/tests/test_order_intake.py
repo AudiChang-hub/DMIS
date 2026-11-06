@@ -57,12 +57,12 @@ class OrderIntakeTests(TestCase):
 
     def test_restricted_staff_is_also_the_receiver(self):
         self.client.force_login(self.clerk)
-        response = self.submit(vehicle_price="1", deposit_amount="99999", deposit_method="cash", commission_recipient=str(self.other_dealer.pk), print_company='999999', print_company_snapshot='{"legal_name":"偽造公司"}')
+        response = self.submit(vehicle_price="1", deposit_amount="9999", deposit_method="cash", commission_recipient=str(self.other_dealer.pk), print_company='999999', print_company_snapshot='{"legal_name":"偽造公司"}')
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.get()
         self.assertEqual((order.status, order.accepted_by), ("allocation_pending", self.clerk))
         # 可填訂金（客人當場付款），但不能改售價、歸屬或開單公司。
-        self.assertEqual((order.vehicle_price, order.deposit_amount), (79800, 99999))
+        self.assertEqual((order.vehicle_price, order.deposit_amount), (79800, 9999))
         self.assertFalse(order.commission_recipient_id)
         self.assertEqual(order.print_company_snapshot['legal_name'], '馭盛國際有限公司')
 

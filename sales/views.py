@@ -5663,12 +5663,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         ),
         None,
     )
-    if balance_payment is None:
-        sync_order_operations(order.pk)
-        balance_payment = PaymentRecord.objects.filter(
-            order=order,
-            system_key="balance",
-        ).first()
+    # 打開頁面只讀不寫（使用者 2026-11-06 T-114 方案 B）：沒有尾款列（例如已取消的單）就照沒有處理，
+    # 應收當場以 payment_summary 計算；需要補建時用 resync_order_operations 指令。
     from .services.dealer_credit import credit_overview
     from .services.order_exception import exception_close_blockers
     detail_summary = payment_summary(order)
@@ -5907,9 +5903,15 @@ def order_operations(request, pk):
         ),
         pk=pk,
     )
-    if request.method != "POST":
-        sync_order_operations(order.pk)
-    profile = OrderOperationsProfile.objects.get(order=order)
+    # GET 只顯示已存的收支，不再同步寫入（T-114 方案 B）；送出時下面的儲存流程照舊同步。
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if profile is None:
+        if request.method == "POST":
+            sync_order_operations(order.pk)
+            profile = OrderOperationsProfile.objects.get(order=order)
+        else:
+            # 還沒有收支資料的舊單：先以空白收支顯示，不存檔；第一次送出時才建立。
+            profile = OrderOperationsProfile(order=order)
     financial_before = {
         field_name: getattr(profile, field_name)
         for field_name in profile.MANUAL_PROTECTABLE_FINANCIAL_FIELDS

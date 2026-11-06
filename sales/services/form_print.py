@@ -521,14 +521,20 @@ class PrintJob:
     address: str = ""
 
 
+def ordered_jobs(jobs, *, group_by_form=True):
+    """A4 套表的輸出順序（每份一頁）；預覽與列印共用，頁序才會一致。"""
+    if group_by_form:
+        return sorted(jobs, key=lambda job: FORM_KEYS.index(job.form))
+    return list(jobs)
+
+
 def build_forms_pdf(jobs, *, group_by_form=True, today=None):
     """依序輸出多張訂單的 A4 套表（聲明書、簽收單）為單一 PDF；信封另出 Word 檔。
 
     group_by_form：同一種套表排在一起；否則依訂單順序。
     """
     today = today or timezone.localdate()
-    if group_by_form:
-        jobs = sorted(jobs, key=lambda job: FORM_KEYS.index(job.form))
+    jobs = ordered_jobs(jobs, group_by_form=group_by_form)
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=A4)
     pdf.setTitle("套表列印")

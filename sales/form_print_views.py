@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from sales.models import OrderEvent, SalesOrder
 from sales.services import form_print, order_tabs
+from sales.services import form_print_preview as preview_service
 from sales.services.order_intake import scoped_orders
 from sales.services.order_search import build_order_search_query
 
@@ -84,27 +85,43 @@ def _parse_jobs(request):
     return picked
 
 
-def _picked_orders(request, forms):
-    """勾選且仍在權限範圍內的 (訂單, 套表)，依勾選順序；錯誤時回傳要導回的 response。"""
+def _collect(request, forms):
+    """勾選且仍在權限範圍內的 (訂單, 套表)，依勾選順序；有問題時回傳 (None, 錯誤訊息)。"""
     picked = _parse_jobs(request)
     if not picked:
-        messages.error(request, "請至少勾選一張訂單的一份套表。")
-        return None, redirect("form_print")
+        return None, "請至少勾選一張訂單的一份套表。"
     if len(picked) > MAX_JOBS:
-        messages.error(request, f"一次最多列印 {MAX_JOBS} 份，請分批列印。")
-        return None, redirect("form_print")
+        return None, f"一次最多列印 {MAX_JOBS} 份，請分批列印。"
     picked = [(pk, form) for pk, form in picked if form in forms]
     if not picked:
         kind = "信封" if forms == ("envelope",) else "聲明書或簽收單"
-        messages.error(request, f"勾選的項目裡沒有{kind}。")
-        return None, redirect("form_print")
+        return None, f"勾選的項目裡沒有{kind}。"
     orders = _orders(request.user).in_bulk({pk for pk, _form in picked})
     # 不在權限範圍或已刪除：略過，不透露是否存在。
     found = [(orders[pk], form) for pk, form in picked if pk in orders]
     if not found:
-        messages.error(request, "勾選的訂單已不存在或沒有權限列印。")
+        return None, "勾選的訂單已不存在或沒有權限列印。"
+    return found, None
+
+
+def _picked_orders(request, forms):
+    found, error = _collect(request, forms)
+    if error:
+        messages.error(request, error)
         return None, redirect("form_print")
     return found, None
+
+
+def _print_jobs(request, found):
+    """勾選項目轉成 PrintJob；簽收單帶入列印清單裡逐張改過的備註與交車住址。預覽與列印共用。"""
+    jobs = []
+    for order, form in found:
+        note = address = ""
+        if form == "receipt":
+            note = request.POST.get(f"note_{order.pk}", "").strip()[: form_print.NOTE_MAX_CHARS]
+            address = request.POST.get(f"address_{order.pk}", "").strip()[: form_print.ADDRESS_MAX_CHARS]
+        jobs.append(form_print.PrintJob(order, form, note=note, address=address))
+    return jobs
 
 
 def _file_response(content, *, content_type, ascii_name, quoted_name, inline):
@@ -123,18 +140,28 @@ def form_print_pdf(request):
     found, error = _picked_orders(request, ("tax_declaration", "receipt"))
     if error:
         return error
-    jobs = []
-    for order, form in found:
-        note = address = ""
-        if form == "receipt":
-            note = request.POST.get(f"note_{order.pk}", "").strip()[: form_print.NOTE_MAX_CHARS]
-            address = request.POST.get(f"address_{order.pk}", "").strip()[: form_print.ADDRESS_MAX_CHARS]
-        jobs.append(form_print.PrintJob(order, form, note=note, address=address))
-    pdf = form_print.build_forms_pdf(jobs, group_by_form=request.POST.get("group") != "order")
+    pdf = form_print.build_forms_pdf(_print_jobs(request, found), group_by_form=request.POST.get("group") != "order")
     return _file_response(
         pdf, content_type="application/pdf", ascii_name="forms.pdf",
         quoted_name=quote("套表列印.pdf"), inline=True,
     )
+
+
+@login_required
+@require_POST
+def form_print_preview(request):
+    """列印預覽（使用者 2026-11-06 T-118）：用列印清單同一份表單內容產生和實際輸出相同的頁面。
+
+    只讀不寫：信封的車控密碼不解密、不留處理紀錄。用 POST 是因為簽收單備註與交車住址要跟著送出，
+    放在網址會進入瀏覽紀錄與存取紀錄。
+    """
+    found, error = _collect(request, form_print.FORM_KEYS)
+    if error:
+        return render(request, "sales/_form_print_preview.html", {"error": error}, status=400)
+    sections = preview_service.build_preview(_print_jobs(request, found), group_by_form=request.POST.get("group") != "order")
+    response = render(request, "sales/_form_print_preview.html", {"sections": sections})
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    return response
 
 
 @login_required

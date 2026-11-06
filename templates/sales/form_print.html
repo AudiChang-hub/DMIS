@@ -93,7 +93,8 @@
   </section>
 
   <aside class="form-print__tray" id="form-print-tray" aria-labelledby="form-print-tray-title">
-    <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form>
+    <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form
+          data-preview-url="{% url 'form_print_preview' %}" data-pdf-url="{% url 'form_print_pdf' %}" data-envelope-url="{% url 'form_print_envelopes' %}">
       {% csrf_token %}
       <div class="form-print__tray-head">
         <h2 id="form-print-tray-title">列印清單</h2>
@@ -112,12 +113,17 @@
         <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>聲明書一批、簽收單一批</small></span></label>
         <label><input type="radio" name="group" value="order"><span><strong>依訂單</strong><small>同一張訂單的文件放在一起</small></span></label>
       </fieldset>
+      <button class="form-print__preview-all" type="button" data-preview-open disabled aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span><strong data-preview-open-label>預覽</strong><small>先看帶入資料後的樣子，再列印</small></span>
+        <kbd aria-hidden="true">P</kbd>
+      </button>
       <div class="form-actions form-print__actions">
         <button class="button ghost" type="button" data-clear disabled>清空</button>
         <button class="button primary" type="submit" formaction="{% url 'form_print_envelopes' %}" formtarget="_self" data-submit-envelope disabled>下載信封 Word 檔</button>
         <button class="button primary" type="submit" data-submit disabled>產生 A4 PDF</button>
       </div>
-      <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。</p>
+      <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。按「預覽」可先在這個畫面看過每一頁。</p>
     </form>
   </aside>
 </div>
@@ -138,7 +144,10 @@
   <li class="form-print__item">
     <div class="form-print__item-head">
       <div><strong data-item-name></strong><small data-item-meta></small></div>
-      <button class="button ghost small" type="button" data-remove>移除</button>
+      <span class="form-print__item-tools">
+        <button class="button ghost small" type="button" data-preview-item aria-haspopup="dialog">預覽</button>
+        <button class="button ghost small" type="button" data-remove>移除</button>
+      </span>
     </div>
     <div class="form-print__chips" data-item-chips></div>
     <div class="form-print__receipt" data-item-receipt hidden>
@@ -147,5 +156,36 @@
     </div>
   </li>
 </template>
+<dialog class="print-preview" data-preview-dialog aria-labelledby="print-preview-title">
+  <form method="post" target="_blank" data-preview-form hidden>{% csrf_token %}</form>
+  <header class="print-preview__bar">
+    <div class="print-preview__title">
+      <h2 id="print-preview-title">列印預覽</h2>
+      <p data-preview-summary aria-live="polite">產生中…</p>
+    </div>
+    <p class="print-preview__counter" data-preview-counter hidden><b data-preview-current>1</b><span>／</span><span data-preview-count>1</span></p>
+    <div class="print-preview__tools">
+      <button class="print-preview__icon" type="button" data-preview-zoom aria-pressed="false" aria-label="放大檢查" title="放大檢查（Z）">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 10.5h6"/><path d="M10.5 7.5v6" data-zoom-in/></svg>
+      </button>
+      <button class="print-preview__icon" type="button" data-preview-close aria-label="關閉預覽" title="關閉（Esc）">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="print-preview__body">
+    <nav class="print-preview__rail" data-preview-rail aria-label="頁面縮圖"></nav>
+    <div class="print-preview__desk" data-preview-desk tabindex="-1" aria-busy="true" aria-label="預覽頁面">
+      <div class="print-preview__content" data-preview-content></div>
+    </div>
+  </div>
+  <footer class="print-preview__foot">
+    <p class="print-preview__fine">A4 頁面就是列印用的同一份 PDF；信封依 Word 原稿的紙張、邊界與位置排版，字形以 Word 為準。</p>
+    <div class="print-preview__actions">
+      <button class="button ghost" type="button" data-preview-envelope hidden>下載信封 Word 檔</button>
+      <button class="button primary" type="button" data-preview-print hidden>開啟 A4 PDF 列印</button>
+    </div>
+  </footer>
+</dialog>
 <script src="{% static 'js/form-print.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

@@ -34,6 +34,7 @@ urlpatterns = [
     path("orders/forms-print/", form_print_views.form_print_page, name="form_print"),
     path("orders/forms-print/pdf/", form_print_views.form_print_pdf, name="form_print_pdf"),
     path("orders/forms-print/envelopes/", form_print_views.form_print_envelopes, name="form_print_envelopes"),
+    path("orders/forms-print/preview/", form_print_views.form_print_preview, name="form_print_preview"),
     path("orders/<int:pk>/owner-declaration.pdf", form_print_views.order_owner_declaration_pdf, name="order_owner_declaration_pdf"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),

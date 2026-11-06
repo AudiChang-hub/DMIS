@@ -265,6 +265,7 @@ jobs:
           sales.tests.test_order_installment_picker sales.tests.test_legacy_finance sales.tests.test_site_review
           sales.tests.test_site_review_followup
           sales.tests.test_cancelled_receivables
+          sales.tests.test_p6_compulsory_commission
 
   django-migrations:
     name: Django migration 資料轉換測試

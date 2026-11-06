@@ -210,7 +210,7 @@ def save_error(message, *, status=400, forms=()):
 def delivery_gate(request, order, summary=None, balance=None):
     """交車頁與自動儲存回應共用的交車判斷（使用者 2026-10-21 T-56）。
 
-    尾款可在交車表單一併登記時（一般單、系統尾款列未收妥、仍有尾款、有財務權限），尾款不列為阻擋，
+    尾款可在交車表單一併登記時（一般單、系統尾款列未收妥、仍有尾款、有交車權限），尾款不列為阻擋，
     送出時連同收款一起驗證。回傳 (是否在交車表單收尾款, 阻擋原因)。"""
     if order.is_delivered:
         return False, []
@@ -219,9 +219,26 @@ def delivery_gate(request, order, summary=None, balance=None):
         balance = next((p for p in order.payment_records.all() if p.system_key == "balance"), None)
     collect = bool(
         order.source_type != order.SourceType.DEALER and balance is not None and not balance.confirmed
-        and summary["delivery_due"] > 0 and can_edit_finance(request.user)
+        and summary["delivery_due"] > 0 and can_collect_balance(request)
     )
-    return collect, order.delivery_blockers(summary, ignore_balance=collect, include_prep=False)
+    return collect, order.delivery_blockers(summary, ignore_balance=collect, include_prep=False,
+                                            balance_hint=balance_hint(request))
+
+
+def can_collect_balance(request):
+    """交車時收尾款看交車（訂單作業 work）權限，與交車按鈕同一權限（UAT U-03，使用者 2026-11-06 選 A）。"""
+    return policy_for(request).route('delivery_complete', 'POST')
+
+
+def balance_hint(request, *, reload=False):
+    """尾款擋交車時告訴這個人能去哪裡處理：只寫他看得到的入口，看不到就說請誰處理。"""
+    if not can_collect_balance(request):
+        return "請有交車權限的人員（店長或業務）在「交車與收尾款」收款後再交車。"
+    if reload:
+        return "請重新整理頁面，在下方交車表單填實收金額。"
+    if can_edit_finance(request.user):
+        return "請在交車表單一併登記尾款，或到「收入與支出」確認收款。"
+    return "請在交車表單一併登記尾款；已收過的款項請有財務權限的人員到「收入與支出」確認。"
 
 
 def saved(request, order, *, form=None, formsets=(), extra=None):
@@ -250,7 +267,8 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
     summary = payment_summary(order)
     collect_balance, delivery_blockers = delivery_gate(request, order, summary)
     # 頁面載入時沒有尾款欄位（當時尾款已收妥）就不能在交車表單收尾款，畫面改用含尾款的判斷。
-    strict_blockers = order.delivery_blockers(summary, include_prep=False) if collect_balance else delivery_blockers
+    strict_blockers = (order.delivery_blockers(summary, include_prep=False, balance_hint=balance_hint(request, reload=True))
+                       if collect_balance else delivery_blockers)
     locked_payments = [str(pk) for pk in order.payment_records.filter(entry_type='receipt', confirmed=True).values_list('pk', flat=True)] if profile else []
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,

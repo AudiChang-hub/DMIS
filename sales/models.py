@@ -3934,7 +3934,7 @@ class SalesOrder(TimeStampedModel):
         remaining = Decimal("0") if due["paid_in_excel"] else summary["customer_due"]
         return {**due, "received": summary["customer_received"], "remaining": remaining}
 
-    def delivery_blockers(self, summary=None, ignore_balance=False, include_prep=True):
+    def delivery_blockers(self, summary=None, ignore_balance=False, include_prep=True, balance_hint=None):
         """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。
 
         ignore_balance 只供畫面判斷：交車表單同時收尾款時，尾款於送出時再驗證。
@@ -3958,7 +3958,7 @@ class SalesOrder(TimeStampedModel):
             if not summary["customer_settled"] and not ignore_balance:
                 blockers.append(
                     f"尾款尚未收清，仍差 {summary['delivery_due']:,.0f} 元；"
-                    "請在交車表單一併登記尾款，或到「收入與支出」確認收款。"
+                    + (balance_hint or "請在交車表單一併登記尾款，或到「收入與支出」確認收款。")
                 )
         else:
             from sales.services.dealer_credit import credit_blocker

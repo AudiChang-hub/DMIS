@@ -86,6 +86,11 @@ class OptionalUploadTests(TestCase):
         self.assertEqual(self.order.missing_registration_requirements(), ["新車領牌登記書"])
         self.upload(Doc.REGISTRATION_APPLICATION)
         self.order.refresh_from_db()
+        # 兩份傳齊只代表可以完成；按確認卡的「確認完成」才鎖定（T-130）。
+        self.assertFalse(self.order.is_registration_complete)
+        self.assertEqual(self.order.missing_registration_requirements(), [])
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
+        self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
         self.assertEqual(self.order.status, SalesOrder.Status.DELIVERY_PENDING)
         self.assertFalse(self.order.registration_documents.filter(document_type=Doc.COMPULSORY_INSURANCE).exists())
@@ -93,6 +98,7 @@ class OptionalUploadTests(TestCase):
     def test_documents_can_be_added_and_replaced_after_registration(self):
         self.upload(Doc.NEW_LICENSE)
         self.upload(Doc.REGISTRATION_APPLICATION)
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
         rows = [

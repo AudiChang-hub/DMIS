@@ -449,7 +449,9 @@ class OrderLifecycleTests(TestCase):
         self.assertNotContains(response, 'data-delivery-check-all')
         self.assertNotContains(response, 'name="handover_photo"')
         self.assertContains(response, 'class="delivery-completion-actions"')
-        self.assertContains(response, "確認完成交付", count=2)
+        # 交車按鈕改用鎖定前確認卡（T-130），不再用瀏覽器確認框的「確認完成交付嗎？」。
+        self.assertContains(response, "確認完成交付", count=1)
+        self.assertContains(response, 'data-lock-confirm="確認完成交車"')
         # 沒有明確目的的「前往收入與支出」導向框拿掉（T-102）。
         self.assertNotContains(response, "尾款已收清或由車行掛帳")
         self.assertNotContains(response, 'data-workspace-go="finance"')
@@ -571,15 +573,16 @@ class OrderLifecycleTests(TestCase):
         payment = PaymentRecord.objects.get(order=order, system_key="balance")
         self.assertEqual(payment.received_amount, Decimal("0"))
 
-    def test_delivery_payment_form_defaults_to_taipei_today(self):
+    def test_delivery_payment_form_leaves_date_and_amount_blank(self):
+        # 收款日期與金額都不預填（T-130 第 1 層，2026-11-07）：有實收時必須自己選日期。
         order, _vehicle = self.make_order()
         payment = PaymentRecord.objects.get(order=order, system_key="balance")
-
-        with timezone.override("Asia/Taipei"):
-            form = DeliveryPaymentForm(instance=payment)
-
-        self.assertEqual(form.initial["received_on"], timezone.localdate())
+        form = DeliveryPaymentForm(instance=payment)
+        self.assertIsNone(form.initial.get("received_on"))
         self.assertIsNone(form.initial["received_amount"])
+        bound = DeliveryPaymentForm({"received_amount": "1000", "payment_method": "現金"}, instance=payment)
+        self.assertFalse(bound.is_valid())
+        self.assertIn("received_on", bound.errors)
 
     def test_installment_delivery_only_requires_non_financed_balance(self):
         order, _vehicle = self.make_order()

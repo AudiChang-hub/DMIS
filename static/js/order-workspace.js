@@ -204,18 +204,32 @@
     field.focus({preventScroll: true});
   }
   const plainClick = event => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+  // 換步驟前先等存檔完成（T-130 第 2 層）：沒有待存的修改就立刻切換；有就先存，存不進去就攔下並提示。
+  let switching = false;
+  function afterSaved(action) {
+    if (!forms.some(form => autosaving(form) && (dirty(form) || timers.has(form))) && !busy && !failures.size) { action(); return; }
+    if (switching) return;
+    switching = true;
+    settle().then(ok => { switching = false; if (ok) action(); else attention(); });
+  }
   root.addEventListener('click', event => {
     if (!tabbed || !plainClick(event)) return;
     const go = event.target.closest('[data-workspace-go]');
-    if (go && panelOf(go.dataset.workspaceGo)) { event.preventDefault(); goTo(go.dataset.workspaceGo); return; }
+    if (go && panelOf(go.dataset.workspaceGo)) { event.preventDefault(); afterSaved(() => goTo(go.dataset.workspaceGo)); return; }
     const tab = event.target.closest('[role="tab"][data-step-link]');
     // 左側步驟：直接停在該區最上方（瞬間定位，不播捲動動畫；使用者 2026-10-21）。
-    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(false); return; }
+    if (tab) {
+      event.preventDefault();
+      if (tab.dataset.stepLink === activeKey) { activate(activeKey, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(false); return; }
+      afterSaved(() => { activate(tab.dataset.stepLink, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(false); });
+      return;
+    }
     const link = event.target.closest('a[data-target-tab]');
     if (link && link.hasAttribute('href') && panelOf(link.dataset.targetTab)) {
       event.preventDefault();
       const anchor = link.dataset.targetAnchor && document.getElementById(link.dataset.targetAnchor);
-      goTo(link.dataset.targetTab, anchor || null);
+      if (link.dataset.targetTab === activeKey) goTo(link.dataset.targetTab, anchor || null);
+      else afterSaved(() => goTo(link.dataset.targetTab, anchor || null));
     }
   });
   // 鍵盤：左右鍵切換相鄰分頁、Home／End 到頭尾（切換即顯示）；空白鍵等同點擊。
@@ -226,7 +240,7 @@
     const keys = {ArrowRight: index + 1, ArrowLeft: index - 1, ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: tabs.length - 1};
     if (!(event.key in keys)) return;
     event.preventDefault();
-    activate(tabs[(keys[event.key] + tabs.length) % tabs.length].dataset.stepLink, {focusTab: true});
+    afterSaved(() => activate(tabs[(keys[event.key] + tabs.length) % tabs.length].dataset.stepLink, {focusTab: true}));
   });
   root.addEventListener('invalid', event => reveal(event.target), true);
   // form-feedback.js 要聚焦隱藏分頁內的欄位時，先切到該分頁。
@@ -342,7 +356,8 @@
         button.disabled = !ready || button.dataset.balanceShort === '1'; button.setAttribute('aria-disabled', String(button.disabled));
         button.textContent = !ready ? '尚未符合交車條件' : (canCollect && payload.delivery_collect_balance ? '收尾款並完成交車' : '確認完成交付');
         if (!ready && blockers[0]) button.title = blockers[0];
-        if (ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？完成後訂單與實體車輛將鎖定。'; }
+        // 完成前由 lock-confirm.js 的確認卡列出交付資料（T-130），不再用瀏覽器內建確認框。
+        if (ready) button.removeAttribute('title');
       });
       root.querySelectorAll('[data-delivery-blockers]').forEach(list => {
         list.replaceChildren(...blockers.map(text => { const item = document.createElement('li'); item.textContent = text; return item; }));
@@ -486,7 +501,6 @@
   function waitForNetwork(form) {
     waiting.add(form); resumed.delete(form);
     setStatus(form, offlineText(unsavedLabels(form)), 'error');
-    notify(offlineText([...new Set([...waiting].flatMap(unsavedLabels))]), true);
     // 瀏覽器仍顯示有連線（例如 Wi-Fi 有訊號但連不到外網）時不會再收到 online 事件，改為定時重試。
     if (navigator.onLine && !retryTimer) retryTimer = setTimeout(() => { retryTimer = null; resume(); }, RETRY_DELAY);
   }
@@ -532,22 +546,87 @@
     // 表單外、以 form 屬性併入的欄位（例如頁首小卡的訂單來源）旁也顯示同一則儲存狀態。
     const mirrors = form.id ? [...document.querySelectorAll(`[data-autosave-mirror="${form.id}"]`)] : [];
     [node, ...mirrors].forEach(target => { target.textContent = text; target.dataset.state = state; });
+    // 各區塊的狀態文字不再顯示在欄位旁（使用者 2026-11-07 T-130）：成功與儲存中只更新頁首的存檔狀態，
+    // 失敗才明顯——記進失敗清單，頁面上方固定顯示紅色提示列，存好或放棄後才消失。
+    if (state === 'error' || state === 'pending') failures.set(form, text.replace(/^尚未儲存：/, ''));
+    else if (state === 'saved') { failures.delete(form); lastSaved = clock(); }
+    renderSaveState();
+  }
+  // ---- 存檔狀態（T-130 第 2 層）：頁首一個小狀態、存好的欄位淡淡閃一下、失敗才顯示紅色提示列 ----
+  const failures = new Map();
+  let lastSaved = '';
+  let leaveTarget = '';
+  const chips = [...document.querySelectorAll('[data-save-chip]')];
+  const alertBar = document.querySelector('[data-save-alert]');
+  const stepTitle = form => {
+    const step = form.closest('[data-step-key]');
+    const title = step?.querySelector('.order-step__header h2, .order-step__header strong')?.textContent
+      || stepLinks.find(link => link.dataset.stepLink === step?.dataset.stepKey)?.querySelector('strong')?.textContent || '這一區';
+    return title.replace(/^\s*步驟\s*\d+\s*[：:]\s*/, '').trim();
+  };
+  function renderSaveState() {
+    const saving = busy || timers.size > 0 || queued.size > 0;
+    const state = failures.size ? 'error' : saving ? 'saving' : lastSaved ? 'saved' : 'idle';
+    const text = {error: '有修改沒存到', saving: '儲存中…', saved: `已儲存 ${lastSaved}`, idle: '自動儲存'}[state];
+    chips.forEach(chip => {
+      chip.dataset.state = state;
+      const label = chip.querySelector('[data-save-chip-text]');
+      if (label && label.textContent !== text) label.textContent = text;
+      chip.title = state === 'idle' ? '這一頁的修改會自動儲存' : text;
+    });
+    if (!alertBar) return;
+    const open = failures.size > 0;
+    document.documentElement.classList.toggle('has-save-alert', open);
+    if (!open) { alertBar.hidden = true; leaveTarget = ''; return; }
+    const entries = [...failures];
+    const sections = [...new Set(entries.map(([form]) => stepTitle(form)))];
+    alertBar.querySelector('[data-save-alert-title]').textContent = sections.length === 1
+      ? `「${sections[0]}」有修改沒存到` : `${sections.length} 個地方有修改沒存到`;
+    alertBar.querySelector('[data-save-alert-text]').textContent = [...new Set(entries.map(([, reason]) => reason))].join(' ');
+    alertBar.hidden = false;
+  }
+  function attention() {
+    if (!alertBar || alertBar.hidden) return;
+    alertBar.classList.remove('is-attention'); void alertBar.offsetWidth; alertBar.classList.add('is-attention');
+    alertBar.querySelector('[data-save-retry]')?.focus({preventScroll: true});
+  }
+  // 剛存好的欄位閃一下很淡的確認效果（約 1 秒），不留文字。可搜尋選單閃顯示的輸入框。
+  function flashSaved(form, names) {
+    if (reduceMotion.matches) return;
+    names.forEach(name => {
+      const found = form.elements.namedItem(name);
+      const field = found?.tagName ? found : found?.[0];
+      if (!field || field.type === 'hidden') return;
+      const shown = field.hidden || field.classList.contains('visually-hidden') || field.closest('.searchable-select')
+        ? field.parentElement?.querySelector('.searchable-select__input') || field : field;
+      const target = field.type === 'checkbox' || field.type === 'radio' ? field.closest('label') || shown : shown;
+      if (!target?.getClientRects().length) return;
+      target.classList.remove('is-save-flash'); void target.offsetWidth; target.classList.add('is-save-flash');
+      setTimeout(() => target.classList.remove('is-save-flash'), 1200);
+    });
   }
   function schedule(form, delay = AUTOSAVE_DELAY) {
     if (!autosaving(form)) return;
     clearTimeout(timers.get(form));
     timers.set(form, setTimeout(() => autosave(form), delay));
+    renderSaveState();
   }
   // 回傳 true 表示已送出或排入佇列（之後會觸發 workspace-save-finished）。
   function autosave(form) {
     clearTimeout(timers.get(form));
     timers.delete(form);
-    if (!dirty(form) || conflicts.has(form)) return false;
-    if (busy) { queued.add(form); return true; }
-    const invalid = fields(form).find(field => visible(field) && field.willValidate && !field.checkValidity());
+    // 改回原值、沒有東西要存：這一區不再算失敗。
+    if (!dirty(form) && !conflicts.has(form) && failures.has(form) && !waiting.has(form)) { failures.delete(form); renderSaveState(); }
+    if (!dirty(form) || conflicts.has(form)) { renderSaveState(); return false; }
+    if (busy) { queued.add(form); renderSaveState(); return true; }
+    // 讀 validity 而不呼叫 checkValidity()：後者會觸發 invalid 事件，帶出表單摘要、右上提示並把畫面捲走（T-130）；
+    // 自動儲存的失敗只在欄位旁與上方提示列顯示。
+    const invalid = fields(form).find(field => visible(field) && field.willValidate && !field.validity.valid);
     if (invalid) {
       setStatus(form, `尚未儲存：請${invalid.validity.valueMissing ? '填寫' : '修正'}「${labelOf(invalid)}」`, 'pending');
       invalid.setAttribute('aria-invalid', 'true');
+      showFieldError(invalid, [invalid.validity.valueMissing ? '這一欄必填，填好才會儲存。'
+        : invalid.validity.customError ? invalid.validationMessage : '格式不對，修正後才會儲存。']);
       return false;
     }
     if (!navigator.onLine) { waitForNetwork(form); return false; }
@@ -561,6 +640,15 @@
     });
   }
   const flush = () => Promise.all(forms.filter(form => autosaving(form) && dirty(form)).map(saveNow));
+  // 等所有自動儲存送完（含正在送的那一筆）；回傳是否全部存好、沒有失敗。
+  const nextFinish = () => new Promise(resolve => document.addEventListener('workspace-save-finished', resolve, {once: true, capture: true}));
+  async function settle() {
+    renderSaveState();
+    await flush();
+    while (busy || queued.size) await nextFinish();
+    renderSaveState();
+    return failures.size === 0 && !forms.some(form => autosaving(form) && dirty(form));
+  }
   // 表單腳本（試算、帶價）在載入後才補值；使用者還沒動過的區塊重新記錄基準，
   // 只是打開訂單再離開，不會把系統試算值當成修改存進去。
   const touched = new Set();
@@ -597,8 +685,19 @@
   function onAutosaveChange(form, event) {
     const field = event.target;
     if (event.isTrusted) touched.add(form);
-    if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm && !confirm(field.dataset.autosaveConfirm)) {
-      field.checked = false; indicators(); return;
+    if (field.type === 'checkbox' && field.checked && field.dataset.autosaveConfirm) {
+      // 鎖定前確認卡（T-130 第 3 層）：先取消勾選、列出即將入帳的值，按「確認」才勾回並存檔。
+      const card = window.DMISLockConfirm;
+      if (field.dataset.lockConfirmed === '1') delete field.dataset.lockConfirmed;
+      else if (card && field.dataset.lockConfirm) {
+        field.checked = false; indicators();
+        card.fromElement(field).then(ok => {
+          if (!ok) return;
+          field.checked = true; field.dataset.lockConfirmed = '1';
+          field.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+        return;
+      } else if (!confirm(field.dataset.autosaveConfirm)) { field.checked = false; indicators(); return; }
     }
     indicators();
     if (field.type === 'file') return;
@@ -668,6 +767,8 @@
       if (auto) setStatus(form, '儲存中…', 'saving');
       else notify('正在儲存，請勿關閉頁面。');
       const sent = capture(form);
+      const sentChanges = changedNames(form).filter(name => !BOOKKEEPING.includes(name) && !name.endsWith('revision'));
+      renderSaveState();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 45000);
       try {
@@ -733,6 +834,7 @@
         bases.set(form, base);
         form.dispatchEvent(new CustomEvent('workspace-saved', {detail: payload}));
         indicators();
+        flashSaved(form, sentChanges.map(name => renamed.get(name) ?? name));
         if (auto) {
           setStatus(form, conflicts.size ? '已自動儲存，但其他區塊有重疊修改，請核對。' : `已自動儲存 ${clock()}`, conflicts.size ? 'error' : 'saved');
           if (resumed.delete(form) && !resumed.size && !waiting.size) notify('已恢復連線，剛才的修改都已補存。');
@@ -756,7 +858,7 @@
           if (auto) setStatus(form, '尚未儲存：' + reason, 'error'); else notify(reason, true);
         }
       } finally {
-        clearTimeout(timeout); busy = false;
+        clearTimeout(timeout); busy = false; renderSaveState();
         if (button) { button.disabled = false; button.textContent = text; }
         form.dispatchEvent(new CustomEvent('workspace-save-finished'));
         const next = [...queued]; queued.clear();
@@ -786,14 +888,38 @@
     if (!link || event.defaultPrevented || link.target === '_blank' || link.hasAttribute('download') || event.metaKey || event.ctrlKey || event.shiftKey) return;
     const url = new URL(link.href, location.href);
     if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
-    if (!forms.some(dirty) && !busy) return;
+    if (!forms.some(dirty) && !busy && !failures.size) return;
     event.preventDefault();
-    await flush();
-    if (forms.some(dirty) && !confirm('有區塊還沒儲存成功（例如必填欄位未填）。確定離開並放棄這些輸入嗎？')) return;
-    allowLeave = true; location.href = link.href;
+    // 離開前等存檔完成；存不進去就留在這頁，紅色提示列可重試或明確放棄修改再離開（T-130）。
+    if (await settle()) { allowLeave = true; location.href = link.href; return; }
+    leaveTarget = link.href;
+    renderSaveState(); attention();
   });
   window.addEventListener('beforeunload', event => {
-    if (!allowLeave && (busy || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }
+    if (!allowLeave && (busy || failures.size || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }
+  });
+  // 紅色提示列的按鈕：重試、前往出錯的欄位、放棄這些修改（重新載入，或繼續剛才要去的頁面）。
+  alertBar?.addEventListener('click', event => {
+    const action = event.target.closest('button')?.dataset;
+    if (!action) return;
+    if ('saveRetry' in action) {
+      if (!navigator.onLine) { attention(); return; }
+      if (waiting.size) resume();
+      [...failures.keys()].forEach(form => { if (!waiting.has(form)) schedule(form, 0); });
+      return;
+    }
+    if ('saveGoto' in action) {
+      const form = failures.keys().next().value;
+      const field = form && (form.querySelector('[aria-invalid="true"]') || fields(form).find(item => changedNames(form).includes(item.name) && item.type !== 'hidden'));
+      if (field) reveal(field);
+      else if (form) { const panel = form.closest('[data-step-key]'); if (panel) { activate(panel.dataset.stepKey); form.scrollIntoView({block: 'center', behavior: 'instant'}); } }
+      return;
+    }
+    if ('saveDiscard' in action) {
+      if (!confirm('放棄這些還沒存到的修改？已經存好的資料不受影響。')) return;
+      allowLeave = true;
+      if (leaveTarget) location.href = leaveTarget; else location.reload();
+    }
   });
   // 初始分頁：網址錨點（#step-<步驟> 或分頁內區塊）優先，其次是含表單錯誤的分頁，
   // 否則沿用伺服器依 ?tab= 或目前步驟選定的分頁（由功能導回時 ?tab= 與錨點一致）。

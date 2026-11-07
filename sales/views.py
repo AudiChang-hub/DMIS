@@ -612,12 +612,17 @@ def _document_upload_response(
     message,
     status=200,
     section="",
+    confirm="",
 ):
-    """同時支援一般表單與可顯示上傳進度的非同步表單。"""
+    """同時支援一般表單與可顯示上傳進度的非同步表單。
+    confirm：資料剛齊全、要在頁面跳出鎖定前確認卡時帶入（例如 "registration"，T-130）。"""
     if request.POST.get("return_tab") == "attachments":
         # 從附件分頁的「該上傳的文件」送出時，處理完回到附件分頁。
         tab, section = "attachments", "required-documents"
     target_url = order_step_url(order_pk, tab, section)
+    if confirm:
+        path, _sep, anchor = target_url.partition("#")
+        target_url = f"{path}&confirm={confirm}" + (f"#{anchor}" if anchor else "")
     accepts_json = (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or "application/json" in request.headers.get("Accept", "")
@@ -5820,6 +5825,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,
+            # 上傳或送出後資料剛齊全（?confirm=registration）：領牌區塊自動跳出確認卡（T-130）。
+            "registration_lock_auto": request.GET.get("confirm") == "registration",
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
             "balance_payment": balance_payment,
@@ -7149,6 +7156,7 @@ def registration_save(request, pk):
             return order_workspace.save_error("請先完成配車，再填寫領牌資料。", status=409)
         messages.error(request, "請先完成配車，再填寫領牌資料。")
         return redirect("order_detail", pk=pk)
+    was_missing = bool(order.missing_registration_requirements())
     form = RegistrationStageForm(request.POST, instance=order)
     if workspace:
         # 自動儲存只存資料，不自動完成領牌：完成會鎖定日期與車牌，要由「確認領牌完成」明確按下（使用者 2026-10-15）。
@@ -7159,17 +7167,18 @@ def registration_save(request, pk):
         # 回傳完整同步資料：領牌日會帶入成本、獎勵與傭金，收支區塊的版本號要跟著更新。
         return order_workspace.saved(request, order, extra={
             "message": notes[0][1] if notes else "領牌資料已保存。",
+            # 資料剛好在這次齊全時，區塊帶上 data-lock-auto，頁面自動跳出領牌確認卡（T-130）。
             "registration_html": render_to_string(
                 "sales/_registration_completion.html",
-                {"order": order, "registration_missing": order.missing_registration_requirements()}, request=request,
+                {"order": order, "registration_missing": order.missing_registration_requirements(),
+                 "registration_lock_auto": _registration_newly_ready(order, was_missing)}, request=request,
             ),
         })
     if form.is_valid():
         for level, text in _save_registration_form(request, form):
             getattr(messages, level)(request, text)
-        finished = _auto_finish_registration(request, form.instance)
-        if finished:
-            messages.success(request, finished)
+        if _registration_newly_ready(form.instance, was_missing):
+            return redirect(f"{order_step_url(pk, 'registration').partition('#')[0]}&confirm=registration#registration-completion")
     else:
         messages.error(
             request,
@@ -7209,19 +7218,18 @@ def registration_document_upload(request, pk):
     uploads = request.FILES.getlist("file")
     if len(uploads) > 1 and request.POST.get("document_type") in RegistrationDocument.multi_document_types():
         return _upload_multiple_registration_documents(request, order, uploads)
+    was_missing = bool(order.missing_registration_requirements())
     response, document = _store_registration_document(request, order, request.FILES)
     if response is not None:
         return response
-    finished = _auto_finish_registration(request, order)
-    if finished:
-        # 非同步上傳完成後頁面會重新整理，用訊息框告知已自動完成領牌。
-        messages.success(request, finished)
+    # 文件傳齊不再自動完成領牌（T-130 第 3 層）：頁面跳出確認卡列出領牌日、車牌與規費，按「確認完成」才鎖定。
     return _document_upload_response(
         request,
         order_pk=pk,
-        tab="delivery" if finished else "registration",
+        tab="registration",
         ok=True,
         message=f"{document.display_name}已上傳。",
+        confirm="registration" if _registration_newly_ready(order, was_missing) else "",
     )
 
 
@@ -7390,12 +7398,10 @@ def _finish_registration(request, order):
     return True, "領牌階段已完成，訂單進入待交付。"
 
 
-def _auto_finish_registration(request, order):
-    """領牌資料與必備文件都齊了就直接完成領牌（使用者 2026-10-14），省去再按「確認領牌完成」。"""
-    if order.is_registration_complete or order.missing_registration_requirements():
-        return ""
-    ok, _message = _finish_registration(request, order)
-    return f"資料與文件已齊全，已自動完成領牌（{order.final_plate_number}／{order.registration_date:%Y/%m/%d}）。" if ok else ""
+def _registration_newly_ready(order, was_missing):
+    """這次存檔或上傳讓領牌資料與必備文件剛好齊全（T-130 第 3 層，2026-11-07）。
+    以前（2026-10-14）會直接完成領牌並鎖定；現在只回報齊全，由頁面跳出確認卡、人按「確認完成」才鎖定。"""
+    return bool(was_missing) and not order.is_registration_complete and not order.missing_registration_requirements()
 
 
 @login_required

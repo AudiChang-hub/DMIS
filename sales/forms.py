@@ -3493,7 +3493,14 @@ class PaymentRecordForm(forms.ModelForm):
         self.fields["payment_method"].label = "收款方式"
         # 訂單頁自動儲存：勾選確認入帳前先確認，入帳後金額與日期會鎖定（使用者 2026-10-15）。
         if "confirmed" in self.fields:
-            self.fields["confirmed"].widget.attrs["data-autosave-confirm"] = "確認已收到這筆款項？確認入帳後，金額、日期與收款方式會鎖定。"
+            self.fields["confirmed"].widget.attrs.update({
+                "data-autosave-confirm": "確認已收到這筆款項？確認入帳後，金額、日期與收款方式會鎖定。",
+                # 鎖定前確認卡（T-130 第 3 層）：列出畫面上即將入帳的值，日期與方式空白時不能確認。
+                "data-lock-confirm": "確認這筆款項已入帳", "data-lock-confirm-label": "確認入帳並鎖定",
+                "data-lock-lead": "確認後會用下面這些值入帳，金額、日期與收款方式會鎖定；要改請先取消已確認。",
+                "data-lock-fields": "item_name received_amount card_fee_charged received_on payment_method receiving_account",
+                "data-lock-required": "received_amount received_on payment_method",
+            })
         original_method = self.initial.get("payment_method")
         widget = self.fields["payment_method"].widget
         if original_method and original_method not in {key for key, _label in widget.choices}:
@@ -3614,8 +3621,7 @@ class DeliveryPaymentForm(forms.ModelForm):
         if not self.is_bound:
             if not self.instance.received_amount:
                 self.initial["received_amount"] = None
-            if not self.instance.received_on:
-                self.initial["received_on"] = timezone.localdate()
+            # 收款日期不預填今天（T-130 第 1 層）：有實收時必須自己選日期（clean 會擋）。
             allowed_methods = {value for value, _label in self.PAYMENT_METHOD_CHOICES}
             if self.instance.payment_method not in allowed_methods:
                 self.initial["payment_method"] = ""
@@ -3683,7 +3689,8 @@ class DepositStepForm(forms.Form):
         confirmed = bool(payment.confirmed)
         self.initial.update({
             "amount": (payment.received_amount if confirmed else order.deposit_amount) or None,
-            "received_on": payment.received_on or order.deposit_date or timezone.localdate(),
+            # 不再預填今天（T-130 第 1 層）：沒有日期就留空，標記已收妥前必須選。
+            "received_on": payment.received_on or order.deposit_date,
             "method": method_value(order, payment.payment_method) if confirmed else order.deposit_method,
             "note": payment.note,
             "confirmed": confirmed,
@@ -3699,6 +3706,12 @@ class DepositStepForm(forms.Form):
                 self.fields[name].disabled = True
         else:
             confirm["data-autosave-confirm"] = "確認這筆訂金已收妥？打開後即入帳，金額、日期與方式會鎖定。"
+            # 鎖定前確認卡（T-130 第 3 層）：列出即將入帳的訂金金額、日期與方式。
+            confirm.update({
+                "data-lock-confirm": "確認訂金已收妥", "data-lock-confirm-label": "確認收妥並鎖定",
+                "data-lock-lead": "打開後這筆訂金就入帳，金額、日期與方式會鎖定；要改請先關掉「已收妥」。",
+                "data-lock-fields": "amount received_on method", "data-lock-required": "amount received_on method",
+            })
         if payment.pk and payment.reversal_entries.exists():
             self.fields["confirmed"].disabled = True
         from sales.services.deposit_step import deposit_warning
@@ -3718,6 +3731,8 @@ class DepositStepForm(forms.Form):
                 self.add_error("amount", "請先填訂金金額，才能標記已收妥。")
             if not cleaned.get("method"):
                 self.add_error("method", "標記已收妥前請選收款方式。")
+            if not cleaned.get("received_on"):
+                self.add_error("received_on", "標記已收妥前請選收款日期。")
         return cleaned
 
 
@@ -4584,7 +4599,7 @@ class DeliveryCompletionForm(forms.Form):
                 {
                     "delivery_method": order.delivery_method,
                     "delivery_destination": order.delivery_destination,
-                    "delivered_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+                    # 實際交付時間不預填（T-130 第 1 層，2026-11-07）：由人自己選，交車確認卡再核對一次。
                     "recipient_name": order.owner_name,
                     "recipient_phone": order.owner_phone,
                     "handover_location": order.delivery_destination
@@ -4706,8 +4721,8 @@ class RefundCompletionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.ledger = ledger_totals(order)
         self.received = self.ledger["customer"]["net"]
-        if not self.is_bound:
-            self.initial.update({"forfeited_amount": 0, "completed_on": timezone.localdate()})
+        # 沒收金額與日期不預填（T-130 第 1 層）：沒收要自己填（不沒收填 0），日期自己選。
+        self.fields["forfeited_amount"].required = True
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["forfeited_amount"].widget.attrs.update(
@@ -4786,8 +4801,8 @@ class ExceptionCloseForm(forms.Form):
 
         super().__init__(*args, **kwargs)
         self.received = ledger_totals(order)["customer"]["net"]
-        if not self.is_bound:
-            self.initial.update({"forfeited_amount": 0, "completed_on": timezone.localdate()})
+        # 沒收金額與日期不預填（T-130 第 1 層）：沒收要自己填（不沒收填 0），日期自己選。
+        self.fields["forfeited_amount"].required = True
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -4847,7 +4862,8 @@ class OverpaymentRefundForm(forms.Form):
         self.fields["kind"].choices = choices or self.KIND_CHOICES[:1]
         if not self.is_bound:
             first = choices[0][0] if choices else "customer"
-            self.initial.update({"kind": first, "amount": self.overpaid[first], "refunded_on": timezone.localdate()})
+            # 金額帶溢收額作建議；退款日期不預填（T-130 第 1 層）。
+            self.initial.update({"kind": first, "amount": self.overpaid[first]})
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)

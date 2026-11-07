@@ -11,7 +11,9 @@
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
 <section class="hero-row compact-hero detail-hero{% if not editing_order %} order-hero{% endif %}" data-order-hero>
   <div>
-    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span></div>
+    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span>
+      {# 存檔狀態只放這一個地方（使用者 2026-11-07 T-130）：已儲存時間／儲存中…；失敗才在頁面上方顯示紅色提示列。 #}
+      <span class="save-chip" data-save-chip data-state="idle" role="status" aria-live="polite"><span class="save-chip__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path class="save-chip__check" d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span data-save-chip-text>自動儲存</span></span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
     <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
     {# 頁首資料列（使用者 2026-10-21 T-42）：電話 → 車型 → 車色 → 車牌號碼 → 引擎號碼／車身號碼；證號、生日、Email、地址在「新車主資料」。配車前車牌與引擎／車身合成一格「配車後顯示」。 #}
@@ -46,11 +48,23 @@
     <strong class="order-compact-bar__name">{{ order.owner_name }}</strong>
     <span class="status-pill status-{{ order.display_status_code }}" data-compact-status>{{ order.display_status }}</span>
     <span class="order-compact-bar__number">{{ order.number }}</span>
+    <span class="save-chip" data-save-chip data-state="idle"><span class="save-chip__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path class="save-chip__check" d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span data-save-chip-text>自動儲存</span></span>
     <span class="order-compact-bar__recipient">{% if order.source_type == 'platform' %}<small>訂單來源</small> <b data-compact-recipient>{{ order.get_source_type_display }}{% if order.source %}／{{ order.source }}{% endif %}</b>{% else %}<small>這台目前算給</small> <b data-compact-recipient>{{ order.effective_commission_recipient|default:'未指定車行' }}</b>{% endif %}</span>
     {% if inline_order_form or commission_form %}<button type="button" class="button secondary small" data-compact-change>{% if order.source_type == 'platform' %}變更來源{% else %}變更車行{% endif %}</button>{% endif %}
   </div>
 </div>
 {% endif %}
+
+{# 存檔失敗提示列（T-130 第 2 層）：固定在頁面上方，重試成功或放棄修改後才消失。 #}
+<div class="save-alert" data-save-alert role="alert" hidden>
+  <span class="save-alert__icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18"><path d="M10 3.2 18 17H2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></svg></span>
+  <div class="save-alert__body"><strong data-save-alert-title></strong><p data-save-alert-text></p></div>
+  <div class="save-alert__actions">
+    <button type="button" class="save-alert__retry" data-save-retry>重試</button>
+    <button type="button" class="save-alert__link" data-save-goto>前往修正</button>
+    <button type="button" class="save-alert__link save-alert__discard" data-save-discard>放棄修改</button>
+  </div>
+</div>
 
 {% if historical_delivery_pending %}{% if_access 'historical_delivery_complete' %}{% include "sales/_historical_delivery_complete.html" %}{% endif_access %}{% endif %}
 {# 步驟內容的起點（static/js/order-workspace.js 依目前步驟區塊頂端定位）。 #}
@@ -598,7 +612,7 @@
           <strong>完成前請再次確認交付資料</strong>
           <p>{% site_text 'order_detail.8a1ee2445105' %}</p>
         </div>
-        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
+        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% endif %} data-lock-confirm="確認完成交車" data-lock-confirm-label="確認交車並鎖定" data-lock-lead="系統會用下面這些值完成交車；完成後訂單與實體車輛會鎖定。" data-lock-fields="delivered_at recipient_name recipient_phone handover_location delivery_method received_amount received_on payment_method" data-lock-required="delivered_at recipient_name handover_location received_on?received_amount payment_method?received_amount">{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
       </div>
       {# 原因清單一律輸出，自動儲存後由 order-workspace.js 依最新判斷更新；沒有原因時隱藏（使用者 2026-10-21 T-56）。 #}
       <ul class="delivery-blockers" data-delivery-blockers role="status" aria-live="polite"{% if not delivery_blockers %} hidden{% endif %}>{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>
@@ -1023,6 +1037,7 @@
 {% block scripts %}
 <script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/lock-confirm.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-compact-bar.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>

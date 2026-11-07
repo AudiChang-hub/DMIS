@@ -3900,11 +3900,12 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(response, missing)
 
-    def test_registration_form_defaults_to_today_without_county(self):
+    def test_registration_form_has_no_default_date_and_no_county(self):
         # 領牌縣市已不需要（使用者 2026-10-15），表單只剩領牌日期與車牌。
+        # 領牌日不再預設今天，請填實際領牌日（使用者 2026-11-07 T-127 p6 選 B）。
         order = self.make_order()
         form = RegistrationStageForm(instance=order)
-        self.assertEqual(form.initial["registration_date"], timezone.localdate())
+        self.assertIsNone(form.initial.get("registration_date"))
         self.assertNotIn("registration_county", form.fields)
         SalesOrder.objects.filter(pk=order.pk).update(registration_date=date(2026, 7, 29))
         order.refresh_from_db()

@@ -4463,9 +4463,9 @@ class RegistrationStageForm(forms.ModelForm):
             }
         )
         self.fields["registration_date"].widget.attrs["class"] = "form-control"
-        if not self.is_bound and not self.instance.registration_date:
-            # 預設今天，多數情況不必再選（使用者 2026-10-14）。
-            self.initial["registration_date"] = timezone.localdate()
+        # 領牌日不預設今天，請填實際領牌日；規費（公路養管、牌照稅）依這一天計算（使用者 2026-11-07 T-127 p6 選 B，
+        # 取代 2026-10-14「預設今天」：預設值會在補登舊單時把今天當領牌日，規費算錯又隨領牌完成鎖定）。
+        self.fields["registration_date"].help_text = "請填監理站實際領牌日；規費依這一天計算。"
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()

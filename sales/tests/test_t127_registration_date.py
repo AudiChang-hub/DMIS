@@ -93,3 +93,41 @@ class RegistrationDateKeptTests(TestCase):
         saved = form.save()
         self.assertEqual(str(saved.registration_date), "2026-10-29")
         self.assertEqual(saved.road_maintenance_fee, 77)
+
+
+class ManualTaxOverrideTests(TestCase):
+    """使用者 2026-11-07 選 A：改領牌日時，人工改過的領牌稅金也依新日期重算覆蓋並留處理紀錄；領牌日沒改時人工金額保留。"""
+    setUp = autosave.OrderAutosaveTests.setUp
+    make_order = autosave.OrderAutosaveTests.make_order
+    workspace_post = autosave.OrderAutosaveTests.workspace_post
+    gas_order = RegistrationDateKeptTests.gas_order
+
+    def save(self, order, day, plate="php-9836"):
+        response = self.workspace_post(reverse("registration_save", args=[order.pk]),
+                                       {"registration_date": day, "final_plate_number": plate})
+        self.assertEqual(response.status_code, 200, response.content)
+        return OrderOperationsProfile.objects.get(order=order)
+
+    def manual(self, order, amount):
+        OrderOperationsProfile.objects.filter(order=order).update(
+            registration_tax_expense=amount, registration_tax_income=amount,
+            manual_financial_fields=["registration_tax_expense", "registration_tax_income", "vehicle_cost"])
+
+    def test_changed_date_overrides_manual_tax(self):
+        from sales.models import OrderChange
+        order = self.gas_order()
+        self.save(order, "2026-11-07")
+        self.manual(order, 999)
+        profile = self.save(order, "2026-10-29")
+        self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (727, 727))
+        self.assertEqual(profile.manual_financial_fields, ["vehicle_cost"])
+        change = OrderChange.objects.filter(order=order, reason__startswith="領牌日變更").get()
+        self.assertEqual(change.changes["registration_tax_expense"], {"before": "999", "after": "727"})
+
+    def test_same_date_keeps_manual_tax(self):
+        order = self.gas_order()
+        self.save(order, "2026-11-07")
+        self.manual(order, 999)
+        profile = self.save(order, "2026-11-07", plate="php-9837")
+        self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (999, 999))
+        self.assertIn("registration_tax_expense", profile.manual_financial_fields)

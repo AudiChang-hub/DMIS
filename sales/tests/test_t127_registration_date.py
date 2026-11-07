@@ -75,6 +75,10 @@ class RegistrationDateKeptTests(TestCase):
                                                RegistrationDocument.DocumentType.REGISTRATION_APPLICATION)):
             self.client.post(reverse("registration_document_upload", args=[order.pk]), {
                 "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"doc-{index}.pdf")})
+        # 文件傳齊不再自動完成，要按確認卡的「確認完成」（T-130）；完成時仍保留選的日期與依日期算的規費。
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
+        self.client.post(reverse("registration_complete", args=[order.pk]))
         order.refresh_from_db()
         profile = OrderOperationsProfile.objects.get(order=order)
         self.assertTrue(order.is_registration_complete)

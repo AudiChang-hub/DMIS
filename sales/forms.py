@@ -4449,6 +4449,7 @@ class RegistrationStageForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._previous_calculated_balance = self.instance.calculated_balance
         self._previous_actual_balance = self.instance.actual_balance
+        self.previous_registration_date = self.instance.registration_date
         self.fields["registration_date"].required = True
         self.fields["final_plate_number"].required = True
         if self.instance.pk and self.instance.is_registration_complete:

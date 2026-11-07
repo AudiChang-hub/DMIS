@@ -7087,9 +7087,35 @@ def unallocate_vehicle(request, pk):
     return redirect(detail_url)
 
 
+REGISTRATION_TAX_FIELDS = ("registration_tax_expense", "registration_tax_income")
+
+
+def _recalculate_registration_tax(order, actor_name):
+    """填寫或修改實際領牌日：領牌稅金收入、支出依新日期重算，人工改過的也覆蓋並留處理紀錄；
+    領牌日沒變時人工金額照舊保留（使用者 2026-11-07 T-127 p6 選 A）。"""
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if profile is None:
+        sync_order_operations(order.pk)
+        return
+    before = {name: getattr(profile, name) for name in REGISTRATION_TAX_FIELDS}
+    manual = [name for name in (profile.manual_financial_fields or []) if name in REGISTRATION_TAX_FIELDS]
+    if manual:
+        profile.manual_financial_fields = [name for name in profile.manual_financial_fields if name not in REGISTRATION_TAX_FIELDS]
+        profile.save(update_fields=["manual_financial_fields", "updated_at"])
+    sync_order_operations(order.pk)
+    profile.refresh_from_db()
+    changes = {name: {"before": str(before[name]), "after": str(getattr(profile, name))}
+               for name in REGISTRATION_TAX_FIELDS if getattr(profile, name) != before[name]}
+    if manual and changes:
+        OrderChange.objects.create(order=order, actor_name=actor_name, reason="領牌日變更，領牌稅金依實際領牌日重算（覆蓋人工金額）",
+                                   changes=changes)
+
+
 def _save_registration_form(request, form):
     """儲存已驗證的領牌資料並依領牌日帶入成本、獎勵與傭金；回傳 [(訊息等級, 文字)]。"""
     order = form.save()
+    if order.registration_date != form.previous_registration_date:
+        _recalculate_registration_tax(order, _editing_name(request.user))
     cost_profile = apply_order_settlement_cost(order, _editing_name(request.user))
     apply_order_incentive_rule(order, _editing_name(request.user))
     apply_order_dealer_commission(order)

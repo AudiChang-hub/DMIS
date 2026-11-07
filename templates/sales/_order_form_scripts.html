@@ -1743,7 +1743,7 @@
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
       refreshDraftPresence();
       connectCollaboration();
-      document.dispatchEvent(new CustomEvent("draft-saved"));
+      document.dispatchEvent(new CustomEvent("draft-saved", {detail: data}));
     } catch (error) {
       setDraftStatus("error", error.message);
     } finally {

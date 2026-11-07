@@ -53,8 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   // 文件區上傳後會原地換新（inplace-regions.js），每次都重新取得目前畫面上的節點。
   function setUploadControls(enabled) {
+    // 上傳一律開放（T-128）：沒有汰舊時也能先傳選填或「目前不需要」的文件，例如新車主存摺封面。
     document.querySelectorAll("[data-subsidy-upload-control]").forEach(control => {
-      control.hidden = !enabled;
+      control.hidden = false;
     });
     document.querySelectorAll("[data-subsidy-document-row]").forEach(row => {
       const required = enabled && row.dataset.requiredWhenEnabled === "true";

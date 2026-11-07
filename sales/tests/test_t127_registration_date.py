@@ -38,7 +38,9 @@ class RegistrationDateTests(TestCase):
         first = (order.road_maintenance_fee, profile.registration_tax_expense, profile.registration_tax_income)
         order, profile = self.save(order, "2026-10-29")
         second = (order.road_maintenance_fee, profile.registration_tax_expense, profile.registration_tax_income)
-        # 11/07 剩 54 個標準日，公路養管 450×54÷360＝67；10/29 剩 62 日＝77（UAT 7D8EEE：717 → 727）。
-        self.assertEqual((first[0], second[0]), (67, 77))
-        self.assertEqual(second[1] - first[1], second[0] - first[0])
-        self.assertEqual(second[1], second[2])
+        # UAT 7D8EEE（SUI 125、124 c.c. 油車，強制險一年）：號牌 300＋行照 150＋檢驗 200＋公路養管＋牌照稅 0。
+        # 11/07 剩 54 個標準日，公路養管 450×54÷360＝67，規費 717；10/29 剩 62 日＝77，規費 727（使用者：727 才正確）。
+        self.assertEqual(first, (67, 717, 717))
+        self.assertEqual(second, (77, 727, 727))
+        order, profile = self.save(order, "2026-11-07")
+        self.assertEqual((order.road_maintenance_fee, profile.registration_tax_expense, profile.registration_tax_income), (67, 717, 717))

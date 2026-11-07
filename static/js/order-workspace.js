@@ -562,6 +562,9 @@
   const rebase = () => forms.forEach(form => { if (!touched.has(form) && !timers.has(form)) bases.set(form, capture(form)); });
   window.addEventListener('load', () => { setTimeout(rebase, 0); setTimeout(() => { rebase(); indicators(); }, 2000); }, {once: true});
   // 自動儲存被擋時，原因直接標在該欄旁（使用者 2026-11-03 U-06），改了該欄就收起。
+  function visibleField(field) {
+    return field.type !== 'hidden' && field.getClientRects().length > 0;
+  }
   function showFieldError(field, errors) {
     const box = field.closest('[data-field-container]') || field.parentElement;
     if (!box) return;
@@ -673,7 +676,8 @@
           const entries = Object.entries(payload.errors || {});
           const detail = [payload.error || '未能儲存。', ...entries.flatMap(([, errors]) => errors)];
           let marked = entries.length > 0;
-          entries.forEach(([name, errors]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) { field.setAttribute('aria-invalid', 'true'); showFieldError(field, errors); } else marked = false; });
+          // 錯誤落在隱藏欄位（列編號、隱藏的應收列）時畫面沒有紅字，改把原因寫在狀態列（使用者 2026-11-07 UAT p2）。
+          entries.forEach(([name, errors]) => { const field = form.elements.namedItem(name); if (field?.setAttribute) { field.setAttribute('aria-invalid', 'true'); field.closest('.receipt-duplicate')?.classList.add('is-shown'); showFieldError(field, errors); if (!visibleField(field)) marked = false; } else marked = false; });
           // 原因已標在欄位旁時，狀態列只指路，不重複整段訊息。
           if (auto) { resumed.delete(form); setStatus(form, marked ? '尚未儲存：請依欄位旁的紅字修正。' : '尚未儲存：' + detail.join(' '), 'error'); return; }
           notify(detail.join('\n'), true);

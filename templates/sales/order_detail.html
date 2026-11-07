@@ -759,7 +759,7 @@
             {% endif_access %}{% endif %}
           {% endif %}
           {% if order.can_manage_subsidy %}
-          <form class="document-upload-form" data-document-upload data-auto-upload data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+          <form class="document-upload-form" data-document-upload data-auto-upload data-subsidy-upload-control method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
             {% csrf_token %}
             <input type="hidden" name="document_type" value="{{ row.type }}">
             <label class="button secondary compact file-button">

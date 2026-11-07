@@ -108,7 +108,9 @@ class IntakeOrderForm(SalesOrderForm):
         elif data.get("deposit_amount") is not None and data["deposit_amount"] < 0:
             self.add_error("deposit_amount", "訂金不可小於零。")
         if data.get("deposit_amount"):
-            data["deposit_date"] = data.get("deposit_date") or timezone.localdate()
+            # 不再自動帶今天（T-130，使用者 2026-11-07）：有填訂金就必須填訂金日期；建單即入帳的規則不變。
+            if not data.get("deposit_date") and "deposit_date" not in self.errors:
+                self.add_error("deposit_date", "有填訂金時，請填訂金日期。")
             if not data.get("deposit_method"):
                 self.add_error("deposit_method", "有填訂金時，請選擇付款方式。")
         self._clean_intake_discount(data)

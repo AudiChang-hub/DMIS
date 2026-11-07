@@ -369,7 +369,7 @@ class ReceptionWizardTests(TestCase):
         draft = None
         for step in ("vehicle", "owner", "tradein", "delivery", "accessories", "deposit"):
             data = {**self.complete_data(), "_wizard_step": step, "_wizard_action": "next", "_submission_key": key,
-                    "_id_check": "passed", "deposit_amount": "3000", "deposit_method": "cash",
+                    "_id_check": "passed", "deposit_amount": "3000", "deposit_date": "2026-11-07", "deposit_method": "cash",
                     "registration_plate_fee": "999"}
             if draft:
                 data["_draft_id"] = str(draft.pk)
@@ -390,7 +390,7 @@ class ReceptionWizardTests(TestCase):
         self.assertNotIn("實際牌險合計", summary)
         response = self.client.post(reverse("order_start"), {**self.complete_data(), "_wizard_step": "confirm", "_wizard_action": "submit",
                                                             "_submission_key": key, "_id_check": "passed", "_draft_id": str(draft.pk),
-                                                            "deposit_amount": "3000", "deposit_method": "cash"})
+                                                            "deposit_amount": "3000", "deposit_date": "2026-11-07", "deposit_method": "cash"})
         order = SalesOrder.objects.get()
         self.assertEqual(response.url, reverse("order_submitted", args=[order.pk]))
         self.assertEqual((order.deposit_amount, order.deposit_method), (3000, "cash"))

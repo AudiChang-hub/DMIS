@@ -217,3 +217,33 @@ class FrontendContractTests(TestCase):
         self.assertIn("event.stopImmediatePropagation();", script)
         self.assertIn("}, true);", script, "捕捉階段攔截，早於 form-feedback 與原地送出")
         self.assertIn("button[data-lock-auto]", script)
+
+
+class WizardDepositAndCountyTests(TestCase):
+    """使用者 2026-11-07 決定：建單訂金日期必填不帶今天；領牌縣市從畫面拿掉（資料庫欄位與舊資料保留）。"""
+
+    def test_new_order_form_leaves_deposit_date_blank_and_requires_it(self):
+        from sales.forms import SalesOrderForm
+        from sales.intake_forms import IntakeOrderForm
+
+        self.assertIsNone(SalesOrderForm().initial.get("deposit_date"))
+        self.assertEqual(str(SalesOrderForm(initial={"deposit_date": date(2026, 11, 1)}).initial["deposit_date"]), "2026-11-01",
+                         "草稿已填的日期照樣帶回")
+        user = get_user_model().objects.create_superuser("t130w", "", "test-pass-123")
+        form = IntakeOrderForm(data={"deposit_amount": "3000", "deposit_method": "cash", "deposit_date": ""}, user=user)
+        form.is_valid()
+        self.assertEqual(form.errors.get("deposit_date"), ["有填訂金時，請填訂金日期。"])
+
+    def test_registration_county_is_gone_from_screens_but_kept_in_db(self):
+        from sales.models import SalesOrder as Order
+        from sales.reporting.engine import DIMENSIONS
+        import sales.services.positioned_template_pdf as print_fields
+
+        self.assertIn("registration_county", [field.name for field in Order._meta.fields], "資料庫欄位保留")
+        self.assertNotIn("county", DIMENSIONS)
+        source = Path(print_fields.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("registration_county", source)
+        overview = (Path(settings.BASE_DIR) / "sales" / "services" / "order_overview.py").read_text(encoding="utf-8")
+        self.assertNotIn("領牌縣市", overview)
+        tags = (Path(settings.BASE_DIR) / "sales" / "templatetags" / "lock_confirm_tags.py").read_text(encoding="utf-8")
+        self.assertNotIn("get_registration_county_display", tags)

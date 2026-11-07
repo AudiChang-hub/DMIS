@@ -19,7 +19,7 @@ from .reader_layouts import READER_LAYOUTS
 
 DIMENSIONS = {
     "month": "月份", "brand": "品牌", "model": "車型", "energy": "能源別",
-    "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行", "county": "領牌縣市",
+    "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行",
     "year": "年份", "day": "日期", "family": "機種", "source_type": "來源類型", "color": "車色",
     "legacy_motor_type": "舊報表車種分類（比對用）",
     "legacy_sales_source": "舊報表銷售來源（比對用）",
@@ -351,7 +351,7 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
         return sales_source_query(queryset).annotate(**{alias: sales_source_expression()})
     mapping = {
         "brand": "vehicle_model__brand", "model": "vehicle_model_id",
-        "energy": "vehicle_model__energy_type", "source": "source_id", "county": "registration_county",
+        "energy": "vehicle_model__energy_type", "source": "source_id",
         "family": "vehicle_model__family_id", "source_type": "source_type", "color": "color__name", "day": basis,
     }
     if dimension == "month":

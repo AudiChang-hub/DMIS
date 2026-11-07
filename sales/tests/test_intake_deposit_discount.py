@@ -88,7 +88,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertNotIn('id="deposit-subsection" hidden', body)
         self.assertTrue(page.context["form"].fields["commission_recipient"].disabled)
         order = self.assert_created(self.submit_to(
-            "order_start", deposit_amount="3000", deposit_method="cash", vehicle_price="1",
+            "order_start", deposit_amount="3000", deposit_date="2026-11-07", deposit_method="cash", vehicle_price="1",
             compulsory_insurance_fee="777", **{"other_fees-0-name": "FORGED", "other_fees-0-amount": "50"},
         ))
         self.assertEqual((order.deposit_amount, order.vehicle_price, order.accepted_by), (3000, 79800, self.clerk))
@@ -106,8 +106,12 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         response = self.submit_to("order_create", deposit_amount="3000", deposit_method="")
         self.assertEqual(response.status_code, 200)
         self.assertIn("deposit_method", response.context["form"].errors)
+        # 訂金日期不再自動帶今天（T-130，使用者 2026-11-07）：有填訂金就必須填日期。
+        response = self.submit_to("order_create", deposit_amount="3000", deposit_date="", deposit_method="cash")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].errors["deposit_date"], ["有填訂金時，請填訂金日期。"])
         order = self.assert_created(self.submit_to(
-            "order_create", deposit_amount="3000", deposit_date="", deposit_method="cash",
+            "order_create", deposit_amount="3000", deposit_date=timezone.localdate().isoformat(), deposit_method="cash",
         ))
         deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
         self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed, deposit.payment_method),
@@ -134,7 +138,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
 
     def test_amount_discount_is_approved_immediately_and_on_contract(self):
         order = self.assert_created(self.submit(
-            deposit_amount="2000", deposit_method="cash", intake_discount_mode="amount", intake_discount_amount="1800",
+            deposit_amount="2000", deposit_date="2026-11-07", deposit_method="cash", intake_discount_mode="amount", intake_discount_amount="1800",
             intake_discount_reason="老客戶回購",
         ))
         self.assertEqual(order.discount_status, SalesOrder.DiscountStatus.APPROVED)
@@ -214,7 +218,7 @@ class IntakeDepositDiscountTests(IntakeFixtures):
     def test_draft_autosave_and_reload_keep_discount_and_deposit(self):
         self.grant_intake_only()
         result = self.client.post(reverse("intake_draft_save"), {
-            "owner_name": "草稿客戶", "deposit_amount": "1200", "deposit_method": "card",
+            "owner_name": "草稿客戶", "deposit_amount": "1200", "deposit_date": "2026-11-07", "deposit_method": "card",
             "intake_discount_mode": "rate", "intake_discount_rate": "9",
         })
         self.assertEqual(result.status_code, 200)
@@ -252,7 +256,7 @@ class WizardDiscountTests(IntakeFixtures):
         self.assertContains(too_much, "優惠須大於零，且不可超過折扣前總價。")
         draft.refresh_from_db()
         self.assertNotIn("deposit", draft.data["_wizard_done"])
-        good = {"intake_discount_amount": "2800", "intake_discount_reason": "老客戶", "deposit_amount": "1000", "deposit_method": "cash"}
+        good = {"intake_discount_amount": "2800", "intake_discount_reason": "老客戶", "deposit_amount": "1000", "deposit_date": "2026-11-07", "deposit_method": "cash"}
         self.assertEqual(self.wizard_post("deposit", draft, **good).status_code, 302)
         draft.refresh_from_db()
         self.assertEqual(draft.data["intake_discount_amount"], "2800")

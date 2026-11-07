@@ -6474,6 +6474,7 @@ def order_edit(request, pk):
             for field_name in ("id_front", "id_back")
         }
         previous_vehicle_model_id = order.vehicle_model_id
+        previous_color_id = order.color_id
         previous_source_type = order.source_type
         installment_before = tuple(getattr(order, name) for name in (
             "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
@@ -6567,8 +6568,11 @@ def order_edit(request, pk):
             if completed_correction:
                 _record_settlement_gap(order, gap_before, request.user)
             if order_workspace.is_workspace_save(request):
+                # 改了車型／車色（含 T-122 換車）：頁首車輛資料與配車候選清單都要跟著換，整頁重新載入。
+                # 未配車時也一樣，否則畫面仍顯示舊車色、配車清單仍是舊車色庫存（UAT 2026-11-07 T-129）。
+                vehicle_changed = (previous_vehicle_model_id, previous_color_id) != (order.vehicle_model_id, order.color_id)
                 return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset),
-                                             extra={"reload": True} if form.unallocate_requested else None)
+                                             extra={"reload": True} if vehicle_changed or form.unallocate_requested else None)
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
             if completed_correction:
                 messages.info(request, "完成後修正已保存，交付狀態不變；如有調整金額，請至訂單作業確認應收差額。")

@@ -6129,7 +6129,12 @@ def order_operations(request, pk):
         if order_workspace.is_workspace_save(request):
             if form.stale_revision:
                 return order_workspace.save_error(form.STALE_REVISION_MESSAGE, status=409)
-            return order_workspace.save_error("收支資料未儲存，請修正下列欄位。", forms=(form, *(payment_formset.forms if payment_formset is not None else ())))
+            # 畫面上的收款列已被系統刪掉或換掉（例如改了訂單來源、付款方式後同步重建）：錯誤落在隱藏的列編號，
+            # 畫面沒有紅字可看，改成明確請使用者重新整理（使用者 2026-11-07 UAT p2，SO20261107-91529C）。
+            if payment_formset is not None and any("id" in row.errors for row in payment_formset.forms):
+                return order_workspace.save_error(order_workspace.STALE_PAYMENT_ROWS_MESSAGE, status=409)
+            message = " ".join(["收支資料未儲存，請修正下列欄位。", *(payment_formset.non_form_errors() if payment_formset is not None else [])])
+            return order_workspace.save_error(message, forms=(form, *(payment_formset.forms if payment_formset is not None else ())))
     return render(
         request,
         "sales/order_operations.html",

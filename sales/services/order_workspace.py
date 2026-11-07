@@ -200,6 +200,9 @@ def apply_inline_discount(request, order, form):
     return saved(request, order)
 
 
+STALE_PAYMENT_ROWS_MESSAGE = "收款明細剛被系統更新（例如改了訂單來源或付款方式），這次輸入還沒存。請重新整理頁面後再輸入一次。"
+
+
 def save_error(message, *, status=400, forms=()):
     errors = {}
     for form in forms:

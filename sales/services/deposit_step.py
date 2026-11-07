@@ -29,7 +29,7 @@ def _confirm(payment, amount, actor_name):
 
 
 def confirm_intake_deposit(order, actor_name):
-    """建單填了訂金：實收＝訂金、日期沒填用當天、確認人記建單者，直接入帳。"""
+    """建單填了訂金：實收＝訂金、確認人記建單者，直接入帳。建單表單已要求填訂金日期（T-130），當天只是舊資料的備援。"""
     from sales.models import PaymentRecord
     from sales.services.operations_sync import sync_order_operations
 

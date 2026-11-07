@@ -442,7 +442,11 @@ class SalesOrderForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        provided_initial = dict(kwargs.get("initial") or {})
         super().__init__(*args, **kwargs)
+        # 新單的訂金日期不帶模型預設的今天（T-130，使用者 2026-11-07）：有填訂金就自己選日期。
+        if not self.is_bound and not self.instance.pk and not provided_initial.get("deposit_date") and "deposit_date" in self.fields:
+            self.initial["deposit_date"] = None
         # 新單預設同一人（不勾）；既有訂單依存的值反向帶入。
         self.initial.setdefault("old_owner_different", bool(self.instance.pk) and not self.instance.old_owner_same_as_owner)
         self._initial_vehicle_model_id = self.instance.vehicle_model_id

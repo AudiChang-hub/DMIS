@@ -13,13 +13,11 @@ def _money(value):
 
 @register.simple_tag
 def registration_lock_rows(order):
-    """確認領牌完成前列出：領牌日、車牌、縣市、領牌規費試算、車輛結算成本、必備文件。"""
+    """確認領牌完成前列出：領牌日、車牌、領牌規費試算、車輛結算成本、必備文件（領牌縣市已不使用，T-130）。"""
     rows = [
         ("領牌日期", f"{order.registration_date:%Y/%m/%d}" if order.registration_date else "", not order.registration_date),
         ("車牌號碼", order.final_plate_number or "", not order.final_plate_number),
     ]
-    if order.registration_county:
-        rows.append(("領牌縣市", order.get_registration_county_display(), False))
     rows.append(("領牌規費（試算）", _money(order.registration_calculated_total), False))
     try:
         profile = order.operations

@@ -7261,6 +7261,21 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .order-file__meta{color:var(--muted);font-size:var(--text-xs);line-height:1.5;overflow-wrap:anywhere}
 .order-file__locked{display:flex;gap:var(--space-1);align-items:center;color:var(--muted);font-size:var(--text-xs);line-height:1.5}
 .inline-delete-form{display:inline-flex;margin:0 0 0 var(--space-2)}
+/* 建單精靈附件卡（T-128）：和訂單頁附件同一個虛線上傳區，已存檔案一張卡、可刪除或替換。 */
+.intake-upload{display:grid;gap:var(--space-2);min-width:0}
+.intake-upload.is-enhanced .intake-upload__zone{position:relative;min-height:76px}
+.intake-upload.is-enhanced .intake-upload__zone input[type="file"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.intake-upload__zone.is-dragover{border-style:solid;border-color:var(--forest);background:var(--mint)}
+.intake-upload__list{display:grid;gap:var(--space-2);grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.intake-upload__list:empty{display:none}
+.intake-upload__item{display:grid;gap:var(--space-2);align-content:start;padding:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface)}
+.intake-upload__item.is-pending,.intake-upload__item.is-removing{opacity:.6}
+.intake-upload__name{font-weight:800;overflow-wrap:anywhere}
+.intake-upload__state{color:var(--muted);font-size:var(--text-xs)}
+.intake-upload__item .document-card{padding:0;border:0;background:none;box-shadow:none}
+.intake-upload__actions{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.intake-upload__actions .button{min-height:44px;flex:1 1 auto}
+.intake-upload-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
 .document-thumbnail.is-file{cursor:default;font-weight:800;letter-spacing:.06em;color:var(--ink-soft);background:var(--surface-tint);font-size:var(--text-lg)}
 .order-files__empty{margin:var(--space-2) 0 0}
 .order-files__upload .document-upload-progress{grid-column:1/-1}

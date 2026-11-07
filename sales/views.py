@@ -5443,6 +5443,12 @@ def draft_save(request, reception=False):
             "updated_at": timezone.localtime(draft.updated_at).strftime("%H:%M"),
             "edit_url": f"{reverse('order_start' if reception else 'order_create')}?draft={draft.pk}",
             "photos": photo_urls,
+            # 建單精靈的附件卡（T-128）：存好後列出已存的檔案，畫面可直接刪除或替換。
+            "attachments": [
+                {"id": item.pk, "kind": item.kind, "label": item.get_kind_display(), "name": item.name,
+                 "url": reverse("order_intake_attachment", args=[item.pk])}
+                for item in draft.intake_attachments.order_by("created_at", "pk")
+            ],
         }
     )
 
@@ -8372,16 +8378,8 @@ def _store_subsidy_document(request, pk, files=None):
             message="已取消訂單無法修改補助文件。",
             status=409,
         ), None
-    # 其他補助文件不受汰舊流程影響（T-83 畫面一律可上傳）；固定文件仍限有汰舊／政府補助的訂單。
-    if not order.is_trade_in_subsidy and request.POST.get("document_type") != SubsidyDocument.DocumentType.OTHER:
-        return _document_upload_response(
-            request,
-            order_pk=pk,
-            tab="subsidy",
-            ok=False,
-            message="此訂單未勾選汰舊／政府補助。",
-            status=400,
-        ), None
+    # 補助文件一律可上傳（使用者 2026-11-07 T-128）：沒有汰舊時也能傳選填或「目前不需要」的文件，例如新車主存摺封面；
+    # 上傳不改變汰舊流程與完成條件。
     form = SubsidyDocumentUploadForm(request.POST, request.FILES if files is None else files)
     if not form.is_valid():
         return _document_upload_response(

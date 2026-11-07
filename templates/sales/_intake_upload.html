@@ -1,0 +1,23 @@
+{% comment %}建單精靈的上傳區（使用者 2026-11-07 T-128「每個上傳檔案的地方都要可以刪除，UI 做成像附件上傳的樣子」）：
+跟訂單頁附件同一個虛線上傳區；選好檔案就隨草稿存起來，下方每個已存檔案一張卡，可刪除（先確認）或替換。
+仍用原本的檔案欄位送出（intake-upload.js 只負責畫面），沒有 JavaScript 時就是一般的選檔欄位。
+參數：input_name、kind、label、hint、accept、multiple、attachments（草稿已存的附件，依 kind 篩選）、
+also_kinds（一併列出、只能刪除的舊類型，例如舊車主證件；以空白分隔）。{% endcomment %}
+<div class="intake-upload" data-intake-upload data-kind="{{ kind }}" data-also-kinds="{{ also_kinds|default:"" }}" data-input-name="{{ input_name }}"{% if multiple %} data-multiple{% endif %}>
+  <label class="other-subsidy-documents__file intake-upload__zone" data-upload-dropzone>
+    <span class="other-subsidy-documents__file-icon" aria-hidden="true">＋</span>
+    <span class="other-subsidy-documents__file-text"><strong>{{ label }}</strong><small>{{ hint }}</small></span>
+    <input type="file" name="{{ input_name }}" accept="{{ accept }}"{% if multiple %} multiple{% endif %} data-intake-upload-input>
+  </label>
+  <div class="intake-upload__list" data-intake-upload-list aria-live="polite">
+    {% for attachment in attachments %}{% if attachment.kind == kind or also_kinds and attachment.kind in also_kinds %}
+    <div class="intake-upload__item" data-intake-attachment="{{ attachment.pk }}">
+      <a href="{% url 'order_intake_attachment' attachment.pk %}" data-preview-name="{{ attachment.name }}" data-preview-label="{% if attachment.kind != kind %}{{ attachment.get_kind_display }}：{% endif %}{{ attachment.name }}">{{ attachment.name }}</a>
+      <div class="intake-upload__actions">
+        {% if attachment.kind == kind %}<button type="button" class="button ghost compact" data-intake-replace>替換</button>{% endif %}
+        <button type="button" class="button danger-outline compact" data-intake-delete>刪除</button>
+      </div>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+</div>

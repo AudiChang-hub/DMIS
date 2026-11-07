@@ -342,8 +342,8 @@ class OrderWizardTests(TestCase):
             page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": step}).content.decode()
             for program in (first, second):
                 self.assertRegex(page, rf'name="subsidy_programs" value="{program.pk}"[^>]*checked')
-        # 已存的證件列在第三步，不再像沒上傳過。
-        self.assertIn("已存的證件與存摺", page)
+        # 已存的證件列在第三步的附件卡，不再像沒上傳過（T-128 改成可刪除的附件卡）。
+        self.assertIn("data-intake-attachment=", page)
         self.assertIn("old-front.png", page)
         # 同一類重新選檔直接取代原檔，不必先勾移除。
         draft.refresh_from_db()

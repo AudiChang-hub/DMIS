@@ -4,4 +4,4 @@
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}{% include "sales/_order_form_content.html" %}{% endblock %}
-{% block scripts %}{% include "sales/_order_form_scripts.html" %}{% endblock %}
+{% block scripts %}{% include "sales/_order_form_scripts.html" %}<script src="{% static 'js/intake-upload.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -13,6 +13,8 @@
     const image = /\.(jpe?g|png|webp)$/i.test(name);
     if (!pdf && !image) { link.classList.add('document-file-tile'); return; }
     url.searchParams.set('preview', '1');
+    // 替換後網址不變，瀏覽器會沿用同頁已載入的舊縮圖（T-128）；用存檔名當版本，換檔就換網址。
+    if (link.dataset.previewName) url.searchParams.set('v', link.dataset.previewName);
     const button = document.createElement('button'); button.type = 'button'; button.className = 'document-thumbnail'; button.setAttribute('aria-label', `放大 ${name}`);
     if (image) { const img = document.createElement('img'); img.src = url.href; img.alt = name; img.loading = 'lazy'; button.append(img); }
     else {
@@ -35,7 +37,8 @@
   scan(); new MutationObserver(scan).observe(document.body, {childList: true, subtree: true});
   const blobs = new Set();
   document.querySelectorAll('input[type="file"]').forEach(input => {
-    if (!['owner_bankbook', 'old_id_front', 'old_id_back', 'old_bankbook', 'installment_document', 'supplement_documents'].includes(input.name)) return;
+    // 建單精靈改用 intake-upload.js 的附件卡（T-128），只剩舊車主證件與存摺沿用本機預覽。
+    if (input.matches('[data-intake-upload-input]') || !['old_id_front', 'old_id_back', 'old_bankbook'].includes(input.name)) return;
     const previews = document.createElement('div'); previews.className = 'document-card-list upload-previews'; input.after(previews);
     let urls = [];
     input.addEventListener('change', () => {

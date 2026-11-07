@@ -73,9 +73,10 @@ class OtherSubsidyMultiUploadTests(inplace.InplaceUploadTests.__bases__[0]):
         self.assertIn("正本已寄回", section)
 
     def test_other_documents_upload_without_trade_in(self):
-        # 畫面上不論有沒有汰舊都能上傳其他補助文件（T-83）；固定文件仍限汰舊／政府補助的訂單。
+        # 不論有沒有汰舊都能上傳其他補助文件（T-83）與固定文件（T-128，例如新車主存摺封面）。
         SalesOrder.objects.filter(pk=self.order.pk).update(is_trade_in_subsidy=False)
         self.assertTrue(self.upload(png("加碼.png"), **JSON).json()["ok"])
         fixed = self.client.post(reverse("subsidy_document_upload", args=[self.order.pk]),
                                  {"document_type": SubsidyDocument.DocumentType.SCRAP_CERTIFICATE, "file": png()}, **JSON)
-        self.assertEqual(fixed.status_code, 400)
+        self.assertEqual(fixed.status_code, 200)
+        self.assertTrue(fixed.json()["ok"])

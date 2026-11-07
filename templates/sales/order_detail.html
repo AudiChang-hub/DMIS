@@ -414,7 +414,8 @@
       </section>
       {% endif %}
     </div>
-    {% if settlement_cost_rule_missing and order.registration_county and not operations_profile.vehicle_cost_rule_id and not vehicle_cost_is_manual %}
+    {# 填了領牌日就檢查成本規則（使用者 2026-11-07 T-130 選 A；原本看領牌縣市，新單沒有縣市所以從不出現）。settlement_cost_rule_missing 已含「有領牌日」。 #}
+    {% if settlement_cost_rule_missing and not operations_profile.vehicle_cost_rule_id and not vehicle_cost_is_manual %}
     <div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>
     {% endif %}
     {% if not operations_profile.incentive_rule_id and order.registration_date %}

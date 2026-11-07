@@ -134,6 +134,21 @@ class LockConfirmRegistrationTests(TestCase):
         self.assertNotIn("data-lock-auto", again["registration_html"], "已經齊全時改資料不再自動跳")
         self.assertIn("<dd>ABC-1235</dd>", again["registration_html"])
 
+    def test_missing_cost_rule_warning_follows_registration_date_not_county(self):
+        # 使用者 2026-11-07 選 A：填了領牌日就檢查成本規則；以前要有縣市才出現，新單沒有縣市所以從不出現。
+        warning = '<div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>'
+        page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
+        self.assertNotIn(warning, page, "成本規則適用（2026/10/29）時不警告")
+        self.client.post(reverse("registration_save", args=[self.order.pk]),
+                         {"registration_date": "2025-12-31", "final_plate_number": "ABC-1234"}, HTTP_X_ORDER_WORKSPACE="1")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.registration_county, "")
+        page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
+        self.assertIn(warning, page, "規則 2026/01/01 才生效，領牌日 2025/12/31 找不到規則就要警告（沒有縣市也一樣）")
+        SalesOrder.objects.filter(pk=self.order.pk).update(registration_date=None)
+        page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
+        self.assertNotIn(warning, page, "還沒填領牌日不檢查")
+
     def test_order_page_has_save_state_and_lock_confirm_assets(self):
         page = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
         self.assertEqual(page.count("data-save-chip "), 2, "頁首與精簡列各一個存檔狀態")

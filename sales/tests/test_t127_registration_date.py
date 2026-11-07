@@ -44,3 +44,52 @@ class RegistrationDateTests(TestCase):
         self.assertEqual(second, (77, 727, 727))
         order, profile = self.save(order, "2026-11-07")
         self.assertEqual((order.road_maintenance_fee, profile.registration_tax_expense, profile.registration_tax_income), (67, 717, 717))
+
+
+class RegistrationDateKeptTests(TestCase):
+    """使用者選的實際領牌日一定存下來（UAT 7D8EEE、0A6C66）：完成領牌後仍是 10/29、規費 727；
+    之後訂單表單自動儲存送出的隱藏舊領牌日不會把它蓋回去。"""
+    setUp = autosave.OrderAutosaveTests.setUp
+    make_order = autosave.OrderAutosaveTests.make_order
+    workspace_post = autosave.OrderAutosaveTests.workspace_post
+
+    def gas_order(self):
+        self.model.energy_type = "gas"
+        self.model.displacement_cc = 124
+        self.model.save(update_fields=["energy_type", "displacement_cc"])
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(plate_insurance_fee=1400)
+        order.refresh_from_db()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+        return order
+
+    def test_chosen_date_survives_completion_by_document_upload(self):
+        from sales.models import RegistrationDocument
+        from sales.tests.test_order_flow import uploaded_test_pdf
+        order = self.gas_order()
+        response = self.workspace_post(reverse("registration_save", args=[order.pk]),
+                                       {"registration_date": "2026-10-29", "final_plate_number": "php-9836"})
+        self.assertEqual(response.status_code, 200, response.content)
+        for index, document_type in enumerate((RegistrationDocument.DocumentType.NEW_LICENSE,
+                                               RegistrationDocument.DocumentType.REGISTRATION_APPLICATION)):
+            self.client.post(reverse("registration_document_upload", args=[order.pk]), {
+                "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"doc-{index}.pdf")})
+        order.refresh_from_db()
+        profile = OrderOperationsProfile.objects.get(order=order)
+        self.assertTrue(order.is_registration_complete)
+        self.assertEqual(str(order.registration_date), "2026-10-29")
+        self.assertEqual((order.road_maintenance_fee, profile.registration_tax_expense, profile.registration_tax_income), (77, 727, 727))
+
+    def test_order_form_autosave_does_not_revert_registration_date(self):
+        from sales.forms import SalesOrderForm
+        from sales.tests.test_order_workspace import form_data
+        order = self.gas_order()
+        stale = form_data(SalesOrderForm(instance=SalesOrder.objects.get(pk=order.pk)))  # 頁面載入時（還沒有領牌日）
+        self.workspace_post(reverse("registration_save", args=[order.pk]),
+                            {"registration_date": "2026-10-29", "final_plate_number": "php-9836"})
+        form = SalesOrderForm(data={**stale, "registration_date": ""}, instance=SalesOrder.objects.get(pk=order.pk))
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        self.assertEqual(str(saved.registration_date), "2026-10-29")
+        self.assertEqual(saved.road_maintenance_fee, 77)

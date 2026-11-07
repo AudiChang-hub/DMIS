@@ -3071,7 +3071,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "簽署文件留存")
         self.assertContains(response, "data-document-upload")
         self.assertContains(response, "data-auto-upload")
-        self.assertContains(response, "data-subsidy-upload-control hidden")
+        # 補助文件一律可上傳（T-128），沒有汰舊也不藏上傳鈕。
+        self.assertNotContains(response, "data-subsidy-upload-control hidden")
         self.assertContains(response, reverse("contract_upload", args=[order.pk]))
         self.assertContains(
             response, reverse("privacy_consent_upload", args=[order.pk])
@@ -3247,7 +3248,7 @@ class OrderFlowTests(TestCase):
         inactive_detail = self.client.get(reverse("order_detail", args=[order.pk]))
         # 2026-10-22 T-81：畫面不再有開關（改由補助項目推導），端點保留。
         self.assertNotContains(inactive_detail, "data-subsidy-toggle-url")
-        self.assertContains(inactive_detail, "data-subsidy-upload-control hidden")
+        self.assertNotContains(inactive_detail, "data-subsidy-upload-control hidden")
 
         response = self.client.post(
             reverse("subsidy_toggle", args=[order.pk]),
@@ -3712,7 +3713,8 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.old_owner_id_number, "B123456789")
         self.assertEqual(order.old_owner_ocr_name, "")
 
-    def test_non_subsidy_order_rejects_subsidy_upload(self):
+    def test_non_subsidy_order_accepts_subsidy_upload(self):
+        # 沒有汰舊也能上傳補助文件（使用者 2026-11-07 T-128）；上傳不開啟汰舊流程。
         order = self.make_order()
         self.client.force_login(self.user)
 
@@ -3725,7 +3727,9 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
-        self.assertFalse(order.subsidy_documents.exists())
+        self.assertTrue(order.subsidy_documents.exists())
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
 
     def test_registration_requires_data_and_all_fixed_documents(self):
         order = self.make_order()

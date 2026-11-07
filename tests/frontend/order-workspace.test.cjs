@@ -91,3 +91,14 @@ test('斷線提示列出還沒存的欄位，沒有標籤時改說這一區（UA
   assert.match(text, /^網路中斷，「車主電話」還沒存。恢復連線後會自動補存/);
   assert.doesNotMatch(text, /[A-Za-z]/);
 });
+test('進頁分頁：隱藏或空白的即時錯誤欄不算表單錯誤（T-129，否則都被拉回訂車與配件）', () => {
+  const {shownError} = require('../../static/js/order-workspace.js');
+  const node = (props) => ({hidden: false, textContent: '', getAttribute: () => null, ...props});
+  assert.equal(shownError([node({hidden: true, textContent: ''})]), null);
+  assert.equal(shownError([node({hidden: false, textContent: '  '})]), null);
+  assert.equal(shownError([node({hidden: true, textContent: '身分證字號格式不對'})]), null);
+  const real = node({textContent: '此欄位為必填'});
+  assert.equal(shownError([node({hidden: true}), real]), real);
+  const invalid = node({getAttribute: (name) => (name === 'aria-invalid' ? 'true' : null)});
+  assert.equal(shownError([invalid]), invalid);
+});

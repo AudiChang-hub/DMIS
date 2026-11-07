@@ -41,7 +41,12 @@
     : error?.network || !online ? 'network' : error?.known ? 'known' : 'other';
   const listFields = labels => labels.length ? labels.map(label => `「${label}」`).join('、') : '這一區的修改';
   const offlineText = labels => `網路中斷，${listFields(labels)}還沒存。恢復連線後會自動補存，請先不要關閉或重新整理頁面。`;
-  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues, failureKind, listFields, offlineText};
+  // 進頁時「含表單錯誤的分頁」只認真的錯誤：即時檢查預先放好的空白、隱藏錯誤欄（如證號檢查 U-05）不算，
+  // 否則每次進頁都被拉回「訂車與配件」（UAT 2026-11-07 T-129）。
+  const FORM_ERROR = '.errorlist, small.field-error, [aria-invalid="true"]';
+  const shownError = nodes => [...nodes].find(node => !node.hidden
+    && (node.getAttribute?.('aria-invalid') === 'true' || (node.textContent || '').trim() !== '')) || null;
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues, failureKind, listFields, offlineText, shownError};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -686,8 +691,16 @@
           return;
         }
         fields(form).forEach(clearFieldError);
-        // 改車型／車色同時取消了配車（T-122）：配車步驟、車輛資料都變了，整頁重新載入。
-        if (payload.reload) { bases.set(form, capture(form)); location.reload(); return; }
+        // 改了車型／車色（含 T-122 換車）：頁首車輛資料、配車清單都變了，整頁重新載入並停回原處（T-129）。
+        if (payload.reload) {
+          bases.set(form, capture(form));
+          // 這一區已存好；儲存中（busy）不算未存，只有其他區塊還有未存修改時才讓瀏覽器提醒。
+          allowLeave = !forms.some(dirty);
+          const inplace = window.DMISInplace;
+          if (inplace?.reloadInPlace) inplace.reloadInPlace(form.querySelector('[name="color"]') || form);
+          else location.reload();
+          return;
+        }
         // 重編後欄位會改名；送出後才打的字改用新名稱保留，基準仍取送出時的值（新名稱 → 送出時名稱）。
         const typedBefore = changedNames(form, sent);
         const renamed = acceptRows(form, payload, sent);
@@ -813,7 +826,7 @@
   } else if (tabbed) {
     let target = resolveHash(location.hash);
     if (!target) {
-      const invalid = steps.map(step => step.querySelector('.errorlist, small.field-error, [aria-invalid="true"]')).find(Boolean);
+      const invalid = steps.map(step => shownError(step.querySelectorAll(FORM_ERROR))).find(Boolean);
       if (invalid) target = {key: invalid.closest('[role="tabpanel"]').dataset.stepKey, anchor: invalid};
     }
     activate(target?.key || activeKey, {animate: false, url: false, announce: true});

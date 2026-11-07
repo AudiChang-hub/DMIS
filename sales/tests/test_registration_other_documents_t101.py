@@ -94,6 +94,7 @@ class RegistrationOtherDocumentTests(TestCase):
         SalesOrder.objects.filter(pk=self.order.pk).update(registration_date=date(2026, 10, 19), final_plate_number="ABC-1234")
         for document_type in (Doc.NEW_LICENSE, Doc.REGISTRATION_APPLICATION):
             self.client.post(self.url, {"document_type": document_type, "file": png()})
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
         # 領牌完成後仍可再上傳、也可刪除傳錯的補充檔；固定文件也能刪除傳錯的檔（使用者 2026-11-06 T-121）。

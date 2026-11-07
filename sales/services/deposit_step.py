@@ -102,7 +102,8 @@ def save_deposit_step(order, payment, data, actor_name):
 
     amount = data.get("amount") or ZERO
     method = data.get("method") or ""
-    day = data.get("received_on") or (timezone.localdate() if amount else None)
+    # 日期不自動補今天（T-130 第 1 層，2026-11-07）：沒選就留空，標記已收妥前表單會要求選日期。
+    day = data.get("received_on") if amount else None
     order_changed = _sync_order_deposit(order, amount=amount, day=day, method=method, actor_name=actor_name)
     if payment is None:
         # 沒有訂金列的單（T-125）：訂金存成 0 不建列；填了訂金由同步建立訂金列後再寫收款資料。

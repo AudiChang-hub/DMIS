@@ -609,7 +609,10 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(saved.plate_insurance_fee, 3000)
         self.assertFalse(saved.plate_insurance_auto)
         self.assertEqual(saved.plate_selection_fee, 1500)
-        form = self.edit_order(order, plate_insurance_fee="3000", registration_date="2026-10-14")
+        # 領牌日只在領牌步驟填寫（T-127 p6）：這裡直接設定實際領牌日，再看訂單表單的試算。
+        SalesOrder.objects.filter(pk=order.pk).update(registration_date=date(2026, 10, 14))
+        order.refresh_from_db()
+        form = self.edit_order(order, plate_insurance_fee="3000")
         self.assertTrue(form.is_valid(), form.errors)
         saved = form.save(commit=False)
         self.assertGreater(saved.registration_calculated_total, 0)
@@ -684,9 +687,12 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         for registration_date in ("", "2026-10-14"):
             with self.subTest(registration_date=registration_date):
                 order = self.micro_electric_order(order_date=date(2026, 10, 14))
+                if registration_date:
+                    # 領牌日只在領牌步驟填寫（T-127 p6）：直接設定實際領牌日。
+                    SalesOrder.objects.filter(pk=order.pk).update(registration_date=registration_date)
+                    order.refresh_from_db()
                 form = self.edit_order(
                     order,
-                    registration_date=registration_date,
                     plate_choice="watch",
                     plate_selection_fee="1200",
                     plate_insurance_fee="",

@@ -475,7 +475,9 @@ class SalesOrderForm(forms.ModelForm):
         self.commission_attribution_locked = bool(
             self.instance.pk and self.instance.dealer_volume_bonus_allocations.exists()
         )
-        if self.instance.registration_completed_at:
+        if self.instance.pk:
+            # 領牌日只在「領牌」步驟填寫；訂單表單裡的領牌日是載入頁面時的隱藏舊值（給前端試算用），
+            # 存檔一律沿用資料庫現值，免得領牌步驟剛存的實際領牌日被訂單自動儲存蓋回舊值（使用者 2026-11-07 T-127 p6）。
             self.fields["registration_date"].disabled = True
         self.fields["commission_recipient"].queryset = SalesSource.objects.filter(
             Q(active=True) | Q(pk=self.instance.commission_recipient_id),

@@ -111,3 +111,25 @@ class UnallocateTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.allocated_vehicle_id, vehicle.pk)
         self.assertEqual(order.vehicle_price, Decimal("75000"))
+
+    def test_unallocated_color_change_saves_and_reloads_allocation_candidates(self):
+        """UAT 2026-11-07 T-129：未配車時改車色直接存檔，回傳重新載入，配車清單立刻換成新車色庫存。"""
+        order, grey_vehicle = self.make_order()
+        order.unallocate("測試人員")
+        cream = VehicleColor.objects.create(vehicle_model=self.model, name="奶")
+        cream_vehicle = VehicleInventory.objects.create(
+            vehicle_model=self.model, color=cream, engine_number=f"CREAM-{order.pk}",
+            ownership_store=self.store, location_store=self.store,
+        )
+        order.refresh_from_db()
+        page, response = self._edit(order, color=str(cream.pk))
+        self.assertNotContains(page, "data-unallocate-confirm", msg_prefix="未配車不跳換車警告")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()["reload"], "改車色後要重新載入，頁首與配車清單才會更新")
+        order.refresh_from_db()
+        self.assertEqual((order.color_id, order.allocated_vehicle_id), (cream.pk, None))
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "allocation"})
+        candidates = list(page.context["allocation_form"].fields["vehicle"].queryset)
+        self.assertIn(cream_vehicle, candidates)
+        self.assertNotIn(grey_vehicle, candidates)
+        self.assertContains(page, f"／{cream.name} 的可售庫存")

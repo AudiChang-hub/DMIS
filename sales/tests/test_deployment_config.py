@@ -1,3 +1,8 @@
+import os
+import shutil
+import subprocess
+import tempfile
+import unittest
 from pathlib import Path
 
 from django.test import SimpleTestCase
@@ -42,6 +47,66 @@ class CloudflareTunnelDeploymentTests(SimpleTestCase):
             self.assertGreater(backup.index(line), guard)
             self.assertTrue(line.startswith("    find "))
 
+
+    def test_deploy_backup_is_daily_only(self):
+        """T-132：部署前備份不寫週／月封存（資料夾屬 root），只有每日排程建立。"""
+        deploy = (PROJECT_ROOT / "scripts" / "deploy_django.sh").read_text(encoding="utf-8")
+        backup = (PROJECT_ROOT / "scripts" / "backup_django_data.sh").read_text(encoding="utf-8")
+        self.assertIn("DMIS_BACKUP_DAILY_ONLY=1 DMIS_BACKUP_SKIP_PRUNE=1 ./scripts/backup_django_data.sh", deploy)
+        self.assertEqual(deploy.count("./scripts/backup_django_data.sh"), 1)
+        self.assertIn("DAILY_ONLY=${DMIS_BACKUP_DAILY_ONLY:-0}", backup)
+        guard = backup.index('if [[ "$DAILY_ONLY" == "1" ]]; then')
+        self.assertLess(guard, backup.index('archive_db "$BACKUP_ROOT/postgres/weekly/'))
+        self.assertIn('if [[ "$DAILY_ONLY" != "1" && "$(date +%d)" == "01" ]]; then', backup)
+        unit = (PROJECT_ROOT / "deployment" / "systemd" / "dmis-next-backup.service").read_text(encoding="utf-8")
+        self.assertNotIn("DAILY_ONLY", unit)
+
+
+@unittest.skipIf(os.name == "nt" or not all(shutil.which(tool) for tool in ("bash", "flock", "rsync", "gzip", "tar")),
+                 "需要 Linux 的 bash、flock、rsync")
+class BackupScriptArchiveTests(SimpleTestCase):
+    """T-132：實際執行備份腳本（假 docker、假日期）。DAILY_ONLY=1 不寫週／月封存；沒設時照舊寫。"""
+
+    def run_backup(self, daily_only):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        (root / "project" / ".git").mkdir(parents=True)
+        (root / "media").mkdir()
+        (root / "media" / "a.txt").write_text("media", encoding="utf-8")
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        real_date = shutil.which("date")
+        (bin_dir / "docker").write_text("#!/usr/bin/env bash\necho 'SELECT 1;'\n", encoding="utf-8")
+        (bin_dir / "date").write_text(
+            "#!/usr/bin/env bash\n"
+            'case "$1" in +%u) echo 7;; +%d) echo 01;; *) exec ' + real_date + ' "$@";; esac\n',
+            encoding="utf-8")
+        for tool in ("docker", "date"):
+            (bin_dir / tool).chmod(0o755)
+        env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}",
+               "DMIS_NEXT_PROJECT_DIR": str(root / "project"), "DJANGO_MEDIA_PATH": str(root / "media"),
+               "DMIS_DATA_ROOT": str(root), "DMIS_BACKUP_ROOT": str(root / "backups"),
+               "DMIS_BACKUP_LOCK_FILE": str(root / ".lock"), "DMIS_BACKUP_SKIP_PRUNE": "1"}
+        if daily_only:
+            env["DMIS_BACKUP_DAILY_ONLY"] = "1"
+        script = PROJECT_ROOT / "scripts" / "backup_django_data.sh"
+        result = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        backups = root / "backups"
+        return {name: sorted(p.name for p in (backups / name).iterdir())
+                for name in ("postgres/daily", "postgres/weekly", "postgres/monthly", "media/weekly", "media/monthly")}
+
+    def test_daily_only_skips_weekly_and_monthly_archives(self):
+        files = self.run_backup(daily_only=True)
+        self.assertEqual(len(files["postgres/daily"]), 1)
+        for name in ("postgres/weekly", "postgres/monthly", "media/weekly", "media/monthly"):
+            self.assertEqual(files[name], [], name)
+
+    def test_scheduled_backup_still_writes_weekly_and_monthly_archives(self):
+        files = self.run_backup(daily_only=False)
+        self.assertEqual(len(files["postgres/daily"]), 1)
+        for name in ("postgres/weekly", "postgres/monthly", "media/weekly", "media/monthly"):
+            self.assertEqual(len(files[name]), 1, name)
 
 class BlueGreenDeploymentTests(SimpleTestCase):
     def read(self, *parts):

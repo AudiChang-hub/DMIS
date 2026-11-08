@@ -10,6 +10,9 @@ BACKUP_ROOT=${DMIS_BACKUP_ROOT:-${DATA_ROOT}/backups}
 LOCK_FILE=${DMIS_BACKUP_LOCK_FILE:-${DATA_ROOT}/.backup.lock}
 # 部署前備份只建立新備份；過期清理只由每日排程（root）執行，避免部署帳號刪不掉 root 檔案而中止部署。
 SKIP_PRUNE=${DMIS_BACKUP_SKIP_PRUNE:-0}
+# 部署前備份只做每日備份：週／月封存資料夾屬 root，只由每日排程（root）建立；
+# 否則週日或每月 1 號凌晨排程跑完前部署，會因寫不進封存資料夾而中止（T-132）。
+DAILY_ONLY=${DMIS_BACKUP_DAILY_ONLY:-0}
 
 log() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -78,13 +81,15 @@ archive_media() {
     mv "${target}.partial" "$target"
 }
 
-if [[ "$(date +%u)" == "7" ]]; then
+if [[ "$DAILY_ONLY" == "1" ]]; then
+    log "部署前備份只做每日備份，略過週／月封存，交由每日備份排程建立"
+elif [[ "$(date +%u)" == "7" ]]; then
     archive_db "$BACKUP_ROOT/postgres/weekly/dmis_$(date +%G-W%V).sql.gz"
     log "建立每週媒體封存"
     archive_media "$BACKUP_ROOT/media/weekly/media_$(date +%G-W%V).tar.gz"
 fi
 
-if [[ "$(date +%d)" == "01" ]]; then
+if [[ "$DAILY_ONLY" != "1" && "$(date +%d)" == "01" ]]; then
     archive_db "$BACKUP_ROOT/postgres/monthly/dmis_$(date +%Y-%m).sql.gz"
     log "建立每月媒體封存"
     archive_media "$BACKUP_ROOT/media/monthly/media_$(date +%Y-%m).tar.gz"

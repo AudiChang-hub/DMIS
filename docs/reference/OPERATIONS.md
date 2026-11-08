@@ -104,7 +104,7 @@ chmod +x scripts/deploy_django.sh scripts/deploy_web_bluegreen.sh scripts/backup
 ```
 
 `deploy_django.sh` 確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體（部署前備份
-只新增、不清理過期檔，以免部署帳號刪不掉 root 擁有的備份而中止），核對發布標籤，再交給
+只做每日備份、不寫週／月封存也不清理過期檔，以免部署帳號寫不進或刪不掉 root 擁有的備份而中止），核對發布標籤，再交給
 `scripts/deploy_web_bluegreen.sh`：
 
 1. 建置新版 image（靜態檔在建置時整理），舊版照常服務。
@@ -132,6 +132,7 @@ chmod +x scripts/deploy_django.sh scripts/deploy_web_bluegreen.sh scripts/backup
 - PostgreSQL 每日備份保留 14 天、每週 8 週、每月約 12 個月；過期清理只由此排程執行。
 - 媒體每日同步目前鏡像，另建立每週與每月封存。
 - 每週與每月封存每期只建立一次；已存在（例如凌晨 root 排程已建立）就保留原檔，部署當天再跑備份不會因覆寫被拒而中止。
+- 部署前備份（`deploy_django.sh`）只做每日備份與媒體鏡像（`DMIS_BACKUP_DAILY_ONLY=1`），週／月封存只由此排程（root）建立；週日或每月 1 號凌晨排程跑完前部署也不會因封存資料夾屬 root 而中止。
 
 ```bash
 findmnt /srv/dmis-data

@@ -11,12 +11,23 @@
     <h1>配件與工資</h1>
     <p class="muted">{% site_text 'accessory_product_list.78db5a962a4a' %}</p>
   </div>
-  <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
+  <div class="hero-actions">
+    <a class="button secondary" href="{% url 'accessory_category_list' %}">管理類別</a>
+    <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
+  </div>
 </section>
-<form method="get" class="master-filters customer-filters">
+<form method="get" class="master-filters">
   <div class="inventory-filter master-search">
     <label for="accessory-q">搜尋</label>
     <input id="accessory-q" type="search" name="q" value="{{ selected.q }}" placeholder="配件名稱或內部備註">
+  </div>
+  <div class="inventory-filter">
+    <label for="accessory-category">類別</label>
+    <select id="accessory-category" name="category">
+      <option value="">全部類別</option>
+      {% for category in categories %}<option value="{{ category.pk }}" {% if selected.category == category.pk|stringformat:'d' %}selected{% endif %}>{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}
+      <option value="none" {% if selected.category == 'none' %}selected{% endif %}>未分類</option>
+    </select>
   </div>
   <div class="inventory-filter">
     <label for="accessory-active">狀態</label>
@@ -35,11 +46,12 @@
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 項配件</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table">
-      <thead><tr><th>配件名稱</th><th>售價</th><th>工資</th><th>參考成本</th><th>歷史使用</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>配件名稱</th><th>類別</th><th>售價</th><th>工資</th><th>參考成本</th><th>歷史使用</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for item in products %}
         <tr>
           <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+          <td data-label="類別">{{ item.category.name|default:"未分類" }}</td>
           <td data-label="售價">${{ item.sale_price|floatformat:0 }}</td>
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
@@ -47,7 +59,7 @@
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-product" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立配件</strong></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="8"><div class="empty-state"><strong>尚未建立配件</strong></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

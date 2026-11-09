@@ -13,6 +13,7 @@
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <div class="operation-grid">
     {% include "sales/_field.html" with field=form.name %}
+    {% include "sales/_field.html" with field=form.category %}
     {% include "sales/_field.html" with field=form.sale_price %}
     {% include "sales/_field.html" with field=form.labor_fee %}
     {% include "sales/_field.html" with field=form.cost %}
@@ -21,4 +22,13 @@
   </div>
   <div class="form-actions"><a class="button ghost" href="{% url 'accessory_product_list' %}">取消</a><button class="button primary" type="submit">套用配件</button></div>
 </form>
+{% if merge_form %}
+{# 合併重複或打錯的配件（T-138）：訂單上的名稱與金額不變，只改掛到保留的那一項，這一項停用。 #}
+<form method="post" action="{% url 'accessory_product_merge' editing_product.pk %}" class="master-form-card accessory-merge" data-confirm="確定把「{{ editing_product.name }}」併入選擇的配件嗎？這一項會停用。">
+  {% csrf_token %}
+  <div class="section-title"><div><h2>合併到其他配件</h2><p>重複或打錯字的配件可以併到要保留的那一項。已用過「{{ editing_product.name }}」的訂單，名稱與金額都不變，只是改歸到保留的那一項；這一項會停用。</p></div></div>
+  {% include "sales/_field.html" with field=merge_form.target %}
+  <div class="form-actions"><button class="button secondary" type="submit">合併並停用這一項</button></div>
+</form>
+{% endif %}
 {% endblock %}

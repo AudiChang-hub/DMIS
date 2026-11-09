@@ -169,7 +169,8 @@ class PrefillTests(TestCase):
         order, _vehicle = self.make_order()
         form = DeliveryCompletionForm(order)
         self.assertNotIn("delivered_at", form.initial)
-        self.assertTrue(form.fields["delivered_at"].required)
+        # T-138（使用者 2026-11-09）：改選填，留空就不記時間。
+        self.assertFalse(form.fields["delivered_at"].required)
         self.assertEqual(form.initial["recipient_name"], order.owner_name, "方便填寫、不影響金額的預設保留")
 
     def test_deposit_date_blank_and_required_to_confirm(self):

@@ -2,7 +2,8 @@
 
 - 只收加購（贈送售價固定為 0，加入會變成 0 元主檔）。
 - 名稱去掉多餘空白後不分大小寫比對；同名已存在就不新增、也不改主檔售價，避免單筆議價覆蓋主檔。
-- 售價與工資取第一次輸入的金額；打錯的品項由人員在「配件與工資」停用即可，不影響既有訂單。
+- 售價與工資取第一次輸入的金額；打錯的品項由人員在「配件與工資」停用或合併即可，不影響既有訂單。
+- 那一列選了類別就歸到該類別，沒選就是未分類（使用者 2026-11-09 T-138）。
 """
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -12,7 +13,18 @@ def normalized_accessory_name(name):
     return " ".join((name or "").split())
 
 
-def learn_custom_accessories(order, actor_name):
+def custom_accessory_categories(formset):
+    """從配件表單取出「其他」配件名稱對應的類別：{正規化名稱（不分大小寫）: 類別}。"""
+    categories = {}
+    for form in formset.forms:
+        data = getattr(form, "cleaned_data", None) or {}
+        name = normalized_accessory_name(data.get("custom_name"))
+        if name and data.get("accessory_category") and not data.get("DELETE"):
+            categories.setdefault(name.casefold(), data["accessory_category"])
+    return categories
+
+
+def learn_custom_accessories(order, actor_name, categories=None):
     """把訂單上尚未在主檔的「其他」加購配件建立成主檔品項；回傳新增的名稱。"""
     from sales.models import AccessoryLine, AccessoryProduct, OrderEvent
 
@@ -31,6 +43,7 @@ def learn_custom_accessories(order, actor_name):
             with transaction.atomic():
                 AccessoryProduct.objects.create(
                     name=name, sale_price=line.amount or 0, labor_fee=line.labor_fee or 0, note=note[:250],
+                    category=(categories or {}).get(name.casefold()),
                 )
         except IntegrityError:
             continue  # 同時有人建立同名品項，以先建立的為準。

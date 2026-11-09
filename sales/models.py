@@ -1011,8 +1011,28 @@ class InstallmentPlanOption(TimeStampedModel):
         return f"{self.version.vehicle_model}／{self.periods} 期／{self.company}"
 
 
+class AccessoryCategory(TimeStampedModel):
+    """配件類別（使用者 2026-11-09 T-138 方案 A）：訂單配件先選類別再選名稱，例如「安全帽」→「輕便安全帽」。"""
+
+    name = models.CharField("類別名稱", max_length=60, unique=True)
+    sort_order = models.PositiveSmallIntegerField("排序", default=100)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "配件類別"
+        verbose_name_plural = "配件類別"
+
+    def __str__(self):
+        return self.name
+
+
 class AccessoryProduct(TimeStampedModel):
     name = models.CharField("配件名稱", max_length=160, unique=True)
+    category = models.ForeignKey(
+        AccessoryCategory, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="products", verbose_name="類別",
+    )
     sale_price = models.DecimalField(
         "配件售價", max_digits=12, decimal_places=0, default=0
     )
@@ -4350,15 +4370,7 @@ class SalesOrder(TimeStampedModel):
                 kwargs["update_fields"] = set(kwargs["update_fields"]) | {"deposit_date"}
         if self.status == self.Status.DRAFT:
             self.status = self.Status.ALLOCATION_PENDING
-        if self.is_delivered and not self.delivered_at and not getattr(self, "_preserve_delivery_metadata", False):
-            self.delivered_at = timezone.now()
-            if not self.delivered_by:
-                self.delivered_by = "系統狀態同步"
-            if kwargs.get("update_fields") is not None:
-                kwargs["update_fields"] = set(kwargs["update_fields"]) | {
-                    "delivered_at",
-                    "delivered_by",
-                }
+        # 已交車但沒有交付時間時不再自動補「現在」（使用者 2026-11-09 T-138「不要補時間，留空」）。
         self.full_clean()
         return super().save(*args, **kwargs)
 

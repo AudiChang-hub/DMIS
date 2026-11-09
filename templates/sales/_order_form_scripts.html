@@ -1108,14 +1108,55 @@
     });
   }
 
+  // 先選類別再選名稱（使用者 2026-11-09 T-138）：名稱清單依類別分組（optgroup），選了類別就只留那一組。
+  // iOS 不支援隱藏 option，所以把不符合的分組暫時拿掉、換類別時再放回。
+  function filterAccessoryProducts(row) {
+    const category = row.querySelector('[name$="-accessory_category"]');
+    const product = row.querySelector('[name$="-accessory_product"]');
+    if (!category || !product) return;
+    row.accessoryGroups ||= Array.from(product.querySelectorAll('optgroup'));
+    const label = category.value ? category.selectedOptions[0]?.textContent.trim() : '';
+    const other = product.querySelector('option[value="other"]');
+    const current = product.value;
+    row.accessoryGroups.forEach(group => group.remove());
+    row.accessoryGroups
+      .filter(group => !label || group.label === label)
+      .forEach(group => product.insertBefore(group, other));
+    product.value = Array.from(product.options).some(option => option.value === current) ? current : '';
+  }
+
+  // 沒先選類別、直接選了名稱：類別跟著帶出來，下次打開這列就只看到同一類。
+  function syncAccessoryCategory(row) {
+    const category = row.querySelector('[name$="-accessory_category"]');
+    const product = row.querySelector('[name$="-accessory_product"]');
+    const group = product?.selectedOptions[0]?.parentElement;
+    if (!category || category.value || group?.tagName !== 'OPTGROUP') return;
+    const match = Array.from(category.options).find(option => option.value && option.textContent.trim() === group.label);
+    if (match) { category.value = match.value; filterAccessoryProducts(row); }
+  }
+
   function bindAccessoryRow(row) {
     const productInput = row.querySelector('[name$="-accessory_product"]');
+    const categoryInput = row.querySelector('[name$="-accessory_category"]');
+    categoryInput?.addEventListener("change", () => {
+      const before = productInput?.value;
+      filterAccessoryProducts(row);
+      if (productInput && productInput.value !== before) refreshAccessoryRequired(row, true);
+    });
+    filterAccessoryProducts(row);
     productInput?.addEventListener("change", () => {
+      syncAccessoryCategory(row);
       refreshAccessoryRequired(row, true);
       scheduleDraft();
     });
     row.querySelector('[name$="-line_type"]').addEventListener('change', () => { refreshAccessoryRequired(row, true); scheduleDraft(); });
     row.addEventListener('input', () => refreshAccessoryRequired(row));
+    // 「其他」加購配件存檔時會自動加進配件主檔（2026-10-15）：打字途中不觸發自動儲存，離開欄位（change）才存，
+    // 避免把打到一半的字加進清單（T-138）。
+    row.querySelector('[name$="-custom_name"]')?.addEventListener('input', event => {
+      event.stopPropagation();
+      refreshAccessoryRequired(row);
+    });
     // 備註需要時才展開；已有備註的列預設展開（使用者 2026-10-21 T-50）。
     const noteToggle = row.querySelector('[data-accessory-note-toggle]');
     const notePanel = row.querySelector('[data-accessory-note]');

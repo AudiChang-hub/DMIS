@@ -111,7 +111,7 @@
     <summary><span class="step-number">{% if order_workspace %}2{% else %}3{% endif %}</span><span><strong>加購項目與贈品{% if wizard %} <span class="optional-badge">可略過</span>{% endif %}</strong><small>加購或贈送的項目、數量與安裝工資；都沒有可直接下一步</small></span></summary>
     {% if wizard %}<p class="info-banner wizard-skip-note" data-wizard-skip-note>這一步可略過：客人沒有加購項目或贈品，直接按「下一步」就好；空白的配件列不會存入訂單，建立後也能在訂單頁「訂車與配件」補上。</p>{% endif %}
     <div class="subsection accessory-section">
-      <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
+      <p class="muted">先選類別再選配件，預帶售價與工資。清單找不到就選「其他」自己填名稱，存檔後會自動加進該類別，下次直接選。贈送與調價由 admin 分別授權；配件總額自動計算。</p>
       <div class="accessory-head" aria-hidden="true"><span>配件</span><span>數量</span><span>類型</span><span>配件售價</span><span>安裝工資</span><span>單件總額</span><span></span></div>
       <div id="accessory-forms">
       {% for accessory_form in formset %}{% include "sales/_order_accessory_row.html" %}{% endfor %}

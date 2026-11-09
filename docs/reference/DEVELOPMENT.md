@@ -3,6 +3,15 @@
 安裝與啟動見 [README](../../README.md)。本檔只管測試，不重複商業規則。
 目前測試清單以 [.github/workflows/ci.yml](../../.github/workflows/ci.yml) 為準。
 
+## 開發準則
+
+- **修 bug**：先找根因，寫出修前失敗、修後通過的重現測試；同類問題列出回報，修不修由使用者決定（不順手擴大範圍）。
+- **新功能／規則變更**：測試同時涵蓋新行為與既有行為不變；規則改變時同步更新 [BUSINESS_RULES](../context/BUSINESS_RULES.md)。
+- **提交**：提交前看 `git diff`，只含標的，不夾帶格式化、改名或順手重構；一個 commit 一件事，訊息寫清楚改了什麼、為什麼。
+- **測試結果**：以 exit code 判斷，不把輸出接到 `| tail` 等會吞掉失敗的指令，也不把測試與 `git push` 串在同一條指令。Windows 本機先設 `PYTHONUTF8=1`。
+- **PostgreSQL 差異**：`select_for_update` 遇到可空外鍵要用 `of=("self",)`；這類測試加進 CI 的 PostgreSQL 步驟，SQLite 測不出。
+- **完成定義**：程式變更＝受影響測試通過、CI 綠燈、打標籤、部署、正式站驗證、CURRENT_STATE 更新。任一步沒做就不算完成，要明說缺哪一步。
+
 ## 最低驗證
 
 只做初始定位：`python tools/context_lookup.py catalog` 或 `python tools/context_lookup.py importer`。

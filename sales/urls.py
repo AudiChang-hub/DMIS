@@ -649,6 +649,16 @@ urlpatterns = [
         name="accessory_product_edit",
     ),
     path(
+        "data/accessories/<int:pk>/merge/",
+        views.accessory_product_merge,
+        name="accessory_product_merge",
+    ),
+    path(
+        "data/accessories/categories/",
+        views.accessory_category_list,
+        name="accessory_category_list",
+    ),
+    path(
         "data/dealer-reward-items/",
         views.dealer_reward_catalog_list,
         name="dealer_reward_catalog_list",

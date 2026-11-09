@@ -1435,7 +1435,8 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-owner-line .payment-chip--installment { color: var(--surface); background: var(--blue-ink); border-color: var(--blue-ink); }
 .order-owner-line .payment-chip--card { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border-strong); }
 /* 已交車但補助未完成：狀態下方的琥珀提示（訂單仍在「已交車」頁籤，補助完成才結案）。 */
-.order-subsidy-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
+/* 全部訂單列表：結案時領牌還沒完成，仍是「已結案」，另標出來（T-139）。 */
+.order-subsidy-pending, .order-registration-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
 .order-row-status { display: grid; justify-items: end; gap: var(--space-1); }
 /* 牌險少收（牌險費＜規費＋強制險）：紅色提示，選號有溢收也照樣顯示（使用者 2026-10-15）。 */
 .order-plate-shortfall { display: block; width: fit-content; padding: 0 var(--space-2); color: var(--red-ink); background: var(--red-soft); border: 1px solid var(--red-border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }

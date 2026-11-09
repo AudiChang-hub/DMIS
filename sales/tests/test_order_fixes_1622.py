@@ -59,8 +59,9 @@ class OrderFixes1622Tests(TestCase):
         order = self.installment_order(approved_discount_amount=1000, discount_reason="配件金1000")
         sync_order_operations(order.pk)
         page = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(page, "已核准折扣（配件金1000）")
-        self.assertContains(page, 'data-customer-balance>$200<')
+        # 收入與支出 ④ 尾款（2026-11-09 p7）：重複區塊直接刪除，尾款金額照舊（含折扣）。
+        balance = page.content.decode().split('aria-label="尾款"', 1)[1].split("</section>", 1)[0]
+        self.assertRegex(balance, r'<span>尾款</span><strong[^>]*>\$(<b[^>]*>)?200<')
 
     def test_no_deposit_clears_deposit_date(self):
         order = self.installment_order()

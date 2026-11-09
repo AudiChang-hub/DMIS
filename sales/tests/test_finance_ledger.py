@@ -452,14 +452,16 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
         row = finance.split('name="operations-dealer_commission_expense"', 1)[0].rsplit("data-ledger-row", 1)[1]
         self.assertIn("已人工調整", row)
 
-    def test_dealer_order_shows_settlement_in_finance_and_delivery(self):
+    def test_dealer_order_shows_settlement_only_in_finance(self):
+        # 車行結算卡只留在「收入與支出」，交車區只留「車行掛帳」（使用者 2026-11-09 T-137 p6 選 A）。
         order = self.make_order()
         page, finance = self.finance_panel(order)
         self.assertIn("data-dealer-settlement", finance)
         self.assertIn("向車行收", finance)
-        self.assertIn("$79,800", finance)
+        self.assertIn('data-settlement-term="vehicle_price">79,800<', finance)
+        self.assertEqual(page.count("data-dealer-settlement"), 1)
         delivery = page.split('id="panel-delivery"', 1)[1]
-        self.assertIn('id="dealer-settlement"', delivery)
+        self.assertNotIn("data-dealer-settlement", delivery)
 
     def test_plate_variance_confirm_lives_in_strip_once(self):
         order = self.make_order()

@@ -149,8 +149,9 @@ class PaymentSplitTests(TestCase):
         order = SalesOrder.objects.get()
         self.assertEqual(order.payment_splits, json.loads(two_rows))
         self.assertEqual((order.installment_split_amount, order.customer_vehicle_split_amount), (55000, 20000))
+        # 訂單頁的「成交金額與尾款試算」已拿掉（使用者 2026-11-09 T-137 p7）；付款方式在訂車與配件、確認頁與訂購單都看得到。
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(detail, "<dt>付款方式</dt><dd><span>現金 $20,000</span><span>分期 $55,000</span></dd>", html=False)
+        self.assertNotContains(detail, "<dt>付款方式</dt>", html=False)
 
     def test_form_initial_from_draft_string_is_not_double_encoded(self):
         from sales.forms import SalesOrderForm

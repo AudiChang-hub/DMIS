@@ -89,8 +89,9 @@ class CostEstimateAndPlateSelectionTests(TestCase):
                                                 "address": "測試地址", "phone": "02-1234"}
                 pdf = PdfReader(BytesIO(build_order_contract_pdf(order)))
                 pdf_text = "".join(item.extract_text() for item in pdf.pages)
-                self.assertEqual("<dt>選號</dt>" in page, shown)
-                self.assertEqual("＋ 選號" in page, shown)
+                # 訂單頁「成交金額與尾款試算」與「尾款計算」已拿掉（使用者 2026-11-09 T-137 p7），選號費改看訂購單與收支的選號收入。
+                self.assertNotIn("<dt>選號</dt>", page)
+                self.assertNotIn("＋ 選號", page)
                 self.assertEqual("選號費" in pdf_text, shown)
 
     def test_plate_selection_fee_counts_before_registration_date(self):

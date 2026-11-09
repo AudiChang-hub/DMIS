@@ -1,0 +1,10 @@
+{% load sales_format %}
+{# 收入與支出 ①（使用者 2026-11-09 p7 重排）：成交總額、總收款與車行結算放最上面；從收支總覽拆出，自動儲存後由 settlement_html 原地換新。 #}
+<section id="workspace-finance-settlement" class="finance-overview finance-overview--settlement" aria-label="成交與車行結算">
+  <div class="finance-overview__meta">
+    <span>折扣後成交總額<strong>${{ order.discounted_total|number_with_commas }}</strong></span>
+    <span>總收款金額<strong>${{ profile.total_received|number_with_commas }}</strong></span>
+  </div>
+  {% if dealer_settlement %}{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement %}{% endif %}
+  <p class="finance-overview__note">成交條件不等於實際收款；補助申請金額也不代表已入帳。</p>
+</section>

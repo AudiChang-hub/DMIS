@@ -13,7 +13,8 @@
 <div class="finance-step__toolbar">
   <p class="finance-step__formula">{% site_text 'order_operations.5581c6988866' %}</p>
 </div>
-{% include "sales/_workspace_finance_summary.html" %}
+{# 收入與支出由上而下 ①～⑦（使用者 2026-11-09 p7）：①成交與車行結算 ②內部折扣／牌險差異 ③收款 ④尾款 ⑤收支總覽 ⑥領牌試算 ⑦收入／支出。 #}
+{% include "sales/_workspace_finance_settlement.html" %}
 {% if profile.legacy_finance_reconciliation and profit_unlocked %}
 <details class="note-box finance-step__legacy" open><summary>Excel 匯入財務核對</summary>
   {% if profile.legacy_finance_reconciliation.status == 'matched' %}
@@ -66,12 +67,6 @@
   {% if form.confirm_legacy_finance %}<div class="note-box">{% include "sales/_field.html" with field=form.confirm_legacy_finance %}</div>{% endif %}
   {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}
 
-  <div class="finance-ledger" {% if order_workspace %}data-workspace-section="finance"{% endif %} data-finance-ledger>
-    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.income kind="income" title="收入" caption="撥款、領牌與手續費收入，以及原廠獎勵與補助" %}
-    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.expense kind="expense" title="支出" caption="車輛成本、領牌規費、傭金與其他支出" %}
-    <p class="finance-ledger__legend"><span class="ledger-tag ledger-tag--system">系統帶入</span>由訂單、主檔或領牌資料自動計算；修改並儲存後改為<span class="ledger-tag ledger-tag--manual">已人工調整</span>，不再被同步覆蓋。<span class="ledger-tag ledger-tag--synced">自動同步</span>由收款紀錄或訂單同步，不能在此修改。</p>
-  </div>
-
   <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section finance-receipts" id="finance-receipts" open><summary><strong>收款</strong><span>客戶收款與分期公司撥款</span></summary>
     {% if order.source_type != "store" %}{# 本店單沒有車行，也不需另看車行收款確認 #}
     <div class="operation-grid">
@@ -112,6 +107,14 @@
       {% for payment in payment_formset %}{% if payment.instance.is_receivable_only %}<div data-payment-expectation>{% for field in payment %}{{ field.as_hidden }}{% endfor %}</div>{% endif %}{% endfor %}
     </div>
   </details>
+  {% if order_workspace %}{% include "sales/_finance_balance.html" %}{% endif %}
+  <div {% if order_workspace %}data-workspace-section="finance"{% endif %}>{% include "sales/_workspace_finance_summary.html" %}</div>
+  {% if order_workspace %}{% include "sales/_finance_registration.html" with hide_variance_action=True %}{% endif %}
+  <div class="finance-ledger" {% if order_workspace %}data-workspace-section="finance"{% endif %} data-finance-ledger>
+    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.income kind="income" title="收入" caption="撥款、領牌與手續費收入，以及原廠獎勵與補助" %}
+    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.expense kind="expense" title="支出" caption="車輛成本、領牌規費、傭金與其他支出" %}
+    <p class="finance-ledger__legend"><span class="ledger-tag ledger-tag--system">系統帶入</span>由訂單、主檔或領牌資料自動計算；修改並儲存後改為<span class="ledger-tag ledger-tag--manual">已人工調整</span>，不再被同步覆蓋。<span class="ledger-tag ledger-tag--synced">自動同步</span>由收款紀錄或訂單同步，不能在此修改。</p>
+  </div>
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_old_vehicle_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
   {% if order_workspace %}
   {% if form.confirm_legacy_finance %}<div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>{% endif %}
@@ -125,10 +128,6 @@
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
 {% comment %}沖銷與退款整區拿掉，收款明細可直接刪除（使用者 2026-10-21 T-47）；取消訂單的退款在「取消與結案」。{% endcomment %}
-{% if order_workspace %}
-<details class="finance-amounts" data-workspace-section="finance" open>
-  <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與尾款</small></span></summary>
-  {% include "sales/_order_amounts.html" with hide_variance_action=True %}
-</details>
-{% endif %}
+{% comment %}「成交金額與尾款試算」與「尾款計算」那一列和訂車、訂金、收入欄重複，已拿掉（使用者 2026-11-09 p7）；
+領牌試算與尾款改在收款下方的 ④、⑥。{% endcomment %}
 </div>

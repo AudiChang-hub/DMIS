@@ -520,9 +520,7 @@
   </div>
   {% comment %}交車區不放導向收支頁的提示框（使用者 2026-10-22 T-68、T-102）：還差什麼直接列在下方；
   分期公司撥款、平台撥款事後在統一撥款對帳核對，不是交車條件，這裡也不提示。{% endcomment %}
-  {% if dealer_settlement %}
-  <div class="delivery-gate delivery-gate--settlement" id="dealer-settlement">{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement compact=True %}</div>
-  {% endif %}
+  {% comment %}車行結算卡只留在「收入與支出」①，交車區只留「車行掛帳」（使用者 2026-11-09 T-137 p6 選 A）。{% endcomment %}
   {% if dealer_credit %}
   <div class="delivery-gate" id="dealer-credit">
     <div class="delivery-gate__heading"><strong>車行掛帳</strong></div>

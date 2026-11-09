@@ -17,11 +17,6 @@
       <small>收入合計－支出合計</small>
     </div>
   </div>
-  <div class="finance-overview__meta">
-    <span>折扣後成交總額<strong>${{ order.discounted_total|number_with_commas }}</strong></span>
-    <span>總收款金額<strong>${{ profile.total_received|number_with_commas }}</strong></span>
-    <span class="finance-overview__dirty" data-ledger-dirty hidden>試算中：含未儲存的修改</span>
-  </div>
-  {% if dealer_settlement %}{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement %}{% endif %}
-  <p class="finance-overview__note">成交條件不等於實際收款；補助申請金額也不代表已入帳。</p>
+  {# 成交總額、總收款與車行結算移到最上面的 ①（_workspace_finance_settlement.html，使用者 2026-11-09 p7）。 #}
+  <span class="finance-overview__dirty" data-ledger-dirty hidden>試算中：含未儲存的修改</span>
 </section>

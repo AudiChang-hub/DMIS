@@ -71,9 +71,11 @@ class InstallmentReceivableTests(TestCase):
         order = self.fdd722()
         self.client.force_login(get_user_model().objects.create_superuser("admin", password="test-only"))
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(detail, '<span>分期外應收</span><strong data-customer-receivable>$10,300</strong>', html=False)
-        self.assertContains(detail, "<span>− 訂金</span><strong>$7,000</strong>", html=False)
-        self.assertContains(detail, '<span>尾款</span><strong data-customer-balance>$3,300', html=False)
+        # 收入與支出 ④ 尾款（2026-11-09 p7）：「尾款計算」那一列（分期外應收－訂金）已拿掉，尾款金額照舊。
+        balance = detail.content.decode().split('aria-label="尾款"', 1)[1].split("</section>", 1)[0]
+        # 尾款＝收款進度的「還要收」（2026-11-09 p1）：訂金 7,000 還沒收妥，所以是 10,300；扣訂金後的 3,300 仍在總覽與訂購單。
+        self.assertIn('<span>尾款</span><strong>$<b data-receipt-value="delivery_due">10,300</b>', balance)
+        self.assertNotIn("分期外應收", balance)
         overview = self.client.get(reverse("order_overview", args=[order.pk])).content.decode()
         self.assertIn("分期外應收", overview)
         self.assertIn("10,300", overview)

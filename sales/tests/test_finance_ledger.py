@@ -457,7 +457,7 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
         page, finance = self.finance_panel(order)
         self.assertIn("data-dealer-settlement", finance)
         self.assertIn("向車行收", finance)
-        self.assertIn("$79,800", finance)
+        self.assertIn('data-settlement-term="vehicle_price">79,800<', finance)
         delivery = page.split('id="panel-delivery"', 1)[1]
         self.assertIn('id="dealer-settlement"', delivery)
 

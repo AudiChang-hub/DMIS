@@ -412,9 +412,11 @@
     const fresh = [...doc.querySelectorAll('form[data-workspace-save]')];
     const hidden = name => doc.querySelector(`input[name="${name}"]`)?.value;
     const revisions = {revision: hidden('_order_revision'), financial: hidden('operations-financial_revision')};
-    const summary = document.getElementById('workspace-finance-summary');
-    const freshSummary = doc.getElementById('workspace-finance-summary');
-    if (summary && freshSummary && !summary.isEqualNode(freshSummary)) summary.replaceWith(document.importNode(freshSummary, true));
+    ['workspace-finance-summary', 'workspace-finance-settlement'].forEach(id => {
+      const current = document.getElementById(id);
+      const fresh = doc.getElementById(id);
+      if (current && fresh && !current.isEqualNode(fresh)) current.replaceWith(document.importNode(fresh, true));
+    });
     forms.forEach(form => {
       const match = counterpartForm(form, fresh);
       if (!match) return;
@@ -809,6 +811,10 @@
         const typed = new Set(typedFrom.keys());
         merge(payload, form, typed);
         form.querySelectorAll('input[type=file]').forEach(field => { field.value = ''; });
+        if (payload.settlement_html) {
+          const settlement = document.getElementById('workspace-finance-settlement');
+          if (settlement) settlement.outerHTML = payload.settlement_html;
+        }
         if (payload.summary_html) {
           const summary = document.getElementById('workspace-finance-summary');
           if (summary) summary.outerHTML = payload.summary_html;

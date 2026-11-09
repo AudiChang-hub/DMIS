@@ -4350,15 +4350,7 @@ class SalesOrder(TimeStampedModel):
                 kwargs["update_fields"] = set(kwargs["update_fields"]) | {"deposit_date"}
         if self.status == self.Status.DRAFT:
             self.status = self.Status.ALLOCATION_PENDING
-        if self.is_delivered and not self.delivered_at and not getattr(self, "_preserve_delivery_metadata", False):
-            self.delivered_at = timezone.now()
-            if not self.delivered_by:
-                self.delivered_by = "系統狀態同步"
-            if kwargs.get("update_fields") is not None:
-                kwargs["update_fields"] = set(kwargs["update_fields"]) | {
-                    "delivered_at",
-                    "delivered_by",
-                }
+        # 已交車但沒有交付時間時不再自動補「現在」（使用者 2026-11-09 T-138「不要補時間，留空」）。
         self.full_clean()
         return super().save(*args, **kwargs)
 

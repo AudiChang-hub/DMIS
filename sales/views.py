@@ -6465,8 +6465,6 @@ def order_edit(request, pk):
         return redirect(order_step_url(pk, "order"))
     completed_correction = order.is_delivered
     gap_before = settlement_gap(order) if completed_correction else None
-    # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
-    order._preserve_delivery_metadata = completed_correction
     # 訂單頁自動儲存不獨佔編輯：同時開啟的人都能改，靠版本號避免互相覆蓋。
     if not order_workspace.is_workspace_save(request) and not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
         messages.error(

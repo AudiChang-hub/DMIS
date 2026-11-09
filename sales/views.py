@@ -4487,6 +4487,8 @@ def order_list(request):
     if per_page not in ORDER_LIST_PAGE_SIZE_OPTIONS:
         per_page = ORDER_LIST_DEFAULT_PAGE_SIZE
     page = Paginator(orders, per_page).get_page(request.GET.get("page"))
+    from sales.services.order_list_unsettled import mark_unsettled
+    mark_unsettled(page.object_list)
     if query:
         for order in page.object_list:
             order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible)

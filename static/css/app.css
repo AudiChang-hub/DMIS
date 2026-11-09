@@ -1435,10 +1435,13 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-owner-line .payment-chip--installment { color: var(--surface); background: var(--blue-ink); border-color: var(--blue-ink); }
 .order-owner-line .payment-chip--card { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border-strong); }
 /* 已交車但補助未完成：狀態下方的琥珀提示（訂單仍在「已交車」頁籤，補助完成才結案）。 */
-.order-subsidy-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
+/* 全部訂單列表：結案時領牌還沒完成，仍是「已結案」，另標出來（T-139）。 */
+.order-subsidy-pending, .order-registration-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
+.order-unsettled { margin-top: var(--space-1); }
 .order-row-status { display: grid; justify-items: end; gap: var(--space-1); }
-/* 牌險少收（牌險費＜規費＋強制險）：紅色提示，選號有溢收也照樣顯示（使用者 2026-10-15）。 */
-.order-plate-shortfall { display: block; width: fit-content; padding: 0 var(--space-2); color: var(--red-ink); background: var(--red-soft); border: 1px solid var(--red-border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
+/* 牌險少收（牌險費＜規費＋強制險）：紅色提示，選號有溢收也照樣顯示（使用者 2026-10-15）。
+   款項未結清（T-139）：交車後客戶應收未收清，沿用同一個紅色樣式。 */
+.order-plate-shortfall, .order-unsettled { display: block; width: fit-content; padding: 0 var(--space-2); color: var(--red-ink); background: var(--red-soft); border: 1px solid var(--red-border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
 /* 訂單來源標記（訂單編號正下方，使用者 2026-10-19）：一行小字不加底色，圓點形狀＋顏色雙重區分，色弱也分得出。
    實心群青＝手動開單；空心灰＝Excel 匯入（佔大多數，最安靜）；左半實心琥珀＝Excel 匯入已修改。 */
 /* 標記用 inline-flex（不可換成 flex／grid 子項）：整格是連結時，底線才不會延伸到標記上。 */

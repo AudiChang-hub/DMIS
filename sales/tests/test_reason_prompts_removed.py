@@ -124,13 +124,15 @@ class IntakeWithoutReasonTests(IntakeFixtures):
                 self.assertNotContains(page, text)
         self.assertContains(page, "成交價不同時直接修改即可")
 
-    def test_old_price_reason_is_still_shown(self):
+    def test_old_price_reason_is_kept_but_no_longer_shown(self):
+        # 使用者 2026-11-09 T-137 p7：重複區塊直接刪除，舊資料的調價說明留在資料庫、畫面不再顯示。
         self.client.force_login(self.root)
         self.submit()
         order = SalesOrder.objects.latest("pk")
         SalesOrder.objects.filter(pk=order.pk).update(vehicle_price_adjustment_reason="舊資料的調價說明")
         page = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(page, "舊資料的調價說明")
+        self.assertNotContains(page, "舊資料的調價說明")
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).vehicle_price_adjustment_reason, "舊資料的調價說明")
 
 
 class WorkspaceWithoutReasonTests(TestCase):

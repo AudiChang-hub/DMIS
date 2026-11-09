@@ -289,6 +289,15 @@ class YearMonthDateField(forms.Field):
         return datetime.date(year, month, 1)
 
 
+class YearMonthTextField(YearMonthDateField):
+    """快速進車的出廠年月（使用者 2026-11-09 T-138）：輸入與檢查跟 YearMonthDateField 相同，
+    但庫存欄位存的是「YYYY/MM」文字，所以回傳文字，沒填回傳空字串。"""
+
+    def to_python(self, value):
+        date = super().to_python(value)
+        return f"{date.year:04d}/{date.month:02d}" if date else ""
+
+
 class OrderCommissionAttributionForm(forms.Form):
     commission_recipient = forms.ModelChoiceField(
         label="這台算給哪間車行", queryset=SalesSource.objects.none(), required=False,
@@ -4171,13 +4180,8 @@ class QuickInventoryEntryForm(forms.Form):
         initial=timezone.localdate,
         widget=DateInput(),
     )
-    manufactured_year_month = forms.RegexField(
-        label="出廠年月",
-        regex=r"^\d{4}/(0[1-9]|1[0-2])$",
-        required=False,
-        error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
-        widget=YearMonthSelect(),
-    )
+    # 跟舊車出廠年月一樣直接打 6 碼 YYYYMM（例 202611），存回庫存的 YYYY/MM（使用者 2026-11-09 T-138）。
+    manufactured_year_month = YearMonthTextField(label="出廠年月", required=False)
     condition_note = forms.CharField(
         label="車況說明",
         required=False,

@@ -3342,6 +3342,8 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   border-radius: var(--radius-sm); background: var(--surface); color: var(--ink);
 }
 .quick-entry-field textarea { min-height: 44px; max-height: 92px; resize: vertical; }
+/* 快速進車出廠年月（T-138）：每列都有「例 201309」提示字，空白列不再重複顯示說明，打字後才出現換算或錯誤。 */
+.quick-entry-field .year-month-hint[data-state="empty"] { display: none; }
 .quick-entry-delete { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; }
 .quick-entry-row-error { grid-column: 1 / -1; }
 .cost-rule-scheduled { background: var(--blue-soft); color: var(--blue); }

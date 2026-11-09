@@ -191,7 +191,7 @@ class InventoryAcquisitionTests(TestCase):
 
 
 class ManufacturedYearMonthSelectTests(TestCase):
-    """1.72.6：進車與快速進車的出廠年月改為下拉選單（YYYY/MM，新到舊），不必手打。"""
+    """1.72.6：進車的出廠年月改為下拉選單（YYYY/MM，新到舊）；快速進車 T-138 改成直接打 6 碼（見 QuickInventoryYearMonthTests）。"""
     setUp = lifecycle.OrderLifecycleTests.setUp
 
     def test_create_and_quick_create_use_year_month_select(self):
@@ -199,7 +199,7 @@ class ManufacturedYearMonthSelectTests(TestCase):
         today = timezone.localdate()
         current = f"{today.year:04d}/{today.month:02d}"
         self.client.force_login(self.user)
-        for name in ("inventory_create", "inventory_quick_create"):
+        for name in ("inventory_create",):
             with self.subTest(page=name):
                 page = self.client.get(reverse(name)).content.decode()
                 self.assertRegex(page, r'<select name="[^"]*manufactured_year_month"')
@@ -213,3 +213,50 @@ class ManufacturedYearMonthSelectTests(TestCase):
         newest_first = YearMonthSelect().year_month_choices()
         self.assertGreater(newest_first[1][0], newest_first[2][0])
         self.assertEqual(len(newest_first), 1 + 5 * 12 + 2)
+
+
+
+class QuickInventoryYearMonthTests(TestCase):
+    """使用者 2026-11-09 T-138：快速進車的出廠年月直接打 202611，系統判讀成 2026/11（跟舊車出廠年月 T-93 一樣）。"""
+    setUp = lifecycle.OrderLifecycleTests.setUp
+    quick_payload = InventoryAcquisitionTests.quick_payload
+
+    def test_quick_create_saves_six_digits_as_year_month(self):
+        self.client.force_login(self.user)
+        base = {"vehicle_model": self.model.pk, "color": self.color.pk, "received_on": "2026-10-05"}
+        response = self.client.post(reverse("inventory_quick_create"), self.quick_payload([
+            {**base, "identifier": "YM-Q1", "manufactured_year_month": "202609"},
+            {**base, "identifier": "YM-Q2"},
+        ]))
+        self.assertRedirects(response, reverse("inventory_list"), fetch_redirect_response=False)
+        saved = dict(VehicleInventory.objects.filter(engine_number__startswith="YM-Q").values_list("engine_number", "manufactured_year_month"))
+        self.assertEqual(saved, {"YM-Q1": "2026/09", "YM-Q2": ""})
+        bad = self.client.post(reverse("inventory_quick_create"), self.quick_payload([
+            {**base, "identifier": "YM-Q3", "manufactured_year_month": "202613"},
+        ]))
+        self.assertContains(bad, "月份要在 01 到 12 之間。")
+        self.assertContains(bad, 'value="202613"')
+        self.assertFalse(VehicleInventory.objects.filter(engine_number="YM-Q3").exists())
+
+    def test_quick_create_renders_six_digit_input(self):
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("inventory_quick_create")).content.decode()
+        self.assertNotRegex(page, r'<select name="[^"]*manufactured_year_month"')
+        self.assertRegex(page, r'<input type="text" name="vehicles-0-manufactured_year_month"[^>]*inputmode="numeric"[^>]*data-year-month')
+        # 新增列用的範本也一樣
+        self.assertRegex(page, r'name="vehicles-__prefix__-manufactured_year_month"[^>]*data-year-month')
+
+    def test_six_digits_are_saved_as_year_slash_month(self):
+        from django.utils import timezone
+        from sales.forms import QuickInventoryEntryForm
+        today = timezone.localdate()
+        field = QuickInventoryEntryForm.base_fields["manufactured_year_month"]
+        self.assertEqual(field.clean("202608"), "2026/08")
+        self.assertEqual(field.clean("2026/8"), "2026/08")
+        self.assertEqual(field.clean(""), "")
+        for bad in ("2026", "202613", "194912"):
+            with self.subTest(value=bad), self.assertRaises(ValidationError):
+                field.clean(bad)
+        nxt = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+        with self.assertRaises(ValidationError):
+            field.clean(f"{nxt[0]:04d}{nxt[1]:02d}")

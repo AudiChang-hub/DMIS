@@ -360,15 +360,17 @@ def build_order_next_actions(
         )
     elif order.is_delivered and not order.is_registration_complete:
         delivered_on = _delivered_on(order)
-        due_date = add_business_days(delivered_on, 3) if delivered_on else today
+        # 交付時間留空（T-138）：3 個工作天期限不起算，改提示未填交付時間。
+        due_date = add_business_days(delivered_on, 3) if delivered_on else None
         primary = NextAction(
             key="registration",
             title="補齊領牌資料與文件",
-            description=_deadline_description("車行交付後的領牌資料", due_date, today),
+            description=(_deadline_description("車行交付後的領牌資料", due_date, today) if due_date
+                         else "未填交付時間，期限不起算；請盡快補齊車行交付後的領牌資料。"),
             action_label="前往領牌",
             url=_tab_url(order, "registration"),
-            badge="交付後期限",
-            tone="urgent" if today >= due_date else "primary",
+            badge="交付後期限" if due_date else "未填交付時間",
+            tone="urgent" if due_date and today >= due_date else "primary",
             target_tab="registration",
         )
     elif not order.is_registration_complete:

@@ -4581,8 +4581,10 @@ class DeliveryCompletionForm(forms.Form):
     delivery_destination = forms.CharField(
         label="送達地點／託運目的地", max_length=250, required=False
     )
+    # 選填、留空就不記時間（使用者 2026-11-09 T-138「不要補時間，留空」）；車行領車常不知道確切時間。
     delivered_at = forms.DateTimeField(
         label="實際交付時間",
+        required=False,
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
     recipient_name = forms.CharField(label="實際收車人", max_length=160)

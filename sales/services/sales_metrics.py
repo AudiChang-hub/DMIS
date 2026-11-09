@@ -4,6 +4,8 @@ from decimal import Decimal
 from sales.models import PaymentRecord, SalesOrder
 
 CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING, SalesOrder.Status.EXCEPTION_CLOSED)
+# 已交車的單不算配車保留逾期；交付時間可留空（T-138），不能只靠 delivered_at 判斷。
+DELIVERED_STATUSES = (SalesOrder.Status.DELIVERED_DOCS_PENDING, SalesOrder.Status.COMPLETED)
 
 
 def vehicle_sale_amount(order):
@@ -55,7 +57,7 @@ def filter_payment_risk(orders, risk):
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(
             allocated_at__lt=stale_allocation_since(), allocated_vehicle__isnull=False,
             registration_completed_at__isnull=True, delivered_at__isnull=True,
-        )
+        ).exclude(status__in=DELIVERED_STATUSES)
     if risk == 'overpaid':
         from .payment_summary import payment_summary
         candidates = orders.exclude(status__in=CANCELLED_STATUSES).filter(cash_receivable_v2=True).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')

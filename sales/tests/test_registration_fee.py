@@ -154,8 +154,10 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(response, "$190")
         self.assertContains(response, "試算合計")
         self.assertContains(response, "$1,498")
-        self.assertContains(response, "尾款計算")
-        self.assertContains(response, "配件與其他費用均已計入")
+        # 「尾款計算」那一列與「成交金額與尾款試算」已拿掉（2026-11-09 p7），尾款改在收入與支出的 ④。
+        self.assertNotContains(response, "尾款計算")
+        self.assertNotContains(response, "成交金額與尾款試算")
+        self.assertContains(response, 'aria-label="尾款"')
         # 1.82.0：配件改在訂單頁的訂單表單直接編輯，原本的唯讀配件卡由表單取代。
         self.assertContains(response, 'id="order-form"')
         self.assertContains(response, 'value="850"')

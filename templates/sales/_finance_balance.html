@@ -1,0 +1,29 @@
+{% load sales_format %}
+{% comment %}收入與支出 ④ 尾款（使用者 2026-11-09 p1、p7）：「尾款計算」那一列（車價＋牌險＋選號…）與「成交金額與尾款試算」重複，已拿掉。
+   新口徑訂單的尾款＝收款進度的「還要收」（payment_summary.delivery_due，已扣訂金與所有已確認收款），兩個數字同源；
+   舊口徑訂單沒有收款進度，照舊顯示訂單尾款。只在這裡出現、別處看不到的調整（折扣原因、舊車估價／稅金、人工調整、車價調整原因）有值才列。{% endcomment %}
+<section class="card finance-balance"{% if order_workspace %} data-workspace-section="finance"{% endif %} aria-label="尾款">
+  <dl class="money-list">
+    <div class="balance-equation">
+      {% if receipt_summary and order.cash_receivable_v2 %}
+      <div class="balance-equation__result"><span>尾款</span><strong>$<b data-receipt-value="delivery_due">{{ receipt_summary.delivery_due|number_with_commas }}</b></strong></div>
+      <div class="balance-equation__progress" data-receipt-progress>
+        <div><span>客戶應收合計</span><strong>$<b data-receipt-value="customer_expected">{{ receipt_summary.customer_expected|number_with_commas }}</b></strong></div>
+        <div class="deduction"><span>− 已確認收款</span><strong>$<b data-receipt-value="customer_received">{{ receipt_summary.customer_received|number_with_commas }}</b></strong></div>
+        <div class="is-due"><span>＝ 還要收</span><strong>$<b data-receipt-value="delivery_due">{{ receipt_summary.delivery_due|number_with_commas }}</b></strong></div>
+      </div>
+      {% else %}
+      <div class="balance-equation__result"><span>尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
+      {% endif %}
+      {% if order.approved_discount_amount and order.discount_reason or order.old_vehicle_valuation or order.old_vehicle_tax or order.balance_adjustment_amount or order.vehicle_price_adjustment_reason %}
+      <div class="balance-equation__terms">
+        {% if order.approved_discount_amount and order.discount_reason %}<div class="deduction"><span>已核准折扣原因</span><strong>{{ order.discount_reason }}</strong></div>{% endif %}
+        {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
+        {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax|number_with_commas }}</strong></div>{% endif %}
+        {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
+        {% if order.vehicle_price_adjustment_reason %}<div class="adjustment"><span>車價調整原因</span><strong>{{ order.vehicle_price_adjustment_reason }}</strong></div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </dl>
+</section>

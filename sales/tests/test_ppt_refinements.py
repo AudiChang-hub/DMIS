@@ -272,7 +272,8 @@ class PptRefinementTests(TestCase):
         self.assertIn('尾款 $208', flat)
         self.assertNotIn('$90,008', text)
         response = self.client.get(reverse('order_detail', args=[self.order.pk]))
-        self.assertContains(response, '<span>尾款</span><strong data-customer-balance>$208')
+        balance = response.content.decode().split('aria-label="尾款"', 1)[1].split("</section>", 1)[0]
+        self.assertRegex(balance, r'<span>尾款</span><strong[^>]*>\$(<b[^>]*>)?208<')
         self.order.refresh_from_db()
         self.assertEqual(self.order.actual_balance, 90008)
 

@@ -65,7 +65,9 @@ from .services.document_signing import (
 from .services.dealer_workbook_sync import next_dealer_code
 from .services.excel_export import sanitize_excel_row
 from .forms import (
+    AccessoryCategoryForm,
     AccessoryProductForm,
+    AccessoryProductMergeForm,
     AdminPasswordResetForm,
     AdminUserCreateForm,
     AdminUserEditForm,
@@ -148,6 +150,8 @@ from .models import (
     allocation_priority_age_months,
     allocation_priority_cutoff,
     annotate_allocation_priority,
+    AccessoryCategory,
+    AccessoryLine,
     AccessoryProduct,
     BusinessHoliday,
     BrandRegistrationFeeRule,
@@ -2234,6 +2238,7 @@ def sales_source_set_holiday_gift(request, pk):
 
 ACTIVE_TOGGLE_RESOURCES = {
     "accessory-product": (AccessoryProduct, "配件"),
+    "accessory-category": (AccessoryCategory, "配件類別"),
     "dealer-reward-catalog-item": (DealerRewardCatalogItem, "車行獎勵品項"),
     "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
@@ -5174,8 +5179,8 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     fee_formset.save()
     if form.pricing_editable:
         # 只有可訂價的人輸入的「其他」配件才加入主檔，避免接待模式的價格成為主檔售價。
-        from sales.services.accessory_catalog import learn_custom_accessories
-        learn_custom_accessories(order, request.user.get_username())
+        from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories
+        learn_custom_accessories(order, request.user.get_username(), categories=custom_accessory_categories(formset))
     _apply_submitted_subsidy_programs(order, form, post_data)
     # 下單時填寫的總價優惠以實際明細重新換算後直接核定，訂購單簽署時即為最終金額。
     discount_message = apply_intake_discount(order, form, request.user.get_username())
@@ -6465,8 +6470,6 @@ def order_edit(request, pk):
         return redirect(order_step_url(pk, "order"))
     completed_correction = order.is_delivered
     gap_before = settlement_gap(order) if completed_correction else None
-    # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
-    order._preserve_delivery_metadata = completed_correction
     # 訂單頁自動儲存不獨佔編輯：同時開啟的人都能改，靠版本號避免互相覆蓋。
     if not order_workspace.is_workspace_save(request) and not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
         messages.error(
@@ -6546,8 +6549,8 @@ def order_edit(request, pk):
                 apply_order_installment_snapshot(order)
             formset.save()
             fee_formset.save()
-            from sales.services.accessory_catalog import learn_custom_accessories
-            learn_custom_accessories(order, _editing_name(request.user))
+            from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories
+            learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset))
             order._prefetched_objects_cache = {}
             order.calculated_balance = order.calculate_balance()
             order.actual_balance = (
@@ -9496,9 +9499,15 @@ def dealer_sales_program_list(request):
 def accessory_product_list(request):
     keyword = request.GET.get("q", "").strip()
     active = request.GET.get("active", "")
-    products = AccessoryProduct.objects.annotate(
+    category = request.GET.get("category", "")
+    products = AccessoryProduct.objects.select_related("category").annotate(
         usage_count=Count("order_lines", distinct=True)
     )
+    # 依類別篩選（T-138）；none＝未分類。
+    if category == "none":
+        products = products.filter(category__isnull=True)
+    elif category.isdigit():
+        products = products.filter(category_id=int(category))
     if keyword:
         products = products.filter(
             Q(name__icontains=keyword) | Q(note__icontains=keyword)
@@ -9515,7 +9524,8 @@ def accessory_product_list(request):
         {
             "products": page.object_list,
             "page_obj": page,
-            "selected": {"q": keyword, "active": active},
+            "selected": {"q": keyword, "active": active, "category": category},
+            "categories": AccessoryCategory.objects.all(),
         },
     )
 
@@ -9532,7 +9542,57 @@ def _accessory_product_form_view(request, instance=None):
     return render(
         request,
         "sales/accessory_product_form.html",
-        {"form": form, "editing_product": instance},
+        {
+            "form": form,
+            "editing_product": instance,
+            "merge_form": AccessoryProductMergeForm(source=instance) if instance and instance.active else None,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def accessory_product_merge(request, pk):
+    """合併重複或打錯的配件（使用者 2026-11-09 T-138）：訂單上的配件名稱、數量與金額都不變，
+    只把掛在原項目的訂單配件改掛到保留的那一項；原項目停用並註記，不刪除。"""
+    source = get_object_or_404(AccessoryProduct.objects.select_for_update(), pk=pk)
+    form = AccessoryProductMergeForm(request.POST, source=source)
+    if not source.active or not form.is_valid():
+        messages.error(request, "請選擇要保留的啟用中配件。")
+        return redirect("accessory_product_edit", pk=source.pk)
+    target = form.cleaned_data["target"]
+    moved = AccessoryLine.objects.filter(accessory_product=source).update(accessory_product=target)
+    source.active = False
+    source.note = f"已合併到「{target.name}」{('；' + source.note) if source.note else ''}"[:250]
+    source.save(update_fields=["active", "note", "updated_at"])
+    messages.success(request, f"已把「{source.name}」併入「{target.name}」，{moved} 筆訂單配件改掛到「{target.name}」（訂單上的名稱與金額不變），原項目已停用。")
+    return redirect("accessory_product_list")
+
+
+@login_required
+def accessory_category_list(request):
+    """配件類別（T-138）：新增、改名、排序、停用；沒有配件在用的類別可刪除。"""
+    editing = get_object_or_404(AccessoryCategory, pk=request.GET["edit"]) if request.GET.get("edit", "").isdigit() else None
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        category = get_object_or_404(AccessoryCategory, pk=request.POST.get("category_id"))
+        if category.products.exists():
+            messages.error(request, f"無法刪除「{category.name}」：仍有配件在這個類別。可改為停用，或先把配件改到其他類別。")
+        else:
+            label = category.name
+            category.delete()
+            messages.success(request, f"已刪除未使用的配件類別：{label}。")
+        return redirect("accessory_category_list")
+    form = AccessoryCategoryForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        category = form.save()
+        messages.success(request, f"已儲存配件類別：{category.name}。")
+        return redirect("accessory_category_list")
+    categories = AccessoryCategory.objects.annotate(product_count=Count("products"))
+    return render(
+        request,
+        "sales/accessory_category_list.html",
+        {"form": form, "categories": categories, "editing": editing},
     )
 
 

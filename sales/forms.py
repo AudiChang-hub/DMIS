@@ -20,6 +20,7 @@ from .models import (
     allocation_priority_age_months,
     allocation_priority_cutoff,
     annotate_allocation_priority,
+    AccessoryCategory,
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
@@ -287,6 +288,15 @@ class YearMonthDateField(forms.Field):
         if (year, month) > (today.year, today.month):
             raise ValidationError(self.error_messages["future"], code="future")
         return datetime.date(year, month, 1)
+
+
+class YearMonthTextField(YearMonthDateField):
+    """快速進車的出廠年月（使用者 2026-11-09 T-138）：輸入與檢查跟 YearMonthDateField 相同，
+    但庫存欄位存的是「YYYY/MM」文字，所以回傳文字，沒填回傳空字串。"""
+
+    def to_python(self, value):
+        date = super().to_python(value)
+        return f"{date.year:04d}/{date.month:02d}" if date else ""
 
 
 class OrderCommissionAttributionForm(forms.Form):
@@ -2023,6 +2033,10 @@ class AccessoryProductChoiceField(forms.ModelChoiceField):
 
 
 class AccessoryLineForm(forms.ModelForm):
+    # 先選類別再選名稱（使用者 2026-11-09 T-138 方案 A）；類別只用來篩選，不存在訂單配件明細上。
+    accessory_category = forms.ModelChoiceField(
+        label="類別", queryset=AccessoryCategory.objects.none(), required=False, empty_label="全部類別",
+    )
     accessory_product = AccessoryProductChoiceField(queryset=AccessoryProduct.objects.none(), required=False)
     custom_name = forms.CharField(label="其他配件名稱", required=False, max_length=160)
     class Meta:
@@ -2056,7 +2070,14 @@ class AccessoryLineForm(forms.ModelForm):
         self.fields["accessory_product"].label = "配件名稱"
         # 精簡列在寬版把欄名收進表頭，自填名稱靠提示字辨識（使用者 2026-10-21 T-50）。
         self.fields["custom_name"].widget.attrs.setdefault("placeholder", "填寫配件名稱")
-        self.fields["accessory_product"].choices = [*self.fields["accessory_product"].choices, ("other", "其他（自行填寫名稱）")]
+        self.fields["accessory_product"].choices = [("", self.fields["accessory_product"].empty_label),
+                                                    *self._grouped_product_choices(),
+                                                    ("other", "其他（自行填寫名稱）")]
+        current_category = self.instance.accessory_product.category_id if self.instance.accessory_product_id else None
+        self.fields["accessory_category"].queryset = AccessoryCategory.objects.filter(
+            Q(active=True) | Q(pk=current_category)
+        )
+        self.initial.setdefault("accessory_category", current_category)
         if self.instance.name and not self.instance.accessory_product_id:
             self.initial["accessory_product"] = "other"
         for field_name in (
@@ -2079,6 +2100,18 @@ class AccessoryLineForm(forms.ModelForm):
         if not self.is_bound and not self.instance.pk:
             self.fields["amount"].initial = None
             self.fields["labor_fee"].initial = None
+
+    def _grouped_product_choices(self):
+        """配件名稱依類別分組（optgroup），沒有類別的放最後「未分類」；畫面上選了類別就只顯示那一組。"""
+        products = sorted(
+            self.fields["accessory_product"].queryset.select_related("category"),
+            key=lambda item: (item.category_id is None, getattr(item.category, "sort_order", 0),
+                              getattr(item.category, "name", ""), item.name),
+        )
+        groups = {}
+        for product in products:
+            groups.setdefault(product.category.name if product.category_id else "未分類", []).append((product.pk, product.name))
+        return list(groups.items())
 
     def clean(self):
         data = super().clean()
@@ -3042,16 +3075,47 @@ class VehiclePriceVersionForm(forms.ModelForm):
 class AccessoryProductForm(forms.ModelForm):
     class Meta:
         model = AccessoryProduct
-        fields = ["name", "sale_price", "labor_fee", "cost", "active", "note"]
+        fields = ["name", "category", "sale_price", "labor_fee", "cost", "active", "note"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # 類別可隨時改（T-138）；停用的類別只保留目前這一項已選的。
+        self.fields["category"].queryset = AccessoryCategory.objects.filter(
+            Q(active=True) | Q(pk=self.instance.category_id)
+        )
+        self.fields["category"].empty_label = "未分類"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         for field_name in ("sale_price", "labor_fee", "cost"):
             if not self.is_bound and self.initial.get(field_name) in (None, 0):
                 self.initial[field_name] = ""
         apply_mobile_keyboard_attrs(self)
+
+
+class AccessoryCategoryForm(forms.ModelForm):
+    """配件類別（T-138）：名稱、排序（數字小的排前面）、啟用。"""
+
+    class Meta:
+        model = AccessoryCategory
+        fields = ["name", "sort_order", "active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["sort_order"].help_text = "數字小的排前面。"
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class AccessoryProductMergeForm(forms.Form):
+    """把重複或打錯的配件併到另一項（T-138）：訂單上的配件名稱與金額不變，只改掛到保留的那一項，原項目停用。"""
+
+    target = forms.ModelChoiceField(label="併入哪一項", queryset=AccessoryProduct.objects.none(), empty_label="請選擇要保留的配件")
+
+    def __init__(self, *args, source, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["target"].queryset = AccessoryProduct.objects.filter(active=True).exclude(pk=source.pk).order_by("name")
+        self.fields["target"].widget.attrs.update({"class": "form-control"})
 
 
 class VehicleSettlementCostRuleForm(forms.ModelForm):
@@ -4171,13 +4235,8 @@ class QuickInventoryEntryForm(forms.Form):
         initial=timezone.localdate,
         widget=DateInput(),
     )
-    manufactured_year_month = forms.RegexField(
-        label="出廠年月",
-        regex=r"^\d{4}/(0[1-9]|1[0-2])$",
-        required=False,
-        error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
-        widget=YearMonthSelect(),
-    )
+    # 跟舊車出廠年月一樣直接打 6 碼 YYYYMM（例 202611），存回庫存的 YYYY/MM（使用者 2026-11-09 T-138）。
+    manufactured_year_month = YearMonthTextField(label="出廠年月", required=False)
     condition_note = forms.CharField(
         label="車況說明",
         required=False,
@@ -4577,8 +4636,10 @@ class DeliveryCompletionForm(forms.Form):
     delivery_destination = forms.CharField(
         label="送達地點／託運目的地", max_length=250, required=False
     )
+    # 選填、留空就不記時間（使用者 2026-11-09 T-138「不要補時間，留空」）；車行領車常不知道確切時間。
     delivered_at = forms.DateTimeField(
         label="實際交付時間",
+        required=False,
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
     recipient_name = forms.CharField(label="實際收車人", max_length=160)

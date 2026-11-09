@@ -611,7 +611,7 @@
           <strong>完成前請再次確認交付資料</strong>
           <p>{% site_text 'order_detail.8a1ee2445105' %}</p>
         </div>
-        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% endif %} data-lock-confirm="確認完成交車" data-lock-confirm-label="確認交車並鎖定" data-lock-lead="系統會用下面這些值完成交車；完成後訂單與實體車輛會鎖定。" data-lock-fields="delivered_at recipient_name recipient_phone handover_location delivery_method received_amount received_on payment_method" data-lock-required="delivered_at recipient_name handover_location received_on?received_amount payment_method?received_amount">{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
+        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% endif %} data-lock-confirm="確認完成交車" data-lock-confirm-label="確認交車並鎖定" data-lock-lead="系統會用下面這些值完成交車；完成後訂單與實體車輛會鎖定。" data-lock-fields="delivered_at recipient_name recipient_phone handover_location delivery_method received_amount received_on payment_method" data-lock-required="recipient_name handover_location received_on?received_amount payment_method?received_amount">{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
       </div>
       {# 原因清單一律輸出，自動儲存後由 order-workspace.js 依最新判斷更新；沒有原因時隱藏（使用者 2026-10-21 T-56）。 #}
       <ul class="delivery-blockers" data-delivery-blockers role="status" aria-live="polite"{% if not delivery_blockers %} hidden{% endif %}>{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>

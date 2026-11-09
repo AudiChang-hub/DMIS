@@ -3342,6 +3342,8 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   border-radius: var(--radius-sm); background: var(--surface); color: var(--ink);
 }
 .quick-entry-field textarea { min-height: 44px; max-height: 92px; resize: vertical; }
+/* 快速進車出廠年月（T-138）：每列都有「例 201309」提示字，空白列不再重複顯示說明，打字後才出現換算或錯誤。 */
+.quick-entry-field .year-month-hint[data-state="empty"] { display: none; }
 .quick-entry-delete { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; }
 .quick-entry-row-error { grid-column: 1 / -1; }
 .cost-rule-scheduled { background: var(--blue-soft); color: var(--blue); }
@@ -7158,6 +7160,10 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .accessory-section .accessory-row__total [data-accessory-quantity-total] { flex-basis: 100%; text-align: right; }
 .accessory-section .accessory-row > div { min-width: 0; }
 .accessory-section .accessory-row__name { grid-area: name; display: grid; gap: var(--space-2); }
+/* 類別＋名稱並排（T-138）：類別窄、名稱寬；配件區太窄時上下排。 */
+.accessory-section .accessory-row__picker { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-2); }
+@container accessory (max-width: 359px) { .accessory-section .accessory-row__picker { grid-template-columns: minmax(0, 1fr); } }
+@container accessory (min-width: 760px) { .accessory-section .accessory-row__picker { grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr); } }
 .accessory-section .accessory-row__quantity { grid-area: qty; }
 .accessory-section .accessory-row__type { grid-area: type; }
 .accessory-section .accessory-row__price { grid-area: price; }

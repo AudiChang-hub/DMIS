@@ -115,8 +115,8 @@ register("models", "vehicle_model_copy vehicle_model_batch vehicle_model_install
 register("commissions", "dealer_sales_program_list vehicle_model_commission")
 # 批次套用附加獎勵：權限同機種工作區的「傭金與獎勵」分頁（查看可試算，預覽與送出需操作）。
 register("commissions", "vehicle_model_reward_batch")
-register("accessories", "accessory_product_list")
-register("accessories", "accessory_product_create accessory_product_edit", "operate")
+register("accessories", "accessory_product_list accessory_category_list")
+register("accessories", "accessory_product_create accessory_product_edit accessory_product_merge", "operate")
 register("rewards", "dealer_reward_catalog_list")
 register("rewards", "dealer_reward_catalog_create dealer_reward_catalog_edit", "operate")
 register("customers", "customer_list customer_detail")
@@ -174,7 +174,7 @@ LOOKUPS = {
     "vehicle_price_options": ("orders", "models"),
 }
 TOGGLE_RESOURCES = {
-    "accessory-product": "accessories", "dealer-reward-catalog-item": "rewards",
+    "accessory-product": "accessories", "accessory-category": "accessories", "dealer-reward-catalog-item": "rewards",
     "brand-registration-fee-rule": "fees", "business-holiday": "holidays",
     "dealer-volume-bonus": "bonuses", "incentive-rule": "incentives",
     "installment-company": "installments", "installment-plan": "models", "subsidy-program": "subsidy_programs",

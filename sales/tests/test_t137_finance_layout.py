@@ -52,7 +52,7 @@ class FinanceLayoutTests(ledger.FinanceLedgerTestBase):
         settlement = finance.split('id="workspace-finance-settlement"', 1)[1].split("</section>", 1)[0]
         self.assertIn("折扣後成交總額", settlement)
         self.assertIn("data-dealer-settlement", finance.split('id="workspace-finance-settlement"', 1)[1].split('id="internal-discount-title"', 1)[0])
-        for removed in ("成交金額與尾款試算", "尾款計算", "車價依據", "money-list__payments"):
+        for removed in ("成交金額與尾款試算", "尾款計算", "車價依據", "money-list__payments", "已核准折扣原因", "車價調整原因"):
             self.assertNotIn(removed, finance)
 
     def test_autosave_refreshes_settlement_block(self):

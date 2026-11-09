@@ -80,7 +80,6 @@
 .dealer-settlement__term { color: var(--muted); font-weight: 700; }
 .dealer-settlement__formula strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .dealer-settlement__note { margin: 0; color: var(--muted); font-size: var(--text-xs); }
-.delivery-gate--settlement { padding: 0; border: 0; background: none; }
 
 /* 折扣與牌險差異 */
 .finance-strip { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--stack-gap-sm); }

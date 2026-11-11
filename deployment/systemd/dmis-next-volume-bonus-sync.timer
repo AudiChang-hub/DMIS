@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily DMIS Next dealer volume bonus sync
+
+[Timer]
+OnCalendar=*-*-* 03:50:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=dmis-next-volume-bonus-sync.service
+
+[Install]
+WantedBy=timers.target

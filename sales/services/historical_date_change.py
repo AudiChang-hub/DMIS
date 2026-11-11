@@ -164,6 +164,8 @@ def change_historical_date(*, row_id, order_id, user, data):
     audit = {key: {"before": str(getattr(order, key)), "after": str(value)} for key, value in changes.items()}
     # 不呼叫整單 save：避免歷史收支因今日主檔、試算或 signals 被重套。
     SalesOrder.objects.filter(pk=order.pk).update(**changes)
+    from sales.services.volume_bonus import schedule_order_refresh
+    schedule_order_refresh(order.pk)  # 白名單更新不觸發 post_save；台數獎金依新領牌日重算（T-148）。
     vehicle = order.allocated_vehicle
     if facts["date_kind"] == "planned" and vehicle.status != VehicleInventory.Status.RESERVED:
         VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.RESERVED, updated_at=now)

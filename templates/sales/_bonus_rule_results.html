@@ -1,16 +1,16 @@
 {% for group in row.period_groups %}
 <div class="bonus-period-result">
-  <header><h3>{{ group.period.label }}</h3><p>{{ group.period.starts_on|date:'Y/m/d' }}－{{ group.period.ends_on|date:'Y/m/d' }}</p></header>
+  <header><h3>{{ group.period.label }}</h3><p>{{ group.period.starts_on|date:'Y/m/d' }}－{{ group.period.ends_on|date:'Y/m/d' }} · {% if group.posted %}期間已結束，已自動入帳{% else %}統計中，金額為預估{% endif %}</p></header>
   <div class="inventory-table-wrap"><table class="inventory-table">
-    <thead><tr><th>收款車行</th><th>符合台數</th><th>本期獎金</th><th>結算狀態</th><th>操作</th></tr></thead>
+    <thead><tr><th>收款車行</th><th>符合台數</th><th>本期獎金</th><th>狀態</th><th>操作</th></tr></thead>
     <tbody>
     {% for entry in group.entries %}
       <tr>
         <td data-label="收款車行"><strong>{{ entry.dealer }}</strong></td>
-        <td data-label="符合台數">{{ entry.quantity }} 台</td>
-        <td data-label="本期獎金">{% if entry.tier %}每台 &#36;{{ entry.bonus_per_vehicle|floatformat:0 }}<span>預計 &#36;{{ entry.expected_amount|floatformat:0 }}</span>{% else %}尚未達門檻{% endif %}</td>
-        <td data-label="結算狀態">{% if entry.settlement %}已結算 &#36;{{ entry.settlement.actual_amount|floatformat:0 }}{% else %}未結算{% endif %}</td>
-        <td data-label="操作">{% if entry.settlement %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' entry.settlement.pk %}">明細／調整獎金</a>{% else %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_settle' row.rule.pk %}?dealer={{ entry.dealer.pk }}&amp;period={{ group.period.pk }}">試算明細{% if entry.tier and row.rule.active %}／結算{% endif %}</a>{% endif %}</td>
+        <td data-label="符合台數">{{ entry.quantity }} 台{% if entry.next_tier %}<span>再 {{ entry.shortfall }} 台達 {{ entry.next_tier.minimum_quantity }} 台門檻</span>{% endif %}</td>
+        <td data-label="本期獎金">{% if entry.tier %}每台 &#36;{{ entry.bonus_per_vehicle|floatformat:0 }}<span>合計 &#36;{{ entry.total|floatformat:0 }}</span>{% else %}尚未達門檻{% endif %}</td>
+        <td data-label="狀態">{% if not row.rule.active %}規則已停用，不計算{% elif not entry.tier %}—{% elif entry.posted %}已入帳{% else %}預估{% endif %}</td>
+        <td data-label="操作"><a class="button ghost small" href="{% url 'dealer_volume_bonus_detail' row.rule.pk %}?period={{ group.period.pk }}&amp;dealer={{ entry.dealer.pk }}">逐單明細</a></td>
       </tr>
     {% empty %}<tr><td colspan="5">0 台 · 目前沒有符合條件的已領牌訂單。</td></tr>{% endfor %}
     </tbody>

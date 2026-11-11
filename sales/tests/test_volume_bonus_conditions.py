@@ -150,7 +150,7 @@ class VolumeBonusConditionsTests(TestCase):
     def test_form_styles_search_and_optional_conditions(self):
         form = DealerVolumeBonusRuleForm(self.payload())
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.fields['dealer'].widget.attrs['data-searchable-select'], '1')
+        self.assertEqual(form.fields['dealers'].widget.attrs['data-searchable-select'], '1')
         self.assertTrue(form.fields['vehicle_models'].widget.allow_multiple_selected)
         rule = form.save()
         self.assertIsNone(rule.dealer_id)
@@ -188,7 +188,7 @@ class VolumeBonusConditionsTests(TestCase):
         named = self.rule(name='有名稱規則', dealer=self.a, active=False)
         unnamed = self.rule(name='', dealer=self.b)
         self.client.force_login(self.user)
-        with patch('sales.views.preview_volume_bonus') as preview:
+        with patch('sales.views.volume_bonus_group_preview') as preview:
             response = self.client.get(reverse('dealer_volume_bonus_list'))
         preview.assert_not_called()
         self.assertContains(response, 'data-bonus-view="rules"')
@@ -212,10 +212,10 @@ class VolumeBonusConditionsTests(TestCase):
         self.order()
         rule = self.rule(dealer=self.a)
         self.client.force_login(self.user)
-        url = reverse('dealer_volume_bonus_list') + '?tab=settlements'
+        url = reverse('dealer_volume_bonus_list') + '?tab=trial'
         response = self.client.get(url)
-        self.assertContains(response, 'data-bonus-view="settlements"')
-        self.assertContains(response, 'aria-current="page">試算／結算')
+        self.assertContains(response, 'data-bonus-view="trial"')
+        self.assertContains(response, 'aria-current="page">台數試算')
         self.assertContains(response, '1 台')
         self.assertNotContains(response, reverse('dealer_volume_bonus_edit', args=[rule.pk]))
         self.assertContains(response, f'?tab=rules#bonus-rule-{rule.pk}')
@@ -236,32 +236,12 @@ class VolumeBonusConditionsTests(TestCase):
         allocations = list(settlement.allocations.values())
         self.client.force_login(self.user)
         response = self.client.get(reverse('dealer_volume_bonus_list'))
-        self.assertContains(response, '檢視規則／管理期間')
-        self.assertContains(response, '共用條件與門檻已鎖定')
+        self.assertContains(response, '編輯規則')  # T-148 起不再結算，規則頁不顯示鎖定字樣
         self.client.get(reverse('dealer_volume_bonus_list') + '?tab=settlements&show=all')
         self.assertEqual(before, OrderOperationsProfile.objects.filter(order=order).values().get())
         self.assertEqual(allocations, list(settlement.allocations.values()))
         settlement.refresh_from_db()
         self.assertEqual(settlement.actual_amount, 500)
-
-    def test_settlement_back_duplicate_and_revision_return_to_results(self):
-        self.order()
-        rule = self.rule(dealer=self.a)
-        self.client.force_login(self.user)
-        settle_url = reverse('dealer_volume_bonus_settle', args=[rule.pk])
-        result_url = f"{reverse('dealer_volume_bonus_list')}?tab=settlements&show=all#bonus-rule-{rule.pk}"
-        response = self.client.get(settle_url)
-        self.assertEqual(response.context['return_url'], result_url)
-        self.assertContains(response, '返回試算／結算')
-        settlement = create_volume_bonus_settlement(rule, 'test')
-        self.assertRedirects(self.client.get(settle_url), result_url, fetch_redirect_response=False)
-        revise_url = reverse('dealer_volume_bonus_revise', args=[settlement.pk])
-        self.assertEqual(self.client.get(revise_url).context['return_url'], result_url)
-        response = self.client.post(revise_url, {'actual_amount': '600', 'reason': '測試核准加碼'})
-        self.assertRedirects(response, result_url, fetch_redirect_response=False)
-        settlement.refresh_from_db()
-        self.assertEqual(settlement.actual_amount, 600)
-        self.assertEqual(sum(item.amount for item in settlement.allocations.all()), 600)
 
     def test_edit_saved_rule_returns_to_management(self):
         self.client.force_login(self.user)
@@ -275,10 +255,6 @@ class VolumeBonusConditionsTests(TestCase):
     def test_settlement_is_post_only_and_conditions_lock_after_settlement(self):
         self.order(); rule = self.rule(brand='SUZUKI', dealer=self.a)
         self.client.force_login(self.user)
-        url = reverse('dealer_volume_bonus_settle', args=[rule.pk])
-        self.assertEqual(self.client.get(url).status_code, 200)
-        self.assertEqual(DealerVolumeBonusSettlement.objects.count(), 0)
-        self.assertEqual(Client(enforce_csrf_checks=True).post(url, {}).status_code, 403)
         create_volume_bonus_settlement(rule, 'test')
         locked_page = self.client.get(reverse('dealer_volume_bonus_edit', args=[rule.pk]))
         self.assertContains(locked_page, '共用條件及門檻已鎖定')
@@ -292,22 +268,6 @@ class VolumeBonusConditionsTests(TestCase):
     def test_unauthenticated_cannot_create_rule(self):
         self.assertEqual(self.client.post(reverse('dealer_volume_bonus_create'), self.payload()).status_code, 302)
         self.assertFalse(DealerVolumeBonusRule.objects.exists())
-
-    def test_global_rule_page_settles_only_selected_dealer(self):
-        self.order(); self.order(self.b)
-        rule = self.rule(brand='SUZUKI')
-        self.client.force_login(self.user)
-        url = reverse('dealer_volume_bonus_settle', args=[rule.pk])
-        self.assertContains(self.client.get(url), '先選擇收款車行')
-        self.assertContains(self.client.get(f'{url}?dealer={self.platform.pk}'), '先選擇收款車行')
-        response = self.client.post(f'{url}?dealer={self.a.pk}', {'actual_amount': '500', 'adjustment_reason': ''})
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, f"{reverse('dealer_volume_bonus_list')}?tab=settlements&show=all#bonus-rule-{rule.pk}")
-        settlement = DealerVolumeBonusSettlement.objects.get(rule=rule)
-        self.assertEqual(settlement.dealer_id, self.a.pk)
-        self.assertEqual(settlement.qualified_quantity, 1)
-        self.assertEqual(settlement.actual_amount, 500)
-        self.assertFalse(rule.settlements.filter(dealer=self.b).exists())
 
     def test_combined_preview_uses_actual_settled_amount_and_excludes_inactive_estimates(self):
         self.order()

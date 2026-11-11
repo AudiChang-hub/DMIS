@@ -27,6 +27,7 @@ from .models import (
     BrandRegistrationFeeRule,
     DealerVolumeBonusRule,
     DealerVolumeBonusBrand,
+    DealerVolumeBonusRuleDealer,
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
@@ -1568,6 +1569,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
     name = forms.CharField(label="規則名稱", max_length=120, required=False,
         help_text="可留白，依目前品牌與能源自動命名；自行填寫時保留自訂名稱。",
         widget=forms.TextInput(attrs={"placeholder": "留白自動命名，或輸入自訂名稱"}))
+    dealers = forms.ModelMultipleChoiceField(label="適用車行", queryset=SalesSource.objects.none(), required=False)
     brands = forms.MultipleChoiceField(label="品牌", required=False, widget=BonusBrandSelectMultiple)
     period_type = forms.ChoiceField(label="統計方式", choices=DealerVolumeBonusRule.PeriodType.choices, required=False, widget=forms.RadioSelect)
     period_year = forms.IntegerField(label="年份", min_value=1900, max_value=9999, required=False)
@@ -1578,7 +1580,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
 
     class Meta:
         model = DealerVolumeBonusRule
-        fields = ["name", "dealer", "brands", "energy_type", "vehicle_models", "period_type", "period_year", "period_month", "period_quarter", "period_months", "period_quarters", "starts_on", "ends_on", "active", "note"]
+        fields = ["name", "dealers", "brands", "energy_type", "vehicle_models", "period_type", "period_year", "period_month", "period_quarter", "period_months", "period_quarters", "starts_on", "ends_on", "active", "note"]
         widgets = {
             "starts_on": DateInput(), "ends_on": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),
@@ -1605,17 +1607,17 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
             self.initial["period_type"] = DealerVolumeBonusRule.PeriodType.MONTH
         for name in ("starts_on", "ends_on"):
             self.fields[name].required = False
-        self.fields["dealer"].queryset = SalesSource.objects.filter(
-            Q(active=True) | Q(pk=self.instance.dealer_id), source_type=SalesSource.SourceType.DEALER,
+        # 適用車行可複選（T-148，使用者 2026-11-11 選 Y：每家各自計算台數與門檻）；未選＝全部車行。
+        selected_dealers = [dealer.pk for dealer in self.instance.dealer_list]
+        self.fields["dealers"].queryset = SalesSource.objects.filter(
+            Q(active=True) | Q(pk__in=selected_dealers), source_type=SalesSource.SourceType.DEALER,
         ).order_by("name")
-        self.fields["dealer"].empty_label = "全部車行"
-        self.fields["dealer"].label = "適用車行"
-        self.fields["dealer"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "全部車行，或搜尋指定一家"})
+        self.initial["dealers"] = selected_dealers
+        self.fields["dealers"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "全部車行；搜尋並複選，每家各自計算台數"})
         self.fields["energy_type"].choices = [("", "不限能源"), *VehicleModel.EnergyType.choices]
         selected = self.instance.vehicle_models.values_list("pk", flat=True) if self.instance.pk else []
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
         self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "搜尋符合品牌、能源的車型", "data-search-empty-message": "沒有符合條件的車型"})
-        self.fields["dealer"].widget.attrs["data-searchable-include-empty"] = "1"
         for field in self.fields.values():
             if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect, forms.CheckboxSelectMultiple)):
                 field.widget.attrs.setdefault("class", "form-control")
@@ -1654,6 +1656,9 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
                 self.period_ranges = [bonus_period_dates(period_type, data['period_year'], number) for number in sorted(set(selected), key=int)]
                 if not self.conditions_locked:
                     data['starts_on'], data['ends_on'] = self.period_ranges[0]
+        dealers = list(data.get("dealers") or [])
+        # 舊單選欄位只在過渡期同步（選一家時），下一版收斂刪除。
+        self.instance.dealer = dealers[0] if len(dealers) == 1 else None
         names = list(dict.fromkeys(data.get("brands", [])))
         data["brands"] = names
         # 單品牌仍保存舊欄位；多品牌以名稱快照集合為準，不用分隔字串儲存。
@@ -1679,6 +1684,11 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
             self.instance.brands.all().delete()
             DealerVolumeBonusBrand.objects.bulk_create([
                 DealerVolumeBonusBrand(rule=self.instance, brand=name) for name in self.cleaned_data["brands"]
+            ])
+            self.instance.dealer_links.all().delete()
+            DealerVolumeBonusRuleDealer.objects.bulk_create([
+                DealerVolumeBonusRuleDealer(rule=self.instance, dealer=dealer)
+                for dealer in self.cleaned_data["dealers"]
             ])
         existing = list(self.instance.periods.all())
         for period in existing:
@@ -1733,21 +1743,6 @@ DealerVolumeBonusTierFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
-
-
-class DealerVolumeBonusSettlementForm(forms.ModelForm):
-    class Meta:
-        model = DealerVolumeBonusSettlement
-        fields = ["actual_amount"]
-        labels = {"actual_amount": "實際台數獎金（不含原傭金）"}
-        widgets = {"actual_amount": forms.NumberInput(attrs={"class": "form-control"})}
-
-
-class DealerVolumeBonusAdjustmentForm(forms.Form):
-    actual_amount = forms.DecimalField(
-        label="修正後台數獎金", max_digits=12, decimal_places=0, min_value=0,
-        widget=forms.NumberInput(attrs={"class": "form-control"}),
-    )
 
 
 class LegacyImportUploadForm(forms.ModelForm):

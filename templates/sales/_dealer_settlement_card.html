@@ -16,5 +16,6 @@
     </li>
     {% endfor %}
   </ol>
+  {% if settlement.volume_bonus %}<p class="dealer-settlement__note">傭金含台數獎金 ${{ settlement.volume_bonus|number_with_commas }}（期間結束自動入帳）：另外付給車行，不扣本單應收。</p>{% endif %}
   <p class="dealer-settlement__note">{% if settlement.installment %}分期單車款由分期公司撥款，只結算配件與傭金。{% else %}原現金價不扣已核准優惠。{% endif %}正數向車行收、負數付給車行；只供對帳參考，不會自動登記收款或掛帳。</p>
 </section>

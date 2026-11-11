@@ -43,7 +43,8 @@ def dealer_cash_credit(order):
     settlement = dealer_settlement(order)
     if settlement is None:
         return None
-    return max(settlement["total"], Decimal("0"))
+    # 台數獎金是期間結束後另外付給車行的錢（使用者 2026-11-11 T-148），不扣本單掛帳應收，也就不會變成溢收。
+    return max(settlement["total"] + settlement["volume_bonus"], Decimal("0"))
 
 
 PLATE_INCOME_FIELDS = (

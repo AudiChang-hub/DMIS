@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from openpyxl import load_workbook
 
-from sales.forms import DealerVolumeBonusAdjustmentForm, DealerVolumeBonusSettlementForm, SalesOrderForm
+from sales.forms import SalesOrderForm
 from sales.models import (
     DealerVolumeBonusRule, DealerVolumeBonusTier, OrderChange, OrderDraft,
     OrderOperationsProfile, SalesOrder, SalesSource, SalesSourceBrandPolicy,
@@ -322,10 +322,9 @@ class OrderCommissionRecipientTests(TestCase):
         order = self.make_order(recipient=self.a)
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("order_create")), "這台算給其他車行")
-        for form in (DealerVolumeBonusAdjustmentForm(), DealerVolumeBonusSettlementForm()):
-            for field in form.fields.values():
-                self.assertEqual(field.widget.attrs.get("class"), "form-control")
-        preview_page = self.client.get(reverse("dealer_volume_bonus_settle", args=[self.a_rule.pk]))
+        period = self.a_rule.periods.get()
+        preview_page = self.client.get(reverse("dealer_volume_bonus_detail", args=[self.a_rule.pk])
+                                       + f"?period={period.pk}&dealer={self.a.pk}")
         self.assertContains(preview_page, "bonus-settlement-layout")
         self.assertContains(preview_page, "dealer-volume-bonus.css")
         self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), "台數與傭金歸屬")
@@ -367,9 +366,7 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertEqual(profile.dealer_commission_expense, 2600)
         settlement.allocations.update(original_commission_amount=None)
         self.assertIsNone(preview_volume_bonus(self.a_rule)["original_commission_total"])
-        self.client.force_login(self.user)
-        response = self.client.get(reverse("dealer_volume_bonus_revise", args=[settlement.pk]))
-        self.assertContains(response, "原傭金未留快照")
+        # 調整頁已隨「確認結算」移除（T-148）；舊結算快照仍保留於資料表。
 
     def attribution_data(self, order, recipient=None, **overrides):
         data = {

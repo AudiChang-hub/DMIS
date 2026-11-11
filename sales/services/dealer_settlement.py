@@ -23,6 +23,9 @@ def dealer_settlement(order, profile=None):
     if profile is None:
         profile = OrderOperationsProfile.objects.filter(order=order).first()
     commission = _money(profile.dealer_commission_expense if profile else ZERO)
+    # 傭金支出含期間結束後自動入帳的台數獎金（T-148）；這筆另外付給車行，不扣本單應收。
+    from sales.services.dealer_commission import commission_volume_bonus
+    volume_bonus = _money(commission_volume_bonus(order, profile)) if profile else ZERO
     accessories = _money(order.accessory_total)
     installment = order.payment_type == SalesOrder.PaymentType.INSTALLMENT
     if installment:
@@ -60,4 +63,5 @@ def dealer_settlement(order, profile=None):
         "label": label,
         # 前端即時試算：除傭金外各項合計，傭金欄位修改時以此重算。
         "base_without_commission": total + commission,
+        "volume_bonus": volume_bonus,
     }

@@ -1,4 +1,4 @@
-"""批次調整：一次為多個年式建立新的售價／成本／原廠獎勵版本，或更新車行基礎傭金。
+"""批次調整：一次為多個年式建立新的售價／成本版本，或更新車行基礎傭金。
 
 有生效日的資料只新增版本、不改舊版本；車行基礎傭金沒有版本，儲存即生效並記錄原值與新值。
 """
@@ -9,7 +9,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.models import (
-    VehicleIncentiveRule,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
@@ -32,11 +31,8 @@ DATASETS = {
                    "基礎傭金沒有版本，確認後立即生效，原值與新值記入異動紀錄。"),
     "cost": ("結算成本", "costs", (("amount", "代銷結算成本"),), False,
              "建立新的結算成本版本，依領牌日套用。"),
-    "incentive": ("原廠獎勵與補助", "incentives", (
-        ("sales_bonus", "實銷獎勵金"), ("promotion_subsidy", "促銷補助金"),
-        ("installment_interest_subsidy", "分期補貼息"),
-    ), False, "建立新的獎勵補助版本，依領牌日套用。"),
 }
+# 原廠獎勵與補助改為活動制（T-149），不再逐年式批次調整；請到「原廠獎勵與補助」編輯活動。
 DATASET_KEYS = tuple(DATASETS)
 OPERATIONS = (("add", "加減金額"), ("percent", "百分比"), ("set", "統一設為"))
 ROUNDING = ((1, "不進位"), (10, "十元"), (100, "百元"), (1000, "千元"))
@@ -273,14 +269,6 @@ def commit_changes(*, dataset, changes, effective_from, actor):
             created = VehicleSettlementCostRule.objects.create(
                 vehicle_model=model, amount=new_values["amount"], announced_on=today,
                 effective_from=effective_from, note=note, active=True,
-            )
-            created_id = created.pk
-        elif dataset == "incentive":
-            merged = {name: new_values.get(name, values[name] if values[name] is not None else Decimal("0"))
-                      for name, _label in dataset_fields(dataset)}
-            created = VehicleIncentiveRule.objects.create(
-                vehicle_model=model, announced_on=today, effective_from=effective_from, note=note, active=True,
-                **merged,
             )
             created_id = created.pk
         else:

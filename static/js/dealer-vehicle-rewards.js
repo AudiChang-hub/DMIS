@@ -71,6 +71,12 @@
     updateSummary(row, true);
   }
 
+  // 活動表單內新增品項後（campaign-conditions.js）補進成本資料，選單才能顯示類型與成本。
+  window.addEventListener("dealer-reward-catalog:add", (event) => {
+    const item = event.detail || {};
+    if (item.id) catalog[String(item.id)] = item;
+  });
+
   rows.querySelectorAll("[data-reward-row]").forEach(bind);
   effectiveFrom?.addEventListener("change", () => {
     rows.querySelectorAll("[data-reward-row]:not([hidden])").forEach((row) => {

@@ -11,7 +11,6 @@ from django.utils import timezone
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import (
     UserAccountAuditLog,
-    VehicleIncentiveRule,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
@@ -67,8 +66,6 @@ class BatchAdjustTests(TestCase):
             for model, cash in ((cls.a, 68000), (cls.b, 71000), (cls.c, 52500))
         }
         VehicleSettlementCostRule.objects.create(vehicle_model=cls.a, amount=56000, effective_from=cls.start)
-        VehicleIncentiveRule.objects.create(vehicle_model=cls.a, sales_bonus=1000, promotion_subsidy=2000,
-                                            installment_interest_subsidy=500, effective_from=cls.start)
 
     @classmethod
     def make_model(cls, name, *, commission):
@@ -151,15 +148,13 @@ class BatchAdjustTests(TestCase):
                 self.assertEqual(rows[self.c.pk], "", "未勾選的列不套用")
         self.assertEqual(VehiclePriceVersion.objects.count(), 3)
 
-    def test_cost_and_incentive_create_new_versions(self):
+    def test_cost_creates_new_versions_and_incentive_is_not_batch_adjusted(self):
         preview = self.post("preview", "cost", {(self.a.pk, "amount"): "57000", (self.b.pk, "amount"): "50000"})
         self.client.post(BATCH_URL, {"action": "commit", "token": preview.context["token"]})
         self.assertEqual(VehicleSettlementCostRule.objects.get(vehicle_model=self.a, effective_from=self.day).amount, 57000)
         self.assertEqual(VehicleSettlementCostRule.objects.get(vehicle_model=self.b, effective_from=self.day).amount, 50000)
-        preview = self.post("preview", "incentive", {(self.a.pk, "promotion_subsidy"): "2500"})
-        self.client.post(BATCH_URL, {"action": "commit", "token": preview.context["token"]})
-        rule = VehicleIncentiveRule.objects.get(vehicle_model=self.a, effective_from=self.day)
-        self.assertEqual((rule.sales_bonus, rule.promotion_subsidy, rule.installment_interest_subsidy), (1000, 2500, 500))
+        # 原廠獎勵與補助改為活動制（T-149）：批次調整不再提供，改編輯活動。
+        self.assertNotIn("incentive", batch.DATASET_KEYS)
 
     def test_base_commission_changes_immediately_and_is_audited(self):
         preview = self.post("preview", "commission", {(self.a.pk, "base_dealer_commission"): "1300"})

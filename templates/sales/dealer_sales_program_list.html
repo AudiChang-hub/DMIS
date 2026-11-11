@@ -80,7 +80,7 @@
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table dealer-program-directory-table">
-      <thead><tr><th>車型</th><th>品牌／能源</th><th>車行基礎傭金</th><th>目前附加獎勵</th><th></th></tr></thead>
+      <thead><tr><th>車型</th><th>品牌／能源</th><th>車行基礎傭金</th><th>目前車行獎勵活動</th><th></th></tr></thead>
       <tbody>
         {% for item in vehicle_models %}
         <tr>
@@ -92,12 +92,12 @@
           <td data-label="基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>每台預設現金傭金</span></td>
           <td data-label="附加獎勵" class="dealer-program-reward-cell">
             <span class="reward-state reward-state--{{ item.reward_state }}">{{ item.reward_state_label }}</span>
-            {% if item.display_reward_plan %}
-              <strong>{{ item.display_reward_plan.reward_summary|default:'版本內尚未填寫項目' }}</strong>
-              <span>{{ item.display_reward_plan.effective_from|date:'Y/m/d' }}{% if item.display_reward_plan.effective_to %}－{{ item.display_reward_plan.effective_to|date:'Y/m/d' }}{% else %}起{% endif %}</span>
-            {% else %}
-              <span>可依生效期間建立多個版本</span>
-            {% endif %}
+            {% for campaign in item.display_reward_campaigns %}
+              <strong>{{ campaign.reward_summary|default:'活動內尚未填寫項目' }}</strong>
+              <span>{{ campaign.name }} · {{ campaign.effective_from|date:'Y/m/d' }}{% if campaign.effective_to %}－{{ campaign.effective_to|date:'Y/m/d' }}{% else %}起{% endif %}</span>
+            {% empty %}
+              <span>在「車行獎勵活動」建立活動即可套用</span>
+            {% endfor %}
           </td>
           <td class="inventory-row-action"><a class="button primary small" href="{% url 'vehicle_model_commission' item.pk %}?from=programs">設定傭金與獎勵</a></td>
         </tr>

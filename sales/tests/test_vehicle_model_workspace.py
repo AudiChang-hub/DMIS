@@ -14,7 +14,6 @@ from sales.models import (
     InstallmentCompany,
     InstallmentPlanVersion,
     VehicleColor,
-    VehicleIncentiveRule,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
@@ -249,21 +248,22 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertEqual(VehicleSettlementCostRule.objects.count(), 1)
         self.assertTrue(response.context["form"].errors)
 
-    def test_incentive_tab_forces_model_and_keeps_platform_help(self):
+    def test_incentive_tab_lists_campaigns_covering_model_read_only(self):
+        """原廠獎勵改為活動制（T-149）：分頁唯讀列出涵蓋本年式的活動，新增時預先指定本年式。"""
+        from sales.models import IncentiveCampaign
+
+        mine = IncentiveCampaign.objects.create(name="本年式常態", sales_bonus=1000, effective_from=date(2026, 9, 1))
+        mine.vehicle_models.set([self.model])
+        other = IncentiveCampaign.objects.create(name="別的年式常態", sales_bonus=900, effective_from=date(2026, 9, 1))
+        other.vehicle_models.set([self.other])
         url = self.tab_url("原廠獎勵與補助")
         page = self.client.get(url)
-        self.assertContains(page, "僅網路平台來源的訂單會自動帶入")
-        response = self.client.post(url, {
-            "action": "save", "vehicle_model": self.other.pk, "sales_bonus": "1000", "promotion_subsidy": "500",
-            "installment_interest_subsidy": "0", "announced_on": "2026-09-01", "effective_from": "2026-09-01",
-            "effective_to": "", "note": "", "active": "on",
-        })
-        self.assertRedirects(response, url, fetch_redirect_response=False)
-        rule = VehicleIncentiveRule.objects.get()
-        self.assertEqual(rule.vehicle_model, self.model)
-        response = self.client.post(url, {"action": "delete", "rule_id": rule.pk})
-        self.assertRedirects(response, url, fetch_redirect_response=False)
-        self.assertFalse(VehicleIncentiveRule.objects.exists())
+        self.assertContains(page, "本年式常態")
+        self.assertNotContains(page, "別的年式常態")
+        self.assertContains(page, f'{reverse("incentive_campaign_create")}?model={self.model.pk}')
+        self.assertContains(page, "網路平台訂單")
+        self.assertNotContains(page, 'name="sales_bonus"')
+        self.assertEqual(self.client.post(url, {"action": "save"}).status_code, 405)
 
     def test_inactive_model_can_still_receive_cost_versions(self):
         self.model.active = False
@@ -372,15 +372,15 @@ class VehicleModelWorkspaceTests(TestCase):
         response = self.client.post(reverse("settlement_cost_rule_delete", args=[rule.pk]))
         self.assertRedirects(response, reverse("settlement_cost_rule_list"), fetch_redirect_response=False)
         self.assertFalse(VehicleSettlementCostRule.objects.exists())
-        self.assertEqual(self.client.get(reverse("incentive_rule_create")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("incentive_campaign_create")).status_code, 200)
 
     def test_tab_status_shows_set_or_unset_instead_of_counts(self):
         VehicleModel.objects.filter(pk=self.model.pk).update(base_dealer_commission=2000)
         page = self.client.get(reverse("vehicle_model_commission", args=[self.model.pk])).content.decode()
-        # 基礎傭金有值、沒有附加獎勵時，傭金分頁仍算已設定。
-        self.assertIn("基礎傭金 2,000 元；附加獎勵 0 個版本", page)
-        self.assertIn("（已設定：基礎傭金 2,000 元；附加獎勵 0 個版本）", page)
-        self.assertIn("（未設定：0 個獎勵版本）", page)
+        # 基礎傭金有值、沒有車行獎勵活動時，傭金分頁仍算已設定。
+        self.assertIn("基礎傭金 2,000 元；車行獎勵 0 個適用活動", page)
+        self.assertIn("（已設定：基礎傭金 2,000 元；車行獎勵 0 個適用活動）", page)
+        self.assertIn("（未設定：0 個適用活動）", page)
         self.assertNotIn("筆版本）", page)
 
     def test_model_list_shows_commission_and_current_rewards(self):
@@ -388,15 +388,16 @@ class VehicleModelWorkspaceTests(TestCase):
 
         from django.utils import timezone
 
-        from sales.models import DealerRewardCatalogItem, DealerVehicleRewardItem, DealerVehicleRewardPlan
+        from sales.models import DealerRewardCampaign, DealerRewardCampaignItem, DealerRewardCatalogItem
 
         VehicleModel.objects.filter(pk=self.model.pk).update(base_dealer_commission=2000)
         voucher = DealerRewardCatalogItem.objects.create(reward_type="voucher", name="郵政禮券", unit="元")
         today = timezone.localdate()
-        plan = DealerVehicleRewardPlan.objects.create(vehicle_model=self.model, effective_from=today,
-                                                      effective_to=today + timedelta(days=30), active=True)
-        DealerVehicleRewardItem.objects.create(plan=plan, catalog_item=voucher, reward_type="voucher",
-                                               name="郵政禮券", quantity=10000, unit="元")
+        campaign = DealerRewardCampaign.objects.create(name="禮券活動", effective_from=today,
+                                                       effective_to=today + timedelta(days=30), active=True)
+        campaign.vehicle_models.set([self.model])
+        DealerRewardCampaignItem.objects.create(campaign=campaign, catalog_item=voucher, reward_type="voucher",
+                                                name="郵政禮券", quantity=10000, unit="元")
         page = self.client.get(reverse("vehicle_model_list")).content.decode()
         self.assertIn("傭金與附加獎勵", page)
         self.assertIn("傭金 $2,000", page)

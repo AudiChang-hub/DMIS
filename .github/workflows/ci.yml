@@ -272,6 +272,7 @@ jobs:
           sales.tests.test_t125_deposit_row_dealer_receipt
           sales.tests.test_t127_registration_date
           sales.tests.test_autosave_guards_t130
+          sales.tests.test_incentive_campaigns sales.tests.test_registration_edit_t147
 
   django-migrations:
     name: Django migration 資料轉換測試

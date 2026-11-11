@@ -388,10 +388,10 @@
         {% endif %}
       </section>
       {% endif %}
-      {% if operations_profile.incentive_rule_id %}
+      {% if incentive_applications or operations_profile.incentive_rule_id %}
       <section class="figure-card" aria-labelledby="figure-incentive">
         <header class="figure-card__head">
-          <h3 id="figure-incentive">車型獎勵與補助</h3>
+          <h3 id="figure-incentive">原廠獎勵與補助</h3>
           {% if operations_profile.incentive_locked_at %}<span class="ledger-tag ledger-tag--locked">已固定</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}
         </header>
         <dl class="figure-list">
@@ -399,7 +399,25 @@
           <div class="figure-list__row{% if not operations_profile.promotion_subsidy %} is-zero{% endif %}"><dt>促銷補助</dt><dd>${{ operations_profile.promotion_subsidy|number_with_commas }}</dd></div>
           <div class="figure-list__row{% if not operations_profile.installment_interest_subsidy %} is-zero{% endif %}"><dt>分期補貼息</dt><dd>${{ operations_profile.installment_interest_subsidy|number_with_commas }}</dd></div>
         </dl>
-        <p class="figure-card__meta">{% if operations_profile.incentive_registration_date %}依 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 的車型版本 · {% endif %}{% if operations_profile.incentive_locked_at %}{{ operations_profile.incentive_locked_at|date:"Y/m/d H:i" }} 固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}</p>
+        {% if incentive_applications %}<ul class="figure-card__sources">{% for application in incentive_applications %}<li><span>{{ application.get_kind_display }}</span>{{ application.campaign_name }}：實銷 ${{ application.sales_bonus|number_with_commas }}／促銷 ${{ application.promotion_subsidy|number_with_commas }}／分期 ${{ application.installment_interest_subsidy|number_with_commas }}</li>{% endfor %}</ul>{% endif %}
+        <p class="figure-card__meta">{% if operations_profile.incentive_registration_date %}依 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 領牌{% if incentive_applications %}符合的活動{% else %}的車型版本{% endif %} · {% endif %}{% if operations_profile.incentive_locked_at %}{{ operations_profile.incentive_locked_at|date:"Y/m/d H:i" }} 固定，不受後續活動異動影響{% else %}領牌完成後固定{% endif %}</p>
+      </section>
+      {% endif %}
+      {% if dealer_rewards.dealer or dealer_rewards.lines %}
+      <section class="figure-card" aria-labelledby="figure-dealer-reward" data-order-dealer-rewards>
+        <header class="figure-card__head">
+          <h3 id="figure-dealer-reward">車行獎勵</h3>
+          {% if dealer_rewards.lines %}{% if dealer_rewards.locked %}<span class="ledger-tag ledger-tag--locked">已固定</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}{% endif %}
+        </header>
+        {% if dealer_rewards.lines %}
+        <dl class="figure-list">
+          {% for total in dealer_rewards.totals %}<div class="figure-list__row"><dt>{{ total.name }}</dt><dd>{{ total.quantity }} {{ total.unit }}</dd></div>{% endfor %}
+        </dl>
+        <ul class="figure-card__sources">{% for line in dealer_rewards.lines %}<li><span>{{ line.campaign_name }}</span>{{ line.display_label }}</li>{% endfor %}</ul>
+        <p class="figure-card__meta">給 {{ dealer_rewards.dealer.name }} · 依 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 領牌符合的車行獎勵活動 · {% if dealer_rewards.locked %}已固定，不受後續活動異動影響{% else %}領牌完成後固定{% endif %}</p>
+        {% else %}
+        <p class="figure-card__meta">{% if order.registration_completed_at %}領牌時沒有符合的車行獎勵活動。{% elif order.registration_date %}{{ order.registration_date|date:"Y/m/d" }} 領牌沒有符合的車行獎勵活動。{% else %}給 {{ dealer_rewards.dealer.name }}；填實際領牌日期後依符合的車行獎勵活動帶入。{% endif %}</p>
+        {% endif %}
       </section>
       {% endif %}
       {% if order.payment_type == "installment" and order.installment_plan_snapshot.expected_disbursement_amount != None %}
@@ -419,8 +437,8 @@
     {% if settlement_cost_rule_missing and not operations_profile.vehicle_cost_rule_id and not vehicle_cost_is_manual %}
     <div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>
     {% endif %}
-    {% if not operations_profile.incentive_rule_id and order.registration_date %}
-    <div class="message warning">此車型目前沒有符合領牌日期的獎勵補助版本，三項金額將以 0 元認列。</div>
+    {% if not incentive_applications and not operations_profile.incentive_rule_id and order.registration_date %}
+    <div class="message warning">沒有符合此車型與領牌日期的原廠獎勵活動，三項金額將以 0 元認列。</div>
     {% endif %}
     {% if order.payment_type == "installment" and order.installment_plan_snapshot.expected_disbursement_amount == None %}
     <div class="message warning">本單分期方案未設定預估撥款；請至車型的分期方案補設定，或在收入與支出人工輸入實際車價收入。</div>

@@ -50,7 +50,6 @@ from sales.models import (
     VehicleFactoryModelCode,
     VehicleInventory,
     VehicleInventoryHistory,
-    VehicleIncentiveRule,
     VehicleModel,
     VehicleModelFamily,
     VehiclePriceVersion,
@@ -59,6 +58,7 @@ from sales.models import (
 from sales.forms import RegistrationStageForm
 from sales.services.secret_fields import decrypt_secret
 from sales.services.vehicle_model_family import correct_vehicle_model_year
+from sales.tests.campaign_helpers import legacy_incentive_rule
 
 
 def uploaded_test_pdf(filename="document.pdf"):
@@ -703,10 +703,10 @@ class OrderFlowTests(TestCase):
         source_family_id = unused.family_id
         VehicleColor.objects.create(vehicle_model=unused, name="白")
         # 沿用建立帶來的本年式設定不擋刪除，會一併刪除。
-        from sales.models import VehicleIncentiveRule, VehiclePriceVersion, VehicleSettlementCostRule
+        from sales.models import VehiclePriceVersion, VehicleSettlementCostRule
         VehiclePriceVersion.objects.create(vehicle_model=unused, cash_price=Decimal("60000"), effective_from=date(2026, 10, 1))
         VehicleSettlementCostRule.objects.create(vehicle_model=unused, amount=Decimal("50000"), effective_from=date(2026, 10, 1))
-        VehicleIncentiveRule.objects.create(vehicle_model=unused, sales_bonus=Decimal("1000"), effective_from=date(2026, 10, 1))
+        legacy_incentive_rule(vehicle_model=unused, sales_bonus=Decimal("1000"), effective_from=date(2026, 10, 1))
         self.client.force_login(self.user)
         page = self.client.get(reverse("vehicle_model_edit", args=[unused.pk]))
         self.assertContains(page, "將一併刪除本年式的：售價版本 1 筆")
@@ -3936,7 +3936,7 @@ class OrderFlowTests(TestCase):
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
         order.allocate(self.vehicle)
-        incentive_rule = VehicleIncentiveRule.objects.create(
+        incentive_rule = legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
             promotion_subsidy=Decimal("2000"),
@@ -5495,14 +5495,14 @@ class OrderOperationsTests(TestCase):
         )
 
     def test_incentive_rule_uses_registration_date_and_locks_snapshot(self):
-        current = VehicleIncentiveRule.objects.create(
+        current = legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
             promotion_subsidy=Decimal("2000"),
             installment_interest_subsidy=Decimal("800"),
             effective_from=date(2026, 7, 1),
         )
-        future = VehicleIncentiveRule.objects.create(
+        future = legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1800"),
             promotion_subsidy=Decimal("2500"),
@@ -5555,7 +5555,7 @@ class OrderOperationsTests(TestCase):
 
     def test_registration_step_lists_figures_as_label_amount_rows(self):
         """領牌步驟的獎勵與補助、分期撥款（T-99）：一項一列、金額靠右，0 元淡化，已固定／預估是狀態標籤，不再用中點串成一段字。"""
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model, sales_bonus=Decimal("2000"), promotion_subsidy=Decimal("0"),
             installment_interest_subsidy=Decimal("0"), effective_from=date(2026, 7, 1),
         )
@@ -5573,7 +5573,7 @@ class OrderOperationsTests(TestCase):
         apply_order_incentive_rule(SalesOrder.objects.get(pk=self.order.pk), "tester", lock=True)
         self.client.force_login(self.user)
         html = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "registration"}).content.decode()
-        self.assertIn('<h3 id="figure-incentive">車型獎勵與補助</h3>', html)
+        self.assertIn('<h3 id="figure-incentive">原廠獎勵與補助</h3>', html)
         self.assertIn('<span class="ledger-tag ledger-tag--locked">已固定</span>', html)
         self.assertIn('<div class="figure-list__row"><dt>實銷獎勵</dt><dd>$2,000</dd></div>', html)
         self.assertIn('<div class="figure-list__row is-zero"><dt>促銷補助</dt><dd>$0</dd></div>', html)
@@ -5585,14 +5585,14 @@ class OrderOperationsTests(TestCase):
         self.assertIn("font-variant-numeric: tabular-nums", css.split(".figure-list dd {", 1)[1].split("}", 1)[0])
 
     def test_manual_incentive_adjustment_is_not_overwritten_by_new_version(self):
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1000"),
             promotion_subsidy=Decimal("2000"),
             installment_interest_subsidy=Decimal("700"),
             effective_from=date(2026, 7, 1),
         )
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
             promotion_subsidy=Decimal("2500"),
@@ -5619,7 +5619,7 @@ class OrderOperationsTests(TestCase):
     def test_promotion_subsidy_only_for_platform_and_manual_override_kept(self):
         from sales.services.incentive_rule import apply_order_incentive_rule
 
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model, sales_bonus=Decimal("1000"), promotion_subsidy=Decimal("2000"),
             installment_interest_subsidy=Decimal("0"), effective_from=date(2026, 7, 1),
         )
@@ -5666,7 +5666,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(apply_order_incentive_rule(self.order).insurance_commission, Decimal("100"))
 
     def test_installment_disbursement_uses_order_installment_plan_snapshot(self):
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model,
             effective_from=date(2026, 7, 1),
         )
@@ -5730,7 +5730,7 @@ class OrderOperationsTests(TestCase):
             source_type=SalesSource.SourceType.PLATFORM,
             name="測試平台",
         )
-        rule = VehicleIncentiveRule.objects.create(
+        rule = legacy_incentive_rule(
             vehicle_model=self.model,
             effective_from=date(2026, 7, 1),
         )
@@ -5758,7 +5758,8 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.actual_disbursement, Decimal("73000"))
 
     def test_incentive_rule_maintenance_pages_are_available(self):
-        rule = VehicleIncentiveRule.objects.create(
+        """原廠獎勵改為活動制（T-149）：清單沿用原網址；轉換後的活動可編輯，舊的版本編輯網址導回清單。"""
+        rule = legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
             promotion_subsidy=Decimal("2000"),
@@ -5767,25 +5768,24 @@ class OrderOperationsTests(TestCase):
         )
 
         listing = self.client.get(reverse("incentive_rule_list"))
-        editing = self.client.get(reverse("incentive_rule_edit", args=[rule.pk]))
+        editing = self.client.get(reverse("incentive_campaign_edit", args=[rule.campaign.pk]))
+        legacy = self.client.get(reverse("incentive_rule_edit", args=[rule.pk]))
 
         self.assertEqual(listing.status_code, 200)
         self.assertContains(listing, "原廠獎勵與補助")
         self.assertContains(listing, "1500")
         self.assertContains(listing, "持續有效")
+        self.assertContains(listing, "常態")
         self.assertNotContains(listing, "分期撥款比例")
         self.assertEqual(editing.status_code, 200)
         self.assertContains(editing, "實銷獎勵金")
         self.assertContains(editing, "結束日期")
-        self.assertContains(editing, "分期資料請至車型的「分期方案」維護")
-        self.assertContains(
-            editing,
-            reverse("vehicle_installment_plan_list", args=[self.model.pk]),
-        )
+        self.assertContains(editing, "促銷補助給哪些通路")
         self.assertNotContains(editing, 'name="rates-TOTAL_FORMS"')
+        self.assertRedirects(legacy, reverse("incentive_rule_list"))
 
     def test_vehicle_model_edit_links_to_incentive_maintenance_without_inline_editor(self):
-        rule = VehicleIncentiveRule.objects.create(
+        rule = legacy_incentive_rule(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
             effective_from=date(2026, 8, 1),

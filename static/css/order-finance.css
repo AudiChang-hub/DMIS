@@ -196,6 +196,9 @@
 .figure-list dd { margin: 0; color: var(--ink); font-size: var(--text-base); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
 .figure-list__row.is-zero dt, .figure-list__row.is-zero dd { color: var(--muted); font-weight: 500; }
 .figure-card__meta { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+/* 原廠獎勵活動與車行獎勵的來源明細（T-149） */
+.figure-card__sources { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; overflow-wrap: anywhere; }
+.figure-card__sources span { display: inline-block; margin-right: var(--space-2); padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-soft); color: var(--ink); font-weight: 700; }
 .finance-ledger__legend { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 2; }
 .finance-ledger__legend .ledger-tag { margin: 0 var(--space-1); vertical-align: 1px; }
 

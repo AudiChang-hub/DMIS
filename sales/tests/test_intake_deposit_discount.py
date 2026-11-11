@@ -8,9 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.models import (
-    DealerVehicleRewardItem, DealerVehicleRewardPlan, OrderDraft, OrderEvent, PaymentRecord, SalesOrder,
+    DealerRewardCampaign, DealerRewardCampaignItem, OrderDraft, OrderEvent, PaymentRecord, SalesOrder,
 )
-from sales.services.dealer_reward_snapshot import order_dealer_reward_plans
 from sales.services.document_signing import contract_terms
 from sales.tests import test_order_intake as fixtures
 
@@ -274,62 +273,18 @@ class WizardDiscountTests(IntakeFixtures):
 
 
 class DealerRewardSnapshotTests(IntakeFixtures):
-    def make_plan(self, name="機油", quantity=2, **kwargs):
-        plan = DealerVehicleRewardPlan.objects.create(
-            vehicle_model=self.model, effective_from=timezone.localdate() - timedelta(days=10), **kwargs)
-        DealerVehicleRewardItem.objects.create(plan=plan, reward_type="physical", name=name, quantity=quantity, unit="瓶")
-        return plan
+    """T-149：車行附加獎勵改為活動制、依實際領牌日套用；建立訂單時不再依訂單日存附加獎勵快照。"""
 
-    def test_snapshot_captured_on_create_and_unaffected_by_master_edits(self):
-        plan = self.make_plan()
+    def test_order_creation_does_not_snapshot_rewards_by_order_date(self):
+        campaign = DealerRewardCampaign.objects.create(name="機油活動", effective_from=timezone.localdate() - timedelta(days=10))
+        campaign.vehicle_models.set([self.model])
+        DealerRewardCampaignItem.objects.create(campaign=campaign, reward_type="physical", name="機油", quantity=2, unit="瓶")
         self.client.force_login(self.clerk)
         response = self.client.post(reverse("order_start"), {
             **self.complete_data(), "id_front": self.image("f.png"), "id_back": self.image("b.png"),
             "_submission_key": str(uuid.uuid4())})
         self.assertEqual(response.status_code, 302)
         order = SalesOrder.objects.get()
-        self.assertIsNotNone(order.dealer_reward_snapshot_locked_at)
-        self.assertEqual(order.dealer_reward_snapshot["reference_date"], order.order_date.isoformat())
-        self.assertEqual([item["label"] for item in order.dealer_reward_snapshot["plans"][0]["items"]], ["機油 2 瓶"])
-        item = plan.items.get()
-        item.name, item.quantity = "輪胎", 4
-        item.save()
-        order.refresh_from_db()
-        plans = order_dealer_reward_plans(order)
-        self.assertEqual(plans[0]["items"][0]["label"], "機油 2 瓶")
-        from sales.services.historical_date_change import financial_reference
-        later = financial_reference(order, timezone.localdate() + timedelta(days=30))
-        self.assertIn("機油 2 瓶", later["實物／紅包／禮券／點數"])
-
-    def test_order_without_plans_snapshots_empty_list_and_legacy_falls_back(self):
-        response = self.client.post(reverse("order_create"), {
-            **self.complete_data(), "id_front": self.image("f.png"), "id_back": self.image("b.png"),
-            "_submission_key": str(uuid.uuid4())})
-        self.assertEqual(response.status_code, 302)
-        order = SalesOrder.objects.get()
-        self.assertEqual(order.dealer_reward_snapshot["plans"], [])
-        self.make_plan(name="禮券", quantity=1)
-        self.assertEqual(order_dealer_reward_plans(order), [])
-        # 舊訂單（無快照）依日期查詢主檔。
-        SalesOrder.objects.filter(pk=order.pk).update(dealer_reward_snapshot={}, dealer_reward_snapshot_locked_at=None)
-        order.refresh_from_db()
-        self.assertEqual(order_dealer_reward_plans(order)[0]["items"][0]["name"], "禮券")
-
-    def test_forced_refresh_follows_new_vehicle_model(self):
-        from sales.models import VehicleColor, VehicleModel
-        from sales.services.dealer_reward_snapshot import apply_order_dealer_reward_snapshot
-        response = self.client.post(reverse("order_create"), {
-            **self.complete_data(), "id_front": self.image("f.png"), "id_back": self.image("b.png"),
-            "_submission_key": str(uuid.uuid4())})
-        self.assertEqual(response.status_code, 302)
-        order = SalesOrder.objects.get()
-        other = VehicleModel.objects.create(brand="測試", name="150", energy_type=VehicleModel.EnergyType.GAS)
-        VehicleColor.objects.create(vehicle_model=other, name="黑")
-        DealerVehicleRewardItem.objects.create(
-            plan=DealerVehicleRewardPlan.objects.create(vehicle_model=other, effective_from=order.order_date),
-            reward_type="cash_gift", name="紅包", quantity=500, unit="元")
-        order.vehicle_model = other
-        apply_order_dealer_reward_snapshot(order, force=True)
-        order.refresh_from_db()
-        self.assertEqual(order.dealer_reward_snapshot["plans"][0]["items"][0]["label"], "紅包 500 元")
-
+        self.assertFalse(order.dealer_reward_snapshot)
+        self.assertIsNone(order.dealer_reward_snapshot_locked_at)
+        self.assertFalse(order.dealer_reward_lines.exists(), "沒有領牌日前不帶入")

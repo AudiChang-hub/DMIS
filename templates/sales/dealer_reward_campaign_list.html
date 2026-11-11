@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% load static screen_access pagination_tags %}
+{% block title %}車行獎勵活動｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">依實際領牌日套用</p>
+    <h1>車行獎勵活動</h1>
+    <p class="muted">指定車行、品牌、能源別或年式與期間，每領牌一台就送實物、紅包、禮券或點數。符合的活動全部累加；領牌完成後明細固定在訂單，可在訂單頁查看。</p>
+  </div>
+  <div class="hero-actions">
+    {% if_access 'dealer_reward_catalog_list' %}<a class="button ghost" href="{% url 'dealer_reward_catalog_list' %}">車行獎勵品項</a>{% endif_access %}
+    {% if_access 'dealer_reward_campaign_create' %}<a class="button primary" href="{% url 'dealer_reward_campaign_create' %}">＋ 新增活動</a>{% endif_access %}
+  </div>
+</section>
+
+<form method="get" class="master-filters campaign-filters">
+  <div class="inventory-filter master-search">
+    <label for="reward-campaign-q">搜尋</label>
+    <input id="reward-campaign-q" type="search" name="q" value="{{ selected.q }}" placeholder="活動名稱、品牌、車型或備註">
+  </div>
+  <div class="inventory-filter">
+    <label for="reward-campaign-status">狀態</label>
+    <select id="reward-campaign-status" name="status"><option value="">全部</option>{% for value, label in statuses %}<option value="{{ value }}"{% if selected.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'dealer_reward_campaign_list' %}">清除</a>
+    <button class="button primary" type="submit">搜尋</button>
+  </div>
+</form>
+
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table campaign-table">
+      <thead><tr><th>活動</th><th>適用車行</th><th>適用車輛</th><th>每台獎勵</th><th>期間</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for campaign in campaigns %}
+        <tr>
+          <td data-label="活動"><strong>{{ campaign.name }}</strong>{% if campaign.order_count %}<span>已套用 {{ campaign.order_count }} 張訂單</span>{% endif %}</td>
+          <td data-label="適用車行">{% with dealers=campaign.dealers.all %}{% if dealers %}{% for dealer in dealers|slice:":3" %}{{ dealer.name }}{% if not forloop.last %}、{% endif %}{% endfor %}{% if dealers|length > 3 %} 等 {{ dealers|length }} 家{% endif %}{% else %}全部車行{% endif %}{% endwith %}</td>
+          <td data-label="適用車輛">{{ campaign.conditions_text }}</td>
+          <td data-label="每台獎勵"><strong>{{ campaign.reward_summary|default:"尚未填寫項目" }}</strong></td>
+          <td data-label="期間"><strong>{{ campaign.effective_from|date:"Y/m/d" }}</strong><span>至 {{ campaign.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
+          <td data-label="狀態"><div class="quick-active-toggle-stack">{% include "sales/_active_quick_toggle.html" with resource="dealer-reward-campaign" pk=campaign.pk is_active=campaign.active item_name=campaign.name %}{% if campaign.active %}<span class="status-pill cost-rule-{{ campaign.display_status }}">{{ campaign.display_status_label }}</span>{% endif %}</div></td>
+          <td class="inventory-row-action">{% if_access 'dealer_reward_campaign_edit' %}<a class="button ghost small" href="{% url 'dealer_reward_campaign_edit' campaign.pk %}">編輯</a>{% endif_access %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><strong>沒有符合的活動</strong><p>例如「四家車行本月賣出 SUZUKI 油車，每台送機油 5 罐」：適用車行選四家、品牌 SUZUKI、能源別油車、期間本月。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% pagination page_obj aria_label="車行獎勵活動分頁" %}
+</section>
+{% endblock %}

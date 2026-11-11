@@ -4,7 +4,7 @@ p13 領牌前手動填的獎勵，找到車型版本後與版本金額相同的�
 from datetime import date
 from decimal import Decimal
 
-from sales.models import OrderOperationsProfile, PaymentRecord, SalesOrder, VehicleIncentiveRule
+from sales.models import OrderOperationsProfile, PaymentRecord, SalesOrder
 from sales.services.customer_receivable import dealer_cash_credit
 from sales.services.dealer_commission import apply_order_dealer_commission
 from sales.services.dealer_settlement import dealer_settlement
@@ -13,6 +13,7 @@ from sales.services.operations_sync import sync_order_operations
 from sales.services.order_workspace import receipt_status
 from sales.services.payment_summary import payment_summary
 from sales.tests import test_finance_ledger as ledger
+from sales.tests.campaign_helpers import legacy_incentive_rule
 
 
 class DealerCashCreditTests(ledger.FinanceLedgerTestBase):
@@ -59,7 +60,7 @@ class DealerCashCreditTests(ledger.FinanceLedgerTestBase):
 
 class IncentiveManualReleaseTests(ledger.FinanceLedgerTestBase):
     def test_manual_value_equal_to_rule_returns_to_system(self):
-        VehicleIncentiveRule.objects.create(vehicle_model=self.model, effective_from=date(2026, 8, 1),
+        legacy_incentive_rule(vehicle_model=self.model, effective_from=date(2026, 8, 1),
                                             sales_bonus=2000, promotion_subsidy=1500)
         order = self.make_order(source_type="platform", source=self.platform, registration_date=date(2026, 9, 10))
         profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)

@@ -58,9 +58,9 @@ SCREEN_GROUPS = (
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
-        ("車輛與商品", ("brands", "models", "inventory", "accessories", "rewards")),
+        ("車輛與商品", ("brands", "models", "inventory", "accessories")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
-        ("費率與規則", ("costs", "incentives", "commissions", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
+        ("費率與規則", ("costs", "incentives", "commissions", "rewards", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
         ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
     )),
 )
@@ -113,12 +113,13 @@ register("models", "vehicle_model_create vehicle_model_edit", "operate")
 # 沿用建立與批次調整：查看需機種畫面、送出需機種操作；各項資料另依其畫面的操作權限把關。
 register("models", "vehicle_model_copy vehicle_model_batch vehicle_model_installment_batch")
 register("commissions", "dealer_sales_program_list vehicle_model_commission")
-# 批次套用附加獎勵：權限同機種工作區的「傭金與獎勵」分頁（查看可試算，預覽與送出需操作）。
-register("commissions", "vehicle_model_reward_batch")
+# 批次套用附加獎勵已改為車行獎勵活動（T-149）；舊網址導向活動清單，權限同「傭金與獎勵」。
+register("commissions", "vehicle_model_reward_batch dealer_reward_campaign_list")
+register("commissions", "dealer_reward_campaign_create dealer_reward_campaign_edit dealer_reward_campaign_delete", "operate")
 register("accessories", "accessory_product_list accessory_category_list")
 register("accessories", "accessory_product_create accessory_product_edit accessory_product_merge", "operate")
 register("rewards", "dealer_reward_catalog_list")
-register("rewards", "dealer_reward_catalog_create dealer_reward_catalog_edit", "operate")
+register("rewards", "dealer_reward_catalog_create dealer_reward_catalog_edit dealer_reward_catalog_quick_create", "operate")
 register("customers", "customer_list customer_detail")
 register("sources", "sales_source_list sales_source_staff_list sales_source_platform_list sales_source_category_list sales_source_holiday_gift_manage")
 register("sources", "sales_source_create sales_source_edit sales_source_delete sales_source_set_active sales_source_set_holiday_gift", "operate")
@@ -127,6 +128,7 @@ register("costs", "settlement_cost_rule_list vehicle_model_settlement_costs")
 register("costs", "settlement_cost_rule_create settlement_cost_rule_edit settlement_cost_rule_delete", "operate")
 register("incentives", "incentive_rule_list vehicle_model_incentives")
 register("incentives", "incentive_rule_create incentive_rule_edit incentive_rule_delete", "operate")
+register("incentives", "incentive_campaign_create incentive_campaign_edit incentive_campaign_delete", "operate")
 register("bonuses", "dealer_volume_bonus_list dealer_volume_bonus_detail")
 register("bonuses", "dealer_volume_bonus_create dealer_volume_bonus_edit dealer_volume_bonus_delete", "operate")
 register("installments", "installment_company_list installment_company_quick_create")
@@ -176,7 +178,7 @@ LOOKUPS = {
 TOGGLE_RESOURCES = {
     "accessory-product": "accessories", "accessory-category": "accessories", "dealer-reward-catalog-item": "rewards",
     "brand-registration-fee-rule": "fees", "business-holiday": "holidays",
-    "dealer-volume-bonus": "bonuses", "incentive-rule": "incentives",
+    "dealer-volume-bonus": "bonuses", "incentive-campaign": "incentives", "dealer-reward-campaign": "commissions",
     "installment-company": "installments", "installment-plan": "models", "subsidy-program": "subsidy_programs",
     "positioned-print-template": "templates", "sales-source": "sources",
     "sales-source-category": "sources", "settlement-cost-rule": "costs",

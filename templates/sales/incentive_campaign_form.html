@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% load static screen_access %}
+{% block title %}{% if campaign %}編輯{% else %}新增{% endif %}原廠獎勵活動｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'incentive_rule_list' as list_url %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="原廠獎勵與補助" root_url=data_url root_label="資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">原廠獎勵與補助</p>
+    <h1>{% if campaign %}編輯活動{% else %}新增活動{% endif %}</h1>
+    <p class="muted">訂單依實際領牌日找符合的活動帶入金額；領牌完成後固定，之後修改活動不影響已完成的訂單。</p>
+  </div>
+</section>
+<form method="post" class="campaign-form" data-campaign-form>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% if campaign and order_count %}<p class="campaign-usage">已套用到 {{ order_count }} 張訂單；修改只影響尚未完成領牌的訂單。</p>{% endif %}
+
+  <section class="card campaign-section" aria-labelledby="campaign-basic-title">
+    <header class="campaign-section__heading"><div><p class="eyebrow">01 · 活動與金額</p><h2 id="campaign-basic-title">這個活動給多少？</h2></div></header>
+    <div class="form-grid campaign-grid">
+      <div class="span-2">{% include "sales/_field.html" with field=form.name %}</div>
+      <fieldset class="campaign-kind-choice{% if form.kind.errors %} has-error{% endif %}">
+        <legend>類型</legend>
+        <div>{% for choice in form.kind %}<label class="campaign-kind-option">{{ choice.tag }}<span><strong>{{ choice.choice_label }}</strong><small>{% if choice.data.value == "regular" %}平常的原廠獎勵；同一年式只取開始日最新的一筆{% else %}短期加碼；累加在常態之上，須填結束日{% endif %}</small></span></label>{% endfor %}</div>
+        {% for error in form.kind.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+      {% include "sales/_field.html" with field=form.sales_bonus %}
+      {% include "sales/_field.html" with field=form.promotion_subsidy %}
+      {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
+    </div>
+  </section>
+
+  {% include "sales/_campaign_conditions.html" with step="02" %}
+
+  <section class="card campaign-section" aria-labelledby="campaign-channel-title">
+    <header class="campaign-section__heading"><div><p class="eyebrow">03 · 通路</p><h2 id="campaign-channel-title">哪些訂單來源適用？</h2></div></header>
+    <div class="campaign-channel-grid">
+      <fieldset class="campaign-chips{% if form.source_types.errors %} has-error{% endif %}">
+        <legend>{{ form.source_types.label }}</legend>
+        <div class="campaign-chips__options">{% for choice in form.source_types %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small class="help-text">{{ form.source_types.help_text }}</small>
+        {% for error in form.source_types.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+      <fieldset class="campaign-chips{% if form.promotion_source_types.errors %} has-error{% endif %}">
+        <legend>{{ form.promotion_source_types.label }}</legend>
+        <div class="campaign-chips__options">{% for choice in form.promotion_source_types %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small class="help-text">{{ form.promotion_source_types.help_text }}</small>
+        {% for error in form.promotion_source_types.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+    </div>
+  </section>
+
+  <section class="card campaign-section" aria-labelledby="campaign-period-title">
+    <header class="campaign-section__heading"><div><p class="eyebrow">04 · 期間</p><h2 id="campaign-period-title">依實際領牌日期</h2></div></header>
+    <div class="form-grid campaign-grid">
+      {% include "sales/_field.html" with field=form.effective_from %}
+      {% include "sales/_field.html" with field=form.effective_to %}
+      {% include "sales/_field.html" with field=form.announced_on %}
+      {% include "sales/_field.html" with field=form.active %}
+      <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
+    </div>
+  </section>
+
+  <div class="form-savebar campaign-savebar">
+    {% if campaign %}{% if_access 'incentive_campaign_delete' %}<button class="button danger-outline" type="submit" form="delete-campaign">刪除活動</button>{% endif_access %}{% endif %}
+    <a class="button ghost" href="{{ list_url }}">取消</a>
+    <button class="button primary" type="submit">{% if campaign %}套用修改{% else %}建立活動{% endif %}</button>
+  </div>
+</form>
+{% if campaign %}<form id="delete-campaign" method="post" action="{% url 'incentive_campaign_delete' campaign.pk %}" data-confirm="確定刪除此活動？已被訂單採用的活動不能刪除，請改為停用。">{% csrf_token %}</form>{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script>{% endblock %}

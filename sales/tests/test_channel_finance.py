@@ -24,7 +24,6 @@ from sales.models import (
     SalesSourceCooperationProfile,
     VehicleBrand,
     VehicleColor,
-    VehicleIncentiveRule,
     VehicleModel,
 )
 from sales.services.dealer_commission import (
@@ -40,6 +39,7 @@ from sales.services.installment_plan import (
 )
 from sales.services.incentive_rule import apply_order_incentive_rule
 from sales.services.operations_sync import sync_order_operations
+from sales.tests.campaign_helpers import legacy_incentive_rule
 
 
 class ChannelFinanceTests(TestCase):
@@ -258,7 +258,7 @@ class ChannelFinanceTests(TestCase):
         )
 
     def test_extra_disbursement_bonus_is_included_once_in_actual_disbursement(self):
-        VehicleIncentiveRule.objects.create(
+        legacy_incentive_rule(
             vehicle_model=self.model,
             effective_from=date(2026, 8, 1),
         )

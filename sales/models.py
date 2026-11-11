@@ -4298,10 +4298,13 @@ class SalesOrder(TimeStampedModel):
             if self.commission_recipient_id == self.source_id:
                 self.commission_recipient = None
         if previous:
-            changed = any(getattr(self, key) != previous[key] for key in (
-                "source_type", "source_id", "commission_recipient_id", "vehicle_model_id",
-                "registration_date", "registration_completed_at",
-            )) or (self.status == self.Status.CANCELLED and previous["status"] != self.status)
+            keys = ("source_type", "source_id", "commission_recipient_id", "vehicle_model_id",
+                    "registration_date", "registration_completed_at")
+            if getattr(self, "_registration_edit", False):
+                # 領牌步驟改領牌日（T-147）：跨出已結算期間由 services/registration_edit 比照刪單扣除，這裡不擋。
+                keys = keys[:4]
+            changed = any(getattr(self, key) != previous[key] for key in keys) or (
+                self.status == self.Status.CANCELLED and previous["status"] != self.status)
             if changed and self.dealer_volume_bonus_allocations.exists():
                 errors["commission_recipient"] = "此訂單已結算台數獎金，不可變更原車行或台數與傭金歸屬。"
         else:

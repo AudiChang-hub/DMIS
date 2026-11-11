@@ -6,7 +6,7 @@
  *   值的來源二選一：表單內 <dl data-lock-values>（伺服器依資料庫現值輸出），
  *   或 data-lock-fields="欄位名 …"（取畫面上即將送出的值；data-lock-required 列出不可空白的欄位）。
  * - 勾選類（確認入帳）由 order-workspace.js 呼叫 DMISLockConfirm.fromElement(勾選框)。
- * - 領牌：領牌日與車牌剛填齊時（文件選填、不算條件，T-145），伺服器在按鈕標 data-lock-auto，頁面自動跳出確認卡（游標還在領牌欄位時等離開再跳）。
+ * - 領牌不再使用確認卡：領牌日與車牌填好存檔即自動完成，之後仍可修改（使用者 2026-11-11 T-147）。
  */
 (() => {
   const fieldName = name => name.replace(/^.*-/, '');
@@ -148,31 +148,6 @@
       form.requestSubmit(button);
     });
   }, true);
-
-  // 資料剛齊全（伺服器在按鈕標 data-lock-auto：自動儲存後）就自動跳出確認卡；
-  // 游標還在同一張表單的欄位裡（例如還在打車牌）先不打斷，離開那張表單再跳。
-  function offer(button) {
-    if (!button.isConnected || button.disabled || !button.hasAttribute('data-lock-auto')) return;
-    const editing = document.activeElement?.closest?.('form');
-    if (editing && editing !== button.form && editing.matches('[data-workspace-save]') && editing.closest('[data-step-key]') === button.closest('[data-step-key]')) {
-      editing.addEventListener('focusout', () => setTimeout(() => {
-        if (!editing.contains(document.activeElement)) offer(button);
-      }, 0), {once: true});
-      return;
-    }
-    button.removeAttribute('data-lock-auto');
-    // 只跳一次：拿掉網址上的 ?confirm=，重新整理不再自動跳（按鈕仍可隨時按）。
-    const url = new URL(location.href);
-    if (url.searchParams.has('confirm')) { url.searchParams.delete('confirm'); history.replaceState(history.state, '', url); }
-    // 確認卡出現前先把那一步帶到畫面上（order-workspace.js 依錨點切換步驟）。
-    button.closest('[data-step-key]')?.dispatchEvent(new CustomEvent('order-tabpanel-reveal', {bubbles: true}));
-    button.click();
-  }
-  const scan = () => document.querySelectorAll('button[data-lock-auto]').forEach(button => setTimeout(() => offer(button), 160));
-  if (document.readyState === 'complete') scan(); else window.addEventListener('load', scan, {once: true});
-  new MutationObserver(records => {
-    if (records.some(record => [...record.addedNodes].some(node => node.nodeType === 1 && (node.matches('button[data-lock-auto]') || node.querySelector?.('button[data-lock-auto]'))))) scan();
-  }).observe(document.body, {childList: true, subtree: true});
 
   window.DMISLockConfirm = {ask, fromElement, rowsFor};
 })();

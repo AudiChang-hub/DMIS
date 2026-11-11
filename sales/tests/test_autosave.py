@@ -18,7 +18,7 @@ class OrderAutosaveTests(TestCase):
     def workspace_post(self, url, data):
         return self.client.post(url, data, HTTP_X_ORDER_WORKSPACE="1", HTTP_ACCEPT="application/json")
 
-    def test_registration_autosave_saves_data_without_finishing(self):
+    def test_registration_autosave_saves_data_and_finishes(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         for document_type in RegistrationDocument.active_fixed_document_types():
@@ -36,18 +36,18 @@ class OrderAutosaveTests(TestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertIn("financial_revision", payload)
-        self.assertIn("確認領牌完成", payload["registration_html"])
+        self.assertIn("領牌已完成", payload["registration_html"])
         order.refresh_from_db()
         self.assertEqual(order.final_plate_number, "ABC-1234")
-        # 文件齊全也不自動完成：完成會鎖定日期與車牌，要由人員按「確認領牌完成」。
-        self.assertFalse(order.is_registration_complete)
+        # 日期與車牌填好就自動完成（使用者 2026-11-11 T-147，取代 10-15「由人員按確認領牌完成」）。
+        self.assertTrue(order.is_registration_complete)
 
         response = self.workspace_post(reverse("registration_save", args=[order.pk]),
                                        {"registration_date": "", "final_plate_number": "abc-1234"})
         self.assertEqual(response.status_code, 400)
         self.assertIn("registration_date", response.json()["errors"])
 
-    def test_completed_registration_fields_are_locked(self):
+    def test_completed_registration_fields_stay_editable(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         SalesOrder.objects.filter(pk=order.pk).update(registration_date="2026-07-29", final_plate_number="ABC-1234")
@@ -58,10 +58,13 @@ class OrderAutosaveTests(TestCase):
         order.complete_registration("tester")
         self.client.force_login(self.user)
         response = self.client.get(order_step_url(order.pk, "registration"))
-        self.assertTrue(response.context["registration_form"]["final_plate_number"].field.disabled)
+        # 領牌完成後仍可修改（使用者 2026-11-11 T-147，取代完成即鎖定）。
+        self.assertFalse(response.context["registration_form"]["final_plate_number"].field.disabled)
         response = self.workspace_post(reverse("registration_save", args=[order.pk]),
                                        {"registration_date": "2026-08-01", "final_plate_number": "XYZ-0000"})
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual((str(order.registration_date), order.final_plate_number), ("2026-08-01", "XYZ-0000"))
 
     def test_workspace_sections_have_no_save_buttons(self):
         order = self.make_order()

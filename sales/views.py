@@ -252,6 +252,7 @@ from .services.order_search import (
 )
 from .services.customer_receivable import PLATE_INCOME_FIELDS
 from .services.operations_sync import sync_order_operations
+from .services.registration_edit import apply_registration_edit, finish_registration
 from .services.operations_sync import refresh_payment_confirmation
 from .services.payment_summary import payment_summary
 from .services.payment_ledger import (
@@ -5832,8 +5833,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,
-            # 沒有 JavaScript 時送出領牌資料剛齊全（?confirm=registration）：領牌區塊自動跳出確認卡（T-130）。
-            "registration_lock_auto": request.GET.get("confirm") == "registration",
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
             "balance_payment": balance_payment,
@@ -7099,49 +7098,26 @@ def unallocate_vehicle(request, pk):
     return redirect(detail_url)
 
 
-REGISTRATION_TAX_FIELDS = ("registration_tax_expense", "registration_tax_income")
-
-
-def _recalculate_registration_tax(order, actor_name):
-    """填寫或修改實際領牌日：領牌稅金收入、支出依新日期重算，人工改過的也覆蓋並留處理紀錄；
-    領牌日沒變時人工金額照舊保留（使用者 2026-11-07 T-127 p6 選 A）。"""
-    profile = OrderOperationsProfile.objects.filter(order=order).first()
-    if profile is None:
-        sync_order_operations(order.pk)
-        return
-    before = {name: getattr(profile, name) for name in REGISTRATION_TAX_FIELDS}
-    manual = [name for name in (profile.manual_financial_fields or []) if name in REGISTRATION_TAX_FIELDS]
-    if manual:
-        profile.manual_financial_fields = [name for name in profile.manual_financial_fields if name not in REGISTRATION_TAX_FIELDS]
-        profile.save(update_fields=["manual_financial_fields", "updated_at"])
-    sync_order_operations(order.pk)
-    profile.refresh_from_db()
-    changes = {name: {"before": str(before[name]), "after": str(getattr(profile, name))}
-               for name in REGISTRATION_TAX_FIELDS if getattr(profile, name) != before[name]}
-    if manual and changes:
-        OrderChange.objects.create(order=order, actor_name=actor_name, reason="領牌日變更，領牌稅金依實際領牌日重算（覆蓋人工金額）",
-                                   changes=changes)
-
-
 def _save_registration_form(request, form):
-    """儲存已驗證的領牌資料並依領牌日帶入成本、獎勵與傭金；回傳 [(訊息等級, 文字)]。"""
+    """儲存已驗證的領牌資料並連動重算、自動完成領牌（T-147）；回傳 ([(訊息等級, 文字)], 本次是否完成領牌)。"""
+    before_date, before_plate = form.previous_registration_date, form.previous_plate_number
     order = form.save()
-    if order.registration_date != form.previous_registration_date:
-        _recalculate_registration_tax(order, _editing_name(request.user))
-    cost_profile = apply_order_settlement_cost(order, _editing_name(request.user))
-    apply_order_incentive_rule(order, _editing_name(request.user))
-    apply_order_dealer_commission(order)
+    actor = _editing_name(request.user)
+    result = apply_registration_edit(order, actor_name=actor, before_date=before_date, before_plate=before_plate)
     OrderEvent.objects.create(
         order=order,
         event_type="registration_data_updated",
         description=f"已更新領牌資料：{order.registration_date}／{order.final_plate_number}",
-        actor_name=_editing_name(request.user),
+        actor_name=actor,
     )
-    if cost_profile.vehicle_cost_rule_id:
-        return [("success", f"領牌資料已保存，已依領牌日期帶入代銷結算成本 ${cost_profile.vehicle_cost:,.0f}。")]
-    if resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
-        return [("success", f"領牌資料已保存；車輛成本為人工輸入的 ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。")]
-    return [("warning", "領牌資料已保存，但目前找不到適用的車輛結算成本規則；請先至車型資料的成本規則補建，否則無法完成領牌。")]
+    if result["notes"]:
+        return result["notes"], result["completed"]
+    cost_profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if cost_profile and cost_profile.vehicle_cost_rule_id and not cost_profile.vehicle_cost_manual:
+        return [("success", f"領牌資料已保存，車輛結算成本 ${cost_profile.vehicle_cost:,.0f}。")], False
+    if cost_profile and resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
+        return [("success", f"領牌資料已保存；車輛成本為人工輸入的 ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。")], False
+    return [("warning", "領牌資料已保存，但目前找不到適用的車輛結算成本規則；請先至車型資料的成本規則補建，否則無法完成領牌。")], False
 
 
 @login_required
@@ -7151,39 +7127,32 @@ def registration_save(request, pk):
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
     workspace = order_workspace.is_workspace_save(request)
-    if order.is_registration_complete:
-        if workspace:
-            return order_workspace.save_error("此訂單已完成領牌，領牌資料已鎖定。", status=409)
-        messages.error(request, "此訂單已完成領牌，領牌資料已鎖定。")
-        return redirect("order_detail", pk=pk)
-    if not order.allocated_vehicle_id:
+    # 領牌完成後仍可修改日期與車牌，任何訂單狀態都可以（使用者 2026-11-11 T-147）；第一次領牌才需要先配車。
+    if not order.allocated_vehicle_id and not order.is_registration_complete:
         if workspace:
             return order_workspace.save_error("請先完成配車，再填寫領牌資料。", status=409)
         messages.error(request, "請先完成配車，再填寫領牌資料。")
         return redirect("order_detail", pk=pk)
-    was_missing = bool(order.missing_registration_requirements())
     form = RegistrationStageForm(request.POST, instance=order)
     if workspace:
-        # 自動儲存只存資料，不自動完成領牌：完成會鎖定日期與車牌，要由「確認領牌完成」明確按下（使用者 2026-10-15）。
         if not form.is_valid():
             return order_workspace.save_error("領牌資料未保存。", forms=(form,))
-        notes = _save_registration_form(request, form)
+        notes, completed = _save_registration_form(request, form)
         order.refresh_from_db()
         # 回傳完整同步資料：領牌日會帶入成本、獎勵與傭金，收支區塊的版本號要跟著更新。
+        # 這次自動完成領牌時訂單狀態、步驟與交車區塊都變了：整頁原地重新載入，停回原步驟與位置（同 T-129 換車）。
         return order_workspace.saved(request, order, extra={
             "message": notes[0][1] if notes else "領牌資料已保存。",
-            # 資料剛好在這次齊全時，區塊帶上 data-lock-auto，頁面自動跳出領牌確認卡（T-130）。
+            "reload": completed,
             "registration_html": render_to_string(
                 "sales/_registration_completion.html",
-                {"order": order, "registration_missing": order.missing_registration_requirements(),
-                 "registration_lock_auto": _registration_newly_ready(order, was_missing)}, request=request,
+                {"order": order, "registration_missing": order.missing_registration_requirements()}, request=request,
             ),
         })
     if form.is_valid():
-        for level, text in _save_registration_form(request, form):
+        notes, _completed = _save_registration_form(request, form)
+        for level, text in notes:
             getattr(messages, level)(request, text)
-        if _registration_newly_ready(form.instance, was_missing):
-            return redirect(f"{order_step_url(pk, 'registration').partition('#')[0]}&confirm=registration#registration-completion")
     else:
         messages.error(
             request,
@@ -7193,7 +7162,7 @@ def registration_save(request, pk):
                 for error in errors
             ),
         )
-    return redirect("order_detail", pk=pk)
+    return redirect(order_step_url(pk, "registration"))
 
 
 @login_required
@@ -7381,44 +7350,19 @@ def registration_document_delete(request, pk, document_pk):
     return redirect("order_detail", pk=pk)
 
 
-def _finish_registration(request, order):
-    """完成領牌並鎖定成本、獎勵與傭金；回傳 (成功, 訊息)。手動按鈕與資料齊全時自動完成共用。"""
-    if not resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
-        return False, "找不到符合機種及領牌日期的車輛結算成本規則，請先至車型資料補建後再完成領牌。"
-    try:
-        order.complete_registration(_editing_name(request.user))
-    except ValidationError as exc:
-        return False, " ".join(exc.messages)
-    apply_order_settlement_cost(order, _editing_name(request.user), lock=True)
-    apply_order_incentive_rule(order, _editing_name(request.user), lock=True)
-    apply_order_dealer_commission(order, lock=True)
-    OrderEvent.objects.create(
-        order=order,
-        event_type="registration_completed",
-        description=f"領牌完成：{order.registration_date}／{order.final_plate_number}",
-        actor_name=_editing_name(request.user),
-    )
-    return True, "領牌階段已完成，訂單進入待交付。"
-
-
-def _registration_newly_ready(order, was_missing):
-    """這次存檔讓領牌日與車牌剛好都填好（T-130 第 3 層 2026-11-07；T-145 2026-11-11 起文件不算條件）。
-    以前（2026-10-14）會直接完成領牌並鎖定；現在只回報齊全，由頁面跳出確認卡、人按「確認完成」才鎖定。"""
-    return bool(was_missing) and not order.is_registration_complete and not order.missing_registration_requirements()
-
-
 @login_required
 @transaction.atomic
 def registration_complete(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
-    # 選完留在領牌步驟（T-145）：頁面以原地送出後重新載入回到原位置；沒有 JavaScript 時也回到領牌步驟。
+    # 領牌日與車牌填好時存檔就自動完成（T-147）；這個按鈕只在當時找不到成本規則、補建後手動完成時用。
+    # 原地送出後重新載入回到原位置；沒有 JavaScript 時也回到領牌步驟。
     step_url = order_step_url(pk, "registration")
     if order.is_registration_complete:
         messages.info(request, "此訂單已完成領牌。")
         return redirect(step_url)
-    ok, message = _finish_registration(request, order)
+    ok, message = finish_registration(order, _editing_name(request.user))
     (messages.success if ok else messages.error)(request, message)
     return redirect(step_url)
 

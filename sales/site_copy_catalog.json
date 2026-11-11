@@ -1028,7 +1028,7 @@
   },
   "order_detail.bce60d0f7a34": {
     "page": "訂單內容",
-    "default": "確認後將鎖定本階段內容，訂單進入待交付。",
+    "default": "目前找不到符合的車輛結算成本規則，補建後按「完成領牌」，訂單進入待交付。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.c4b8fc8f1bd2": {

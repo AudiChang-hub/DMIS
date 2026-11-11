@@ -348,7 +348,8 @@
     {% endif %}
   </div>
 
-  {% if not order.allocated_vehicle %}
+  {# 已領牌的單（含例外結案、退車後已釋回車輛）仍可修改領牌日與車牌（T-147）。 #}
+  {% if not order.allocated_vehicle and not order.is_registration_complete %}
     <div class="stage-empty">
       <strong>尚未開放領牌作業</strong>
       <p>{% site_text 'order_detail.dac67b8f5494' %}</p>
@@ -365,7 +366,7 @@
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
         {{ registration_form.final_plate_number }}
       </div>
-      <p class="autosave-status registration-data-form__submit" data-autosave-status role="status" aria-live="polite">{% if order.is_registration_complete %}領牌資料已鎖定{% else %}修改後會自動儲存{% endif %}</p>
+      <p class="autosave-status registration-data-form__submit" data-autosave-status role="status" aria-live="polite">修改後會自動儲存</p>
     </form>
     {# 領牌帶入的金額（T-99）：與收支頁同一組標籤與等寬數字；一項一列、金額靠右，0 元淡化。 #}
     <div class="registration-figures" aria-label="領牌帶入的成本、獎勵與撥款">

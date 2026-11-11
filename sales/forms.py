@@ -3383,6 +3383,7 @@ class OrderOperationsForm(forms.ModelForm):
             if name not in keep:
                 self.fields.pop(name)
         self._default_vehicle_control_password()
+        self._default_vehicle_control_account()
         synced_fields = {
             "dealer_name",
             "installment_fee_income",
@@ -3448,6 +3449,19 @@ class OrderOperationsForm(forms.ModelForm):
         field.widget = forms.TextInput()
         field.initial = digits
         field.help_text = "預設為新車主手機號碼，可直接修改；儲存後加密保存。"
+
+    def _default_vehicle_control_account(self):
+        """車控帳號空白時預設新車主 Email 中 @ 之前的部分，可直接修改後儲存（使用者 2026-11-11 T-144）。"""
+        field = self.fields.get("vehicle_control_account")
+        order = getattr(self.instance, "order", None)
+        if field is None or order is None or self.is_bound or self.instance.vehicle_control_account:
+            return
+        local, at, _domain = (order.owner_email or "").strip().partition("@")
+        local = local.strip()
+        if not at or not local:
+            return
+        self.initial["vehicle_control_account"] = local[: field.max_length] if field.max_length else local
+        field.help_text = "預設為新車主 Email 中 @ 之前的部分，可直接修改。"
 
     def clean(self):
         cleaned = super().clean()

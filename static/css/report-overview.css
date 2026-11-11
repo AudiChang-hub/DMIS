@@ -63,3 +63,30 @@
  .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-page-nav nav { max-height:55vh; }
  .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-current-page { display:block; font-weight:400; }
 }
+
+/* ===== T-140：圖表操作選單分組與標題、匯出格式對話框 ===== */
+.report-tool-group { display: grid; gap: var(--space-2); }
+.report-tool-group + .report-tool-group { margin-top: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--line-soft); }
+.report-tool-group__title { margin: 0; color: var(--muted); font-size: var(--text-xs); font-weight: 700; letter-spacing: .06em; }
+.report-export-dialog { width: min(460px, 92vw); }
+.report-export-dialog h2 { margin: 0 0 var(--space-3); }
+.report-export-dialog fieldset { display: grid; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+.report-export-dialog legend { margin-bottom: var(--space-2); padding: 0; font-weight: 700; }
+.report-export-choice {
+  display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--radius-md); transition: border-color .15s ease, background-color .15s ease;
+}
+.report-export-choice:hover { border-color: var(--line-strong); }
+.report-export-choice:has(input:checked) { border-color: var(--forest); background: var(--surface-tint); }
+.report-export-choice input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--forest); }
+.report-export-choice span { display: grid; gap: 2px; }
+.report-export-choice small { color: var(--muted); font-size: var(--text-sm); }
+.report-export-hint { margin: 0; color: var(--red); font-size: var(--text-sm); font-weight: 600; }
+.report-export-keep { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; font-size: var(--text-sm); }
+.report-export-keep input { width: 20px; height: 20px; accent-color: var(--forest); }
+.report-dialog-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
+.report-image-export .report-dialog-actions .button { margin-right: 0; }
+@media (max-width: 600px) {
+  .report-dialog-actions { flex-direction: column-reverse; }
+  .report-dialog-actions .button { width: 100%; }
+}

@@ -2,7 +2,7 @@ from django.db import migrations
 from django.db.models import Q
 
 # 使用者 2026-11-11 T-144 方案 A：既有電動車訂單車控帳號空白的，補上新車主 Email 中第一個 @ 之前的部分。
-# 只補空白（None 或空字串）；已有值不動；Email 空白或沒有 @ 跳過；燃油車不動。重跑不會改到已補的值。
+# 只補空白（None 或空字串）；已有值不動；Email 空白或沒有 @ 跳過；燃油車與已刪除的訂單不動。重跑不會改到已補的值。
 # reverse 只把「值等於該車主 Email 前綴」的清回空白（使用者已知可能誤清原本就是這個值的帳號）。
 GAS = "gas"
 
@@ -17,7 +17,7 @@ def _electric_profiles(apps):
     Profile = apps.get_model("sales", "OrderOperationsProfile")
     return (
         Profile.objects.select_related("order")
-        .filter(order__vehicle_model__isnull=False)
+        .filter(order__vehicle_model__isnull=False, order__deleted_at__isnull=True)
         .exclude(order__vehicle_model__energy_type=GAS)
     )
 

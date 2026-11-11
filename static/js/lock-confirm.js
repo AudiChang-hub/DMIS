@@ -6,7 +6,7 @@
  *   值的來源二選一：表單內 <dl data-lock-values>（伺服器依資料庫現值輸出），
  *   或 data-lock-fields="欄位名 …"（取畫面上即將送出的值；data-lock-required 列出不可空白的欄位）。
  * - 勾選類（確認入帳）由 order-workspace.js 呼叫 DMISLockConfirm.fromElement(勾選框)。
- * - 領牌：資料與文件剛齊全時，伺服器在按鈕標 data-lock-auto，頁面自動跳出確認卡（游標還在領牌欄位時等離開再跳）。
+ * - 領牌：領牌日與車牌剛填齊時（文件選填、不算條件，T-145），伺服器在按鈕標 data-lock-auto，頁面自動跳出確認卡（游標還在領牌欄位時等離開再跳）。
  */
 (() => {
   const fieldName = name => name.replace(/^.*-/, '');
@@ -149,7 +149,7 @@
     });
   }, true);
 
-  // 資料剛齊全（伺服器在按鈕標 data-lock-auto：上傳文件或自動儲存後）就自動跳出確認卡；
+  // 資料剛齊全（伺服器在按鈕標 data-lock-auto：自動儲存後）就自動跳出確認卡；
   // 游標還在同一張表單的欄位裡（例如還在打車牌）先不打斷，離開那張表單再跳。
   function offer(button) {
     if (!button.isConnected || button.disabled || !button.hasAttribute('data-lock-auto')) return;

@@ -231,10 +231,9 @@ class InplaceUploadTests(TestCase):
             self.assertEqual(response.status_code, 302)
             locations.append(response["Location"])
         self.order.refresh_from_db()
-        # 文件傳齊不再自動完成（T-130）：剛齊全那一次（登記書）導回時帶 confirm=registration，頁面跳確認卡；
-        # 之後選填的保險單不再帶。按「確認完成」才鎖定。
+        # 文件傳齊不再自動完成（T-130）；文件全部選填、上傳也不跳確認卡（T-145），按「確認完成」才鎖定。
         self.assertFalse(self.order.is_registration_complete)
-        self.assertEqual(["confirm=registration" in location for location in locations], [False, True, False])
+        self.assertEqual(["confirm=registration" in location for location in locations], [False, False, False])
         self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)

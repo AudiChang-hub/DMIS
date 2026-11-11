@@ -3731,25 +3731,20 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertFalse(order.is_trade_in_subsidy)
 
-    def test_registration_requires_data_and_all_fixed_documents(self):
+    def test_registration_requires_date_and_plate_only(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         self.client.force_login(self.user)
 
         missing = order.missing_registration_requirements()
-        self.assertIn("新行照照片", missing)
-        self.assertIn("新車領牌登記書", missing)
-        # 1.21.0 起發票照片為選填。
-        self.assertNotIn("發票", missing)
-        self.assertNotIn("監理站單據", missing)
-        # 2026-10-22 T-95 起強制險單改選填：只有新行照、登記書是領牌條件。
-        self.assertNotIn("強制險單", missing)
+        # 2026-11-11 T-145 起領牌文件全部選填：只看領牌日與車牌（取代 10-22 T-95 的行照、登記書）。
+        self.assertEqual(missing, ["實際領牌日期", "車牌號碼"])
 
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])
         )
 
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
         self.assertFalse(order.is_registration_complete)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
@@ -3969,9 +3964,12 @@ class OrderFlowTests(TestCase):
                 "final_plate_number": "abc-1234",
             },
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        # 領牌日與車牌填齊就跳確認卡（T-145）；不自動完成（T-130）。
+        self.assertIn("confirm=registration", response["Location"])
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
 
-        # 發票為選填；最後一份必備文件上傳後不再自動完成（T-130），留在領牌步驟並帶 confirm=registration 跳確認卡。
+        # 文件全部選填，上傳不再帶 confirm=registration（T-145），一律回到領牌步驟。
         required_types = [
             RegistrationDocument.DocumentType.INVOICE,
             RegistrationDocument.DocumentType.NEW_LICENSE,
@@ -3987,19 +3985,14 @@ class OrderFlowTests(TestCase):
                     "file": uploaded_test_pdf(f"document-{index}.pdf"),
                 },
             )
-            last = index == len(required_types) - 1
-            if last:
-                self.assertEqual(response.status_code, 302)
-                self.assertIn("confirm=registration", response["Location"])
-                order.refresh_from_db()
-                self.assertFalse(order.is_registration_complete)
-            else:
-                self.assertRedirects(response, order_step_url(order.pk, "registration"))
+            self.assertRedirects(response, order_step_url(order.pk, "registration"))
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
 
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
         self.assertEqual(order.registration_date, date(2026, 7, 29))
@@ -4046,7 +4039,7 @@ class OrderFlowTests(TestCase):
             reverse("registration_complete", args=[order.pk])
         )
 
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
         self.assertFalse(order.is_registration_complete)
         messages = [str(message) for message in response.wsgi_request._messages]

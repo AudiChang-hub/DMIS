@@ -5832,7 +5832,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,
-            # 上傳或送出後資料剛齊全（?confirm=registration）：領牌區塊自動跳出確認卡（T-130）。
+            # 沒有 JavaScript 時送出領牌資料剛齊全（?confirm=registration）：領牌區塊自動跳出確認卡（T-130）。
             "registration_lock_auto": request.GET.get("confirm") == "registration",
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
@@ -7223,18 +7223,16 @@ def registration_document_upload(request, pk):
     uploads = request.FILES.getlist("file")
     if len(uploads) > 1 and request.POST.get("document_type") in RegistrationDocument.multi_document_types():
         return _upload_multiple_registration_documents(request, order, uploads)
-    was_missing = bool(order.missing_registration_requirements())
     response, document = _store_registration_document(request, order, request.FILES)
     if response is not None:
         return response
-    # 文件傳齊不再自動完成領牌（T-130 第 3 層）：頁面跳出確認卡列出領牌日、車牌與規費，按「確認完成」才鎖定。
+    # 領牌文件全部選填（2026-11-11 T-145）：上傳不會完成領牌，也不會跳出鎖定確認卡。
     return _document_upload_response(
         request,
         order_pk=pk,
         tab="registration",
         ok=True,
         message=f"{document.display_name}已上傳。",
-        confirm="registration" if _registration_newly_ready(order, was_missing) else "",
     )
 
 
@@ -7404,7 +7402,7 @@ def _finish_registration(request, order):
 
 
 def _registration_newly_ready(order, was_missing):
-    """這次存檔或上傳讓領牌資料與必備文件剛好齊全（T-130 第 3 層，2026-11-07）。
+    """這次存檔讓領牌日與車牌剛好都填好（T-130 第 3 層 2026-11-07；T-145 2026-11-11 起文件不算條件）。
     以前（2026-10-14）會直接完成領牌並鎖定；現在只回報齊全，由頁面跳出確認卡、人按「確認完成」才鎖定。"""
     return bool(was_missing) and not order.is_registration_complete and not order.missing_registration_requirements()
 
@@ -7415,12 +7413,14 @@ def registration_complete(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
+    # 選完留在領牌步驟（T-145）：頁面以原地送出後重新載入回到原位置；沒有 JavaScript 時也回到領牌步驟。
+    step_url = order_step_url(pk, "registration")
     if order.is_registration_complete:
         messages.info(request, "此訂單已完成領牌。")
-        return redirect("order_detail", pk=pk)
+        return redirect(step_url)
     ok, message = _finish_registration(request, order)
     (messages.success if ok else messages.error)(request, message)
-    return redirect("order_detail", pk=pk)
+    return redirect(step_url)
 
 
 @login_required

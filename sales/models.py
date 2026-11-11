@@ -3775,13 +3775,9 @@ class SalesOrder(TimeStampedModel):
         )
 
     def required_registration_document_types(self):
-        required = set(RegistrationDocument.active_fixed_document_types())
-        # 發票照片與選號單皆為選填（選號單：使用者 2026-10-13）；有再上傳，不是完成領牌的條件。
-        # 強制險單也改選填（使用者 2026-10-22 T-95：「只要行照跟登記書有才算領牌完成」）。
-        required.discard(RegistrationDocument.DocumentType.INVOICE)
-        required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
-        required.discard(RegistrationDocument.DocumentType.COMPULSORY_INSURANCE)
-        return required
+        # 領牌文件全部選填，不是完成領牌的條件：領牌完成只看配車、領牌日與車牌
+        # （使用者 2026-11-11 T-145 選 A，取代 2026-10-22 T-95「只要行照跟登記書有才算領牌完成」）。
+        return set()
 
     def subsidy_document_types_when_enabled(self):
         required = {
@@ -5165,7 +5161,7 @@ class RegistrationDocument(TimeStampedModel):
 
     @classmethod
     def active_fixed_document_types(cls):
-        # 領牌固定文件格；哪些是領牌完成條件見 SalesOrder.required_registration_document_types（強制險單 2026-10-22 起選填）。
+        # 領牌固定文件格；全部選填，不是領牌完成條件（2026-11-11 T-145，見 SalesOrder.required_registration_document_types）。
         return (
             cls.DocumentType.NEW_LICENSE,
             cls.DocumentType.REGISTRATION_APPLICATION,

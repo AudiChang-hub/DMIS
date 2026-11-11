@@ -216,17 +216,19 @@ class RequiredDocumentSlotTests(TestCase):
         self.assertIn(reverse("registration_document_upload", args=[self.order.pk]), required)
         self.assertIn(reverse("contract_upload", args=[self.order.pk]), required)
         self.assertIn('name="return_tab" value="attachments"', required)
-        self.assertIn("還缺", required)
+        # 領牌文件 2026-11-11 T-145 起全部選填：未上傳不算缺項。
+        self.assertNotIn("還缺", required)
         # 未勾選補助時不列補助文件。
         self.assertNotIn("補助文件", required)
 
     def test_checklist_has_no_required_labels(self):
-        """不再標「必填」（使用者 2026-10-22 T-90）；缺少與選填仍分得出來，完成條件不變。"""
+        """不再標「必填」（使用者 2026-10-22 T-90）；領牌文件 2026-11-11 T-145 起全部選填，未上傳顯示「未上傳」不算缺少。"""
         page = self.client.get(reverse("order_detail", args=[self.order.pk]), {"tab": "attachments"}).content.decode()
         required = page.split('id="required-documents"', 1)[1].split('id="other-attachments"', 1)[0]
         self.assertNotIn("必填", required)
         self.assertIn('<span class="optional-badge">選填</span>', required)
-        self.assertIn("缺少", required)
+        self.assertNotIn("缺少", required)
+        self.assertIn("未上傳", required)
         registration = page.split('id="registration-documents"', 1)[1].split("</section>", 1)[0]
         self.assertNotIn("必填", registration)
         self.assertNotIn('class="required-badge"', page)

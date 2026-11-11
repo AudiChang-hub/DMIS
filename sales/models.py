@@ -2379,27 +2379,15 @@ class DealerVehicleRewardPlan(TimeStampedModel):
         return f"{self.vehicle_model}／車行附加獎勵／{self.effective_from:%Y/%m/%d}"
 
 
-class DealerVehicleRewardItem(TimeStampedModel):
+class RewardItemFields(TimeStampedModel):
+    """車行獎勵項目的共用欄位：附加獎勵方案項目、獎勵活動項目與訂單車行獎勵明細（T-149）共用。"""
+
     class RewardType(models.TextChoices):
         PHYSICAL = "physical", "實物"
         CASH_GIFT = "cash_gift", "紅包／現金"
         VOUCHER = "voucher", "禮券／兌換券"
         TRAVEL_POINTS = "travel_points", "旅遊點數"
 
-    plan = models.ForeignKey(
-        DealerVehicleRewardPlan,
-        on_delete=models.CASCADE,
-        related_name="items",
-        verbose_name="獎勵方案",
-    )
-    catalog_item = models.ForeignKey(
-        "DealerRewardCatalogItem",
-        on_delete=models.PROTECT,
-        related_name="plan_items",
-        verbose_name="獎勵品項",
-        blank=True,
-        null=True,
-    )
     reward_type = models.CharField("類型", max_length=24, choices=RewardType.choices)
     name = models.CharField("獎勵名稱", max_length=120)
     quantity = models.DecimalField(
@@ -2425,9 +2413,7 @@ class DealerVehicleRewardItem(TimeStampedModel):
     note = models.CharField("說明", max_length=250, blank=True)
 
     class Meta:
-        ordering = ["id"]
-        verbose_name = "車行附加獎勵項目"
-        verbose_name_plural = "車行附加獎勵項目"
+        abstract = True
 
     def clean(self):
         if self.catalog_item_id:
@@ -2463,6 +2449,28 @@ class DealerVehicleRewardItem(TimeStampedModel):
 
     def __str__(self):
         return self.display_label
+
+
+class DealerVehicleRewardItem(RewardItemFields):
+    plan = models.ForeignKey(
+        DealerVehicleRewardPlan,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="獎勵方案",
+    )
+    catalog_item = models.ForeignKey(
+        "DealerRewardCatalogItem",
+        on_delete=models.PROTECT,
+        related_name="plan_items",
+        verbose_name="獎勵品項",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "車行附加獎勵項目"
+        verbose_name_plural = "車行附加獎勵項目"
 
 
 class DealerRewardCatalogItem(TimeStampedModel):
@@ -2606,6 +2614,207 @@ class DealerRewardCostVersion(TimeStampedModel):
 
     def __str__(self):
         return f"{self.catalog_item}／${self.unit_cost}／{self.effective_from:%Y/%m/%d}"
+
+
+CAMPAIGN_SOURCE_TYPES = (
+    ("store", "本店"),
+    ("dealer", "車行"),
+    ("platform", "網路平台"),
+)
+
+
+def default_promotion_source_types():
+    # 促銷補助金預設只給網路平台訂單（沿用 T-149 前的規則）；活動可另勾其他通路。
+    return ["platform"]
+
+
+class CampaignConditions(TimeStampedModel):
+    """獎勵活動共用條件（T-149）：品牌、能源別、指定年式與期間。
+
+    同一條件內任一符合即可、不同條件須同時符合；空白代表不限。原廠獎勵活動與車行獎勵活動共用。
+    """
+
+    name = models.CharField("活動名稱", max_length=120)
+    brands = models.JSONField("品牌", default=list, blank=True)
+    energy_types = models.JSONField("能源別", default=list, blank=True)
+    vehicle_models = models.ManyToManyField(
+        VehicleModel,
+        blank=True,
+        related_name="%(class)s_set",
+        verbose_name="指定年式",
+    )
+    effective_from = models.DateField("開始日期", default=timezone.localdate)
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    note = models.TextField("備註", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        abstract = True
+
+    def clean(self):
+        errors = {}
+        if self.effective_to and self.effective_from and self.effective_to < self.effective_from:
+            errors["effective_to"] = "結束日期不可早於開始日期。"
+        brands = []
+        for brand in self.brands or []:
+            text = str(brand or "").strip()
+            if text and text.casefold() not in {item.casefold() for item in brands}:
+                brands.append(text)
+        self.brands = brands
+        valid_energy = {value for value, _label in VehicleModel.EnergyType.choices}
+        energy_types = [value for value in dict.fromkeys(self.energy_types or []) if value]
+        if any(value not in valid_energy for value in energy_types):
+            errors["energy_types"] = "能源別不正確。"
+        self.energy_types = energy_types
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def lifecycle_status(self):
+        today = timezone.localdate()
+        if not self.active:
+            return "inactive", "已停用"
+        if self.effective_from > today:
+            return "future", "尚未開始"
+        if self.effective_to and self.effective_to < today:
+            return "expired", "已結束"
+        return "current", "進行中"
+
+    @property
+    def energy_type_labels(self):
+        labels = dict(VehicleModel.EnergyType.choices)
+        return [labels.get(value, value) for value in self.energy_types or []]
+
+    def __str__(self):
+        return self.name
+
+
+class IncentiveCampaign(CampaignConditions):
+    """原廠獎勵與補助活動（T-149）：依實際領牌日套用；常態取一筆（開始日最新），加碼全部累加。"""
+
+    class Kind(models.TextChoices):
+        REGULAR = "regular", "常態"
+        BONUS = "bonus", "加碼"
+
+    kind = models.CharField("類型", max_length=10, choices=Kind.choices, default=Kind.REGULAR)
+    sales_bonus = models.DecimalField(
+        "實銷獎勵金", max_digits=12, decimal_places=0, default=0, validators=[MinValueValidator(0)],
+    )
+    promotion_subsidy = models.DecimalField(
+        "促銷補助金", max_digits=12, decimal_places=0, default=0, validators=[MinValueValidator(0)],
+    )
+    installment_interest_subsidy = models.DecimalField(
+        "分期補貼息", max_digits=12, decimal_places=0, default=0, validators=[MinValueValidator(0)],
+    )
+    source_types = models.JSONField("適用通路", default=list, blank=True, help_text="空白代表全部通路。")
+    promotion_source_types = models.JSONField(
+        "促銷補助適用通路",
+        default=default_promotion_source_types,
+        blank=True,
+        help_text="促銷補助金只帶給勾選的通路；空白代表全部通路。",
+    )
+    announced_on = models.DateField("公告日期", default=timezone.localdate)
+    legacy_rule = models.OneToOneField(
+        VehicleIncentiveRule,
+        on_delete=models.SET_NULL,
+        related_name="campaign",
+        verbose_name="轉換自車型版本",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["-effective_from", "-id"]
+        indexes = [models.Index(fields=["active", "effective_from"], name="incentive_campaign_lookup")]
+        verbose_name = "原廠獎勵活動"
+        verbose_name_plural = "原廠獎勵活動"
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        valid_sources = {value for value, _label in CAMPAIGN_SOURCE_TYPES}
+        for field_name in ("source_types", "promotion_source_types"):
+            values = [value for value in dict.fromkeys(getattr(self, field_name) or []) if value]
+            if any(value not in valid_sources for value in values):
+                errors[field_name] = "通路不正確。"
+            setattr(self, field_name, values)
+        if self.kind == self.Kind.BONUS and not self.effective_to:
+            errors["effective_to"] = "加碼活動請填結束日期。"
+        if errors:
+            raise ValidationError(errors)
+
+    def applies_to_source(self, source_type):
+        return not self.source_types or source_type in self.source_types
+
+    def gives_promotion_to(self, source_type):
+        return not self.promotion_source_types or source_type in self.promotion_source_types
+
+    @property
+    def source_type_labels(self):
+        labels = dict(CAMPAIGN_SOURCE_TYPES)
+        return [labels[value] for value in self.source_types or [] if value in labels]
+
+    @property
+    def promotion_source_type_labels(self):
+        labels = dict(CAMPAIGN_SOURCE_TYPES)
+        return [labels[value] for value in self.promotion_source_types or [] if value in labels]
+
+
+class DealerRewardCampaign(CampaignConditions):
+    """車行獎勵活動（T-149）：依實際領牌日套用到收款車行；符合的活動項目全部累加。"""
+
+    dealers = models.ManyToManyField(
+        SalesSource,
+        blank=True,
+        related_name="reward_campaigns",
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+        verbose_name="適用車行",
+        help_text="空白代表全部車行。",
+    )
+    legacy_plan = models.OneToOneField(
+        DealerVehicleRewardPlan,
+        on_delete=models.SET_NULL,
+        related_name="campaign",
+        verbose_name="轉換自附加獎勵方案",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["-effective_from", "-id"]
+        indexes = [models.Index(fields=["active", "effective_from"], name="dealer_reward_campaign_lookup")]
+        verbose_name = "車行獎勵活動"
+        verbose_name_plural = "車行獎勵活動"
+
+    @property
+    def reward_summary(self):
+        return "、".join(item.display_label for item in self.items.all())
+
+
+class DealerRewardCampaignItem(RewardItemFields):
+    campaign = models.ForeignKey(
+        DealerRewardCampaign,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="獎勵活動",
+    )
+    catalog_item = models.ForeignKey(
+        DealerRewardCatalogItem,
+        on_delete=models.PROTECT,
+        related_name="campaign_items",
+        verbose_name="獎勵品項",
+        blank=True,
+        null=True,
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "車行獎勵活動項目"
+        verbose_name_plural = "車行獎勵活動項目"
 
 
 class VehicleColor(TimeStampedModel):
@@ -5836,6 +6045,79 @@ class UserAccountAuditLog(TimeStampedModel):
 
 
 # 同屬 sales app；分開模組，避免報表定義擴大營運模型檔案。
+class OrderIncentiveApplication(TimeStampedModel):
+    """訂單套用的原廠獎勵活動明細（T-149）：依實際領牌日，領牌完成後固定；三個金額合計寫在收支欄位。"""
+
+    profile = models.ForeignKey(
+        OrderOperationsProfile,
+        on_delete=models.CASCADE,
+        related_name="incentive_applications",
+        verbose_name="訂單收支",
+    )
+    campaign = models.ForeignKey(
+        IncentiveCampaign,
+        on_delete=models.PROTECT,
+        related_name="order_applications",
+        verbose_name="原廠獎勵活動",
+    )
+    kind = models.CharField("類型", max_length=10, choices=IncentiveCampaign.Kind.choices)
+    campaign_name = models.CharField("活動名稱", max_length=120)
+    sales_bonus = models.DecimalField("實銷獎勵金", max_digits=12, decimal_places=0, default=0)
+    promotion_subsidy = models.DecimalField("促銷補助金", max_digits=12, decimal_places=0, default=0)
+    installment_interest_subsidy = models.DecimalField("分期補貼息", max_digits=12, decimal_places=0, default=0)
+    registration_date = models.DateField("認列領牌日")
+
+    class Meta:
+        ordering = ["-kind", "id"]
+        verbose_name = "訂單原廠獎勵明細"
+        verbose_name_plural = "訂單原廠獎勵明細"
+
+    def __str__(self):
+        return f"{self.profile.order_id}／{self.campaign_name}"
+
+
+class OrderDealerRewardLine(RewardItemFields):
+    """訂單的車行獎勵明細（T-149）：依實際領牌日套用車行獎勵活動，一列一個品項；領牌完成後固定。
+
+    給付列表（T-150）依車行、領牌日查詢本表即可，不必再解析活動條件。
+    """
+
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="dealer_reward_lines",
+        verbose_name="訂單",
+    )
+    campaign = models.ForeignKey(
+        DealerRewardCampaign,
+        on_delete=models.PROTECT,
+        related_name="order_lines",
+        verbose_name="車行獎勵活動",
+    )
+    campaign_name = models.CharField("活動名稱", max_length=120)
+    dealer = models.ForeignKey(
+        SalesSource,
+        on_delete=models.PROTECT,
+        related_name="dealer_reward_lines",
+        verbose_name="收款車行",
+    )
+    catalog_item = models.ForeignKey(
+        DealerRewardCatalogItem,
+        on_delete=models.PROTECT,
+        related_name="order_lines",
+        verbose_name="獎勵品項",
+        blank=True,
+        null=True,
+    )
+    registration_date = models.DateField("認列領牌日")
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [models.Index(fields=["dealer", "registration_date"], name="order_reward_line_dealer")]
+        verbose_name = "訂單車行獎勵明細"
+        verbose_name_plural = "訂單車行獎勵明細"
+
+
 from .reporting.models import ReportDefinition, ReportRevision  # noqa: E402,F401
 from .reporting.models import ReportClassification, ReportClassificationRevision  # noqa: E402,F401
 from .access.models import UserAccessState, ScreenAccessGrant, ReportAccessGrant, UserAccessRevision  # noqa: E402,F401

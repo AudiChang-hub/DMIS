@@ -17,12 +17,12 @@ from sales.models import (
     SalesOrder, VehicleInventory, VehicleInventoryHistory, normalize_vehicle_identifier,
 )
 from .dealer_commission import matching_bonus_rules, resolve_dealer_brand_policy
-from .dealer_reward_snapshot import has_dealer_reward_snapshot, order_dealer_reward_plans, reward_plan_summary
+from .dealer_reward_campaign import order_reward_dealer, resolve_dealer_reward_campaigns
 from .financial_refresh import lock_bonus_periods
 from .historical_replacement import require_admin
 from .import_row_review import build_import_row_review, same_import_buyer
 from .import_sales_category import is_new_sales_row
-from .incentive_rule import resolve_incentive_rule
+from .incentive_rule import incentive_totals
 from .legacy_import import _sales_transaction_key
 from .settlement_cost import resolve_settlement_cost
 
@@ -40,15 +40,21 @@ def incoming_date(row):
 def financial_reference(order, day):
     """僅讀取目前主檔在指定日期的版本參考，不模擬儲存／重算歷史金額。"""
     cost = resolve_settlement_cost(order.vehicle_model_id, day)
-    incentive = resolve_incentive_rule(order.vehicle_model_id, day)
+    vehicle_model = order.vehicle_model if order.vehicle_model_id else None
+    incentive_rows, incentive_sum, _matched, _promo, _regular = incentive_totals(vehicle_model, order.source_type, day)
     policy = resolve_dealer_brand_policy(order.source_id, order.vehicle_model, day)
-    # 有附加獎勵快照的訂單以快照為準（改期不變動）；舊訂單才依指定日期查詢主檔。
-    plans = order_dealer_reward_plans(order, day) if day or has_dealer_reward_snapshot(order) else []
+    # 車行獎勵活動依領牌日（T-149）：列出指定日期會套用的活動。
+    dealer = order_reward_dealer(order)
+    reward_campaigns = resolve_dealer_reward_campaigns(vehicle_model, dealer.pk if dealer else None, day)
     reference = {
         "車輛成本": f"版本 #{cost.pk}：{cost.amount} 元" if cost else "無適用版本（不代表實際成本為零）",
-        "原廠獎勵與補助": (f"版本 #{incentive.pk}：實銷 {incentive.sales_bonus}／促銷 {incentive.promotion_subsidy}（僅網路平台）／分期 {incentive.installment_interest_subsidy}" if incentive else "無適用版本"),
+        "原廠獎勵與補助": (
+            "、".join(f"活動 #{campaign.pk} {campaign.name}" for campaign, _amounts in incentive_rows)
+            + f"：實銷 {incentive_sum['sales_bonus']}／促銷 {incentive_sum['promotion_subsidy']}／分期 {incentive_sum['installment_interest_subsidy']}"
+            if incentive_rows else "無適用活動"
+        ),
         "車行傭金": (f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；加減版本 #{policy.pk}：{policy.commission_adjustment} 元" if policy else f"車型基礎 {order.vehicle_model.base_dealer_commission} 元；無車行加減版本") if order.source_type == SalesOrder.SourceType.DEALER else "非車行來源，不套用車行基礎傭金",
-        "實物／紅包／禮券／點數": "；".join(f"版本 #{plan['plan_id']}：{reward_plan_summary(plan)}" for plan in plans) or "無適用方案",
+        "實物／紅包／禮券／點數": "；".join(f"活動 #{campaign.pk} {campaign.name}：{campaign.reward_summary}" for campaign in reward_campaigns) or "無適用活動",
     }
     candidate = copy(order)
     candidate.registration_date = day

@@ -1,0 +1,16 @@
+<section class="dealer-reward-item" data-reward-row>
+  {{ item_form.id }}
+  <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每領牌一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
+  {% if item_form.non_field_errors %}<div class="message error">{{ item_form.non_field_errors }}</div>{% endif %}
+  <div class="dealer-reward-item__fields">
+    <div>{% include "sales/_field.html" with field=item_form.catalog_item %}</div>
+    <div>{% include "sales/_field.html" with field=item_form.quantity %}</div>
+  </div>
+  <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot="{{ item_form.instance.unit_cost_snapshot|default_if_none:'' }}">
+    <span><small>類型／單位</small><strong data-reward-catalog-unit>{% if item_form.instance.catalog_item %}{{ item_form.instance.catalog_item.get_reward_type_display }}／{{ item_form.instance.unit }}{% else %}選擇品項後顯示{% endif %}</strong></span>
+    <span><small>單位成本快照</small><strong data-reward-unit-cost>{% if item_form.instance.unit_cost_snapshot is not None %}${{ item_form.instance.unit_cost_snapshot|floatformat:0 }}{% else %}—{% endif %}</strong></span>
+    <span><small>本項預估成本</small><strong data-reward-total-cost>{% if item_form.instance.total_cost_snapshot is not None %}${{ item_form.instance.total_cost_snapshot|floatformat:0 }}{% else %}—{% endif %}</strong></span>
+  </div>
+  <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=item_form.note %}</div>
+  <span hidden>{{ item_form.DELETE }}</span>
+</section>

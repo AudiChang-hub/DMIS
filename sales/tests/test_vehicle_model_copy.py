@@ -10,16 +10,16 @@ from django.utils import timezone
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import (
+    DealerRewardCampaign,
+    DealerRewardCampaignItem,
     DealerRewardCatalogItem,
-    DealerVehicleRewardItem,
-    DealerVehicleRewardPlan,
+    IncentiveCampaign,
     InstallmentCompany,
     InstallmentPlanOption,
     InstallmentPlanVersion,
     UserAccountAuditLog,
     VehicleCatalogEntry,
     VehicleColor,
-    VehicleIncentiveRule,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
@@ -60,17 +60,19 @@ class VehicleModelCopyBase(TestCase):
             expected_disbursement_rate=Decimal("92.50"),
         )
         cls.catalog_item = DealerRewardCatalogItem.objects.create(reward_type="cash_gift", name="紅包", unit="元")
-        cls.reward = DealerVehicleRewardPlan.objects.create(
-            vehicle_model=cls.model, effective_from=cls.start, effective_to=cls.day - timedelta(days=1),
-        )
-        DealerVehicleRewardItem.objects.create(
-            plan=cls.reward, catalog_item=cls.catalog_item, reward_type="cash_gift", name="紅包", quantity=600, unit="元",
+        # 原廠獎勵與車行附加獎勵改為活動制（T-149）：沿用到新年式時把新年式加入指定原年式的活動。
+        cls.reward = DealerRewardCampaign.objects.create(name="紅包活動", effective_from=cls.start)
+        cls.reward.vehicle_models.set([cls.model])
+        DealerRewardCampaignItem.objects.create(
+            campaign=cls.reward, catalog_item=cls.catalog_item, reward_type="cash_gift", name="紅包", quantity=600, unit="元",
         )
         cls.cost = VehicleSettlementCostRule.objects.create(vehicle_model=cls.model, amount=56000, effective_from=cls.start)
-        cls.incentive = VehicleIncentiveRule.objects.create(
-            vehicle_model=cls.model, sales_bonus=1000, promotion_subsidy=2000,
+        cls.incentive = IncentiveCampaign.objects.create(
+            name="原廠常態", sales_bonus=1000, promotion_subsidy=2000,
             installment_interest_subsidy=500, effective_from=cls.start,
         )
+        cls.incentive.vehicle_models.set([cls.model])
+        cls.brand_campaign = IncentiveCampaign.objects.create(name="品牌活動", brands=["SUZUKI"], effective_from=cls.start)
 
     @classmethod
     def make_model(cls, name, year, *, commission=0, active=True):
@@ -132,12 +134,11 @@ class CopyToNewYearTests(VehicleModelCopyBase):
         self.assertEqual(options[12].expected_disbursement_fixed_amount, 60000)
         self.assertEqual(options[12].extra_disbursement_bonus, 300)
         self.assertEqual(options[24].expected_disbursement_rate, Decimal("92.50"))
-        # 基準年式在生效日的附加獎勵已到期，不會沿用；其餘版本照樣建立。
-        self.assertFalse(new.dealer_reward_plans.exists())
         self.assertEqual(new.settlement_cost_rules.get().amount, 56000)
-        incentive = new.incentive_rules.get()
-        self.assertEqual((incentive.sales_bonus, incentive.promotion_subsidy, incentive.installment_interest_subsidy),
-                         (1000, 2000, 500))
+        # 獎勵活動：新年式加入「指定年式」含原年式的活動；品牌條件的活動本來就涵蓋，不需加入。
+        self.assertIn(new, self.incentive.vehicle_models.all())
+        self.assertIn(new, self.reward.vehicle_models.all())
+        self.assertFalse(self.brand_campaign.vehicle_models.exists())
         log = UserAccountAuditLog.objects.get(metadata__tool="vehicle_model_copy_year")
         self.assertEqual(log.actor, self.root)
         self.assertEqual(log.metadata["results"][0]["model_id"], new.pk)
@@ -145,15 +146,12 @@ class CopyToNewYearTests(VehicleModelCopyBase):
         self.price.refresh_from_db()
         self.assertEqual((self.price.effective_to, self.price.cash_price), (None, 68000))
 
-    def test_reward_plan_effective_on_date_is_copied_with_cost_snapshot(self):
-        DealerVehicleRewardPlan.objects.filter(pk=self.reward.pk).update(effective_to=None)
-        self.commit(self.preview("year", [self.model], datasets=["reward"], extras=[]))
+    def test_only_chosen_campaign_kind_adds_new_year(self):
+        self.commit(self.preview("year", [self.model], datasets=["price"], extras=["reward_campaigns"]))
         new = VehicleModel.objects.get(model_year=2027)
-        plan = new.dealer_reward_plans.get()
-        self.assertEqual((plan.effective_from, plan.effective_to, plan.active), (self.day, None, True))
-        item = plan.items.get()
-        self.assertEqual((item.catalog_item, item.quantity, item.cost_effective_on_snapshot),
-                         (self.catalog_item, 600, self.day))
+        self.assertIn(new, self.reward.vehicle_models.all())
+        self.assertNotIn(new, self.incentive.vehicle_models.all())
+        self.assertEqual(self.reward.items.get().quantity, 600, "活動項目不變")
         self.assertEqual(new.base_dealer_commission, 0, "未勾選基礎傭金時新年式從 0 開始")
         self.assertFalse(new.colors.exists())
 
@@ -198,10 +196,10 @@ class CopyToNewDateTests(VehicleModelCopyBase):
         other = self.make_model("另一台", 2026)
         VehiclePriceVersion.objects.create(vehicle_model=other, cash_price=50000, effective_from=self.start)
         VehiclePriceVersion.objects.create(vehicle_model=self.model, cash_price=69000, effective_from=self.day)
-        preview = self.preview("date", [self.model, other], datasets=["price", "cost", "incentive"])
+        preview = self.preview("date", [self.model, other], datasets=["price", "cost"])
         plan = {row["model"].pk: {item["dataset"]: item["status"] for item in row["items"]} for row in preview.context["plan"]}
-        self.assertEqual(plan[self.model.pk], {"price": "duplicate", "cost": "create", "incentive": "create"})
-        self.assertEqual(plan[other.pk], {"price": "create", "cost": "missing", "incentive": "missing"})
+        self.assertEqual(plan[self.model.pk], {"price": "duplicate", "cost": "create"})
+        self.assertEqual(plan[other.pk], {"price": "create", "cost": "missing"})
         self.assertEqual(VehicleSettlementCostRule.objects.count(), 1, "預覽不可寫入")
 
         self.commit(preview)
@@ -209,32 +207,21 @@ class CopyToNewDateTests(VehicleModelCopyBase):
         self.assertEqual(VehiclePriceVersion.objects.get(vehicle_model=other, effective_from=self.day).cash_price, 50000)
         cost = VehicleSettlementCostRule.objects.get(vehicle_model=self.model, effective_from=self.day)
         self.assertEqual((cost.amount, cost.effective_to, cost.active), (56000, None, True))
-        self.assertTrue(VehicleIncentiveRule.objects.filter(vehicle_model=self.model, effective_from=self.day).exists())
         self.assertFalse(VehicleSettlementCostRule.objects.filter(vehicle_model=other).exists())
-        for old in (self.cost, self.incentive):
-            old.refresh_from_db()
-            self.assertEqual((old.effective_from, old.effective_to, old.active), (self.start, None, True))
+        self.cost.refresh_from_db()
+        self.assertEqual((self.cost.effective_from, self.cost.effective_to, self.cost.active), (self.start, None, True))
         log = UserAccountAuditLog.objects.get(metadata__tool="vehicle_model_copy_date")
-        self.assertEqual(len(log.metadata["created"]), 3)
+        self.assertEqual(len(log.metadata["created"]), 2)
         self.assertEqual({item["status"] for item in log.metadata["skipped"]}, {"duplicate", "missing"})
 
-    def test_open_ended_reward_plan_is_skipped_not_modified(self):
-        DealerVehicleRewardPlan.objects.filter(pk=self.reward.pk).update(effective_to=None)
-        rows, created = service.execute_new_date(model_ids=[self.model.pk], effective_from=self.day,
-                                                 datasets=["reward", "installment"], actor=self.root)
-        statuses = {item["dataset"]: item["status"] for item in rows[0]["items"]}
-        self.assertEqual(statuses, {"reward": "overlap", "installment": "create"})
-        self.reward.refresh_from_db()
-        self.assertIsNone(self.reward.effective_to)
-        self.assertEqual(self.model.dealer_reward_plans.count(), 1)
-        plan = InstallmentPlanVersion.objects.get(vehicle_model=self.model, effective_from=self.day)
-        self.assertEqual(plan.options.count(), 2)
-
-    def test_reward_plan_that_ends_before_date_is_copied(self):
+    def test_rewards_are_campaigns_not_copied_by_date(self):
+        """原廠獎勵與車行附加獎勵改為活動制（T-149），沿用到新生效日不再提供。"""
+        self.assertEqual(service.VERSIONED_KEYS, ("price", "installment", "cost"))
         rows, _created = service.execute_new_date(model_ids=[self.model.pk], effective_from=self.day,
-                                                  datasets=["reward"], actor=self.root)
-        self.assertEqual(rows[0]["items"][0]["status"], "create")
-        self.assertEqual(self.model.dealer_reward_plans.get(effective_from=self.day).items.get().quantity, 600)
+                                                  datasets=["installment"], actor=self.root)
+        self.assertEqual({item["dataset"]: item["status"] for item in rows[0]["items"]}, {"installment": "create"})
+        self.assertEqual(IncentiveCampaign.objects.count(), 2)
+        self.assertEqual(DealerRewardCampaign.objects.count(), 1)
 
     def test_dates_before_today_are_rejected(self):
         yesterday = self.today - timedelta(days=1)
@@ -282,7 +269,7 @@ class CopyPermissionTests(VehicleModelCopyBase):
         self.client.force_login(self.make_user("models-only", {"models": True}))
         listing = self.client.get(COPY_URL)
         allowed = {choice["key"]: choice["allowed"] for choice in listing.context["datasets"]}
-        self.assertEqual(allowed, {"price": True, "installment": True, "reward": False, "cost": False, "incentive": False})
+        self.assertEqual(allowed, {"price": True, "installment": True, "cost": False})
         response = self.preview("date", [self.model], datasets=["cost"])
         self.assertIn("沒有其中部分資料的操作權限", " ".join(response.context["errors"]))
         # 即使拿到含成本的預覽內容，送出時也會再檢查權限。
@@ -297,7 +284,8 @@ class CopyPermissionTests(VehicleModelCopyBase):
         self.client.force_login(user)
         listing = self.client.get(COPY_URL, {"mode": "year"})
         extras = {choice["key"]: choice["allowed"] for choice in listing.context["extras"]}
-        self.assertEqual(extras, {"colors": True, "catalog": False, "commission": True})
+        self.assertEqual(extras, {"colors": True, "catalog": False, "commission": True,
+                                  "incentive_campaigns": False, "reward_campaigns": True})
 
 
 class NewVersionPrefillTests(VehicleModelCopyBase):
@@ -323,12 +311,9 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         self.assertEqual(form.initial["cash_price"], 70000)
         self.assertEqual(form.initial["effective_from"], self.day + timedelta(days=1))  # 已排定版本的隔天
 
-    def test_cost_and_incentive_forms_prefill(self):
+    def test_cost_form_prefills(self):
         cost = self.client.get(reverse("vehicle_model_settlement_costs", args=[self.model.pk])).context["form"]
         self.assertEqual((cost.initial["amount"], cost.initial["effective_from"]), (56000, self.today))
-        incentive = self.client.get(reverse("vehicle_model_incentives", args=[self.model.pk])).context["form"]
-        self.assertEqual((incentive.initial["sales_bonus"], incentive.initial["promotion_subsidy"],
-                          incentive.initial["installment_interest_subsidy"]), (1000, 2000, 500))
 
     def test_installment_form_prefills_options_and_saves_them(self):
         response = self.client.get(reverse("vehicle_installment_plan_list", args=[self.model.pk]))
@@ -345,10 +330,3 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         self.client.post(reverse("vehicle_installment_plan_list", args=[self.model.pk]), data)
         plan = InstallmentPlanVersion.objects.get(vehicle_model=self.model, effective_from=self.day)
         self.assertEqual(sorted(plan.options.values_list("periods", flat=True)), [12, 24])
-
-    def test_reward_new_version_prefills_items(self):
-        response = self.client.get(reverse("vehicle_model_commission", args=[self.model.pk]), {"new_reward": "1"})
-        formset = response.context["reward_formset"]
-        self.assertEqual([form.initial.get("catalog_item") for form in formset.forms], [self.catalog_item.pk])
-        self.assertEqual(formset.forms[0].initial["quantity"], 600)
-        self.assertEqual(response.context["reward_form"].initial["effective_from"], self.today)

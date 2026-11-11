@@ -40,11 +40,6 @@
     <div><h2>配件與工資</h2><p>{% site_text 'data_maintenance.2cf69035cb84' %}</p><strong>{{ accessory_product_count }} 項配件</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
-  {% if_access 'dealer_reward_catalog_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
-    <span class="maintenance-card__icon">禮</span>
-    <div><h2>車行獎勵品項</h2><p>{% site_text 'data_maintenance.7b1ac913dc4c' %}</p><strong>{{ dealer_reward_catalog_count }} 個品項</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
   {% if_access 'customer_list' %}<a class="maintenance-card" href="{% url 'customer_list' %}">
     <span class="maintenance-card__icon">人</span>
     <div><h2>客戶查詢</h2><p>{% site_text 'data_maintenance.8f2d8c214578' %}</p><strong>{{ customer_count }} 位客戶</strong></div>
@@ -89,12 +84,22 @@
   </a>{% endif_access %}
   {% if_access 'incentive_rule_list' %}<a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
     <span class="maintenance-card__icon">補</span>
-    <div><h2>原廠獎勵與補助</h2><p>{% site_text 'data_maintenance.275db464f367' %}</p><strong>{{ incentive_rule_count }} 筆獎勵版本</strong></div>
+    <div><h2>原廠獎勵與補助</h2><p>{% site_text 'data_maintenance.275db464f367' %}</p><strong>{{ incentive_campaign_count }} 個啟用活動</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
   {% if_access 'dealer_sales_program_list' %}<a class="maintenance-card" href="{% url 'dealer_sales_program_list' %}">
     <span class="maintenance-card__icon">佣</span>
-    <div><h2>車行傭金與銷售獎勵</h2><p>{% site_text 'data_maintenance.a3460965ce09' %}</p><strong>{{ dealer_sales_program_count }} 個車型已設定獎勵</strong></div>
+    <div><h2>車行傭金與銷售獎勵</h2><p>{% site_text 'data_maintenance.a3460965ce09' %}</p><strong>{{ dealer_sales_program_count }} 個啟用車型已設定基礎傭金</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>{% endif_access %}
+  {% if_access 'dealer_reward_campaign_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_campaign_list' %}">
+    <span class="maintenance-card__icon">贈</span>
+    <div><h2>車行獎勵活動</h2><p>指定車行、品牌、能源別或年式與期間，每領牌一台送實物、紅包、禮券或點數。</p><strong>{{ dealer_reward_campaign_count }} 個啟用活動</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>{% endif_access %}
+  {% if_access 'dealer_reward_catalog_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
+    <span class="maintenance-card__icon">禮</span>
+    <div><h2>車行獎勵品項</h2><p>{% site_text 'data_maintenance.7b1ac913dc4c' %}</p><strong>{{ dealer_reward_catalog_count }} 個品項</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
   {% if_access 'dealer_volume_bonus_list' %}<a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">

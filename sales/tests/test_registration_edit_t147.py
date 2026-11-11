@@ -21,7 +21,6 @@ from sales.models import (
     SalesOrder,
     Store,
     VehicleColor,
-    VehicleIncentiveRule,
     VehicleInventory,
     VehicleModel,
     VehicleSettlementCostRule,
@@ -29,6 +28,7 @@ from sales.models import (
 from sales.services.dealer_commission import create_volume_bonus_settlement
 from sales.services.order_steps import order_step_url
 from sales.tests import test_volume_bonus_conditions as bonus_fixtures
+from sales.tests.campaign_helpers import legacy_incentive_rule
 
 STATIC = Path(settings.BASE_DIR) / "static"
 
@@ -47,9 +47,9 @@ class RegistrationEditTests(TestCase):
                                                  effective_from=date(2026, 1, 1), effective_to=date(2026, 10, 31))
         VehicleSettlementCostRule.objects.create(vehicle_model=self.model, amount=Decimal("62000"),
                                                  effective_from=date(2026, 11, 1))
-        VehicleIncentiveRule.objects.create(vehicle_model=self.model, sales_bonus=Decimal("1000"),
+        legacy_incentive_rule(vehicle_model=self.model, sales_bonus=Decimal("1000"),
                                             effective_from=date(2026, 1, 1), effective_to=date(2026, 10, 31))
-        VehicleIncentiveRule.objects.create(vehicle_model=self.model, sales_bonus=Decimal("1500"),
+        legacy_incentive_rule(vehicle_model=self.model, sales_bonus=Decimal("1500"),
                                             effective_from=date(2026, 11, 1))
         self.order = SalesOrder(
             owner_name="測試車主", owner_phone="0900000000", owner_address="測試地址", owner_id_number="A100000001",

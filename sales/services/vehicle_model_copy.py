@@ -1,6 +1,7 @@
 """機種沿用：把目前有效的版本沿用到新生效日或新年式。
 
 只建立新版本與新年式，不修改、不刪除任何既有版本；同一車型同一生效日已有版本時略過並回報。
+原廠獎勵與車行附加獎勵改為活動制（T-149）後不再逐車型沿用；沿用到新年式時可把新年式加入原年式所在的活動。
 """
 from datetime import timedelta
 from decimal import Decimal
@@ -11,19 +12,17 @@ from django.db.models import Q
 from django.utils import timezone
 
 from sales.models import (
-    DealerVehicleRewardItem,
-    DealerVehicleRewardPlan,
+    DealerRewardCampaign,
+    IncentiveCampaign,
     InstallmentPlanOption,
     InstallmentPlanVersion,
     UserAccountAuditLog,
     VehicleCatalogEntry,
     VehicleColor,
-    VehicleIncentiveRule,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
-from sales.services.incentive_rule import resolve_incentive_rule
 from sales.services.installment_plan import resolve_installment_plan_version
 from sales.services.price_version import resolve_vehicle_price_version
 from sales.services.settlement_cost import resolve_settlement_cost
@@ -32,9 +31,7 @@ from sales.services.settlement_cost import resolve_settlement_cost
 VERSIONED = (
     ("price", "售價", "models", "price_versions", "vehicle_model_price_versions"),
     ("installment", "分期方案", "models", "installment_plan_versions", "vehicle_installment_plan_list"),
-    ("reward", "車行附加獎勵", "commissions", "dealer_reward_plans", "vehicle_model_commission"),
     ("cost", "結算成本", "costs", "settlement_cost_rules", "vehicle_model_settlement_costs"),
-    ("incentive", "原廠獎勵與補助", "incentives", "incentive_rules", "vehicle_model_incentives"),
 )
 VERSIONED_KEYS = tuple(row[0] for row in VERSIONED)
 VERSIONED_LABELS = {row[0]: row[1] for row in VERSIONED}
@@ -44,9 +41,7 @@ VERSIONED_ROUTES = {row[0]: row[4] for row in VERSIONED}
 VERSIONED_HINTS = {
     "price": "現金價、分期總價與是否含牌險",
     "installment": "各期數、分期公司、每期金額與撥款設定",
-    "reward": "實物、紅包、禮券與點數項目",
     "cost": "代銷結算成本",
-    "incentive": "實銷獎勵金、促銷補助金與分期補貼息",
 }
 
 # 只有沿用到新年式才有的資料：(代號, 名稱, 畫面權限；None 代表限 admin)
@@ -54,6 +49,8 @@ YEAR_EXTRAS = (
     ("colors", "車色與車色圖片", "models"),
     ("catalog", "選車圖片與介紹", None),
     ("commission", "車行基礎傭金", "commissions"),
+    ("incentive_campaigns", "原廠獎勵活動", "incentives"),
+    ("reward_campaigns", "車行獎勵活動", "commissions"),
 )
 YEAR_EXTRA_KEYS = tuple(row[0] for row in YEAR_EXTRAS)
 YEAR_EXTRA_LABELS = {row[0]: row[1] for row in YEAR_EXTRAS}
@@ -61,7 +58,11 @@ YEAR_EXTRA_HINTS = {
     "colors": "啟用中的車色，車色圖片沿用同一張檔案",
     "catalog": "車款主圖、介紹與排序",
     "commission": "每台現金傭金，無版本、建立即生效",
+    "incentive_campaigns": "把新年式加入「指定年式」含原年式的活動",
+    "reward_campaigns": "把新年式加入「指定年式」含原年式的活動",
 }
+# 依指定年式加入新年式的活動資料（T-149）。
+CAMPAIGN_EXTRAS = {"incentive_campaigns": IncentiveCampaign, "reward_campaigns": DealerRewardCampaign}
 MODEL_ORDER = ("brand", "family__name", "name", "-model_year", "model_code", "pk")
 
 
@@ -99,12 +100,6 @@ def model_label(model):
     return " ".join(parts)
 
 
-def reward_plans_on(model_id, day):
-    return DealerVehicleRewardPlan.objects.filter(
-        vehicle_model_id=model_id, active=True, effective_from__lte=day,
-    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=day)).order_by("-effective_from", "-id")
-
-
 def current_version(dataset, model_id, day):
     """依各資料原本的解析規則取得指定日期有效的版本；不自行推導。"""
     if dataset == "price":
@@ -113,16 +108,11 @@ def current_version(dataset, model_id, day):
         return resolve_installment_plan_version(model_id, day)
     if dataset == "cost":
         return resolve_settlement_cost(model_id, day)
-    if dataset == "incentive":
-        return resolve_incentive_rule(model_id, day)
-    if dataset == "reward":
-        return reward_plans_on(model_id, day).prefetch_related("items").first()
     raise ValueError(dataset)
 
 
 VERSION_MODELS = {
-    "price": VehiclePriceVersion, "installment": InstallmentPlanVersion, "reward": DealerVehicleRewardPlan,
-    "cost": VehicleSettlementCostRule, "incentive": VehicleIncentiveRule,
+    "price": VehiclePriceVersion, "installment": InstallmentPlanVersion, "cost": VehicleSettlementCostRule,
 }
 
 
@@ -148,13 +138,6 @@ def models_with_version_on(dataset, model_ids, day):
     )
 
 
-def reward_overlaps(model_id, day):
-    """附加獎勵的啟用期間不可重疊；新版本不設結束日，所以任何仍在有效期的啟用方案都會重疊。"""
-    return DealerVehicleRewardPlan.objects.filter(vehicle_model_id=model_id, active=True).filter(
-        Q(effective_to__isnull=True) | Q(effective_to__gte=day)
-    ).exists()
-
-
 def summarize(dataset, version):
     if version is None:
         return ""
@@ -164,15 +147,8 @@ def summarize(dataset, version):
     if dataset == "installment":
         periods = [f"{option.periods} 期" for option in version.options.all()]
         return "、".join(periods) or "尚未設定期數"
-    if dataset == "reward":
-        return version.reward_summary or "尚未填寫項目"
     if dataset == "cost":
         return f"結算成本 {money(version.amount)}"
-    if dataset == "incentive":
-        return (
-            f"實銷 {money(version.sales_bonus)}／促銷 {money(version.promotion_subsidy)}／"
-            f"分期補貼 {money(version.installment_interest_subsidy)}"
-        )
     return ""
 
 
@@ -209,43 +185,10 @@ def copy_version(dataset, source, target_model, effective_from, note):
             for option in source.options.all()
         ])
         return version
-    if dataset == "reward":
-        plan = DealerVehicleRewardPlan.objects.create(
-            vehicle_model=target_model, effective_from=effective_from, active=True, note=note,
-        )
-        for item in source.items.select_related("catalog_item"):
-            unit_cost = item.unit_cost_snapshot
-            if item.catalog_item_id:
-                # 與附加獎勵表單相同：成本快照依新版本的生效日重新取得。
-                cost_version = item.catalog_item.cost_version_on(effective_from)
-                unit_cost = cost_version.unit_cost if cost_version else None
-            DealerVehicleRewardItem.objects.create(
-                plan=plan,
-                catalog_item=item.catalog_item,
-                reward_type=item.reward_type,
-                name=item.name,
-                quantity=item.quantity,
-                unit=item.unit,
-                unit_cost_snapshot=unit_cost,
-                cost_effective_on_snapshot=effective_from,
-                note=item.note,
-            )
-        return plan
     if dataset == "cost":
         return VehicleSettlementCostRule.objects.create(
             vehicle_model=target_model, amount=source.amount, announced_on=today,
             effective_from=effective_from, note=note, active=True,
-        )
-    if dataset == "incentive":
-        return VehicleIncentiveRule.objects.create(
-            vehicle_model=target_model,
-            sales_bonus=source.sales_bonus,
-            promotion_subsidy=source.promotion_subsidy,
-            installment_interest_subsidy=source.installment_interest_subsidy,
-            announced_on=today,
-            effective_from=effective_from,
-            note=note,
-            active=True,
         )
     raise ValueError(dataset)
 
@@ -333,11 +276,6 @@ def plan_new_date(models, effective_from, datasets):
                 source = current_version(dataset, model.pk, source_day)
                 if source is None:
                     item.update(status="missing", reason=f"{source_day:%Y/%m/%d} 沒有有效版本可沿用")
-                elif dataset == "reward" and reward_overlaps(model.pk, effective_from):
-                    item.update(
-                        status="overlap", source=source, summary=summarize(dataset, source),
-                        reason="原方案仍在有效期內；附加獎勵期間不可重疊，請先在「傭金與獎勵」分頁設定原方案結束日",
-                    )
                 else:
                     item.update(source=source, summary=summarize(dataset, source))
             items.append(item)
@@ -433,6 +371,12 @@ def plan_new_year(entries, effective_from, datasets, extras):
         if "commission" in extras:
             extra_items.append({"key": "commission", "label": YEAR_EXTRA_LABELS["commission"], "status": "create",
                                 "summary": money(model.base_dealer_commission)})
+        for key, campaign_model in CAMPAIGN_EXTRAS.items():
+            if key in extras:
+                names = list(campaign_model.objects.filter(vehicle_models=model).order_by("pk").values_list("name", flat=True))
+                extra_items.append({"key": key, "label": YEAR_EXTRA_LABELS[key],
+                                    "status": "create" if names else "missing",
+                                    "summary": "、".join(names) if names else "沒有指定原年式的活動"})
         rows.append({
             "model": model,
             "label": model_label(model),
@@ -482,6 +426,10 @@ def _create_year(base, target_year, effective_from, datasets, extras, activate, 
                     "position": entry.position,
                 },
             )
+    for key, campaign_model in CAMPAIGN_EXTRAS.items():
+        if key in extras:
+            for campaign in campaign_model.objects.filter(vehicle_models=base):
+                campaign.vehicle_models.add(new_model)
     created = []
     for item in rows_item["items"]:
         if item["status"] != "create":
@@ -535,9 +483,7 @@ def _audit(actor, action, description, metadata):
 PREFILL_FIELDS = {
     "price": ("suggested_price", "suggested_price_includes_registration", "cash_price"),
     "cost": ("amount",),
-    "incentive": ("sales_bonus", "promotion_subsidy", "installment_interest_subsidy"),
     "installment": (),
-    "reward": (),
 }
 
 
@@ -576,11 +522,4 @@ def installment_option_initial(source):
             "extra_disbursement_bonus": option.extra_disbursement_bonus,
         }
         for option in source.options.all()
-    ] if source else []
-
-
-def reward_item_initial(source):
-    return [
-        {"catalog_item": item.catalog_item_id, "quantity": item.quantity, "note": item.note}
-        for item in source.items.all() if item.catalog_item_id
     ] if source else []

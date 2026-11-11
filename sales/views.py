@@ -80,8 +80,6 @@ from .forms import (
     DealerVolumeBonusTierFormSet,
     DealerRewardCatalogItemForm,
     DealerRewardCostVersionFormSet,
-    DealerVehicleRewardItemFormSet,
-    DealerVehicleRewardPlanForm,
     DiscountDecisionForm,
     DiscountRequestForm,
     DeliveryCompletionForm,
@@ -132,7 +130,6 @@ from .forms import (
     VehicleInventoryForm,
     VehicleBrandForm,
     VehicleColorMasterFormSet,
-    VehicleIncentiveRuleForm,
     VehicleModelCommissionForm,
     VehicleModelFamilyMoveForm,
     VehicleModelMasterForm,
@@ -159,7 +156,6 @@ from .models import (
     DealerRewardCatalogItem,
     DealerRewardCostVersion,
     DealerVehicleRewardItem,
-    DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanVersion,
@@ -193,7 +189,8 @@ from .models import (
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleTransferSignoff,
-    VehicleIncentiveRule,
+    IncentiveCampaign,
+    DealerRewardCampaign,
     VehicleModel,
     VehicleModelFamily,
     VehiclePriceVersion,
@@ -258,7 +255,6 @@ from .services.payment_ledger import (
     reverse_payment,
     settlement_gap,
 )
-from .services.dealer_reward_snapshot import apply_order_dealer_reward_snapshot
 from .services.price_version import (
     apply_order_price_snapshot,
     recommended_price_from_snapshot,
@@ -269,6 +265,7 @@ from .services.settlement_cost import (
     apply_order_settlement_cost,
     resolve_settlement_cost,
 )
+from .services.dealer_reward_campaign import order_dealer_rewards
 from .services.incentive_rule import (
     apply_order_incentive_rule,
 )
@@ -676,10 +673,9 @@ def data_maintenance(request):
         "installment_company_count": InstallmentCompany.objects.count(),
         "subsidy_program_count": SubsidyProgram.objects.filter(active=True).count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
-        "incentive_rule_count": VehicleIncentiveRule.objects.count(),
-        "dealer_sales_program_count": DealerVehicleRewardPlan.objects.values(
-            "vehicle_model_id"
-        ).distinct().count(),
+        "incentive_campaign_count": IncentiveCampaign.objects.filter(active=True).count(),
+        "dealer_reward_campaign_count": DealerRewardCampaign.objects.filter(active=True).count(),
+        "dealer_sales_program_count": VehicleModel.objects.filter(active=True, base_dealer_commission__gt=0).count(),
         "dealer_bonus_rule_count": DealerVolumeBonusRule.objects.count(),
         "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
         "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
@@ -2241,7 +2237,8 @@ ACTIVE_TOGGLE_RESOURCES = {
     "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
     "dealer-volume-bonus": (DealerVolumeBonusRule, "台數獎金規則"),
-    "incentive-rule": (VehicleIncentiveRule, "獎勵補助版本"),
+    "incentive-campaign": (IncentiveCampaign, "原廠獎勵活動"),
+    "dealer-reward-campaign": (DealerRewardCampaign, "車行獎勵活動"),
     "installment-company": (InstallmentCompany, "分期公司"),
     "subsidy-program": (SubsidyProgram, "補助方案"),
     "installment-plan": (InstallmentPlanVersion, "分期方案版本"),
@@ -5098,7 +5095,6 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     order.save()
     apply_order_price_snapshot(order)
     apply_order_installment_snapshot(order)
-    apply_order_dealer_reward_snapshot(order)
     formset.instance = order
     formset.save()
     fee_formset.instance = order
@@ -5753,6 +5749,11 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "subsidy_name_suggestions": subsidy_name_suggestions(),
             "change_cards": build_order_change_cards(order.changes.all(), profit_unlocked=profit_is_unlocked(request)),
             "operations_profile": operations_profile,
+            # 原廠獎勵活動明細與車行獎勵明細（T-149），唯讀。
+            "incentive_applications": (
+                list(operations_profile.incentive_applications.all()) if operations_profile else []
+            ),
+            "dealer_rewards": order_dealer_rewards(order),
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,
@@ -6420,7 +6421,6 @@ def order_edit(request, pk):
         }
         previous_vehicle_model_id = order.vehicle_model_id
         previous_color_id = order.color_id
-        previous_source_type = order.source_type
         installment_before = tuple(getattr(order, name) for name in (
             "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
             "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
@@ -6460,11 +6460,6 @@ def order_edit(request, pk):
                     order,
                     force=(previous_vehicle_model_id != order.vehicle_model_id or not order.price_snapshot),
                 )
-            # 附加獎勵快照比照售價：未完成前改車型或來源才重新保存；舊訂單沒有快照時維持依日期查詢。
-            if order.dealer_reward_snapshot and not completed_correction and (
-                previous_vehicle_model_id != order.vehicle_model_id or previous_source_type != order.source_type
-            ):
-                apply_order_dealer_reward_snapshot(order, force=True)
             installment_after = tuple(getattr(order, name) for name in (
                 "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
                 "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
@@ -8923,25 +8918,19 @@ def inventory_list(request):
 
 
 def _attach_current_reward_summaries(models, day):
-    """列表顯示各年式今天有效的車行附加獎勵（品項與數量）。"""
-    from sales.models import DealerVehicleRewardPlan
+    """列表顯示各年式今天進行中的車行獎勵活動項目（T-149：活動制，依品牌、能源別、指定年式比對）。"""
+    from sales.services.campaign_conditions import active_on, vehicle_matches
 
-    plans = (
-        DealerVehicleRewardPlan.objects.filter(
-            vehicle_model_id__in=[model.pk for model in models], active=True, effective_from__lte=day,
-        )
-        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=day))
-        .prefetch_related("items").order_by("vehicle_model_id", "-effective_from", "-pk")
+    campaigns = list(
+        active_on(DealerRewardCampaign.objects.prefetch_related("vehicle_models", "items"), day).order_by("pk")
     )
-    current = {}
-    for plan in plans:
-        current.setdefault(plan.vehicle_model_id, plan)
     for model in models:
-        plan = current.get(model.pk)
+        matched = [campaign for campaign in campaigns if vehicle_matches(campaign, model)]
         model.current_reward_items = [
-            f"{item.name} {item.quantity:,.0f}{item.unit}" for item in plan.items.all()
-        ] if plan else []
-        model.current_reward_until = plan.effective_to if plan else None
+            f"{item.name} {item.quantity:,.0f}{item.unit}" for campaign in matched for item in campaign.items.all()
+        ]
+        ends = [campaign.effective_to for campaign in matched if campaign.effective_to]
+        model.current_reward_until = min(ends) if ends else None
 
 
 @login_required
@@ -9257,23 +9246,19 @@ def dealer_sales_program_list(request):
     status = request.GET.get("status", "").strip()
     if status not in {"active", "inactive"}:
         status = "inactive" if request.GET.get("active") == "no" else "active"
-    today = timezone.localdate()
 
     brand_choices = list(
         VehicleModel.objects.order_by("brand")
         .values_list("brand", flat=True)
         .distinct()
     )
-    current_rewards = DealerVehicleRewardPlan.objects.filter(
-        vehicle_model_id=OuterRef("pk"),
-        active=True,
-        effective_from__lte=today,
-    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-    models = (
-        VehicleModel.objects.filter(active=status == "active")
-        .select_related("family")
-        .annotate(has_current_reward=Exists(current_rewards))
-    )
+    # 附加獎勵改為車行獎勵活動（T-149）：依品牌、能源別、指定年式比對每個年式適用的活動。
+    from sales.services.campaign_conditions import vehicle_matches
+
+    campaigns = list(DealerRewardCampaign.objects.prefetch_related("vehicle_models", "items").order_by("-effective_from", "-pk"))
+    for campaign in campaigns:
+        campaign.display_status = campaign.lifecycle_status[0]
+    models = VehicleModel.objects.filter(active=status == "active").select_related("family")
     if keyword:
         keyword_query = (
             vehicle_brand_search_q(keyword)
@@ -9290,42 +9275,32 @@ def dealer_sales_program_list(request):
     valid_energy_types = {value for value, _label in VehicleModel.EnergyType.choices}
     if energy_type in valid_energy_types:
         models = models.filter(energy_type=energy_type)
-    if reward == "yes":
-        models = models.filter(has_current_reward=True)
-    elif reward == "no":
-        models = models.filter(has_current_reward=False)
+    models = models.order_by("brand", "family__name", "name", "-model_year", "model_number", "pk")
 
-    reward_plans = DealerVehicleRewardPlan.objects.prefetch_related("items").order_by(
-        "-effective_from", "-id"
-    )
-    models = models.prefetch_related(
-        Prefetch(
-            "dealer_reward_plans",
-            queryset=reward_plans,
-            to_attr="program_reward_plans",
-        )
-    ).order_by("brand", "family__name", "name", "-model_year", "model_number", "pk")
+    def model_campaigns(vehicle_model):
+        return [campaign for campaign in campaigns if vehicle_matches(campaign, vehicle_model)]
+
+    if reward in {"yes", "no"}:
+        with_current = {
+            vehicle_model.pk for vehicle_model in models
+            if any(campaign.display_status == "current" for campaign in model_campaigns(vehicle_model))
+        }
+        models = models.filter(pk__in=with_current) if reward == "yes" else models.exclude(pk__in=with_current)
     page = Paginator(models, 50).get_page(request.GET.get("page"))
     for vehicle_model in page.object_list:
-        plans = vehicle_model.program_reward_plans
-        current_plan = next(
-            (plan for plan in plans if plan.lifecycle_status[0] == "current"),
-            None,
-        )
-        future_plan = next(
-            (plan for plan in reversed(plans) if plan.lifecycle_status[0] == "future"),
-            None,
-        )
-        vehicle_model.display_reward_plan = current_plan or future_plan
-        if current_plan:
+        matched = model_campaigns(vehicle_model)
+        current = [campaign for campaign in matched if campaign.display_status == "current"]
+        future = [campaign for campaign in matched if campaign.display_status == "future"]
+        vehicle_model.display_reward_campaigns = current or future[-1:]
+        if current:
             vehicle_model.reward_state = "current"
             vehicle_model.reward_state_label = "目前有獎勵"
-        elif future_plan:
+        elif future:
             vehicle_model.reward_state = "future"
-            vehicle_model.reward_state_label = "已有未來版本"
-        elif plans:
+            vehicle_model.reward_state_label = "已有未來活動"
+        elif matched:
             vehicle_model.reward_state = "history"
-            vehicle_model.reward_state_label = "僅有歷史版本"
+            vehicle_model.reward_state_label = "僅有歷史活動"
         else:
             vehicle_model.reward_state = "empty"
             vehicle_model.reward_state_label = "尚未設定"
@@ -10013,90 +9988,6 @@ def _delete_settlement_cost_rule(request, rules, pk):
         messages.success(request, f"已刪除未使用的成本規則：{label}")
 
 
-@login_required
-def incentive_rule_list(request):
-    keyword = request.GET.get("q", "").strip()
-    rules = VehicleIncentiveRule.objects.select_related("vehicle_model")
-    if keyword:
-        rules = rules.filter(
-            vehicle_brand_search_q(keyword, "vehicle_model__brand")
-            | Q(vehicle_model__family__name__icontains=keyword)
-            | Q(vehicle_model__name__icontains=keyword)
-            | Q(vehicle_model__model_number__icontains=keyword)
-            | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
-            | Q(note__icontains=keyword)
-        ).distinct()
-    rules = rules.order_by(
-        "vehicle_model__brand",
-        "vehicle_model__name",
-        "-effective_from",
-    )
-    paginator = Paginator(rules, 100)
-    page = paginator.get_page(request.GET.get("page"))
-    return render(
-        request,
-        "sales/incentive_rule_list.html",
-        {
-            "rules": page.object_list,
-            "page_obj": page,
-            "selected": {"q": keyword},
-        },
-    )
-
-
-def _incentive_rule_form_view(request, instance=None):
-    form = VehicleIncentiveRuleForm(request.POST or None, instance=instance)
-    if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            rule = form.save()
-        messages.success(
-            request,
-            f"已{'更新' if instance else '建立'}獎勵補助版本：{rule}",
-        )
-        return redirect("incentive_rule_list")
-    return render(
-        request,
-        "sales/incentive_rule_form.html",
-        {
-            "form": form,
-            "rule": instance,
-            "is_editing": instance is not None,
-        },
-    )
-
-
-@login_required
-def incentive_rule_create(request):
-    return _incentive_rule_form_view(request)
-
-
-@login_required
-def incentive_rule_edit(request, pk):
-    return _incentive_rule_form_view(
-        request,
-        get_object_or_404(VehicleIncentiveRule, pk=pk),
-    )
-
-
-@login_required
-@transaction.atomic
-def incentive_rule_delete(request, pk):
-    if request.method != "POST":
-        return redirect("incentive_rule_list")
-    _delete_incentive_rule(request, VehicleIncentiveRule.objects.all(), pk)
-    return redirect("incentive_rule_list")
-
-
-def _delete_incentive_rule(request, rules, pk):
-    """在呼叫端的交易內鎖定並刪除；已被訂單採用的版本只提示停用。"""
-    rule = get_object_or_404(rules.select_for_update(), pk=pk)
-    if rule.order_snapshots.exists():
-        messages.error(request, "此版本已被訂單採用，為保留歷史快照不能刪除；請改為停用。")
-    else:
-        rule.delete()
-        messages.success(request, "獎勵補助版本已刪除。")
-
-
 def _lock_rule_form_to_model(form, vehicle_model):
     """機種工作區的版本一律屬於目前機種：欄位停用後忽略送出的值，停用機種也能設定。"""
     field = form.fields["vehicle_model"]
@@ -10174,19 +10065,6 @@ def vehicle_model_settlement_costs(request, model_pk):
         dataset="cost",
     )
 
-
-@login_required
-def vehicle_model_incentives(request, model_pk):
-    return _vehicle_model_rule_tab(
-        request, model_pk,
-        related_name="incentive_rules",
-        form_class=VehicleIncentiveRuleForm,
-        delete_rule=_delete_incentive_rule,
-        url_name="vehicle_model_incentives",
-        template="sales/vehicle_model_incentives.html",
-        noun="獎勵補助版本",
-        dataset="incentive",
-    )
 
 
 def _registration_rule_status(rule, today):
@@ -10381,127 +10259,29 @@ def vehicle_model_price_versions(request, model_pk):
 
 @login_required
 def vehicle_model_commission(request, model_pk):
+    """機種工作區「傭金與獎勵」：編輯車行基礎傭金；附加獎勵改為車行獎勵活動（T-149），這裡唯讀列出適用的活動。"""
+    from .campaign_views import workspace_reward_campaigns
+
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
-    reward_plans = vehicle_model.dealer_reward_plans.prefetch_related(
-        "items__catalog_item"
-    )
-    reward_id = (
-        request.POST.get("reward_id")
-        if request.method == "POST"
-        else request.GET.get("reward")
-    )
-    creating_reward = (
-        request.POST.get("new_reward") == "1"
-        if request.method == "POST"
-        else request.GET.get("new_reward") == "1"
-    )
-    if reward_id:
-        reward_plan = get_object_or_404(reward_plans, pk=reward_id)
-    elif creating_reward:
-        reward_plan = None
-    else:
-        today = timezone.localdate()
-        reward_plan = (
-            reward_plans.filter(active=True, effective_from__lte=today)
-            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-            .first()
-            or reward_plans.first()
-        )
-    reward_instance = reward_plan or DealerVehicleRewardPlan(vehicle_model=vehicle_model)
-    action = request.POST.get("action", "save_commission")
-    reward_prefill, reward_prefill_version, reward_item_initial = (None, None, [])
-    if request.method != "POST" and creating_reward:
-        # 新增附加獎勵版本預填目前方案的項目與數量，生效日預設今天。
-        reward_prefill, reward_prefill_version = vehicle_model_copy.prefill_initial("reward", vehicle_model.pk)
-        reward_item_initial = vehicle_model_copy.reward_item_initial(reward_prefill_version)
     form = VehicleModelCommissionForm(
-        request.POST if request.method == "POST" and action == "save_commission" else None,
+        request.POST if request.method == "POST" else None,
         initial={"base_dealer_commission": vehicle_model.base_dealer_commission},
     )
-    reward_form = DealerVehicleRewardPlanForm(
-        request.POST if request.method == "POST" and action == "save_rewards" else None,
-        instance=reward_instance,
-        initial=reward_prefill,
-    )
-    reward_formset = DealerVehicleRewardItemFormSet(
-        request.POST if request.method == "POST" and action == "save_rewards" else None,
-        instance=reward_instance,
-        prefix="reward_items",
-        initial=reward_item_initial or None,
-    )
-    if reward_item_initial:
-        # min_num 已提供一列，其餘補足到與來源方案相同的項目數。
-        reward_formset.extra = max(len(reward_item_initial) - reward_formset.min_num, 0)
     from_programs = (request.POST if request.method == "POST" else request.GET).get("from") == "programs"
     tab_url = reverse("vehicle_model_commission", args=[vehicle_model.pk])
     entry_query = "from=programs" if from_programs else ""
-    if request.method == "POST" and action == "save_commission" and form.is_valid():
-        vehicle_model.base_dealer_commission = form.cleaned_data[
-            "base_dealer_commission"
-        ]
+    if request.method == "POST" and form.is_valid():
+        vehicle_model.base_dealer_commission = form.cleaned_data["base_dealer_commission"]
         vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
         messages.success(request, "車行基礎傭金已更新。")
         return redirect(f"{tab_url}{'?' + entry_query if entry_query else ''}#cash-commission")
-    if (
-        request.method == "POST"
-        and action == "save_rewards"
-        and reward_form.is_valid()
-        and reward_formset.is_valid()
-    ):
-        try:
-            with transaction.atomic():
-                saved_plan = reward_form.save()
-                reward_formset.instance = saved_plan
-                reward_formset.save()
-        except (ValidationError, IntegrityError) as exc:
-            reward_form.add_error(None, exc)
-        else:
-            messages.success(request, "車行附加獎勵方案已儲存。")
-            return redirect(
-                f"{tab_url}?reward={saved_plan.pk}{'&' + entry_query if entry_query else ''}#dealer-rewards"
-            )
-    plan_rows = list(reward_plans)
-    for plan in plan_rows:
-        plan.display_status, plan.display_status_label = plan.lifecycle_status
-    catalog_items = DealerRewardCatalogItem.objects.filter(
-        Q(active=True) | Q(plan_items__plan__vehicle_model=vehicle_model)
-    ).distinct().prefetch_related(
-        Prefetch(
-            "cost_versions",
-            queryset=DealerRewardCostVersion.objects.filter(active=True).order_by(
-                "-effective_from", "-id"
-            ),
-            to_attr="prefetched_cost_versions",
-        )
-    )
-    reward_catalog_metadata = {
-        str(item.pk): {
-            "type": item.get_reward_type_display(),
-            "unit": item.unit,
-            "costs": [
-                {
-                    "from": version.effective_from.isoformat(),
-                    "to": version.effective_to.isoformat() if version.effective_to else "",
-                    "amount": str(version.unit_cost),
-                }
-                for version in item.prefetched_cost_versions
-            ],
-        }
-        for item in catalog_items
-    }
     return render(
         request,
         "sales/vehicle_model_commission.html",
         {
             "vehicle_model": vehicle_model,
             "form": form,
-            "reward_form": reward_form,
-            "reward_formset": reward_formset,
-            "reward_plan": reward_plan,
-            "reward_plans": plan_rows,
-            "creating_reward": reward_plan is None,
-            "reward_prefill_version": reward_prefill_version,
-            "reward_catalog_metadata": reward_catalog_metadata,
+            "reward_campaigns": workspace_reward_campaigns(vehicle_model),
             "entry_query": entry_query,
             "workspace_back": (
                 (reverse("dealer_sales_program_list"), "車行傭金與銷售獎勵")

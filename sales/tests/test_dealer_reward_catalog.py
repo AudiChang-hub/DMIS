@@ -152,14 +152,19 @@ class DealerRewardCatalogTests(TestCase):
         self.assertContains(dashboard, 'value="dealer-reward-items"')
 
         guide = self.client.get(reverse("user_guide"))
-        self.assertContains(guide, "日常資料 → 車行獎勵品項")
+        self.assertContains(guide, "費率與規則 → 車行獎勵品項")
 
         base = (Path(settings.BASE_DIR) / "templates" / "base.html").read_text(
             encoding="utf-8"
         )
-        self.assertLess(
+        # T-149：品項移到「費率與規則」，緊接在車行獎勵活動之後。
+        self.assertGreater(
             base.index("{% url 'dealer_reward_catalog_list' %}"),
             base.index('id="data-menu-rules"'),
+        )
+        self.assertLess(
+            base.index("{% url 'dealer_reward_campaign_list' %}"),
+            base.index("{% url 'dealer_reward_catalog_list' %}"),
         )
 
     def test_existing_reward_rows_are_converted_to_shared_catalog_items(self):

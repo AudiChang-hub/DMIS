@@ -26,6 +26,9 @@ from .models import (
     VehicleModel,
     VehicleSettlementCostRule,
     VehicleIncentiveRule,
+    IncentiveCampaign,
+    DealerRewardCampaign,
+    DealerRewardCampaignItem,
     SalesSourceBrandPolicy,
     DealerVolumeBonusRule,
     DealerVolumeBonusPeriod,
@@ -199,6 +202,33 @@ def refresh_pending_rates_after_rule_change(sender, instance, **kwargs):
         SalesOrder.objects.filter(vehicle_model_id=instance.vehicle_model_id)
     )
     _refresh_pending_rates(orders)
+
+
+def _refresh_campaign_orders():
+    _refresh_pending_rates(SalesOrder.objects.all())
+
+
+def _schedule_campaign_refresh():
+    """活動、條件多選或項目異動後，提交時重算未完成領牌的訂單（T-149）；已完成領牌的訂單固定不動。"""
+    transaction.on_commit(_refresh_campaign_orders)
+
+
+@receiver(post_save, sender=IncentiveCampaign)
+@receiver(post_delete, sender=IncentiveCampaign)
+@receiver(post_save, sender=DealerRewardCampaign)
+@receiver(post_delete, sender=DealerRewardCampaign)
+@receiver(post_save, sender=DealerRewardCampaignItem)
+@receiver(post_delete, sender=DealerRewardCampaignItem)
+def refresh_pending_orders_after_campaign_change(sender, instance, **kwargs):
+    _schedule_campaign_refresh()
+
+
+@receiver(m2m_changed, sender=IncentiveCampaign.vehicle_models.through)
+@receiver(m2m_changed, sender=DealerRewardCampaign.vehicle_models.through)
+@receiver(m2m_changed, sender=DealerRewardCampaign.dealers.through)
+def refresh_pending_orders_after_campaign_conditions(sender, action, **kwargs):
+    if action in {"post_add", "post_remove", "post_clear"}:
+        _schedule_campaign_refresh()
 
 
 @receiver(post_save, sender=VehicleFactoryModelCode)

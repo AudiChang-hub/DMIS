@@ -15,6 +15,7 @@ from django.db import transaction
 from sales.models import OrderChange, OrderEvent, OrderOperationsProfile
 from sales.services.agency_fee import default_agency_fee, plate_fee_waived, registration_fee_cost
 from sales.services.dealer_commission import apply_order_dealer_commission
+from sales.services.dealer_reward_campaign import apply_order_dealer_rewards
 from sales.services.incentive_rule import apply_order_incentive_rule
 from sales.services.operations_sync import sync_order_operations
 from sales.services.settlement_cost import apply_order_settlement_cost, resolve_settlement_cost
@@ -49,6 +50,7 @@ def finish_registration(order, actor_name):
         return False, " ".join(exc.messages)
     apply_order_settlement_cost(order, actor_name, lock=True)
     apply_order_incentive_rule(order, actor_name, lock=True)
+    apply_order_dealer_rewards(order, force=True)
     apply_order_dealer_commission(order, lock=True)
     OrderEvent.objects.create(
         order=order,
@@ -86,6 +88,7 @@ def _recalculate_after_date_change(order, actor_name):
     if "vehicle_cost_locked_at" in unlock:
         apply_order_settlement_cost(order, actor_name, lock=True)
     apply_order_incentive_rule(order, actor_name, lock=True)
+    apply_order_dealer_rewards(order, force=True)
     apply_order_dealer_commission(order, lock=True)
 
 
@@ -107,6 +110,7 @@ def apply_registration_edit(order, *, actor_name, before_date, before_plate):
     # 尚未完成：依領牌日帶入（預估）成本、獎勵、傭金，資料齊全就自動完成。
     apply_order_settlement_cost(order, actor_name)
     apply_order_incentive_rule(order, actor_name)
+    apply_order_dealer_rewards(order)
     apply_order_dealer_commission(order)
     completed = False
     if not order.missing_registration_requirements():

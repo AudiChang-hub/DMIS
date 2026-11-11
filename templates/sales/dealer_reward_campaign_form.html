@@ -1,0 +1,78 @@
+{% extends "base.html" %}{% load static screen_access %}
+{% block title %}{% if campaign %}編輯{% else %}新增{% endif %}車行獎勵活動｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--form dealer-program-page{% endblock %}
+{% block content %}
+{% url 'dealer_reward_campaign_list' as list_url %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="車行獎勵活動" root_url=data_url root_label="資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車行獎勵活動</p>
+    <h1>{% if campaign %}編輯活動{% else %}新增活動{% endif %}</h1>
+    <p class="muted">依實際領牌日套用到收款車行（車行單，或指定給車行的本店單）；領牌完成後明細固定在訂單。目前只記錄承諾內容，不自動出庫、入帳或影響淨利。</p>
+  </div>
+</section>
+<form method="post" class="campaign-form" data-campaign-form>
+  {% csrf_token %}
+  {% if form.non_field_errors or formset.non_form_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>{% endif %}
+  {% if campaign and order_count %}<p class="campaign-usage">已套用到 {{ order_count }} 張訂單；修改只影響尚未完成領牌的訂單。</p>{% endif %}
+
+  <section class="card campaign-section" aria-labelledby="reward-campaign-basic-title">
+    <header class="campaign-section__heading"><div><p class="eyebrow">01 · 活動與車行</p><h2 id="reward-campaign-basic-title">給哪些車行？</h2></div></header>
+    <div class="form-grid campaign-grid">
+      <div class="span-2">{% include "sales/_field.html" with field=form.name %}</div>
+      <div class="span-2">{% include "sales/_field.html" with field=form.dealers %}<small class="help-text">不選代表全部車行；本店單要指定給車行才會套用，網路平台單不適用。</small></div>
+    </div>
+  </section>
+
+  {% include "sales/_campaign_conditions.html" with step="02" %}
+
+  <section class="card campaign-section" aria-labelledby="reward-campaign-period-title">
+    <header class="campaign-section__heading"><div><p class="eyebrow">03 · 期間</p><h2 id="reward-campaign-period-title">依實際領牌日期</h2></div></header>
+    <div class="form-grid campaign-grid">
+      {% include "sales/_field.html" with field=form.effective_from %}
+      {% include "sales/_field.html" with field=form.effective_to %}
+      {% include "sales/_field.html" with field=form.active %}
+      <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
+    </div>
+  </section>
+
+  <section class="card campaign-section dealer-reward-panel" id="dealer-rewards" aria-labelledby="reward-campaign-items-title">
+    <header class="campaign-section__heading">
+      <div><p class="eyebrow">04 · 每台獎勵</p><h2 id="reward-campaign-items-title">每領牌一台送什麼？</h2></div>
+      <div class="campaign-section__actions">
+        {% if can_add_catalog %}<button type="button" class="button ghost small" data-quick-catalog-open aria-expanded="false" aria-controls="quick-catalog">＋ 新增品項</button>{% endif %}
+        <button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button>
+      </div>
+    </header>
+    {% if can_add_catalog %}
+    <div class="campaign-quick-catalog" id="quick-catalog" data-quick-catalog data-url="{% url 'dealer_reward_catalog_quick_create' %}" hidden>
+      <p class="campaign-quick-catalog__title"><strong>新增車行獎勵品項</strong><span>存好後自動加入下方選單；成本可之後到「車行獎勵品項」補。</span></p>
+      <div class="campaign-quick-catalog__fields">
+        <div class="field"><label for="quick-reward-type">類型</label><select id="quick-reward-type" class="form-control" data-quick-field="reward_type">{% for value, label in quick_catalog_form.fields.reward_type.choices %}{% if value %}<option value="{{ value }}">{{ label }}</option>{% endif %}{% endfor %}</select></div>
+        <div class="field"><label for="quick-name">品項名稱</label><input id="quick-name" class="form-control" maxlength="120" placeholder="例如：全合成機油" data-quick-field="name"></div>
+        <div class="field"><label for="quick-unit">單位</label><input id="quick-unit" class="form-control" maxlength="20" list="quick-unit-options" placeholder="例如：罐" data-quick-field="unit"><datalist id="quick-unit-options"><option value="件"><option value="個"><option value="瓶"><option value="罐"><option value="盒"><option value="組"><option value="元"><option value="張"><option value="點"></datalist></div>
+        <div class="field"><label for="quick-cost">單位成本（選填）</label><input id="quick-cost" class="form-control" type="number" min="0" step="1" inputmode="numeric" data-quick-field="unit_cost"></div>
+      </div>
+      <p class="field-error" data-quick-catalog-error role="alert" hidden></p>
+      <div class="campaign-quick-catalog__actions"><button type="button" class="button ghost small" data-quick-catalog-cancel>取消</button><button type="button" class="button primary small" data-quick-catalog-save>新增品項</button></div>
+    </div>
+    {% endif %}
+    {{ formset.management_form }}
+    <div class="dealer-reward-items" data-reward-rows>
+      {% for item_form in formset %}{% include "sales/_campaign_reward_item.html" %}{% endfor %}
+    </div>
+    <template data-reward-template>{% include "sales/_campaign_reward_item.html" with item_form=formset.empty_form %}</template>
+  </section>
+
+  <div class="form-savebar campaign-savebar">
+    {% if campaign %}{% if_access 'dealer_reward_campaign_delete' %}<button class="button danger-outline" type="submit" form="delete-campaign">刪除活動</button>{% endif_access %}{% endif %}
+    <a class="button ghost" href="{{ list_url }}">取消</a>
+    <button class="button primary" type="submit">{% if campaign %}套用修改{% else %}建立活動{% endif %}</button>
+  </div>
+</form>
+{{ reward_catalog_metadata|json_script:"dealer-reward-catalog-data" }}
+{% if campaign %}<form id="delete-campaign" method="post" action="{% url 'dealer_reward_campaign_delete' campaign.pk %}" data-confirm="確定刪除此活動？已被訂單採用的活動不能刪除，請改為停用。">{% csrf_token %}</form>{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-vehicle-rewards.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script>{% endblock %}

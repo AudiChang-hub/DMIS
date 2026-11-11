@@ -16,7 +16,7 @@
     {% if group.title != '車輛成本' and group.title != '傭金' %}<div class="ledger-group__head"><h3 class="ledger-group__title">{{ group.title }}{% if group.hint %}<small>{{ group.hint }}</small>{% endif %}</h3><span class="ledger-group__subtotal">$<output data-ledger-group-total>{{ group.subtotal|number_with_commas }}</output></span></div>{% endif %}
   {% endif %}
     {% if group.incentive %}
-      <p class="ledger-group__note">{% if profile.incentive_rule %}{{ profile.incentive_registration_date|date:"Y/m/d" }} · {{ profile.incentive_rule.vehicle_model.brand }} {{ profile.incentive_rule.vehicle_model.name }} · {% if profile.incentive_locked_at %}已固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}{% elif order.registration_date %}沒有符合領牌日期的版本 · {% site_text 'order_operations.3eb12d00a468' %}{% else %}等待實際領牌日期，填寫後自動帶入{% endif %}</p>
+      <p class="ledger-group__note">{% if profile.incentive_registration_date %}{{ profile.incentive_registration_date|date:"Y/m/d" }} · {% for application in profile.incentive_applications.all %}{{ application.campaign_name }}{% if not forloop.last %}＋{% endif %}{% empty %}{{ profile.incentive_rule.vehicle_model.brand }} {{ profile.incentive_rule.vehicle_model.name }}{% endfor %} · {% if profile.incentive_locked_at %}已固定，不受後續活動異動影響{% else %}領牌完成後固定{% endif %}{% elif order.registration_date %}沒有符合領牌日期的版本 · {% site_text 'order_operations.3eb12d00a468' %}{% else %}等待實際領牌日期，填寫後自動帶入{% endif %}</p>
     {% endif %}
     <div class="ledger-rows">
     {% for row in group.rows %}

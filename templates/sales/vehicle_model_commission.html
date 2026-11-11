@@ -1,7 +1,7 @@
-{% extends "base.html" %}{% load site_copy %}{% load static %}
+{% extends "base.html" %}{% load site_copy static screen_access %}
 {% block title %}傭金與獎勵｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide model-workspace-page dealer-program-page{% endblock %}
-{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
 {% include "sales/_vehicle_model_workspace.html" with workspace_tab="commission" %}
 <header class="model-workspace-intro">
@@ -13,67 +13,25 @@
   <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save_commission">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}{% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}<div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions"><button class="button primary" type="submit">套用基礎傭金</button></div></form>
 </section>
 
-<section id="dealer-rewards" class="card dealer-reward-panel">
-  <div class="dealer-reward-heading"><div><p class="eyebrow">實物、紅包、禮券與點數</p><h2>車行附加獎勵</h2><p class="muted">每個生效期間可設定多個項目；品項、單位及成本由「<a href="{% url 'dealer_reward_catalog_list' %}">車行獎勵品項</a>」集中維護。</p></div><div class="dealer-reward-heading__actions"><a class="button ghost" href="{% url 'vehicle_model_reward_batch' %}?brand={{ vehicle_model.brand|urlencode }}{% if vehicle_model.family_id %}&amp;family={{ vehicle_model.family_id }}{% endif %}&amp;status=all&amp;selected={{ vehicle_model.pk }}">批次套用到多個年式</a><a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}?new_reward=1{% if entry_query %}&amp;{{ entry_query }}{% endif %}#dealer-rewards">＋ 新增版本</a></div></div>
-  {% if reward_plans %}<nav class="dealer-reward-versions" aria-label="獎勵版本">{% for plan in reward_plans %}<a href="{% url 'vehicle_model_commission' vehicle_model.pk %}?reward={{ plan.pk }}{% if entry_query %}&amp;{{ entry_query }}{% endif %}#dealer-rewards" class="dealer-reward-version{% if reward_plan.pk == plan.pk %} is-current{% endif %}"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>{% if plan.effective_to %}至 {{ plan.effective_to|date:'Y/m/d' }}{% else %}起持續有效{% endif %}</span><small class="reward-state reward-state--{{ plan.display_status }}">{{ plan.display_status_label }}</small><em>{{ plan.reward_summary|default:'尚未填寫項目' }}</em></a>{% endfor %}</nav>{% endif %}
-  <form method="post" class="dealer-reward-form">{% csrf_token %}<input type="hidden" name="action" value="save_rewards">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}<input type="hidden" name="reward_id" value="{{ reward_plan.pk|default:'' }}">{% if creating_reward %}<input type="hidden" name="new_reward" value="1">{% endif %}{{ reward_formset.management_form }}
-    {% if reward_form.non_field_errors or reward_formset.non_form_errors %}<div class="message error">{{ reward_form.non_field_errors }}{{ reward_formset.non_form_errors }}</div>{% endif %}
-    <div class="dealer-reward-editor-title"><div><span>{{ creating_reward|yesno:'建立新版本,編輯版本' }}</span><strong>{{ vehicle_model.name }} {{ vehicle_model.model_year|default:'' }} {{ vehicle_model.get_model_code_display }}</strong></div><small>{% site_text 'vehicle_model_commission.3d544bae8236' %}</small></div>
-    {% if creating_reward %}{% include "sales/_vehicle_model_prefill_note.html" with source=reward_prefill_version start=reward_form.initial.effective_from noun="獎勵項目與數量" %}{% endif %}
-    <section class="dealer-reward-settings" aria-labelledby="dealer-reward-period-title">
-      <div class="dealer-reward-settings__heading"><h3 id="dealer-reward-period-title">適用期間</h3><p>{% site_text 'vehicle_model_commission.cfe514de4232' %}</p></div>
-      <div class="dealer-reward-period-grid">
-        <div>{% include "sales/_field.html" with field=reward_form.effective_from %}</div>
-        <div>{% include "sales/_field.html" with field=reward_form.effective_to %}</div>
-        <div class="dealer-reward-status-field">
-          <span class="dealer-reward-field-label">狀態</span>
-          <label class="dealer-reward-enabled-toggle">
-            {{ reward_form.active }}
-            <span class="dealer-reward-enabled-toggle__track" aria-hidden="true"><span></span></span>
-            <strong>啟用此版本</strong>
-          </label>
-          {% if reward_form.active.errors %}<span>{% for error in reward_form.active.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
-        </div>
-      </div>
-      <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=reward_form.note %}</div>
-    </section>
-    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>{% site_text 'vehicle_model_commission.fb16fc7dfb6a' %}</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
-    <div class="dealer-reward-items" data-reward-rows>
-      {% for item_form in reward_formset %}
-        <section class="dealer-reward-item" data-reward-row>
-          {{ item_form.id }}
-          <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
-          <div class="dealer-reward-item__fields">
-            <div>{% include "sales/_field.html" with field=item_form.catalog_item %}</div>
-            <div>{% include "sales/_field.html" with field=item_form.quantity %}</div>
-          </div>
-          <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot="{{ item_form.instance.unit_cost_snapshot|default_if_none:'' }}">
-            <span><small>類型／單位</small><strong data-reward-catalog-unit>{% if item_form.instance.catalog_item %}{{ item_form.instance.catalog_item.get_reward_type_display }}／{{ item_form.instance.unit }}{% else %}選擇品項後顯示{% endif %}</strong></span>
-            <span><small>單位成本快照</small><strong data-reward-unit-cost>{% if item_form.instance.unit_cost_snapshot is not None %}${{ item_form.instance.unit_cost_snapshot|floatformat:0 }}{% else %}尚未維護{% endif %}</strong></span>
-            <span><small>本項預估成本</small><strong data-reward-total-cost>{% if item_form.instance.total_cost_snapshot is not None %}${{ item_form.instance.total_cost_snapshot|floatformat:0 }}{% else %}—{% endif %}</strong></span>
-          </div>
-          <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=item_form.note %}</div>
-          <span hidden>{{ item_form.DELETE }}</span>
-        </section>
-      {% endfor %}
+<section id="dealer-rewards" class="card campaign-section" aria-labelledby="workspace-reward-title">
+  <header class="campaign-section__heading">
+    <div><p class="eyebrow">實物、紅包、禮券與點數</p><h2 id="workspace-reward-title">車行獎勵活動</h2><p class="muted">已改為活動制：在「車行獎勵活動」設定適用車行、品牌、能源別或年式與期間，依實際領牌日套用。這裡列出條件涵蓋本年式的活動。</p></div>
+    <div class="campaign-section__actions">
+      {% if_access 'dealer_reward_campaign_list' %}<a class="button ghost small" href="{% url 'dealer_reward_campaign_list' %}">查看全部活動</a>{% endif_access %}
+      {% if_access 'dealer_reward_campaign_create' %}<a class="button primary small" href="{% url 'dealer_reward_campaign_create' %}?model={{ vehicle_model.pk }}">＋ 新增本年式活動</a>{% endif_access %}
     </div>
-    <template data-reward-template>
-      <section class="dealer-reward-item" data-reward-row>
-        {{ reward_formset.empty_form.id }}
-        <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
-        <div class="dealer-reward-item__fields">
-          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.catalog_item %}</div>
-          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.quantity %}</div>
-        </div>
-        <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot=""><span><small>類型／單位</small><strong data-reward-catalog-unit>選擇品項後顯示</strong></span><span><small>單位成本快照</small><strong data-reward-unit-cost>—</strong></span><span><small>本項預估成本</small><strong data-reward-total-cost>—</strong></span></div>
-        <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=reward_formset.empty_form.note %}</div>
-        <span hidden>{{ reward_formset.empty_form.DELETE }}</span>
-      </section>
-    </template>
-    <div class="dealer-reward-accounting-note"><strong>目前不自動入帳</strong><span>先保存公司承諾給車行的內容；待確認實物、紅包、禮券及點數的認列時點後，再接上發放與淨利。</span></div>
-    <div class="form-actions dealer-reward-actions"><button class="button primary" type="submit">套用附加獎勵</button></div>
-  </form>
-  {{ reward_catalog_metadata|json_script:"dealer-reward-catalog-data" }}
+  </header>
+  <div class="campaign-cards">
+    {% for campaign in reward_campaigns %}
+    <article class="campaign-card{% if not campaign.active %} is-inactive{% endif %}">
+      <div class="campaign-card__head"><strong>{{ campaign.name }}</strong><span class="status-pill cost-rule-{{ campaign.display_status }}">{{ campaign.display_status_label }}</span></div>
+      <p class="campaign-card__meta">{{ campaign.effective_from|date:"Y/m/d" }} 起{% if campaign.effective_to %}，至 {{ campaign.effective_to|date:"Y/m/d" }}{% endif %} · {% with dealers=campaign.dealers.all %}{% if dealers %}{{ dealers|length }} 家指定車行{% else %}全部車行{% endif %}{% endwith %} · {{ campaign.conditions_text }}</p>
+      <p class="campaign-card__reward">{{ campaign.reward_summary|default:"尚未填寫項目" }}</p>
+      {% if_access 'dealer_reward_campaign_edit' %}<a class="button ghost small" href="{% url 'dealer_reward_campaign_edit' campaign.pk %}">編輯活動</a>{% endif_access %}
+    </article>
+    {% empty %}
+    <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未有涵蓋本年式的車行獎勵活動</h3><p>建立活動後，車行訂單領牌時會自動帶入。</p></div>
+    {% endfor %}
+  </div>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/dealer-vehicle-rewards.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -25,6 +25,7 @@ def refresh_unlocked_financials(order_id):
     """只有尚未領牌且未鎖定的費率隨輸入重算；歷史訂單不重套主檔。"""
     from sales.models import SalesOrder
     from .dealer_commission import apply_order_dealer_commission
+    from .dealer_reward_campaign import apply_order_dealer_rewards
     from .incentive_rule import apply_order_incentive_rule
     from .settlement_cost import apply_order_settlement_cost
 
@@ -33,4 +34,5 @@ def refresh_unlocked_financials(order_id):
         return
     apply_order_settlement_cost(order)
     apply_order_incentive_rule(order)
+    apply_order_dealer_rewards(order)
     apply_order_dealer_commission(order)

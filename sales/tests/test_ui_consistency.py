@@ -350,7 +350,8 @@ class UiConsistencyTests(SimpleTestCase):
         for retired in (".master-model-actions {", ".dealer-reward-actions {", ".bonus-save-bar {", ".account-savebar{", ".vehicle-model-save-actions {"):
             self.assertNotIn(retired, css)
         self.assertNotIn(".standalone-form { max-width: 860px; margin-inline: auto; }", css)
-        for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_rule_form", "settlement_cost_rule_form", "dealer_reward_catalog_form"):
+        for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_campaign_form", "dealer_reward_campaign_form",
+                     "settlement_cost_rule_form", "dealer_reward_catalog_form"):
             self.assertIn("form-savebar", (TEMPLATES / "sales" / f"{name}.html").read_text(encoding="utf-8"), name)
 
     def test_filter_bar_fits_medium_screens(self):

@@ -12,9 +12,9 @@ TABS = (
     ("spec", "規格與車色", "vehicle_model_edit", "pk", ""),
     ("prices", "售價", "vehicle_model_price_versions", "model_pk", "price_versions"),
     ("installments", "分期", "vehicle_installment_plan_list", "model_pk", "installment_plan_versions"),
-    ("commission", "傭金與獎勵", "vehicle_model_commission", "model_pk", "dealer_reward_plans"),
+    ("commission", "傭金與獎勵", "vehicle_model_commission", "model_pk", "campaigns:reward"),
     ("costs", "結算成本", "vehicle_model_settlement_costs", "model_pk", "settlement_cost_rules"),
-    ("incentives", "原廠獎勵與補助", "vehicle_model_incentives", "model_pk", "incentive_rules"),
+    ("incentives", "原廠獎勵與補助", "vehicle_model_incentives", "model_pk", "campaigns:incentive"),
     ("catalog", "選車圖片與介紹", "catalog_edit", "pk", ""),
     ("rules", "適用規則", "vehicle_model_rules", "model_pk", ""),
 )
@@ -56,8 +56,16 @@ def _back_target(context, policy):
 
 
 STATUS_UNITS = {
-    "prices": "售價版本", "installments": "分期方案版本", "costs": "成本版本", "incentives": "獎勵版本",
+    "prices": "售價版本", "installments": "分期方案版本", "costs": "成本版本", "incentives": "適用活動",
 }
+
+
+def _campaign_count(kind, vehicle_model):
+    from sales.models import DealerRewardCampaign, IncentiveCampaign
+    from sales.services.campaign_conditions import campaigns_for_vehicle_model
+
+    model = IncentiveCampaign if kind == "incentive" else DealerRewardCampaign
+    return len(campaigns_for_vehicle_model(model.objects.all(), vehicle_model))
 
 
 def _apply_status(tab, vehicle_model, price_missing):
@@ -66,7 +74,7 @@ def _apply_status(tab, vehicle_model, price_missing):
     if tab["key"] == "commission":
         base = vehicle_model.base_dealer_commission or 0
         configured = base > 0 or count > 0
-        tab["detail"] = f"基礎傭金 {base:,.0f} 元；附加獎勵 {count} 個版本"
+        tab["detail"] = f"基礎傭金 {base:,.0f} 元；車行獎勵 {count} 個適用活動"
     else:
         configured = count > 0
         tab["detail"] = f"{count} 個{STATUS_UNITS.get(tab['key'], '版本')}"
@@ -92,7 +100,10 @@ def vehicle_model_workspace(context, vehicle_model, active):
             tab["hint"] = INACTIVE_CATALOG_HINT
         if saved and not tab["hint"]:
             tab["url"] = reverse(route, kwargs={kwarg: vehicle_model.pk})
-            if related:
+            if related.startswith("campaigns:"):
+                # 獎勵改為活動制（T-149）：計算條件涵蓋本年式的活動數。
+                tab["count"] = _campaign_count(related.split(":", 1)[1], vehicle_model)
+            elif related:
                 tab["count"] = getattr(vehicle_model, related).count()
         tabs.append(tab)
     price_missing = False

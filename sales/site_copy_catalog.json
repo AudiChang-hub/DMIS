@@ -383,12 +383,12 @@
   },
   "data_maintenance.275db464f367": {
     "page": "資料維護區",
-    "default": "維護實銷獎勵、促銷補助與分期補貼息。",
+    "default": "以活動維護實銷獎勵、促銷補助與分期補貼息，可指定品牌、能源別或年式。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.a3460965ce09": {
     "page": "資料維護區",
-    "default": "依車型維護逐台給付的現金傭金、實物、紅包、禮券與旅遊點數。",
+    "default": "依車型維護每台給車行的現金基礎傭金；實物、禮券等改在「車行獎勵活動」設定。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.024404dfac26": {
@@ -478,12 +478,12 @@
   },
   "dealer_sales_program_list.778729eedf4b": {
     "page": "車行傭金與銷售獎勵",
-    "default": "先找到車型，再設定每賣一台給車行的現金傭金、實物、紅包、禮券或旅遊點數。",
+    "default": "先找到車型，再設定每賣一台給車行的現金基礎傭金；實物、紅包、禮券或旅遊點數改在「車行獎勵活動」設定。",
     "template": "templates/sales/dealer_sales_program_list.html"
   },
   "dealer_sales_program_list.ade2027bfa3b": {
     "page": "車行傭金與銷售獎勵",
-    "default": "每張訂單依車型套用傭金與附加獎勵。",
+    "default": "每張訂單依車型套用傭金；車行獎勵活動依實際領牌日套用。",
     "template": "templates/sales/dealer_sales_program_list.html"
   },
   "dealer_sales_program_list.95feb8ac79a9": {
@@ -1203,7 +1203,7 @@
   },
   "order_operations.3eb12d00a468": {
     "page": "營運資料",
-    "default": "目前以 0 元帶入；可至車型資料新增版本",
+    "default": "目前以 0 元帶入；可至「原廠獎勵與補助」新增活動",
     "template": "templates/sales/order_operations.html"
   },
   "order_recycle_bin.03775d5dc415": {
@@ -1768,7 +1768,7 @@
   },
   "vehicle_model_commission.28c0856d271d": {
     "page": "車行傭金與銷售獎勵",
-    "default": "此頁已綁定目前車型，不需要再次選擇。現金傭金與額外獎勵分開保存、清楚辨識。",
+    "default": "此頁已綁定目前車型。基礎傭金在此設定；實物、紅包、禮券與點數由車行獎勵活動依領牌日套用。",
     "template": "templates/sales/vehicle_model_commission.html"
   },
   "vehicle_model_commission.6234fe3bef5e": {

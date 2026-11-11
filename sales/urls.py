@@ -14,6 +14,7 @@ from . import stock_count_views
 from . import order_return_views
 from . import subsidy_program_views
 from . import vehicle_model_tool_views
+from . import campaign_views
 from . import gift_views
 from . import print_company_views
 from . import form_print_views
@@ -620,7 +621,7 @@ urlpatterns = [
     ),
     path(
         "data/vehicle-models/<int:model_pk>/incentives/",
-        views.vehicle_model_incentives,
+        campaign_views.vehicle_model_incentives,
         name="vehicle_model_incentives",
     ),
     path(
@@ -688,26 +689,26 @@ urlpatterns = [
         views.settlement_cost_rule_delete,
         name="settlement_cost_rule_delete",
     ),
-    path(
-        "data/incentive-rules/",
-        views.incentive_rule_list,
-        name="incentive_rule_list",
-    ),
-    path(
-        "data/incentive-rules/new/",
-        views.incentive_rule_create,
-        name="incentive_rule_create",
-    ),
-    path(
-        "data/incentive-rules/<int:pk>/edit/",
-        views.incentive_rule_edit,
-        name="incentive_rule_edit",
-    ),
-    path(
-        "data/incentive-rules/<int:pk>/delete/",
-        views.incentive_rule_delete,
-        name="incentive_rule_delete",
-    ),
+    # 原廠獎勵與補助改為活動制（T-149）：清單沿用原網址與路由名稱，舊的版本新增／編輯網址導回清單。
+    path("data/incentive-rules/", campaign_views.incentive_campaign_list, name="incentive_rule_list"),
+    path("data/incentive-rules/new/", campaign_views.incentive_rule_legacy, name="incentive_rule_create"),
+    path("data/incentive-rules/<int:pk>/edit/", campaign_views.incentive_rule_legacy, name="incentive_rule_edit"),
+    path("data/incentive-rules/<int:pk>/delete/", campaign_views.incentive_rule_legacy, name="incentive_rule_delete"),
+    path("data/incentive-campaigns/new/", campaign_views.incentive_campaign_create, name="incentive_campaign_create"),
+    path("data/incentive-campaigns/<int:pk>/edit/", campaign_views.incentive_campaign_edit,
+         name="incentive_campaign_edit"),
+    path("data/incentive-campaigns/<int:pk>/delete/", campaign_views.incentive_campaign_delete,
+         name="incentive_campaign_delete"),
+    path("data/dealer-reward-campaigns/", campaign_views.dealer_reward_campaign_list,
+         name="dealer_reward_campaign_list"),
+    path("data/dealer-reward-campaigns/new/", campaign_views.dealer_reward_campaign_create,
+         name="dealer_reward_campaign_create"),
+    path("data/dealer-reward-campaigns/<int:pk>/edit/", campaign_views.dealer_reward_campaign_edit,
+         name="dealer_reward_campaign_edit"),
+    path("data/dealer-reward-campaigns/<int:pk>/delete/", campaign_views.dealer_reward_campaign_delete,
+         name="dealer_reward_campaign_delete"),
+    path("data/dealer-reward-catalog/quick-create/", campaign_views.dealer_reward_catalog_quick_create,
+         name="dealer_reward_catalog_quick_create"),
     path("data/inventory/new/", views.inventory_create, name="inventory_create"),
     path(
         "data/inventory/quick-entry/",

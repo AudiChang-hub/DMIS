@@ -31,10 +31,12 @@ from .models import (
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
+    CAMPAIGN_SOURCE_TYPES,
+    DealerRewardCampaign,
+    DealerRewardCampaignItem,
     DealerRewardCatalogItem,
     DealerRewardCostVersion,
     DealerVehicleRewardItem,
-    DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanOption,
@@ -59,7 +61,7 @@ from .models import (
     SubsidyProgram,
     VehicleColor,
     VehicleInventory,
-    VehicleIncentiveRule,
+    IncentiveCampaign,
     VehicleBrand,
     VehicleFactoryModelCode,
     VehicleModel,
@@ -3148,45 +3150,6 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
         apply_mobile_keyboard_attrs(self)
 
 
-class VehicleIncentiveRuleForm(forms.ModelForm):
-    class Meta:
-        model = VehicleIncentiveRule
-        fields = [
-            "vehicle_model",
-            "sales_bonus",
-            "promotion_subsidy",
-            "installment_interest_subsidy",
-            "announced_on",
-            "effective_from",
-            "effective_to",
-            "note",
-            "active",
-        ]
-        widgets = {
-            "sales_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "promotion_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "installment_interest_subsidy": forms.NumberInput(
-                attrs={"inputmode": "numeric"}
-            ),
-            "announced_on": DateInput(),
-            "effective_from": DateInput(),
-            "effective_to": DateInput(),
-            "note": forms.Textarea(attrs={"rows": 3}),
-        }
-        help_texts = {
-            "promotion_subsidy": "僅網路平台來源的訂單會自動帶入；其他來源帶 0，必要時由財務人工更正。",
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
-            active=True
-        ).order_by("brand", "name", "-model_year")
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-
 class VehicleColorMasterForm(forms.ModelForm):
     class Meta:
         model = VehicleColor
@@ -3887,27 +3850,6 @@ class ReconciliationRecordForm(forms.ModelForm):
         return payment
 
 
-class DealerVehicleRewardPlanForm(forms.ModelForm):
-    class Meta:
-        model = DealerVehicleRewardPlan
-        fields = ["effective_from", "effective_to", "active", "note"]
-        widgets = {
-            "effective_from": DateInput(),
-            "effective_to": DateInput(),
-            "note": forms.Textarea(
-                attrs={"rows": 2, "placeholder": "例如：公司九月促銷方案"}
-            ),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["effective_to"].help_text = "可留白，代表持續有效。"
-        for field in self.fields.values():
-            if not isinstance(field.widget, forms.CheckboxInput):
-                field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-
 DEALER_REWARD_UNIT_OTHER = "__other__"
 DEALER_REWARD_UNITS = {
     DealerVehicleRewardItem.RewardType.PHYSICAL: [
@@ -4170,16 +4112,202 @@ class BaseDealerVehicleRewardItemFormSet(BaseInlineFormSet):
         return saved_items
 
 
-DealerVehicleRewardItemFormSet = inlineformset_factory(
-    DealerVehicleRewardPlan,
-    DealerVehicleRewardItem,
-    form=DealerVehicleRewardItemForm,
+# ---- 獎勵活動（T-149）：原廠獎勵活動與車行獎勵活動共用條件欄位 ----
+
+class CampaignVehicleModelSelectMultiple(forms.SelectMultiple):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if hasattr(value, "instance"):
+            model = value.instance
+            option["attrs"].update({"data-campaign-brand": (model.brand or "").casefold(),
+                                    "data-campaign-energy": model.energy_type})
+        return option
+
+
+class CampaignConditionsFormMixin:
+    """品牌（多選）、能源別（多選）、指定年式（多選）與期間；同一條件任一符合、不同條件同時符合，空白不限。"""
+
+    def _setup_conditions(self):
+        names = list(self.instance.brands or []) if self.instance.pk else []
+        choices = _brand_choices()[1:]
+        known = {value.casefold() for value, _label in choices}
+        choices.extend((name, name) for name in names if name.casefold() not in known)
+        self.fields["brands"].choices = choices
+        self.fields["brands"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "不限品牌；搜尋並複選", "data-campaign-brands": ""}
+        )
+        self.fields["energy_types"].choices = VehicleModel.EnergyType.choices
+        self.fields["energy_types"].widget.attrs["data-campaign-energy-types"] = ""
+        selected = list(self.instance.vehicle_models.values_list("pk", flat=True)) if self.instance.pk else []
+        self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(
+            Q(active=True) | Q(pk__in=selected)
+        ).order_by("brand", "name", "-model_year", "model_code")
+        self.fields["vehicle_models"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "不限年式；搜尋並複選",
+             "data-search-empty-message": "沒有符合條件的年式", "data-campaign-models": ""}
+        )
+        self.fields["effective_to"].help_text = "可留白，代表持續有效。"
+
+    def _finish_widgets(self):
+        for field in self.fields.values():
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect, forms.CheckboxSelectMultiple)):
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_conditions(self, data):
+        from .services.campaign_conditions import has_vehicle_condition, matching_models
+
+        brands = data.get("brands") or []
+        energy_types = data.get("energy_types") or []
+        model_ids = [model.pk for model in data.get("vehicle_models") or []]
+        if not has_vehicle_condition(brands, energy_types, model_ids):
+            raise ValidationError("請至少選擇一個品牌、能源別或指定年式，避免活動套用到全部車輛。")
+        matched = list(matching_models(brands, energy_types, model_ids).values_list("pk", flat=True))
+        if not matched:
+            raise ValidationError("品牌、能源別與指定年式沒有交集，沒有任何年式符合，請調整條件。")
+        self.matched_model_ids = set(matched)
+        return self.matched_model_ids
+
+
+class IncentiveCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):
+    brands = forms.MultipleChoiceField(label="品牌", required=False, widget=forms.SelectMultiple)
+    energy_types = forms.MultipleChoiceField(label="能源別", required=False, widget=forms.CheckboxSelectMultiple)
+    source_types = forms.MultipleChoiceField(
+        label="適用通路", required=False, choices=CAMPAIGN_SOURCE_TYPES, widget=forms.CheckboxSelectMultiple,
+        help_text="都不勾代表全部通路。",
+    )
+    promotion_source_types = forms.MultipleChoiceField(
+        label="促銷補助給哪些通路", required=False, choices=CAMPAIGN_SOURCE_TYPES,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="促銷補助金只帶給勾選的通路；都不勾代表全部通路。實銷獎勵金與分期補貼息不受影響。",
+    )
+
+    class Meta:
+        model = IncentiveCampaign
+        fields = [
+            "name", "kind", "sales_bonus", "promotion_subsidy", "installment_interest_subsidy",
+            "source_types", "promotion_source_types", "brands", "energy_types", "vehicle_models",
+            "announced_on", "effective_from", "effective_to", "note", "active",
+        ]
+        widgets = {
+            "kind": forms.RadioSelect,
+            "sales_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "promotion_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "installment_interest_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "vehicle_models": CampaignVehicleModelSelectMultiple(),
+            "announced_on": DateInput(),
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 2}),
+            "name": forms.TextInput(attrs={"placeholder": "例如：11 月特簽加碼"}),
+        }
+        help_texts = {
+            "kind": "常態：同一年式同一天只取開始日最新的一筆；加碼：累加在常態之上，須填結束日。",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_conditions()
+        if not self.instance.pk:
+            self.initial.setdefault("promotion_source_types", ["platform"])
+        self._finish_widgets()
+
+    def clean(self):
+        data = super().clean()
+        try:
+            matched = self.clean_conditions(data)
+        except ValidationError as exc:
+            self.add_error(None, exc)
+            return data
+        start = data.get("effective_from")
+        if data.get("kind") == IncentiveCampaign.Kind.REGULAR and data.get("active") and start:
+            # 常態同一天開始又涵蓋同一年式、同一通路時無法判斷該取哪一筆，直接擋下；開始日不同時由較新的取代。
+            from .services.campaign_conditions import vehicle_matches
+
+            others = IncentiveCampaign.objects.filter(
+                kind=IncentiveCampaign.Kind.REGULAR, active=True, effective_from=start,
+            ).exclude(pk=self.instance.pk).prefetch_related("vehicle_models")
+            models = list(VehicleModel.objects.filter(pk__in=matched))
+            sources = set(data.get("source_types") or [])
+            conflicts = [
+                other.name for other in others
+                if any(vehicle_matches(other, model) for model in models)
+                and (not other.source_types or not sources or set(other.source_types) & sources)
+            ]
+            if conflicts:
+                self.add_error(
+                    "effective_from",
+                    f"已有同一天開始、涵蓋相同年式的常態活動：{'、'.join(conflicts)}；請改開始日或調整條件。",
+                )
+        return data
+
+
+class DealerRewardCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):
+    brands = forms.MultipleChoiceField(label="品牌", required=False, widget=forms.SelectMultiple)
+    energy_types = forms.MultipleChoiceField(label="能源別", required=False, widget=forms.CheckboxSelectMultiple)
+
+    class Meta:
+        model = DealerRewardCampaign
+        fields = ["name", "dealers", "brands", "energy_types", "vehicle_models", "effective_from", "effective_to",
+                  "note", "active"]
+        widgets = {
+            "vehicle_models": CampaignVehicleModelSelectMultiple(),
+            "dealers": forms.SelectMultiple(),
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 2}),
+            "name": forms.TextInput(attrs={"placeholder": "例如：11 月 SUZUKI 油車送機油"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._setup_conditions()
+        selected = list(self.instance.dealers.values_list("pk", flat=True)) if self.instance.pk else []
+        self.fields["dealers"].queryset = SalesSource.objects.filter(
+            Q(active=True) | Q(pk__in=selected), source_type=SalesSource.SourceType.DEALER,
+        ).order_by("name")
+        self.fields["dealers"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "全部車行；搜尋並複選指定車行"}
+        )
+        self._finish_widgets()
+
+    def clean(self):
+        data = super().clean()
+        try:
+            self.clean_conditions(data)
+        except ValidationError as exc:
+            self.add_error(None, exc)
+        return data
+
+
+class DealerRewardCampaignItemForm(DealerVehicleRewardItemForm):
+    class Meta(DealerVehicleRewardItemForm.Meta):
+        model = DealerRewardCampaignItem
+        widgets = {
+            **DealerVehicleRewardItemForm.Meta.widgets,
+            "note": forms.TextInput(attrs={"placeholder": "選填說明"}),
+        }
+
+
+DealerRewardCampaignItemFormSet = inlineformset_factory(
+    DealerRewardCampaign,
+    DealerRewardCampaignItem,
+    form=DealerRewardCampaignItemForm,
     formset=BaseDealerVehicleRewardItemFormSet,
     extra=0,
     can_delete=True,
     min_num=1,
     validate_min=True,
 )
+
+
+class DealerRewardQuickCatalogForm(DealerRewardCatalogItemForm):
+    """車行獎勵活動表單內直接新增品項（T-149）：類型、名稱、單位，可選填單位成本。"""
+
+    unit_cost = forms.DecimalField(label="單位成本（選填）", required=False, min_value=0, decimal_places=0)
+
+    class Meta(DealerRewardCatalogItemForm.Meta):
+        fields = ["reward_type", "name", "unit"]
 
 
 class BasePaymentRecordFormSet(forms.BaseInlineFormSet):

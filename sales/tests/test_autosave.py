@@ -103,7 +103,8 @@ class DataMaintenanceDraftTests(TestCase):
         for skipped in ("'password'", "'file'", "'hidden'"):
             self.assertIn(skipped, script)
         self.assertIn("storage.removeItem(key)", script)
-        for name in ("vehicle_model_price_versions", "settlement_cost_rule_form", "incentive_rule_form"):
+        for name in ("vehicle_model_price_versions", "settlement_cost_rule_form", "incentive_campaign_form",
+                     "dealer_reward_campaign_form"):
             template = Path(f"templates/sales/{name}.html").read_text(encoding="utf-8")
             self.assertIn("套用", template)
         # UAT U-11：頁尾「放棄變更／取消」也會清掉本機草稿，提示框按鈕同名同效果。

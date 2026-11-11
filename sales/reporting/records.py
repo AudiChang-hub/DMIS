@@ -169,13 +169,14 @@ def record_context(config, filters, page_number=1):
     if config.get("records_mode") == "population":
         from .population_table import population_context
         return population_context(config, filters, page_number)
+    from .reader_layouts import display_header
     columns = visible_record_columns(config)
     page = Paginator(record_queryset(config, filters), config.get("records_page_size", 10)).get_page(page_number)
     from .views import filter_query
     sort = filters.get('records_sort', '')
     headers = []
     for key in columns:
-        headers.append({'label': RECORD_COLUMNS[key], 'query': filter_query({**filters, 'records_sort': key if sort == '-' + key else '-' + key}),
+        headers.append({'label': display_header(config, RECORD_COLUMNS[key]), 'query': filter_query({**filters, 'records_sort': key if sort == '-' + key else '-' + key}),
                         'sortable': key in RECORD_SORTS, 'direction': 'descending' if sort == '-' + key else 'ascending' if sort == key else 'none'})
-    return {"records_page": page, "records_headers": [RECORD_COLUMNS[key] for key in columns], "records_sort_headers": headers,
-            "records_rows": [{"pk": order.pk, "cells": record_cells(order, columns)} for order in page], "records_note": RECORD_NOTE}
+    return {"records_page": page, "records_headers": [display_header(config, RECORD_COLUMNS[key]) for key in columns], "records_sort_headers": headers,
+            "records_rows": [{"pk": order.pk, "cells": [{**cell, "label": display_header(config, cell["label"])} for cell in record_cells(order, columns)]} for order in page], "records_note": RECORD_NOTE}

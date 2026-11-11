@@ -78,22 +78,16 @@ class OptionalUploadTests(TestCase):
         request = self.client.get(reverse("order_detail", args=[self.order.pk])).wsgi_request
         return group_slots(document_slots(self.order, request, **rows))
 
-    def test_license_and_application_complete_registration_without_insurance(self):
-        self.assertEqual(self.order.required_registration_document_types(), {Doc.NEW_LICENSE, Doc.REGISTRATION_APPLICATION})
-        self.upload(Doc.NEW_LICENSE)
-        self.order.refresh_from_db()
-        self.assertFalse(self.order.is_registration_complete)
-        self.assertEqual(self.order.missing_registration_requirements(), ["新車領牌登記書"])
-        self.upload(Doc.REGISTRATION_APPLICATION)
-        self.order.refresh_from_db()
-        # 兩份傳齊只代表可以完成；按確認卡的「確認完成」才鎖定（T-130）。
-        self.assertFalse(self.order.is_registration_complete)
+    def test_registration_completes_without_any_documents(self):
+        # 2026-11-11 T-145 選 A：行照、登記書也改選填，領牌完成只看日期與車牌（取代 10-22 T-95）。
+        self.assertEqual(self.order.required_registration_document_types(), set())
         self.assertEqual(self.order.missing_registration_requirements(), [])
+        self.assertFalse(self.order.is_registration_complete, "齊全不等於完成；按確認卡的「確認完成」才鎖定（T-130）")
         self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
         self.assertEqual(self.order.status, SalesOrder.Status.DELIVERY_PENDING)
-        self.assertFalse(self.order.registration_documents.filter(document_type=Doc.COMPULSORY_INSURANCE).exists())
+        self.assertFalse(self.order.registration_documents.exists())
 
     def test_documents_can_be_added_and_replaced_after_registration(self):
         self.upload(Doc.NEW_LICENSE)
@@ -118,9 +112,9 @@ class OptionalUploadTests(TestCase):
         self.assertEqual(self.upload(Doc.NEW_LICENSE).status_code, 302)
         self.assertEqual(self.order.registration_documents.filter(document_type=Doc.NEW_LICENSE).count(), 1)
 
-    def test_page_marks_only_registration_documents_as_needed(self):
+    def test_page_marks_no_registration_documents_as_needed(self):
         html = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
-        self.assertEqual(html.count("領牌需要</span>"), 4)  # 領牌步驟與附件分頁各兩份
+        self.assertEqual(html.count("領牌需要</span>"), 0)  # 2026-11-11 T-145：領牌文件全部選填
         self.assertNotIn("必填</span>", html.split('id="order-files"')[1].split("</section>")[0])
 
     def test_signatures_are_optional_step(self):

@@ -2,6 +2,7 @@
 from django import template
 from django.core.exceptions import ObjectDoesNotExist
 
+from sales.models import RegistrationDocument
 from sales.services.settlement_cost import resolve_settlement_cost
 
 register = template.Library()
@@ -13,7 +14,8 @@ def _money(value):
 
 @register.simple_tag
 def registration_lock_rows(order):
-    """確認領牌完成前列出：領牌日、車牌、領牌規費試算、車輛結算成本、必備文件（領牌縣市已不使用，T-130）。"""
+    """確認領牌完成前列出：領牌日、車牌、領牌規費試算、車輛結算成本、已上傳的領牌文件（領牌縣市已不使用，T-130）。
+    文件全部選填（2026-11-11 T-145），只列份數供核對，不是完成條件。"""
     rows = [
         ("領牌日期", f"{order.registration_date:%Y/%m/%d}" if order.registration_date else "", not order.registration_date),
         ("車牌號碼", order.final_plate_number or "", not order.final_plate_number),
@@ -31,7 +33,8 @@ def registration_lock_rows(order):
     else:
         cost = _money(rule.amount) if rule else "找不到成本規則，無法完成"
     rows.append(("車輛結算成本", cost, False))
-    required = list(order.required_registration_document_types())
-    uploaded = set(order.registration_documents.values_list("document_type", flat=True))
-    rows.append(("必備文件", f"已上傳 {len(uploaded & set(required))}／{len(required)}", False))
+    uploaded = order.registration_documents.exclude(
+        document_type__in=RegistrationDocument.retired_document_types()
+    ).count()
+    rows.append(("領牌文件", f"已上傳 {uploaded} 份（選填）", False))
     return [{"label": label, "value": value, "missing": missing} for label, value, missing in rows]

@@ -90,20 +90,20 @@ class LockConfirmRegistrationTests(TestCase):
             {"document_type": document_type, "file": png()}, **headers,
         )
 
-    def test_last_required_upload_asks_before_locking(self):
+    def test_upload_never_locks_and_card_lists_saved_values(self):
         self.assertNotIn("confirm=", self.upload(Doc.NEW_LICENSE)["Location"])
         response = self.upload(Doc.REGISTRATION_APPLICATION)
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete, "文件傳齊不可自動完成領牌（7D8EEE）")
         self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="registration_completed").exists())
-        self.assertIn("confirm=registration", response["Location"])
+        # 文件選填、上傳不跳確認卡（T-145）。
+        self.assertNotIn("confirm=", response["Location"])
         page = self.client.get(response["Location"]).content.decode()
         # 確認卡列的是資料庫裡實際存下的值。
         for label, value in (("領牌日期", "2026/10/29"), ("車牌號碼", "ABC-1234"),
-                             ("車輛結算成本", "60,000 元"), ("必備文件", "已上傳 2／2")):
+                             ("車輛結算成本", "60,000 元"), ("領牌文件", "已上傳 2 份（選填）")):
             self.assertIn(f"<dt>{label}</dt><dd>{value}</dd>", page)
-        self.assertIn("data-lock-auto", page)
-        # 取消＝什麼都不做：重新整理後仍未完成、不再自動跳，按鈕還在。
+        # 不自動跳，按鈕還在。
         page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
         self.assertNotIn("data-lock-auto", page)
         self.assertIn('data-lock-confirm="確認領牌完成"', page)
@@ -111,11 +111,11 @@ class LockConfirmRegistrationTests(TestCase):
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
 
-    def test_async_upload_returns_confirm_url(self):
+    def test_async_upload_never_returns_confirm_url(self):
         self.upload(Doc.NEW_LICENSE)
         payload = self.upload(Doc.REGISTRATION_APPLICATION, HTTP_X_REQUESTED_WITH="XMLHttpRequest").json()
         self.assertTrue(payload["ok"])
-        self.assertIn("confirm=registration", payload["redirect_url"])
+        self.assertNotIn("confirm=", payload["redirect_url"])
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete)
 

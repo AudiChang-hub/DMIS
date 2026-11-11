@@ -154,6 +154,7 @@ def draft_preview(request, pk):
     config = report.draft
     form = FilterForm(request.GET, date_basis=config["date_basis"], config=config)
     items, records, error = [], {}, ""
+    active_filters, clear_filters_query = form.active_filters()
     if form.is_valid():
         try:
             validate_config(config)
@@ -166,7 +167,7 @@ def draft_preview(request, pk):
         "report": report, "config": config, "filter_form": form, "results": items,
         "scope_labels": scope_labels(config.get("fixed_filters", {})), "error": error,
         "query": filter_query(form.cleaned_data) if form.is_valid() else "", **records,
-        "is_preview": True, "standalone_preview": True,
+        "is_preview": True, "standalone_preview": True, "active_filters": active_filters, "clear_filters_query": clear_filters_query,
         "draft_reports": sorted(ReportDefinition.objects.all(), key=lambda row: (row.draft.get("page_order", 0), row.pk)),
     })
 
@@ -299,6 +300,7 @@ def display(request, pk):
                 focus_items.append({"title": report.published["cards"][item["card"]]["title"] + "：" + selection_label(report.published, item),
                     "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
+    active_filters, clear_filters_query = form.active_filters({"revision": publication_key(report)})
     remembered = {"user": str(request.user.pk), "report": report.pk}
     if not hasattr(request, "_designer_report") and request.session.get("report_reader_page") != remembered:
         request.session["report_reader_page"] = remembered
@@ -308,6 +310,7 @@ def display(request, pk):
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "publication_key": publication_key(report), "focus_items": focus_items,
+                  "active_filters": active_filters, "clear_filters_query": clear_filters_query,
                   "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),
                   "designer_frame": hasattr(request, "_designer_report"),
                   "report_base": "sales/reporting/designer_frame.html" if hasattr(request, "_designer_report") else "sales/reporting/layout.html",

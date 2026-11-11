@@ -19,7 +19,7 @@
 .report-sales-overview .report-month-target.report-brush-candidate { fill:color-mix(in srgb,var(--amber) 25%,transparent); stroke:var(--amber); }
 .report-reader-shell .report-sales-overview .report-overview-plot { min-width:640px; }
 .report-reader-shell .report-sales-overview .report-donut { max-width:600px; }
-.report-sales-overview .report-month-target.report-point-selected { fill:color-mix(in srgb,var(--amber) 12%,transparent); stroke:var(--amber); stroke-width:2; }
+.report-sales-overview .report-month-target.report-point-selected { fill:color-mix(in srgb,var(--amber) 14%,transparent); }
 .report-sales-overview .report-record-panel th a { display:block; white-space:nowrap; }
 @media(max-width:700px) { .report-sales-overview .report-card-toolbar { flex-wrap:wrap; gap:var(--space-2); } .report-overview-tools > summary { min-height:40px; } }
 @media print { .report-overview-tools { display:none!important; } }

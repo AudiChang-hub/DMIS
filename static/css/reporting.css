@@ -33,6 +33,14 @@
 .report-workspace :is(.report-panel,.report-savebar,.report-field input,.report-field select,.report-field textarea){border-color:var(--line)}
 .report-workspace :is(.report-card-toolbar,.report-history-row,.report-results th,.report-results td){border-color:var(--line-soft)}
 .report-workspace :is(.report-results thead,.report-formula){background:var(--surface-soft)}
+/* 可點文字一律加底線；點選後只反白、不畫外框。鍵盤焦點仍由上方 :focus-visible 外框顯示（T-141）。 */
+.report-workspace :is(.report-results,.report-score,.report-stack-data) a:not(.button),.report-workspace a.report-export{text-decoration-line:underline;text-decoration-thickness:1px;text-underline-offset:.3em;text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);transition:color var(--dur-2) var(--ease-out),text-decoration-color var(--dur-2) var(--ease-out)}
+.report-workspace :is(.report-results,.report-score,.report-stack-data) a:not(.button):hover,.report-workspace a.report-export:hover{color:var(--action-text);text-decoration-color:currentColor}
+.report-reader-shell .report-workspace .report-row-selected{outline:none}
+.report-workspace .report-row-selected,.report-workspace tr:has(>th>a.report-row-selected){background:color-mix(in srgb,var(--forest) 11%,var(--surface));box-shadow:none}
+.report-workspace :is(th,td)>a.report-row-selected{background:none}
+.report-workspace .report-stack-data a.report-row-selected{border-radius:var(--radius-xs);box-shadow:0 0 0 4px color-mix(in srgb,var(--forest) 11%,var(--surface))}
+.report-workspace :is(.report-row-selected a,a.report-row-selected){color:var(--action-text);font-weight:700;text-decoration-color:currentColor}
 .report-workspace :is(.report-tag,.report-bar-track){background:var(--surface-tint);color:var(--ink)}
 .report-workspace :is(.report-score>span,.report-savebar>span){color:var(--muted)}
 .report-bar-track>span{background:var(--forest)}
@@ -86,7 +94,7 @@
 .report-reader-shell .report-sales-overview .report-chart [hidden]{display:none!important}
 .report-reader-shell .report-sales-overview .report-chart-controls{flex-wrap:wrap;margin:var(--space-2) 0}
 .report-reader-shell .report-sales-overview .report-chart-controls .button{min-height:40px}
-.report-reader-shell .report-sales-overview .report-point-selected{filter:drop-shadow(0 0 3px var(--amber));outline:3px solid var(--amber);outline-offset:2px}
+.report-reader-shell .report-sales-overview .report-point-selected{filter:drop-shadow(0 0 3px var(--amber))}
 .report-reader-shell .report-sales-overview .report-donut .report-point-selected{outline:none;stroke-width:54px}
 @media(max-width:800px){.report-reader-shell .report-sales-overview [data-chart="donut"] [data-line-chart]{min-height:280px}.report-reader-shell .report-sales-overview .report-donut{min-width:250px;max-width:400px}}
 @media(min-width:800.02px) and (max-width:1100px){.report-reader-shell .report-sales-overview .report-grid{grid-template-columns:1fr}}

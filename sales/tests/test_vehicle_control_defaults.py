@@ -4,6 +4,7 @@ import importlib
 
 from django.apps import apps
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.forms import OrderOperationsForm
 from sales.models import OrderOperationsProfile, SalesOrder, VehicleModel
@@ -90,8 +91,11 @@ class VehicleControlAccountBackfillTests(lifecycle.OrderLifecycleTests.__bases__
         no_email = self.profile("")
         no_at = self.profile("abc.123.com")
         gas = self.profile("gas@123.com", electric=False)
+        deleted = self.profile("gone@123.com")
+        SalesOrder.all_objects.filter(pk=deleted.order_id).update(deleted_at=timezone.now())
 
         self.assertEqual(backfill.backfill_accounts(apps), 2)
+        self.assertEqual(self.account(deleted), "")
         self.assertEqual(self.account(blank), "abc")
         self.assertEqual(self.account(multi_at), "first")
         self.assertEqual(self.account(kept), "saved-account")

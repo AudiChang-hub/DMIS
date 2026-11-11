@@ -3,7 +3,6 @@
 取代 T-130／T-145 的鎖定確認卡（「不用鎖定的跳卡了，這樣會徒增困擾」）。
 - 填好日期與車牌存檔即完成領牌，帶入規費、成本、獎勵、傭金，訂單轉待交車；文件選填。
 - 任何人、任何狀態（含已交車、已完成）都能改；改日期依新日期重算，人工值保留；只改車牌不重算。
-- 已結算台數獎金：領牌日跨出統計期間時比照刪單扣除，留調整紀錄。
 - 每次修改都寫 OrderChange（改前、改後）。
 """
 from datetime import date
@@ -17,9 +16,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.models import (
-    DealerVolumeBonusAdjustment,
-    DealerVolumeBonusAllocation,
-    DealerVolumeBonusSettlement,
     OrderChange,
     OrderOperationsProfile,
     SalesOrder,
@@ -30,9 +26,8 @@ from sales.models import (
     VehicleModel,
     VehicleSettlementCostRule,
 )
-from sales.services.dealer_commission import create_volume_bonus_settlement, dealer_volume_bonus_total
+from sales.services.dealer_commission import create_volume_bonus_settlement
 from sales.services.order_steps import order_step_url
-from sales.services.registration_edit import apply_registration_edit
 from sales.tests import test_volume_bonus_conditions as bonus_fixtures
 
 STATIC = Path(settings.BASE_DIR) / "static"
@@ -186,7 +181,8 @@ class RegistrationEditTests(TestCase):
         self.assertNotIn("data-lock-auto", script)
 
 
-class RegistrationDateBonusTests(TestCase):
+class SettledVolumeBonusUnchangedTests(TestCase):
+    """已結算台數獎金的訂單維持原本的阻擋，不新增跨期處理（使用者 2026-11-11：台數獎金流程另由 T-148 重新設計）。"""
     order = bonus_fixtures.VolumeBonusConditionsTests.order
     rule = bonus_fixtures.VolumeBonusConditionsTests.rule
 
@@ -194,36 +190,19 @@ class RegistrationDateBonusTests(TestCase):
     def setUpTestData(cls):
         bonus_fixtures.VolumeBonusConditionsTests.setUpTestData.__func__(cls)
 
-    def change_date(self, order, new_date):
-        before_date = order.registration_date
-        order.registration_date = new_date
-        order._registration_edit = True  # 與領牌步驟表單相同（RegistrationStageForm）
-        order.save(update_fields=["registration_date", "updated_at"])
-        apply_registration_edit(order, actor_name="test", before_date=before_date, before_plate=order.final_plate_number)
+    def test_settled_order_date_change_still_blocked(self):
+        from sales.forms import RegistrationStageForm
 
-    def test_leaving_settled_period_deducts_like_deletion(self):
-        rule = self.rule(500, minimum=1)
-        moving, staying = self.order(), self.order()
-        settlement = create_volume_bonus_settlement(rule, "test", dealer=self.a)
-        self.assertEqual(settlement.actual_amount, 1000)
-        self.change_date(moving, date(2026, 10, 2))
-
-        settlement = DealerVolumeBonusSettlement.objects.get(pk=settlement.pk)
-        self.assertEqual(settlement.actual_amount, 500, "只扣除移出的這張單")
-        self.assertEqual(settlement.qualified_quantity, 1)
-        self.assertEqual(dealer_volume_bonus_total(moving), 0)
-        self.assertEqual(dealer_volume_bonus_total(staying), 500, "其他訂單分配不變")
-        self.assertTrue(DealerVolumeBonusAllocation.all_objects.filter(order=moving, voided_at__isnull=False).exists())
-        adjustment = DealerVolumeBonusAdjustment.objects.get(settlement=settlement)
-        self.assertEqual((adjustment.previous_amount, adjustment.revised_amount), (1000, 500))
-        self.assertTrue(OrderChange.objects.filter(order=moving, changes__has_key="實際領牌日期").exists())
-        self.assertEqual(OrderOperationsProfile.objects.get(order=moving).dealer_commission_expense, 2000,
-                         "傭金支出扣掉台數獎金")
-
-    def test_same_period_date_change_keeps_allocation(self):
-        rule = self.rule(500, minimum=1)
-        order = self.order()
-        create_volume_bonus_settlement(rule, "test", dealer=self.a)
-        self.change_date(order, date(2026, 9, 20))
-        self.assertEqual(dealer_volume_bonus_total(order), 500)
-        self.assertFalse(DealerVolumeBonusAdjustment.objects.exists())
+        order = self.order(final_plate_number="ABC-1234")
+        create_volume_bonus_settlement(self.rule(500, minimum=1), "test", dealer=self.a)
+        form = RegistrationStageForm({"registration_date": "2026-10-02", "final_plate_number": "ABC-1234"}, instance=order)
+        self.assertFalse(form.is_valid())
+        self.assertIn("已結算台數獎金", " ".join(form.non_field_errors()))
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).registration_date, date(2026, 9, 3))
+        self.client.force_login(get_user_model().objects.create_superuser("admin", "", "test-pass-123"))
+        response = self.client.post(reverse("registration_save", args=[order.pk]),
+                                    {"registration_date": "2026-10-02", "final_plate_number": "ABC-1234"},
+                                    HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 400, "擋下並顯示原因，不是 500")
+        self.assertIn("已結算台數獎金", " ".join(response.json()["errors"]["__all__"]))
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).registration_date, date(2026, 9, 3))

@@ -4546,8 +4546,7 @@ class RegistrationStageForm(forms.ModelForm):
         self.fields["registration_date"].required = True
         self.fields["final_plate_number"].required = True
         # 領牌完成後任何人仍可修改日期與車牌（使用者 2026-11-11 T-147，取代完成即鎖定）。
-        # 已結算台數獎金的連動改由 services/registration_edit 處理，訂單驗證不再因領牌日變動而擋下。
-        self.instance._registration_edit = True
+        # 已結算台數獎金的訂單維持訂單驗證原本的阻擋（台數獎金流程另由 T-148 重新設計）。
         self.fields["final_plate_number"].widget.attrs.update(
             {
                 "class": "form-control",
@@ -4564,6 +4563,16 @@ class RegistrationStageForm(forms.ModelForm):
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()
+
+    def _update_errors(self, errors):
+        # 訂單驗證掛在本表單沒有的欄位（例如已結算台數獎金擋下改領牌日的 commission_recipient）時改成一般錯誤，
+        # 照樣擋下並顯示原因，而不是丟出 ValueError（T-147 開放修改後才會遇到）。
+        if hasattr(errors, "error_dict"):
+            remapped = {}
+            for field, messages in errors.error_dict.items():
+                remapped.setdefault(field if field in self.fields else NON_FIELD_ERRORS, []).extend(messages)
+            errors = ValidationError(remapped)
+        super()._update_errors(errors)
 
     def clean(self):
         cleaned = super().clean()

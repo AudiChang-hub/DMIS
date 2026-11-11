@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.forms import formset_factory
 
@@ -187,6 +189,66 @@ class FilterForm(forms.Form):
 
     def advanced_count(self):
         return sum(bool(field.value()) for field in self.advanced_fields())
+
+    def active_filters(self, extra=None):
+        """目前套用的讀者篩選（T-142）：每項附移除網址，其餘條件與圖表連動保留。
+
+        網址即狀態；移除後仍走同一報表網址，重新整理或分享都一致。只列讀者可調整的欄位，
+        報表固定範圍與圖表點選（focus）各有自己的顯示與移除方式。
+        """
+        if not self.is_valid():
+            return [], ""
+        from urllib.parse import urlencode
+        data = self.cleaned_data
+        extra_query = urlencode(extra) if extra else ""
+
+        def query(*names):
+            kept = urlencode({key: value for key, value in data.items()
+                              if key not in names and value and not key.startswith("_")}, doseq=True)
+            return "&".join(part for part in (kept, extra_query) if part)
+
+        def label(name):
+            return re.sub(r"（[^（）]*）$", "", str(self.fields[name].label or name))
+
+        def summary(values):
+            values = [str(value) for value in values]
+            return "、".join(values) if len(values) <= 3 else "、".join(values[:3]) + f" 等 {len(values)} 項"
+
+        items, removable = [], []
+        for field in [*self.common_fields(), *self.advanced_fields()]:
+            name = field.name
+            if name in ("start", "end"):
+                if "start" in removable:
+                    continue
+                start, end = data.get("start"), data.get("end")
+                if not (start or end):
+                    removable.append("start")
+                    continue
+                text = (f"{start:%Y/%m/%d}～{end:%Y/%m/%d}" if start and end
+                        else f"{start:%Y/%m/%d} 起" if start else f"至 {end:%Y/%m/%d}")
+                items.append({"label": "期間", "value": text, "title": text, "remove_query": query("start", "end")})
+                removable += ["start", "end"]
+                continue
+            value = data.get(name)
+            empty_flag = f"empty_{name}"
+            if empty_flag in self.fields and data.get(empty_flag):
+                text = "未選取（不顯示資料）"
+                items.append({"label": label(name), "value": text, "title": text, "remove_query": query(name, empty_flag)})
+                removable += [name, empty_flag]
+                continue
+            if not value:
+                continue
+            choices = dict((str(key), text) for key, text in getattr(self.fields[name], "choices", []))
+            if name == "months":
+                values = [str(item).replace("-", "/") for item in value]
+            elif isinstance(value, (list, tuple)):
+                values = [choices.get(str(item), str(item)) for item in value]
+            else:
+                values = [choices.get(str(value), str(value))]
+            items.append({"label": label(name), "value": summary(values), "title": "、".join(values),
+                          "remove_query": query(name, empty_flag)})
+            removable += [name, empty_flag]
+        return items, query(*removable)
 
     focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
     empty_months = forms.BooleanField(required=False, widget=forms.HiddenInput)

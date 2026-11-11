@@ -1,0 +1,7 @@
+{# 目前套用的篩選（T-142）：每項可單獨移除；網址即狀態，原地更新時整段由 report-interactions.js 換新。 #}
+<div class="report-active-filters" data-report-active-filters>
+  <span class="report-active-filters__label" id="report-active-filters-label">目前篩選</span>
+  {% if active_filters %}<ul class="report-active-filters__list" aria-labelledby="report-active-filters-label">{% for item in active_filters %}<li><a class="report-filter-chip" href="?{{ item.remove_query }}" data-report-clear-filter title="移除篩選　{{ item.label }}：{{ item.title }}" aria-label="移除篩選 {{ item.label }}：{{ item.title }}"><span class="report-filter-chip__text"><span class="report-filter-chip__key">{{ item.label }}</span><span class="report-filter-chip__value">{{ item.value }}</span></span><span class="report-filter-chip__remove" aria-hidden="true"><svg viewBox="0 0 12 12" width="12" height="12" focusable="false"><path d="M3 3l6 6M9 3l-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></a></li>{% endfor %}</ul>
+  {% if active_filters|length > 1 %}<a class="button ghost small report-active-filters__clear" href="?{{ clear_filters_query }}" data-report-clear-filter>全部清除</a>{% endif %}
+  {% else %}<span class="report-active-filters__empty">未加條件，顯示報表全部範圍</span>{% endif %}
+</div>

@@ -116,7 +116,7 @@ function reportDebounce(run, delay = 300, timers = globalThis) {
   let timer;
   return {
     cancel() { timers.clearTimeout(timer); },
-    schedule(value) { timers.clearTimeout(timer); timer = timers.setTimeout(() => run(value), delay); }
+    schedule(value, wait = delay) { timers.clearTimeout(timer); timer = timers.setTimeout(() => run(value), wait); }
   };
 }
 function reportUpdateError(error) {
@@ -124,7 +124,46 @@ function reportUpdateError(error) {
   if (error.name === 'TypeError') return '暫時無法連線，保留上次成功畫面；請確認網路後重試。';
   return error.message || '無法完成更新，請稍後重試。';
 }
+// 篩選選了就自動套用（T-142）：回傳這次變更等多久再查詢，null 表示不觸發。
+// 複選與下拉 300ms 防抖；日期等打完再查（鍵盤逐位輸入年份時 0002、0020 也是合法日期，不能拿去查）。
+function reportFilterDelay(field) {
+  const data = field?.dataset || {};
+  if (!field || 'multiSearch' in data) return null;
+  if ('reportMulti' in data) return 300;
+  if (!field.name || ['hidden', 'search'].includes(field.type)) return null;
+  if (field.type === 'date') return !field.value || Number(String(field.value).slice(0, 4)) >= 1900 ? 700 : null;
+  return 300;
+}
+function reportDateRangeError(start, end) {
+  return start && end && start > end ? '開始日期不可晚於結束日期，調整後會自動套用。' : '';
+}
+// 沒有原地更新的頁面（草稿核對）改為整頁送出；複選選單開著時等收合再送，避免勾到一半被重新載入。
+function reportAutoSubmitFilters(form) {
+  if (!form) return;
+  const queue = reportDebounce(() => {
+    const target = new URL(form.getAttribute('action') || location.pathname, location.href);
+    target.search = new URLSearchParams([...new FormData(form)].filter(([, value]) => value !== '')).toString();
+    location.assign(target);
+  });
+  let pendingMulti = null;
+  form.addEventListener('change', event => {
+    const wait = reportFilterDelay(event.target);
+    const end = form.elements.namedItem('end');
+    if (wait === null) return;
+    const error = reportDateRangeError(form.elements.namedItem('start')?.value, end?.value);
+    end?.setCustomValidity?.(error);
+    if (error) { end.reportValidity?.(); queue.cancel(); return; }
+    const multi = event.target.closest?.('[data-report-multi]');
+    if (multi?.open) { pendingMulti = multi; return; }
+    queue.schedule(null, wait);
+  });
+  form.addEventListener('toggle', event => {
+    if (event.target !== pendingMulti || pendingMulti.open) return;
+    pendingMulti = null; queue.schedule(null, 0);
+  }, true);
+}
 if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportMonthSummary, initReportTablePagination};
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError});
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -447,7 +486,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
     document.querySelectorAll("[data-report-multi]").forEach(control => { if (!control.contains(event.target)) control.open = false; });
   });
   const panel = document.querySelector("[data-inline-detail]");
-  if (!panel) return;
+  if (!panel) { reportAutoSubmitFilters(document.querySelector('.report-filter')); return; }
   let controller, sequence = 0, currentUrl = null;
   const body = panel.querySelector("[data-detail-body]");
   const status = panel.querySelector("[data-detail-status]");
@@ -463,12 +502,12 @@ if (typeof document !== "undefined") initReportVisuals(document);
   }
   const updateStatus = reader.querySelector("[data-report-update-status]");
   const retry = reader.querySelector("[data-report-retry]");
-  function queueOverviewUpdate(url, message) {
+  function queueOverviewUpdate(url, message, wait) {
     ++updateSequence; updateController?.abort(); selectionQueue.cancel();
     desiredUrl = new URL(url, (window.reportPreviewLocation || location.href)); paintSelection();
     reader.setAttribute('aria-busy', 'true'); retry.hidden = true;
     updateStatus.textContent = message;
-    selectionQueue.schedule(desiredUrl.href);
+    selectionQueue.schedule(desiredUrl.href, wait);
   }
   const selectedItems = () => { try { return JSON.parse(desiredUrl.searchParams.get("focus") || "[]"); } catch { return []; } };
   function paintSelection() {
@@ -509,7 +548,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
         card: focused.closest('[data-chart-index]').dataset.chartIndex, group: focused.dataset.selectionGroup
       } : null;
       grid.replaceWith(document.importNode(nextGrid, true));
-      for (const selector of [".report-context", "[data-report-selection-tags]"]) {
+      for (const selector of [".report-context", "[data-report-selection-tags]", "[data-report-active-filters]"]) {
         reader.querySelector(selector).replaceWith(document.importNode(next.querySelector(selector), true));
       }
       const oldRecords = reader.querySelector(".report-record-panel"), newRecords = next.querySelector(".report-record-panel");
@@ -569,13 +608,21 @@ if (typeof document !== "undefined") initReportVisuals(document);
   });
   retry.addEventListener("click", () => updateReport(failedUrl));
   window.addEventListener("popstate", () => updateReport((window.reportPreviewLocation || location.href), false));
-  if (overview) reader.querySelector('.report-filter').addEventListener('change', event => {
-    if (syncingFilters || !event.target.closest('[data-report-multi]')) return;
-    const target = new URL(new URL(window.reportPreviewLocation || location.href).pathname, (window.reportPreviewLocation || location.href));
-    target.search = new URLSearchParams(new FormData(event.currentTarget)).toString();
-    target.searchParams.set('focus', desiredUrl.searchParams.get('focus') || '');
+  // 所有報表的篩選都選了就自動套用（T-142）：條件寫回網址，圖表點選（focus）保留。
+  const filterForm = reader.querySelector('.report-filter');
+  filterForm?.addEventListener('change', event => {
+    const wait = reportFilterDelay(event.target);
+    if (syncingFilters || wait === null) return;
+    const rangeError = reportDateRangeError(filterForm.elements.namedItem('start')?.value, filterForm.elements.namedItem('end')?.value);
+    if (rangeError) { selectionQueue.cancel(); reader.removeAttribute('aria-busy'); updateStatus.textContent = rangeError; return; }
+    const base = window.reportPreviewLocation || location.href;
+    const target = new URL(new URL(base).pathname, base);
+    // 空值等同不限，不寫進網址，分享出去的網址只留真正套用的條件。
+    target.search = new URLSearchParams([...new FormData(filterForm)].filter(([, value]) => value !== '')).toString();
+    const focus = desiredUrl.searchParams.get('focus');
+    if (focus) target.searchParams.set('focus', focus); else target.searchParams.delete('focus');
     target.searchParams.delete('records_page');
-    queueOverviewUpdate(target, '篩選已選取，可繼續選擇；圖表即將同步…');
+    queueOverviewUpdate(target, event.target.closest('[data-report-multi]') ? '篩選已選取，可繼續選擇；圖表即將同步…' : '篩選已變更，圖表即將同步…', wait);
   });
   document.addEventListener("click", event => {
     const clear = event.target.closest("[data-report-clear-filter],.report-filter-actions a,.report-record-panel .report-pagination a,[data-report-record-sort]");

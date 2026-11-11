@@ -456,7 +456,7 @@ class ReportingTests(TestCase):
         self.assertContains(response, "未發布草稿標題")
         self.assertEqual(response.context["results"][0]["count"], 1)
         self.assertContains(response, "公司或其他")
-        self.assertContains(response, f'href="{url}">清除我的篩選')
+        self.assertContains(response, "未加條件，顯示報表全部範圍")
         self.assertNotContains(response, "匯出全部符合明細 CSV")
         self.assertEqual(self.client.get(url, {"source": [str(self.b.pk)]}).context["results"][0]["count"], 0)
         report.refresh_from_db()

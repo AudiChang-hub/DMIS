@@ -185,3 +185,31 @@ test('空值、負值及零總數不產生 NaN 幾何', () => {
   for (const [value,total] of [[0,0],['x',10],[10,'x'],[-1,10],[10,Infinity]]) assert.equal(reportFraction(value,total),0);
   assert.equal(reportFraction(200,100),100);
 });
+const {reportFilterDelay, reportDateRangeError} = require('../../static/js/report-interactions.js');
+test('T-142 篩選自動套用：複選與下拉防抖、日期打完才查、搜尋框與隱藏欄不觸發', () => {
+  assert.equal(reportFilterDelay({name:'brand', type:'checkbox', dataset:{}}), 300);
+  assert.equal(reportFilterDelay({name:'grain', type:'select-one', dataset:{}}), 300);
+  assert.equal(reportFilterDelay({dataset:{reportMulti:''}}), 300); // 全選、清除限制、只選此項
+  assert.equal(reportFilterDelay({type:'search', dataset:{multiSearch:''}}), null);
+  assert.equal(reportFilterDelay({name:'focus', type:'hidden', dataset:{}}), null);
+  assert.equal(reportFilterDelay({name:'', type:'text', dataset:{}}), null);
+  assert.equal(reportFilterDelay(null), null);
+  for (const partial of ['0002-10-01', '0020-10-01', '0202-10-01']) assert.equal(reportFilterDelay({name:'start', type:'date', value:partial, dataset:{}}), null);
+  assert.equal(reportFilterDelay({name:'start', type:'date', value:'2026-10-01', dataset:{}}), 700);
+  assert.equal(reportFilterDelay({name:'end', type:'date', value:'', dataset:{}}), 700); // 清空日期也要套用
+});
+test('T-142 起訖顛倒不送查詢，只提示', () => {
+  assert.match(reportDateRangeError('2026-10-31', '2026-10-01'), /開始日期不可晚於結束日期/);
+  assert.equal(reportDateRangeError('2026-10-01', '2026-10-31'), '');
+  assert.equal(reportDateRangeError('', '2026-10-31'), '');
+  assert.equal(reportDateRangeError('2026-10-01', ''), '');
+});
+test('T-142 連續操作只排最後一次，且可指定較長等待', () => {
+  const timers = {queue:[], setTimeout(fn, wait) { this.queue.push({fn, wait}); return this.queue.length; }, clearTimeout(id) { if (id) this.queue[id - 1].fn = null; }};
+  const runs = [];
+  const queue = reportDebounce(value => runs.push(value), 300, timers);
+  queue.schedule('a'); queue.schedule('b'); queue.schedule('c', 700);
+  assert.deepEqual(timers.queue.map(item => item.wait), [300, 300, 700]);
+  timers.queue.forEach(item => item.fn?.());
+  assert.deepEqual(runs, ['c']);
+});

@@ -76,4 +76,6 @@ def change_order_commission_recipient(
         order=order, event_type="commission_attribution_updated", actor_name=actor_name,
         description=f"調整台數與傭金歸屬：{before} → {after}",
     )
+    from sales.services.volume_bonus import schedule_order_refresh
+    schedule_order_refresh(order.pk)  # 白名單更新不觸發 post_save；台數獎金改算給新車行（T-148）。
     return True

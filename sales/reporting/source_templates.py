@@ -107,7 +107,7 @@ def dealer_counts(gasoline=False):
     config.update(title=vehicle + "－台數統計", page_order=90 if gasoline else 50,
                   reader_layout='count_overview',
                   records_page_size=25,
-                  description="依原頁車行台數彙總與逐筆獎勵明細建立。獎勵改讀 DMIS 已保存台數獎金分配，不套用舊報表公式；傭金與獎金分欄，不修改財務。原來源分類及表格分頁仍待完整驗收。")
+                  description="依原頁車行台數彙總與逐筆獎勵明細建立。獎勵改讀 DMIS 依規則自動計算的台數獎金（期間未結束為預估），不套用舊報表公式；傭金與獎金分欄，不修改財務。原來源分類及表格分頁仍待完整驗收。")
     config["cards"] = [{"title": vehicle + "車行台數與獎金", "chart": "table", "dimension": "legacy_dealer",
                         "metric": "count", "formula": "", "limit": 200, "sort": "value",
                         "additional_metrics": ["dealer_bonus", "dealer_commission"]}]

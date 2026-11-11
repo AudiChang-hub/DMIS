@@ -59,7 +59,8 @@ def summary_result(config, card, filters):
     note = ""
     if financial:
         note = ("金額讀取 DMIS 保存紀錄，不重算原報表獎金公式。車行傭金支出可能已含台數獎金，"
-                "兩欄不可再相加；人工總額不推測基礎傭金拆分。已分配台數獎金不含未結算試算，零值不代表沒有應付獎金；以上均不代表已付款。")
+                "兩欄不可再相加；人工總額不推測基礎傭金拆分。台數獎金依規則自動計算，統計期間未結束的是預估，"
+                "期間結束後才加進傭金支出；以上均不代表已付款。")
         if totals["count"] != totals["financial_count"]:
             note += " 範圍內有訂單缺少收支資料，受影響群組與總額暫不顯示。"
     return {"card": card, "rows": values, "total": total["display"], "raw_total": total["value"],

@@ -39,7 +39,7 @@ SCREENS = (
     Screen("costs", "車輛結算成本", "settlement_cost_rule_list"),
     Screen("incentives", "原廠獎勵與補助", "incentive_rule_list"),
     Screen("commissions", "車行傭金與銷售獎勵", "dealer_sales_program_list"),
-    Screen("bonuses", "車行台數獎金與結算", "dealer_volume_bonus_list"),
+    Screen("bonuses", "車行台數獎金", "dealer_volume_bonus_list"),
     Screen("installments", "分期公司", "installment_company_list"),
     Screen("subsidy_programs", "補助方案", "subsidy_program_list"),
     Screen("fees", "領牌與強制險規則", "brand_registration_fee_rule_list"),
@@ -127,8 +127,8 @@ register("costs", "settlement_cost_rule_list vehicle_model_settlement_costs")
 register("costs", "settlement_cost_rule_create settlement_cost_rule_edit settlement_cost_rule_delete", "operate")
 register("incentives", "incentive_rule_list vehicle_model_incentives")
 register("incentives", "incentive_rule_create incentive_rule_edit incentive_rule_delete", "operate")
-register("bonuses", "dealer_volume_bonus_list")
-register("bonuses", "dealer_volume_bonus_create dealer_volume_bonus_edit dealer_volume_bonus_delete dealer_volume_bonus_settle dealer_volume_bonus_revise", "operate")
+register("bonuses", "dealer_volume_bonus_list dealer_volume_bonus_detail")
+register("bonuses", "dealer_volume_bonus_create dealer_volume_bonus_edit dealer_volume_bonus_delete", "operate")
 register("installments", "installment_company_list installment_company_quick_create")
 register("subsidy_programs", "subsidy_program_list")
 register("fees", "brand_registration_fee_rule_list brand_registration_fee_rule_delete")

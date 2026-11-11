@@ -1328,6 +1328,9 @@ class DealerVolumeBonusRule(TimeStampedModel):
         result = super().save(*args, **kwargs)
         if not self.periods.exists():
             DealerVolumeBonusPeriod.objects.create(rule=self, starts_on=self.starts_on, ends_on=self.ends_on)
+        if self.dealer_id and not self.dealer_links.exists():
+            # 過渡期相容：只寫舊單選欄位（含藍綠切換時的上一版）時，補成適用車行清單。
+            DealerVolumeBonusRuleDealer.objects.create(rule=self, dealer_id=self.dealer_id)
         return result
 
     def __str__(self):
@@ -1347,6 +1350,22 @@ class DealerVolumeBonusRule(TimeStampedModel):
         # 保留舊程式建立單一品牌規則的相容性；多品牌使用獨立名稱快照。
         names = [item.brand for item in self.brands.all()] if self.pk else []
         return names or ([self.brand] if self.brand else [])
+
+    @property
+    def dealer_list(self):
+        """適用車行（T-148 可複選）；空清單＝全部車行。舊 dealer 欄位只在過渡期同步，不再讀取。"""
+        if not self.pk:
+            return []
+        return [link.dealer for link in self.dealer_links.all()]
+
+    @property
+    def dealers_label(self):
+        dealers = self.dealer_list
+        if not dealers:
+            return "全部車行，逐家計算"
+        names = [dealer.name for dealer in dealers]
+        label = "、".join(names[:3])
+        return f"{label} 等 {len(names)} 家，逐家計算" if len(names) > 3 else f"{label}，逐家計算" if len(names) > 1 else label
 
     @property
     def period_label(self):
@@ -1427,6 +1446,43 @@ class DealerVolumeBonusBrand(models.Model):
                 raise ValidationError("已結算規則不可修改品牌，請另建新規則。")
             self.full_clean()
             return super().save(*args, **kwargs)
+
+
+class DealerVolumeBonusRuleDealer(models.Model):
+    """台數獎金規則的適用車行（T-148，2026-11-11 使用者選 Y：每家各自計算台數與門檻）。"""
+    rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="dealer_links")
+    dealer = models.ForeignKey(
+        SalesSource, on_delete=models.PROTECT, related_name="volume_bonus_rule_links",
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER}, verbose_name="適用車行",
+    )
+
+    class Meta:
+        ordering = ["dealer__name", "id"]
+        constraints = [models.UniqueConstraint(fields=["rule", "dealer"], name="unique_bonus_rule_dealer")]
+        verbose_name = "台數獎金適用車行"
+        verbose_name_plural = "台數獎金適用車行"
+
+
+class OrderVolumeBonus(TimeStampedModel):
+    """依規則自動計算的逐單台數獎金（T-148 方案 B）。
+
+    期間內為預估（posted_at 空白，不進傭金支出）；期間結束後自動入帳，之後異動仍自動重算。
+    """
+    order = models.ForeignKey("SalesOrder", on_delete=models.CASCADE, related_name="volume_bonuses", verbose_name="訂單")
+    rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="order_bonuses", verbose_name="台數獎金規則")
+    period = models.ForeignKey(DealerVolumeBonusPeriod, on_delete=models.CASCADE, related_name="order_bonuses", verbose_name="統計期間")
+    dealer = models.ForeignKey(SalesSource, on_delete=models.PROTECT, related_name="order_volume_bonuses", verbose_name="收款車行")
+    quantity = models.PositiveIntegerField("本期符合台數")
+    minimum_quantity = models.PositiveSmallIntegerField("達到門檻")
+    amount = models.DecimalField("台數獎金", max_digits=12, decimal_places=0)
+    posted_at = models.DateTimeField("入帳時間", null=True, blank=True)
+
+    class Meta:
+        ordering = ["period__starts_on", "rule_id", "order_id"]
+        constraints = [models.UniqueConstraint(fields=["rule", "period", "order"], name="unique_order_volume_bonus")]
+        indexes = [models.Index(fields=["rule", "period", "dealer"], name="order_bonus_scope_idx")]
+        verbose_name = "訂單台數獎金"
+        verbose_name_plural = "訂單台數獎金"
 
 
 class DealerVolumeBonusTier(TimeStampedModel):

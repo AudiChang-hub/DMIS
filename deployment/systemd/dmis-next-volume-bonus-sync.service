@@ -1,0 +1,12 @@
+[Unit]
+Description=DMIS Next daily dealer volume bonus sync (post ended periods)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/flock -n /tmp/dmis-next-volume-bonus-sync.lock /usr/bin/docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml exec -T web python manage.py sync_volume_bonus
+TimeoutStartSec=300
+Nice=10
+IOSchedulingClass=idle

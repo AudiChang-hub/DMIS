@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
+{% block title %}台數試算明細｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% include "sales/_page_back.html" with fallback_url=return_url label="返回台數試算" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">自動計算，不用結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.dealers_label }} · {{ rule.conditions_label }}</p><p>{{ period }}</p></div></section>
+<div class="responsive-split bonus-settlement-layout">
+  <section class="form-section static-section">
+    <div class="section-title"><h2>收款車行：{{ group.dealer }}</h2></div>
+    <dl class="money-list">
+      <div><dt>本期符合台數</dt><dd>{{ group.quantity }} 台</dd></div>
+      <div><dt>達到門檻</dt><dd>{% if group.tier %}{{ group.tier.minimum_quantity }} 台起{% else %}尚未達門檻{% endif %}</dd></div>
+      {% if group.next_tier %}<div><dt>下一級</dt><dd>再 {{ group.shortfall }} 台達 {{ group.next_tier.minimum_quantity }} 台（每台 &#36;{{ group.next_tier.bonus_per_vehicle|floatformat:0 }}）</dd></div>{% endif %}
+      <div><dt>每台獎金</dt><dd>&#36;{{ group.bonus_per_vehicle|floatformat:0 }}</dd></div>
+      <div class="total"><dt>{% if group.posted %}本期獎金（已入帳）{% else %}本期獎金（預估）{% endif %}</dt><dd>&#36;{{ group.total|floatformat:0 }}</dd></div>
+    </dl>
+    <div class="note-box">{% if not rule.active %}此規則已停用，不計算獎金。{% elif group.posted %}期間已結束，獎金已自動加進各單的傭金支出；之後改領牌日、刪單、退車或改規則，會自動重算並記在訂單紀錄。{% else %}統計期間尚未結束，金額會隨領牌台數變動；期間結束後自動加進各單的傭金支出。{% endif %}台數獎金另外付給車行，不扣訂單應收。</div>
+  </section>
+  <section class="inventory-list-panel"><div class="inventory-list-summary"><strong>逐單明細 · 全部歸 {{ group.dealer }}</strong></div>
+    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>領牌日／訂單</th><th>原銷售車行／車型</th><th>本規則獎金</th><th>傭金支出</th></tr></thead><tbody>
+    {% for order in group.orders %}<tr>
+      <td data-label="領牌日／訂單">{{ order.registration_date|date:'Y/m/d' }}<span><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></span></td>
+      <td data-label="原銷售車行／車型">{{ order.source|default:'本店' }}<span>{{ order.vehicle_model }}</span></td>
+      <td data-label="本規則獎金">{% if order.volume_bonus_row %}&#36;{{ order.volume_bonus_row.amount|floatformat:0 }}<span>{% if order.volume_bonus_row.posted_at %}已入帳 {{ order.volume_bonus_row.posted_at|date:'Y/m/d' }}{% else %}預估{% endif %}</span>{% elif group.tier %}&#36;{{ group.bonus_per_vehicle|floatformat:0 }}<span>計算中</span>{% else %}&#36;0{% endif %}</td>
+      <td data-label="傭金支出">{% if order.volume_bonus_note %}{{ order.volume_bonus_note }}{% else %}自動加入{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="4">沒有符合條件的訂單。</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+</div>
+{% endblock %}

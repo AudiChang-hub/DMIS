@@ -241,6 +241,9 @@ def change_deletion(*, user, order_id, restore, reason, expected_updated_at, edi
         deletion_effects={} if restore else effects,
         deletion_requested_at=None, deletion_requested_by=None, deletion_request_reason="",
     )
+    # 白名單更新不會觸發 post_save：刪除／還原後重算台數獎金（T-148，同群組其他單一起更新）。
+    from sales.services.volume_bonus import schedule_order_refresh
+    schedule_order_refresh(order.pk)
     # 白名單更新不會觸發 post_save，網路硬碟的資料夾在這裡主動排入同步（移到／移出「_已刪除訂單」）。
     from sales.services.order_archive import schedule_order_archive
     schedule_order_archive(order.pk)

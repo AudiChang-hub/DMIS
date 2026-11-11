@@ -513,7 +513,7 @@
   },
   "dealer_volume_bonus_form.7d955c9a25fe": {
     "page": "台數獎金規則",
-    "default": "選「全部車行」仍逐家計算台數，不會把不同車行的台數加在一起。",
+    "default": "未選或選多家都逐家計算台數，不會把不同車行的台數加在一起。",
     "template": "templates/sales/dealer_volume_bonus_form.html"
   },
   "dealer_volume_bonus_form.8ac1e7426cf1": {
@@ -535,16 +535,6 @@
     "page": "車行台數獎金",
     "default": "尚無銷售的規則仍會保留，可到「規則管理」查看或編輯。",
     "template": "templates/sales/dealer_volume_bonus_list.html"
-  },
-  "dealer_volume_bonus_settle.6e1d7bce32e6": {
-    "page": "台數獎金試算與結算",
-    "default": "各期獨立計算，不合併台數。",
-    "template": "templates/sales/dealer_volume_bonus_settle.html"
-  },
-  "dealer_volume_bonus_settle.63010827821f": {
-    "page": "台數獎金試算與結算",
-    "default": "各車行分開計算門檻與結算。",
-    "template": "templates/sales/dealer_volume_bonus_settle.html"
   },
   "gift_distribution.47981000af75": {
     "page": "年節送禮分發",

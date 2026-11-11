@@ -1,4 +1,4 @@
-from django.db.models.signals import m2m_changed, pre_delete, post_delete, post_save
+from django.db.models.signals import m2m_changed, pre_delete, post_delete, post_save, pre_save
 from django.dispatch import receiver
 from django.db import transaction
 from .models import OrderAttachment, OrderIntakeAttachment
@@ -85,6 +85,47 @@ def protect_settled_bonus_period(sender, instance, **kwargs):
         DealerVolumeBonusRule.objects.select_for_update().get(pk=instance.rule_id)
         if instance.settlements.exists():
             raise ValidationError("已結算期間不可取消。")
+
+
+# 台數獎金自動計算（T-148）：影響台數群組的欄位一變，就重算原本與現在所屬的群組。
+VOLUME_BONUS_ORDER_FIELDS = ("source_type", "source_id", "commission_recipient_id", "vehicle_model_id",
+                             "registration_date", "registration_completed_at", "status", "deleted_at")
+
+
+@receiver(pre_save, sender=SalesOrder)
+def remember_volume_bonus_fields(sender, instance, raw=False, **kwargs):
+    if raw or not instance.pk:
+        instance._volume_bonus_before = None
+        return
+    instance._volume_bonus_before = SalesOrder.all_objects.filter(pk=instance.pk).values(*VOLUME_BONUS_ORDER_FIELDS).first()
+
+
+@receiver(post_save, sender=SalesOrder)
+def refresh_volume_bonus_after_order_save(sender, instance, created, raw=False, **kwargs):
+    if raw:
+        return
+    before = getattr(instance, "_volume_bonus_before", None)
+    if created or before is None or any(before[name] != getattr(instance, name) for name in VOLUME_BONUS_ORDER_FIELDS):
+        if created and not instance.registration_completed_at:
+            return
+        from .services.volume_bonus import schedule_order_refresh
+        schedule_order_refresh(instance.pk)
+
+
+@receiver(post_save, sender=DealerVolumeBonusRule)
+def refresh_volume_bonus_after_rule_save(sender, instance, raw=False, **kwargs):
+    if not raw:
+        from .services.volume_bonus import schedule_rule_refresh
+        schedule_rule_refresh(instance.pk)
+
+
+@receiver(pre_delete, sender=DealerVolumeBonusPeriod)
+def refresh_commission_before_bonus_period_delete(sender, instance, **kwargs):
+    # 期間（或整條規則）刪除會連帶刪掉獎金列；提交後把已入帳的獎金從傭金支出拿掉。
+    from .models import OrderVolumeBonus
+    from .services.volume_bonus import schedule_commission_refresh
+    schedule_commission_refresh(set(OrderVolumeBonus.objects.filter(
+        period=instance, posted_at__isnull=False).values_list("order_id", flat=True)))
 
 
 @receiver(post_save, sender=SalesOrder)

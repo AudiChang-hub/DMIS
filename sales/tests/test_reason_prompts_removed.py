@@ -11,7 +11,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from sales.forms import (
-    AllocationForm, CancellationRequestForm, DealerVolumeBonusAdjustmentForm, DealerVolumeBonusSettlementForm,
+    AllocationForm, CancellationRequestForm,
     DiscountRequestForm, ExceptionCloseForm, OrderCommissionAttributionForm, OrderEditForm, OverpaymentRefundForm,
     PaymentRecordForm, PaymentReversalForm, ReallocationForm, ReconciliationRecordForm, RefundCompletionForm,
     SubsidyDataForm, VehicleInventoryForm,
@@ -68,8 +68,6 @@ class AdjustmentReasonFieldsRemovedTests(SimpleTestCase):
             (ReconciliationRecordForm, "expected_amount_override_reason"),
             (AllocationForm, "skip_reason"),
             (OrderCommissionAttributionForm, "reason"),
-            (DealerVolumeBonusSettlementForm, "adjustment_reason"),
-            (DealerVolumeBonusAdjustmentForm, "reason"),
             (OrderEditForm, "change_reason"),
             (SubsidyDataForm, "change_reason"),
             (VehicleInventoryForm, "change_reason"),

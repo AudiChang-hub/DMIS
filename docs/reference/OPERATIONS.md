@@ -166,6 +166,17 @@ systemctl list-timers dmis-next-price-list-distribution.timer --all
 python manage.py generate_price_list_distribution --month 2026-09
 ```
 
+### 每日台數獎金同步
+
+`dmis-next-volume-bonus-sync.timer` 每日清晨依規則重算全部車行台數獎金：統計期間已結束的自動入帳到傭金支出，
+也補上漏掉的即時重算。可重複執行，不會重複入帳（2.0.0 起，T-148）。
+
+```bash
+sudo bash scripts/install_django_volume_bonus_timer.sh
+systemctl list-timers dmis-next-volume-bonus-sync.timer --all
+python manage.py sync_volume_bonus
+```
+
 ### 每週原廠官網檢查
 
 `dmis-next-official-catalog-check.timer` 每週一清晨檢查 SYM、SUZUKI 官網，只寫入比對紀錄；有新車款、變動或讀取失敗時通知 admin。

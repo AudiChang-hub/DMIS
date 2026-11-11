@@ -309,14 +309,9 @@ urlpatterns = [
         name="dealer_volume_bonus_delete",
     ),
     path(
-        "data/dealer-volume-bonuses/<int:pk>/settle/",
-        views.dealer_volume_bonus_settle,
-        name="dealer_volume_bonus_settle",
-    ),
-    path(
-        "data/dealer-volume-bonuses/settlements/<int:pk>/revise/",
-        views.dealer_volume_bonus_revise,
-        name="dealer_volume_bonus_revise",
+        "data/dealer-volume-bonuses/<int:pk>/detail/",
+        views.dealer_volume_bonus_detail,
+        name="dealer_volume_bonus_detail",
     ),
     path(
         "data/customers/<int:pk>/",

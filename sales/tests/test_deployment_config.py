@@ -128,7 +128,7 @@ class BlueGreenDeploymentTests(SimpleTestCase):
         self.assertIn('command: ["sleep", "infinity"]', web)
         self.assertIn("ports: !reset []", web)
         self.assertIn("disable: true", web)
-        for unit in ("calendar-sync", "official-catalog-check", "price-list-distribution"):
+        for unit in ("calendar-sync", "official-catalog-check", "price-list-distribution", "volume-bonus-sync"):
             service = self.read("deployment", "systemd", f"dmis-next-{unit}.service")
             self.assertIn("exec -T web python manage.py", service)
 

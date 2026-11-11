@@ -177,7 +177,7 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertEqual(self.client.get(self.tab_url("結算成本")).status_code, 403)
         rules = self.client.get(self.tab_url("適用規則"))
         self.assertContains(rules, "需要「領牌與強制險規則」權限")
-        self.assertContains(rules, "需要「車行台數獎金與結算」權限")
+        self.assertContains(rules, "需要「車行台數獎金」權限")
 
     def test_inactive_model_disables_catalog_tab(self):
         self.model.active = False

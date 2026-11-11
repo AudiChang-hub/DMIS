@@ -42,21 +42,20 @@
 .report-reader-main[data-reader-layout="analysis_overview"] .report-chart > .report-scope-summary { font-size:var(--text-base); padding:var(--space-2); margin-bottom:var(--space-2); }
 .report-reader-shell .report-sales-overview .report-analysis-plot { width:100%; min-width:640px; height:auto; flex-shrink:0; display:block; margin:auto 0; }
 .report-reader-shell .report-solid-pie .report-point-selected { stroke-width:150px; }
-.report-reader-main[data-reader-layout="count_overview"] { display:grid; grid-template-columns:minmax(320px, .85fr) minmax(0,1.4fr); gap:var(--stack-gap-sm); align-items:start; }
-.report-reader-main[data-reader-layout="count_overview"] > * { grid-column:1/-1; }
-.report-reader-main[data-reader-layout="count_overview"] > .report-exploration { grid-column:1; }
-.report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { grid-column:2; margin:0; }
+/* T-143：台數表在上、來源訂單明細在下，兩者全寬，避免並排擠壓截斷欄位。 */
+.report-reader-main[data-reader-layout="count_overview"] { display:block; }
+.report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { margin:var(--stack-gap-sm) 0 0; }
 .report-reader-main[data-reader-layout="count_overview"] .report-grid { grid-template-columns:1fr; }
 .report-reader-main[data-reader-layout="count_overview"] .report-record-panel .report-card-toolbar { flex-wrap:wrap; }
-.report-reader-main[data-reader-layout="count_overview"] .report-summary-table { min-width:530px; }
-.report-reader-main[data-reader-layout="count_overview"] .report-detail-table { min-width:900px; }
+.report-reader-main[data-reader-layout="count_overview"] .report-summary-table thead th:not(:first-child) { text-align:right; }
+.report-reader-main[data-reader-layout="count_overview"] .report-record-panel .report-results { min-width:0; }
+.report-reader-main[data-reader-layout="count_overview"] .report-record-panel :is(th, th a) { white-space:normal; }
+.report-reader-main[data-reader-layout="count_overview"] .report-record-panel td { min-width:0; }
+@media(min-width:800.02px) { .report-reader-main[data-reader-layout="count_overview"] .report-record-panel .report-results :is(th,td) { padding-inline:var(--space-2); } }
+@media(max-width:800px) { .report-reader-main[data-reader-layout="count_overview"] .report-summary-table th { min-width:0; } }
 .report-table-sort { border:0; background:none; color:inherit; padding:var(--space-2) 0; font:inherit; font-weight:700; cursor:pointer; }
 .report-record-note > summary { cursor:pointer; min-height:40px; padding:var(--space-2) 0; }
 .report-reader-main[data-reader-layout="analysis_overview"] .report-filter > .report-filter-grid { grid-template-columns:minmax(240px,500px); }
-@media(max-width:1300px) {
- .report-reader-main[data-reader-layout="count_overview"] { display:block; }
- .report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { margin-top:var(--stack-gap-sm); }
-}
 @media(max-width:1100px) {
  .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) { grid-template-columns:1fr; }
  .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-page-nav { position:static; max-height:none; }

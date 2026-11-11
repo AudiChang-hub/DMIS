@@ -3,6 +3,7 @@ import json
 
 from django.db.models import Count, F, Sum
 from .financial_query import with_saved_bonus
+from .reader_layouts import display_header
 
 
 def summary_result(config, card, filters):
@@ -65,6 +66,8 @@ def summary_result(config, card, filters):
             "count": totals["count"], "truncated": truncated, "summary_table": True,
             "table_dimension_labels": [DIMENSIONS[key] for key in dimensions],
             "table_metric_labels": [METRICS[key] for key in metrics],
+            "table_header_labels": [display_header(config, label) for label in
+                                    [*(DIMENSIONS[key] for key in dimensions), *(METRICS[key] for key in metrics)]],
             "table_total_cells": [cell(totals, metric) for metric in metrics],
             "table_colspan": len(dimensions) + len(metrics),
             "dimension_label": "／".join(DIMENSIONS[key] for key in dimensions),

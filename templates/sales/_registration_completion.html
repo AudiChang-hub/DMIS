@@ -1,26 +1,22 @@
-{% load site_copy lock_confirm_tags %}<div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}" id="registration-completion" data-inplace-region data-registration-completion>
+{% load site_copy %}<div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}" id="registration-completion" data-inplace-region data-registration-completion>
   <div>
     {% if order.is_registration_complete %}
       <strong>領牌已完成</strong>
-      <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}</p>
+      <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}；領牌日期與車牌仍可修改，改日期會依新日期重算系統帶入的金額。</p>
     {% elif registration_missing %}
       <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
-      <p>{{ registration_missing|join:"、" }}</p>
+      <p>{{ registration_missing|join:"、" }}；填好領牌日期與車牌就自動完成領牌。</p>
     {% else %}
       <strong>領牌日期與車牌已填齊</strong>
       <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
     {% endif %}
   </div>
-  {% if not order.is_registration_complete %}
-  {# 確認後原地送出、重新載入回到同一步驟與位置（T-145，同交車表單）。 #}
+  {# 領牌日與車牌填好存檔即自動完成（使用者 2026-11-11 T-147，不再跳鎖定確認卡）。 #}
+  {# 只有當時找不到成本規則而沒完成時顯示按鈕：補建規則後按下完成；原地送出、重新載入回到同一步驟與位置。 #}
+  {% if not order.is_registration_complete and not registration_missing %}
   <form method="post" action="{% url 'registration_complete' order.pk %}" data-inplace-form data-inplace-success="reload">
     {% csrf_token %}
-    {# 鎖定前確認卡（T-130 第 3 層）：列出資料庫裡實際存下的值；領牌日與車牌剛填齊時（data-lock-auto）自動跳出一次（T-145）。 #}
-    {% if not registration_missing %}{% registration_lock_rows order as lock_rows %}
-    <dl data-lock-values hidden>{% for row in lock_rows %}<div{% if row.missing %} data-missing{% endif %}><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>{% endfor %}</dl>{% endif %}
-    <button class="button primary" type="submit" {% if registration_missing %}disabled{% endif %}
-      data-lock-confirm="確認領牌完成" data-lock-confirm-label="確認完成並鎖定"
-      data-lock-lead="系統會用下面這些值完成領牌，並鎖定成本、獎勵與傭金；完成後領牌日期與車牌不能直接修改；文件之後仍可補傳或替換。"{% if registration_lock_auto and not registration_missing %} data-lock-auto{% endif %}>確認領牌完成</button>
+    <button class="button primary" type="submit">完成領牌</button>
   </form>
   {% endif %}
 </div>

@@ -4542,12 +4542,12 @@ class RegistrationStageForm(forms.ModelForm):
         self._previous_calculated_balance = self.instance.calculated_balance
         self._previous_actual_balance = self.instance.actual_balance
         self.previous_registration_date = self.instance.registration_date
+        self.previous_plate_number = self.instance.final_plate_number
         self.fields["registration_date"].required = True
         self.fields["final_plate_number"].required = True
-        if self.instance.pk and self.instance.is_registration_complete:
-            # 完成領牌後日期與車牌鎖定；欄位直接停用，訂單頁自動儲存不會再送出。
-            for field in self.fields.values():
-                field.disabled = True
+        # 領牌完成後任何人仍可修改日期與車牌（使用者 2026-11-11 T-147，取代完成即鎖定）。
+        # 已結算台數獎金的連動改由 services/registration_edit 處理，訂單驗證不再因領牌日變動而擋下。
+        self.instance._registration_edit = True
         self.fields["final_plate_number"].widget.attrs.update(
             {
                 "class": "form-control",

@@ -90,23 +90,18 @@ class LockConfirmRegistrationTests(TestCase):
             {"document_type": document_type, "file": png()}, **headers,
         )
 
-    def test_upload_never_locks_and_card_lists_saved_values(self):
+    def test_upload_never_completes_registration(self):
         self.assertNotIn("confirm=", self.upload(Doc.NEW_LICENSE)["Location"])
         response = self.upload(Doc.REGISTRATION_APPLICATION)
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete, "文件傳齊不可自動完成領牌（7D8EEE）")
         self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="registration_completed").exists())
-        # 文件選填、上傳不跳確認卡（T-145）。
+        # 文件選填、上傳不跳卡（T-145）；領牌確認卡已拿掉（T-147），只剩補完成用的按鈕。
         self.assertNotIn("confirm=", response["Location"])
-        page = self.client.get(response["Location"]).content.decode()
-        # 確認卡列的是資料庫裡實際存下的值。
-        for label, value in (("領牌日期", "2026/10/29"), ("車牌號碼", "ABC-1234"),
-                             ("車輛結算成本", "60,000 元"), ("領牌文件", "已上傳 2 份（選填）")):
-            self.assertIn(f"<dt>{label}</dt><dd>{value}</dd>", page)
-        # 不自動跳，按鈕還在。
         page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
         self.assertNotIn("data-lock-auto", page)
-        self.assertIn('data-lock-confirm="確認領牌完成"', page)
+        self.assertNotIn('data-lock-confirm="確認領牌完成"', page)
+        self.assertIn(">完成領牌</button>", page)
         self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
@@ -119,7 +114,7 @@ class LockConfirmRegistrationTests(TestCase):
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete)
 
-    def test_autosave_that_completes_data_offers_card_once(self):
+    def test_autosave_that_completes_data_finishes_registration(self):
         self.order.final_plate_number = ""
         self.order.save(update_fields=["final_plate_number", "updated_at"])
         self.upload(Doc.NEW_LICENSE)
@@ -127,12 +122,13 @@ class LockConfirmRegistrationTests(TestCase):
         url = reverse("registration_save", args=[self.order.pk])
         data = {"registration_date": "2026-10-29", "final_plate_number": "abc-1234"}
         first = self.client.post(url, data, HTTP_X_ORDER_WORKSPACE="1").json()
-        self.assertIn("data-lock-auto", first["registration_html"])
+        self.assertTrue(first["reload"])
         self.order.refresh_from_db()
-        self.assertFalse(self.order.is_registration_complete, "自動儲存不完成領牌")
+        self.assertTrue(self.order.is_registration_complete, "日期與車牌填好就自動完成（T-147）")
         again = self.client.post(url, {**data, "final_plate_number": "abc-1235"}, HTTP_X_ORDER_WORKSPACE="1").json()
-        self.assertNotIn("data-lock-auto", again["registration_html"], "已經齊全時改資料不再自動跳")
-        self.assertIn("<dd>ABC-1235</dd>", again["registration_html"])
+        self.assertFalse(again["reload"])
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.final_plate_number, "ABC-1235", "完成後仍可修改")
 
     def test_missing_cost_rule_warning_follows_registration_date_not_county(self):
         # 使用者 2026-11-07 選 A：填了領牌日就檢查成本規則；以前要有縣市才出現，新單沒有縣市所以從不出現。
@@ -232,7 +228,7 @@ class FrontendContractTests(TestCase):
         script = (STATIC / "js" / "lock-confirm.js").read_text(encoding="utf-8")
         self.assertIn("event.stopImmediatePropagation();", script)
         self.assertIn("}, true);", script, "捕捉階段攔截，早於 form-feedback 與原地送出")
-        self.assertIn("button[data-lock-auto]", script)
+        self.assertNotIn("data-lock-auto", script, "領牌確認卡已拿掉（T-147）")
 
 
 class WizardDepositAndCountyTests(TestCase):
@@ -261,5 +257,5 @@ class WizardDepositAndCountyTests(TestCase):
         self.assertNotIn("registration_county", source)
         overview = (Path(settings.BASE_DIR) / "sales" / "services" / "order_overview.py").read_text(encoding="utf-8")
         self.assertNotIn("領牌縣市", overview)
-        tags = (Path(settings.BASE_DIR) / "sales" / "templatetags" / "lock_confirm_tags.py").read_text(encoding="utf-8")
-        self.assertNotIn("get_registration_county_display", tags)
+        completion = (Path(settings.BASE_DIR) / "templates" / "sales" / "_registration_completion.html").read_text(encoding="utf-8")
+        self.assertNotIn("county", completion)

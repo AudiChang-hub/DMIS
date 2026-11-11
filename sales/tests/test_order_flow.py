@@ -3907,9 +3907,8 @@ class OrderFlowTests(TestCase):
         form = RegistrationStageForm(instance=order)
         self.assertEqual(form["registration_date"].value(), date(2026, 7, 29))
 
-    def test_registration_save_asks_confirmation_when_documents_already_uploaded(self):
-        # 先傳文件、後填資料：資料齊全時不再直接完成領牌（T-130 第 3 層，2026-11-07），
-        # 導回領牌步驟並自動跳出確認卡，列出實際存下的領牌日與車牌；按「確認完成」才鎖定。
+    def test_registration_save_completes_when_documents_already_uploaded(self):
+        # 先傳文件、後填資料：日期與車牌填好就自動完成領牌（使用者 2026-11-11 T-147，取代 T-130 確認卡）。
         order = self.make_order()
         order.allocate(self.vehicle)
         self.client.force_login(self.user)
@@ -3922,28 +3921,17 @@ class OrderFlowTests(TestCase):
                 "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"early-{index}.pdf"),
             })
         order.refresh_from_db()
-        self.assertFalse(order.is_registration_complete)
-        page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
-        self.assertIn("確認領牌完成", page)
+        self.assertFalse(order.is_registration_complete, "上傳文件不會完成領牌")
         response = self.client.post(reverse("registration_save", args=[order.pk]), {
             "registration_date": "2026-07-29", "final_plate_number": "abc-1234",
         })
-        self.assertIn("confirm=registration", response["Location"])
-        order.refresh_from_db()
-        self.assertFalse(order.is_registration_complete, "資料齊全只跳確認卡，不自動鎖定")
-        self.assertFalse(OrderEvent.objects.filter(order=order, event_type="registration_completed").exists())
-        page = self.client.get(response["Location"]).content.decode()
-        self.assertIn('data-lock-confirm="確認領牌完成"', page)
-        self.assertIn("data-lock-auto", page)
-        self.assertIn("<dt>領牌日期</dt><dd>2026/07/29</dd>", page)
-        self.assertIn("<dt>車牌號碼</dt><dd>ABC-1234</dd>", page)
-        self.assertNotIn("data-lock-auto", self.client.get(order_step_url(order.pk, "registration")).content.decode(),
-                         "只有剛齊全那一次自動跳出")
-        self.client.post(reverse("registration_complete", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
         self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
         self.assertTrue(OrderEvent.objects.filter(order=order, event_type="registration_completed").exists())
+        page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
+        self.assertNotIn("data-lock-confirm=\"確認領牌完成\"", page)
 
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
@@ -3964,12 +3952,12 @@ class OrderFlowTests(TestCase):
                 "final_plate_number": "abc-1234",
             },
         )
-        # 領牌日與車牌填齊就跳確認卡（T-145）；不自動完成（T-130）。
-        self.assertIn("confirm=registration", response["Location"])
+        # 領牌日與車牌填好就自動完成（T-147）。
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
-        self.assertFalse(order.is_registration_complete)
+        self.assertTrue(order.is_registration_complete)
 
-        # 文件全部選填，上傳不再帶 confirm=registration（T-145），一律回到領牌步驟。
+        # 文件全部選填，上傳一律回到領牌步驟，不影響已完成的領牌。
         required_types = [
             RegistrationDocument.DocumentType.INVOICE,
             RegistrationDocument.DocumentType.NEW_LICENSE,
@@ -3986,13 +3974,6 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(response, order_step_url(order.pk, "registration"))
-        order.refresh_from_db()
-        self.assertFalse(order.is_registration_complete)
-
-        response = self.client.post(
-            reverse("registration_complete", args=[order.pk])
-        )
-        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
         self.assertEqual(order.registration_date, date(2026, 7, 29))

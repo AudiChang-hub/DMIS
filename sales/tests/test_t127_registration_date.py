@@ -75,10 +75,8 @@ class RegistrationDateKeptTests(TestCase):
                                                RegistrationDocument.DocumentType.REGISTRATION_APPLICATION)):
             self.client.post(reverse("registration_document_upload", args=[order.pk]), {
                 "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"doc-{index}.pdf")})
-        # 文件傳齊不再自動完成，要按確認卡的「確認完成」（T-130）；完成時仍保留選的日期與依日期算的規費。
+        # 日期與車牌填好就自動完成（T-147）；文件上傳不影響，完成時保留選的日期與依日期算的規費。
         order.refresh_from_db()
-        self.assertFalse(order.is_registration_complete)
-        self.client.post(reverse("registration_complete", args=[order.pk]))
         order.refresh_from_db()
         profile = OrderOperationsProfile.objects.get(order=order)
         self.assertTrue(order.is_registration_complete)
@@ -100,7 +98,7 @@ class RegistrationDateKeptTests(TestCase):
 
 
 class ManualTaxOverrideTests(TestCase):
-    """使用者 2026-11-07 選 A：改領牌日時，人工改過的領牌稅金也依新日期重算覆蓋並留處理紀錄；領牌日沒改時人工金額保留。"""
+    """改領牌日時人工改過的領牌稅金保留不動（使用者 2026-11-11 T-147，取代 11-07 選 A 的「覆蓋人工金額」）。"""
     setUp = autosave.OrderAutosaveTests.setUp
     make_order = autosave.OrderAutosaveTests.make_order
     workspace_post = autosave.OrderAutosaveTests.workspace_post
@@ -117,16 +115,16 @@ class ManualTaxOverrideTests(TestCase):
             registration_tax_expense=amount, registration_tax_income=amount,
             manual_financial_fields=["registration_tax_expense", "registration_tax_income", "vehicle_cost"])
 
-    def test_changed_date_overrides_manual_tax(self):
+    def test_changed_date_keeps_manual_tax(self):
         from sales.models import OrderChange
         order = self.gas_order()
         self.save(order, "2026-11-07")
         self.manual(order, 999)
         profile = self.save(order, "2026-10-29")
-        self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (727, 727))
-        self.assertEqual(profile.manual_financial_fields, ["vehicle_cost"])
-        change = OrderChange.objects.filter(order=order, reason__startswith="領牌日變更").get()
-        self.assertEqual(change.changes["registration_tax_expense"], {"before": "999", "after": "727"})
+        self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (999, 999))
+        self.assertIn("registration_tax_expense", profile.manual_financial_fields)
+        self.assertFalse(OrderChange.objects.filter(order=order, reason__startswith="領牌日變更").exists())
+        self.assertTrue(OrderChange.objects.filter(order=order, changes__has_key="實際領牌日期").exists())
 
     def test_same_date_keeps_manual_tax(self):
         order = self.gas_order()

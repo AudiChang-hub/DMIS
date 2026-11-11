@@ -1,11 +1,11 @@
-<form class="report-panel report-filter" method="get" aria-label="報表篩選">
+<form class="report-panel report-filter" method="get" aria-label="報表篩選"{% if tree_filter %} id="report-filter-form"{% endif %}>
   {{ filter_form.non_field_errors }}<input type="hidden" name="revision" value="{{ publication_key }}">
-  {% for field in filter_form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+  {% for field in filter_form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}{% if tree_filter %}<input type="hidden" data-report-tree-proxy>{% endif %}
   <div class="report-filter-heading"><h2>篩選報表</h2><span>選了就自動套用；其他條件可展開調整</span></div>
   {% include 'sales/reporting/active_filters.html' %}
   <div class="report-filter-grid">{% for field in filter_form.common_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div>
   <details class="report-advanced-filter" {% if filter_form.advanced_count %}open{% endif %}>
-    <summary>進階篩選{% if filter_form.advanced_count %} · 已使用 {{ filter_form.advanced_count }} 項{% else %} · 品牌、能源及其他條件{% endif %}</summary>
+    <summary>進階篩選{% if filter_form.advanced_count %} · 已使用 {{ filter_form.advanced_count }} 項{% elif tree_filter %} · 來源及其他條件{% else %} · 品牌、能源及其他條件{% endif %}</summary>
     <div class="report-filter-grid">{% for field in filter_form.advanced_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div>
   </details>
   <noscript><div class="report-filter-actions"><button class="button primary">套用篩選</button></div></noscript>

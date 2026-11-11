@@ -129,7 +129,7 @@ function reportUpdateError(error) {
 function reportFilterDelay(field) {
   const data = field?.dataset || {};
   if (!field || 'multiSearch' in data) return null;
-  if ('reportMulti' in data) return 300;
+  if ('reportMulti' in data || 'reportTreeProxy' in data) return 300;
   if (!field.name || ['hidden', 'search'].includes(field.type)) return null;
   if (field.type === 'date') return !field.value || Number(String(field.value).slice(0, 4)) >= 1900 ? 700 : null;
   return 300;
@@ -567,6 +567,8 @@ if (typeof document !== "undefined") initReportVisuals(document);
       try { currentForm.querySelectorAll('[data-report-multi]').forEach(control => { control.syncFromServer?.(); control.dispatchEvent(new Event('change', {bubbles:true})); }); }
       finally { syncingFilters = false; }
       currentForm.querySelector('.report-advanced-filter summary').textContent = nextForm.querySelector('.report-advanced-filter summary').textContent;
+      // 篩選欄位已依伺服器結果同步；報表外的元件（大數據分析樹狀篩選，T-151）依此更新勾選與台數。
+      document.dispatchEvent(new CustomEvent('report-filters-synced', {detail: {doc}}));
       ++sequence; controller?.abort(); panel.hidden = true; body.replaceChildren();
       reader.querySelector("[data-report-exploration]").classList.remove("has-detail");
       const newGrid = reader.querySelector(".report-grid");

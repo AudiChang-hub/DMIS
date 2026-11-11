@@ -1,0 +1,17 @@
+{% load static %}{# 大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車型。勾選即自動套用，條件寫進網址的 model／empty_model。 #}
+<aside class="report-tree-filter" data-report-tree aria-labelledby="report-tree-title">
+  <div class="report-tree-filter__head">
+    <div class="report-tree-filter__heading"><h2 id="report-tree-title">車型篩選</h2><p class="report-tree-filter__status" data-report-tree-status aria-live="polite">{% if tree_filter.state == 'checked' %}全部 {{ tree_filter.leaves|length }} 個車型{% elif tree_filter.state == 'mixed' %}已選部分車型{% else %}未選取（不顯示資料）{% endif %}</p></div>
+    <button type="button" class="button ghost small report-tree-filter__drawer" aria-expanded="true" aria-controls="report-tree-body" data-report-tree-drawer hidden><span data-report-tree-drawer-text>收合</span><span class="ui-chevron" aria-hidden="true"></span></button>
+  </div>
+  <div class="report-tree-filter__body" id="report-tree-body">
+    <p class="report-tree-filter__hint" id="report-tree-hint">依品牌 → 能源別 → 車型勾選，選了就自動套用。<span class="report-tree-filter__keys">鍵盤：方向鍵移動與展開，空白鍵勾選。</span></p>
+    <div class="report-tree-filter__tools"><button type="button" class="button secondary small" data-report-tree-expand="all">全部展開</button><button type="button" class="button secondary small" data-report-tree-expand="brands">收合到品牌</button></div>
+    {% if tree_filter.leaves %}
+    <ul class="report-tree" role="tree" aria-labelledby="report-tree-title" aria-describedby="report-tree-hint" aria-multiselectable="true">
+      {% include 'sales/reporting/tree_node.html' with node=tree_filter %}
+    </ul>
+    {% else %}<p class="report-tree-filter__empty">報表範圍內目前沒有車型資料。</p>{% endif %}
+  </div>
+  <script src="{% static 'js/report-tree-filter.js' %}?v={{ app_version }}" defer></script>
+</aside>

@@ -2,7 +2,7 @@
 {% block title %}{{ reader_title }} · 報表中心{% endblock %}
 {% block page_class %}page-shell--wide report-reader-shell{% if reader_overview %} report-overview-shell{% endif %}{% endblock %}
 {% block report_content %}
-<div class="report-reader-layout">
+<div class="report-reader-layout{% if tree_filter %} has-tree-filter{% endif %}">
 {% if not designer_frame %}<aside class="report-page-nav"><details open data-reader-pages><summary>報表頁面 <span class="report-current-page">{{ reader_title }}</span></summary><nav aria-label="報表頁面">{% for section in navigation %}<h2>{{ section.label }}</h2>{% for item in section.pages %}{% if_access 'report_display' item.pk %}<a href="{% url 'report_display' item.pk %}" {% if item.pk == report.pk %}aria-current="page"{% endif %}>{{ item.reader_title }}</a>{% endif_access %}{% endfor %}{% endfor %}</nav></details></aside>{% endif %}
 <div class="report-reader-main{% if reader_overview %} report-sales-overview{% endif %}{% if config.reader_layout == 'electric_overview' %} report-electric-overview{% endif %}" data-reader-layout="{{ config.reader_layout|default:'standard' }}" data-report-energy="{{ config.fixed_filters.legacy_energy.0 }}"{% if can_edit_report %} data-report-editor-url="{% url 'report_edit' report.pk %}"{% endif %}>
 <header class="report-heading"><div><p class="eyebrow">{% if designer_frame %}本次設計 · 尚未發布{% else %}報表中心 · 已發布分析報表{% endif %}</p><h1>{{ reader_title }}</h1></div>{% if_access 'report_records_export' report.pk %}<button type="button" class="button ghost" data-report-print>列印／另存 PDF</button>{% endif_access %}</header>
@@ -14,5 +14,5 @@
 {% if error %}<p class="report-notice" role="alert">無法完成查詢：{{ error }}</p>{% endif %}
 <div class="report-exploration" data-report-exploration><div class="report-grid">{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
 <section class="report-panel report-inline-detail" data-inline-detail hidden aria-label="選取分類的訂單明細"><header class="report-card-toolbar"><h2 data-detail-selection tabindex="-1">來源訂單</h2><button type="button" class="button ghost" data-detail-clear>關閉明細</button></header><p data-detail-status role="status"></p><div data-detail-body></div></section>
-</div>{% include 'sales/reporting/records.html' %}</div></div>
+</div>{% include 'sales/reporting/records.html' %}</div>{% if tree_filter %}{% include 'sales/reporting/tree_filter.html' %}{% endif %}</div>
 {% endblock %}

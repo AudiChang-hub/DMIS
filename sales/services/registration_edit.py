@@ -4,24 +4,15 @@
 - 完成後任何人、任何訂單狀態都能再改領牌日與車牌，不再有「改不了」的鎖。
 - 改領牌日：系統算出的規費、牌照稅、領牌稅金收支，以及成本、獎勵、傭金依新日期重算；人工改過的值保留。
 - 只改車牌：不重算任何金額。
-- 已結算台數獎金：領牌日跨出原結算期間時，比照刪單作廢這張單的分配並重算結算（不轉嫁其他訂單），留調整紀錄。
+- 已結算台數獎金的訂單維持訂單驗證原本的阻擋，不另做跨期處理（台數獎金流程由 T-148 重新設計）。
 - 每次改領牌日或車牌都寫 OrderChange（改前、改後）。
 """
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.utils import timezone
 
-from sales.models import (
-    DealerVolumeBonusAdjustment,
-    DealerVolumeBonusAllocation,
-    DealerVolumeBonusRule,
-    DealerVolumeBonusSettlement,
-    OrderChange,
-    OrderEvent,
-    OrderOperationsProfile,
-)
+from sales.models import OrderChange, OrderEvent, OrderOperationsProfile
 from sales.services.agency_fee import default_agency_fee, plate_fee_waived, registration_fee_cost
 from sales.services.dealer_commission import apply_order_dealer_commission
 from sales.services.incentive_rule import apply_order_incentive_rule
@@ -98,43 +89,6 @@ def _recalculate_after_date_change(order, actor_name):
     apply_order_dealer_commission(order, lock=True)
 
 
-def _sync_settlement(settlement, actor_name, reason):
-    """比照刪單（order_deletion._sync_settlements）：只扣除這張單的分配，不把差額轉嫁給其他訂單。"""
-    amounts = list(settlement.allocations.values_list("amount", flat=True))
-    tier = settlement.rule.tiers.filter(minimum_quantity__lte=len(amounts)).order_by("-minimum_quantity").first()
-    previous = settlement.actual_amount
-    settlement.qualified_quantity = len(amounts)
-    settlement.bonus_per_vehicle = tier.bonus_per_vehicle if tier else Decimal("0")
-    settlement.expected_amount = settlement.bonus_per_vehicle * len(amounts)
-    settlement.actual_amount = sum(amounts, Decimal("0"))
-    settlement.adjustment_reason = reason
-    settlement.save(update_fields=["qualified_quantity", "bonus_per_vehicle", "expected_amount", "actual_amount",
-                                   "adjustment_reason", "updated_at"])
-    DealerVolumeBonusAdjustment.objects.create(settlement=settlement, previous_amount=previous,
-                                               revised_amount=settlement.actual_amount, reason=reason,
-                                               adjusted_by=actor_name)
-
-
-def sync_volume_bonus_after_date_change(order, actor_name):
-    """領牌日跨出已結算的統計期間：作廢這張單在該結算的分配並重算結算。回傳調整的結算數。"""
-    allocations = list(DealerVolumeBonusAllocation.objects.filter(order=order).select_related("settlement__period"))
-    leaving = [item for item in allocations
-               if not (item.settlement.period.starts_on <= order.registration_date <= item.settlement.period.ends_on)]
-    if not leaving:
-        return 0
-    settlement_ids = sorted({item.settlement_id for item in leaving})
-    rule_ids = DealerVolumeBonusSettlement.objects.filter(pk__in=settlement_ids).values_list("rule_id", flat=True)
-    list(DealerVolumeBonusRule.objects.select_for_update().filter(pk__in=rule_ids).order_by("pk"))
-    settlements = list(DealerVolumeBonusSettlement.objects.select_for_update().filter(pk__in=settlement_ids).order_by("pk"))
-    DealerVolumeBonusAllocation.all_objects.filter(pk__in=[item.pk for item in leaving]).update(voided_at=timezone.now())
-    reason = f"訂單 {order.number} 領牌日改為 {_date_text(order.registration_date)}，移出統計期間"
-    for settlement in settlements:
-        _sync_settlement(settlement, actor_name, reason)
-    OrderEvent.objects.create(order=order, event_type="volume_bonus_adjusted", actor_name=actor_name,
-                              description=f"{reason}，台數獎金已扣除（{len(settlements)} 筆結算）")
-    return len(settlements)
-
-
 @transaction.atomic
 def apply_registration_edit(order, *, actor_name, before_date, before_plate):
     """領牌資料存檔後呼叫（訂單已存入新值）。回傳 {"completed": 本次自動完成領牌, "notes": [(等級, 訊息)]}。"""
@@ -148,7 +102,6 @@ def apply_registration_edit(order, *, actor_name, before_date, before_plate):
         _resync_registration_tax(order)
     if order.is_registration_complete:
         if date_changed and order.registration_date:
-            sync_volume_bonus_after_date_change(order, actor_name)
             _recalculate_after_date_change(order, actor_name)
         return {"completed": False, "notes": notes}
     # 尚未完成：依領牌日帶入（預估）成本、獎勵、傭金，資料齊全就自動完成。

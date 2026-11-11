@@ -258,7 +258,7 @@ def validate_config(config):
 
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
-    if filters.get("empty_months") or filters.get("empty_legacy_source") or filters.get("empty_legacy_dealer"):
+    if filters.get("empty_months") or filters.get("empty_legacy_source") or filters.get("empty_legacy_dealer") or filters.get("empty_model"):
         queryset = queryset.none()
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     for scope in scopes:
@@ -302,7 +302,7 @@ def base_query(config, filters, card=None):
             queryset = queryset.filter(**{lookup: filters[key]})
     for key, lookup in (("brand", "vehicle_model__brand"), ("energy", "vehicle_model__energy_type"),
                         ("source", "source_id"), ("source_type", "source_type"), ("legacy_source", "report_legacy_source"),
-                        ("legacy_energy", "report_legacy_energy")):
+                        ("legacy_energy", "report_legacy_energy"), ("model", "vehicle_model_id")):
         selected = filters.get(key)
         if selected:
             queryset = queryset.filter(**{lookup + "__in": selected if isinstance(selected, (list, tuple)) else [selected]})

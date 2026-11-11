@@ -7,6 +7,7 @@ from sales.models import SalesOrder, SalesSource, VehicleModel
 from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, MODEL_TEXT_SCOPES, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES
+from .tree_filter import TREE_FIELDS, tree_chips
 
 
 class ScopeForm(forms.Form):
@@ -174,6 +175,12 @@ class CardForm(ScopeForm):
         return self.cleaned_data["series_sort"] or "value"
 
 
+class ModelSelectionField(forms.MultipleChoiceField):
+    """樹狀篩選的車型主檔 pk（T-151）；已不在範圍的舊網址值只會查不到，不讓整份報表出錯。"""
+    def valid_value(self, value):
+        return str(value).isdigit()
+
+
 CardFormSet = formset_factory(CardForm, extra=0, min_num=0, max_num=8, absolute_max=8,
                               validate_min=True, validate_max=True, can_delete=True, can_order=True)
 
@@ -185,12 +192,12 @@ class FilterForm(forms.Form):
         return [self[name] for name in self.COMMON_FIELDS]
 
     def advanced_fields(self):
-        return [field for field in self.visible_fields() if field.name not in self.COMMON_FIELDS]
+        return [field for field in self.visible_fields() if field.name not in self.COMMON_FIELDS and field.name not in TREE_FIELDS]
 
     def advanced_count(self):
         return sum(bool(field.value()) for field in self.advanced_fields())
 
-    def active_filters(self, extra=None):
+    def active_filters(self, extra=None, tree=None):
         """目前套用的讀者篩選（T-142）：每項附移除網址，其餘條件與圖表連動保留。
 
         網址即狀態；移除後仍走同一報表網址，重新整理或分享都一致。只列讀者可調整的欄位，
@@ -202,8 +209,8 @@ class FilterForm(forms.Form):
         data = self.cleaned_data
         extra_query = urlencode(extra) if extra else ""
 
-        def query(*names):
-            kept = urlencode({key: value for key, value in data.items()
+        def query(*names, **overrides):
+            kept = urlencode({key: value for key, value in {**data, **overrides}.items()
                               if key not in names and value and not key.startswith("_")}, doseq=True)
             return "&".join(part for part in (kept, extra_query) if part)
 
@@ -248,6 +255,12 @@ class FilterForm(forms.Form):
             items.append({"label": label(name), "value": summary(values), "title": "、".join(values),
                           "remove_query": query(name, empty_flag)})
             removable += [name, empty_flag]
+        if "model" in self.fields:
+            # 樹狀篩選（T-151）：每個有限制的品牌一個標籤，移除＝該品牌恢復全選。
+            for chip in tree_chips(tree, data) if tree else []:
+                items.append({"label": chip["label"], "value": chip["value"], "title": chip["title"],
+                              "remove_query": query("empty_model", model=chip["model"])})
+            removable += list(TREE_FIELDS)
         return items, query(*removable)
 
     focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
@@ -272,8 +285,15 @@ class FilterForm(forms.Form):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
         layout = kwargs.pop("reader_layout", None)
         config = kwargs.pop('config', None)
+        tree_filter = kwargs.pop('tree_filter', False)
         layout = layout or (config or {}).get('reader_layout', 'standard')
         super().__init__(*args, **kwargs)
+        if tree_filter:
+            # 大數據分析群組（T-151）：品牌、能源別由樹狀篩選取代，改用車型主檔勾選。
+            self.fields.pop("brand")
+            self.fields.pop("energy")
+            self.fields["model"] = ModelSelectionField(label="車型", required=False)
+            self.fields["empty_model"] = forms.BooleanField(required=False, widget=forms.HiddenInput)
         if layout in ("sales_overview", "electric_overview", "gasoline_overview"):
             self.COMMON_FIELDS = ("legacy_source", "months")
             self.fields["legacy_source"].label = "銷售來源"
@@ -293,9 +313,10 @@ class FilterForm(forms.Form):
         # 舊版單選空字串仍表示全部；QueryDict 保留多值，不轉成普通 dict。
         if self.is_bound and hasattr(self.data, "getlist"):
             self.data = self.data.copy()
-            for key in ("months", "brand", "energy", "source_type", "source", "legacy_source", "legacy_dealer"):
+            for key in ("months", "brand", "energy", "source_type", "source", "legacy_source", "legacy_dealer", "model"):
                 self.data.setlist(key, [value for value in self.data.getlist(key) if value])
-        self.fields["brand"].choices = [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()]
+        if "brand" in self.fields:
+            self.fields["brand"].choices = [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()]
         self.fields["source"].choices = [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")]
         from .engine import base_query
         from .source_compatibility import source_dealer_query
@@ -318,6 +339,8 @@ class FilterForm(forms.Form):
             raise forms.ValidationError("開始日期不可晚於結束日期。")
         if len(data.get("months", [])) > 120:
             raise forms.ValidationError("一次最多選擇 120 個月份；全部期間請清除月份選取。")
+        if len(data.get("model") or []) > 500:
+            raise forms.ValidationError("一次最多勾選 500 個車型；全部車型請勾選「總計」。")
         if len(data.get('legacy_dealer', [])) > 200:
             raise forms.ValidationError('一次最多選擇 200 個車行／平台。')
         return data

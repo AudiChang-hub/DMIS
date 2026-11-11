@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .engine import DATE_DIMENSIONS, NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
+from .tree_filter import build_tree, tree_enabled
 from .models import ReportDefinition, ReportRevision
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells, visible_record_columns
 
@@ -99,7 +100,8 @@ def stale_publication(request, report):
 
 
 def filters_for(request, config=None):
-    form = FilterForm(request.GET, date_basis=(config or {}).get("date_basis", "registration_date"), config=config)
+    form = FilterForm(request.GET, date_basis=(config or {}).get("date_basis", "registration_date"), config=config,
+                      tree_filter=tree_enabled(config))
     if not form.is_valid():
         raise ValidationError("；".join(str(error) for errors in form.errors.values() for error in errors))
     return form, form.cleaned_data
@@ -277,7 +279,8 @@ def display(request, pk):
     report = accessible_report(request, pk)
     if (request.GET.get("records_page") or request.GET.get("focus")) and stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
-    form = FilterForm(request.GET, date_basis=report.published["date_basis"], reader_layout=report.published.get("reader_layout", "standard"), config=report.published)
+    form = FilterForm(request.GET, date_basis=report.published["date_basis"], reader_layout=report.published.get("reader_layout", "standard"), config=report.published,
+                      tree_filter=tree_enabled(report.published))
     items = []
     records = {}
     error = ""
@@ -300,7 +303,10 @@ def display(request, pk):
                 focus_items.append({"title": report.published["cards"][item["card"]]["title"] + "：" + selection_label(report.published, item),
                     "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
-    active_filters, clear_filters_query = form.active_filters({"revision": publication_key(report)})
+    tree = None
+    if tree_enabled(report.published):
+        tree = build_tree(report.published, form.cleaned_data if form.is_valid() else {})
+    active_filters, clear_filters_query = form.active_filters({"revision": publication_key(report)}, tree=tree)
     remembered = {"user": str(request.user.pk), "report": report.pk}
     if not hasattr(request, "_designer_report") and request.session.get("report_reader_page") != remembered:
         request.session["report_reader_page"] = remembered
@@ -310,7 +316,7 @@ def display(request, pk):
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "publication_key": publication_key(report), "focus_items": focus_items,
-                  "active_filters": active_filters, "clear_filters_query": clear_filters_query,
+                  "active_filters": active_filters, "clear_filters_query": clear_filters_query, "tree_filter": tree,
                   "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),
                   "designer_frame": hasattr(request, "_designer_report"),
                   "report_base": "sales/reporting/designer_frame.html" if hasattr(request, "_designer_report") else "sales/reporting/layout.html",

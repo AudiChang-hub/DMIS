@@ -188,7 +188,7 @@ def _reward_key(line):
     if line.catalog_item_id:
         item = f"catalog:{line.catalog_item_id}"
     else:
-        item = "name:" + hashlib.sha1(f"{line.name}|{line.unit}".encode("utf-8")).hexdigest()[:16]
+        item = "name:" + hashlib.sha256(f"{line.name}|{line.unit}".encode("utf-8")).hexdigest()[:16]
     return f"reward:order:{line.order_id}:campaign:{line.campaign_id}:{item}"
 
 

@@ -163,3 +163,53 @@ def tree_chips(tree, filters):
         text = "未選取（不顯示資料）"
         chips.append({"label": "車型", "value": text, "title": text, "model": None, "empty": False})
     return chips
+
+
+# ---- 依勾選車型各一張圖（T-151）----
+PER_MODEL_LIMIT = 8  # 與每份報表最多 8 張圖、圖表點選與每圖排序欄位（0–7）一致。
+
+
+def per_model_template(config):
+    cards = (config or {}).get("cards", [])
+    return cards[0] if len(cards) == 1 and cards[0].get("per_model") else None
+
+
+def expand_cards(config, filters=None):
+    """把「依勾選車型各一張圖」的範本展開成每個車型一張圖。
+
+    依台數由多到少（同台數依品牌、車型名稱），最多 PER_MODEL_LIMIT 張；只列有資料的車型。
+    台數套用讀者篩選與樹的勾選，但不套圖表點選，展開結果不會因點選圖形而變動。
+    回傳 (展開後的報表設定, 說明)；不是範本時原樣回傳、說明為 None。
+    """
+    template = per_model_template(config)
+    if template is None:
+        return config, None
+    from .engine import base_query
+    scope_filters = {key: value for key, value in (filters or {}).items()
+                     if key != "focus" and not key.startswith(("_", "sort_", "grain"))}
+    counts = list(base_query(config, scope_filters, template).order_by().values("vehicle_model_id")
+                  .annotate(total=Count("pk")).values_list("vehicle_model_id", "total"))
+    models = VehicleModel.objects.in_bulk([pk for pk, _ in counts])
+    counts.sort(key=lambda item: (-item[1], models[item[0]].brand.casefold(), models[item[0]].name.casefold(), item[0]))
+    shown = counts[:PER_MODEL_LIMIT]
+    names = [models[pk].name for pk, _ in shown]
+    cards = []
+    for pk, total in shown:
+        model = models[pk]
+        name = model.name if names.count(model.name) == 1 else f"{model.name}（{model.model_number or model.brand}）"
+        card = {key: value for key, value in template.items() if key != "per_model"}
+        card.update(title=f"{name}－{template['title']}", vehicle_model=pk)
+        cards.append(card)
+    info = {"total": len(counts), "shown": len(cards), "hidden": len(counts) - len(cards), "limit": PER_MODEL_LIMIT}
+    return {**config, "cards": cards}, info
+
+
+def drop_stale_focus(filters, config):
+    """展開後圖卡數變少時，移除指向已不存在圖卡的點選，避免整頁查詢失敗。"""
+    import json
+    from .cross_filter import selections
+    chosen = selections((filters or {}).get("focus"))
+    kept = [item for item in chosen if item["card"] < len(config["cards"])]
+    if len(kept) == len(chosen):
+        return filters
+    return {**filters, "focus": json.dumps(kept) if kept else ""}

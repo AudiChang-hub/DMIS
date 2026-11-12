@@ -212,8 +212,14 @@ def validate_config(config):
         raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter", "per_model"}:
             raise ValidationError("圖表格式不正確。")
+        if type(card.get("per_model", False)) is not bool:
+            raise ValidationError("依車型展開設定不正確。")
+        if card.get("per_model") and config.get("navigation_group") != "analysis":
+            raise ValidationError("「依勾選車型各一張圖」只用於大數據分析群組。")
+        if card.get("per_model") and len(config["cards"]) != 1:
+            raise ValidationError("「依勾選車型各一張圖」只能用在只有一張圖的報表。")
         if type(card.get("font_size", 0)) is not int or card.get("font_size", 0) not in (0, 16, 18, 20, 24):
             raise ValidationError("圖表字級不正確。")
         for option, allowed in {"title_align": ("", "left", "center", "right"), "palette": ("", "accessible"), "show_legend": ("", "hide"), "show_tooltip": ("", "hide"), "cross_filter": ("", "off")}.items():
@@ -260,6 +266,9 @@ def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
     if filters.get("empty_months") or filters.get("empty_legacy_source") or filters.get("empty_legacy_dealer") or filters.get("empty_model"):
         queryset = queryset.none()
+    if (card or {}).get("vehicle_model"):
+        # 依車型展開的圖卡（T-151）：展開時才加上，不存進報表設定。
+        queryset = queryset.filter(vehicle_model_id=card["vehicle_model"])
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     for scope in scopes:
         validate_scope(scope)
@@ -329,7 +338,8 @@ def base_query(config, filters, card=None):
             # 人口分析選的是性別／車色；各目標圖仍保留自己的車型條件。
             # 不把 FUN 的車型限制傳到 RUN 而讓其他三圖全部變零。
             if config.get('reader_layout') == 'analysis_overview' and selected_card['dimension'] in ('sex', 'color', 'age_group'):
-                selected_card = {**selected_card, 'fixed_filters': {}}
+                selected_card = {key: value for key, value in selected_card.items() if key != 'vehicle_model'}
+                selected_card['fixed_filters'] = {}
             subset = drill_query(config, selected_card, selection_filters, group)
             alternatives |= Q(pk__in=subset.values("pk"))
         queryset = queryset.filter(alternatives)

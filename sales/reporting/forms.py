@@ -118,6 +118,8 @@ class CardForm(ScopeForm):
     show_legend = forms.ChoiceField(label="圖例", choices=[("", "顯示（依原版型）"), ("hide", "隱藏")], required=False,
         help_text="適用圓餅與堆疊圖。隱藏圖例仍可滑入查看分類與數字。")
     show_tooltip = forms.ChoiceField(label="滑入提示", choices=[("", "顯示數字與分類"), ("hide", "不顯示浮動提示")], required=False)
+    per_model = forms.BooleanField(label="依勾選車型各一張圖（大數據分析）", required=False,
+        help_text="只用於大數據分析群組、且報表只有這一張圖：依讀者在右側勾選的車型，每款一張圖，台數由多到少，最多 8 張。")
     cross_filter = forms.ChoiceField(label="點選圖形", choices=[("", "依報表既有方式連動"), ("off", "僅查看，不連動")], required=False,
         help_text="互動預覽可實際試選；關閉連動不影響其他圖表或來源明細入口。")
 

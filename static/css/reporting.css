@@ -197,6 +197,8 @@
 .report-tree__item[aria-checked="false"] > .report-tree__row .report-tree__name, .report-tree__item.is-empty > .report-tree__row .report-tree__name { color: var(--muted); }
 .report-tree__item[aria-checked="true"] > .report-tree__row .report-tree__count, .report-tree__item[aria-checked="mixed"] > .report-tree__row .report-tree__count { background: var(--surface-tint); color: var(--action-text); }
 .report-tree__item.is-empty > .report-tree__row .report-tree__count { background: transparent; color: var(--muted); }
+.report-per-model-note { grid-column: 1 / -1; margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--surface-soft); color: var(--muted); font-size: var(--text-sm-plus); }
+.report-per-model-note.is-attention { background: var(--amber-soft); color: var(--amber-ink); border: 1px solid var(--amber-border); }
 @media (pointer: coarse) { .report-tree__row { min-height: 44px; } .report-tree-filter__keys { display: none; } }
 @media (max-width: 1280px) {
   .report-reader-layout.has-tree-filter { grid-template-areas: "nav tree" "nav main"; }

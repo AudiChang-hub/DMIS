@@ -19,7 +19,7 @@ from django.views.decorators.http import require_POST
 
 from .engine import DATE_DIMENSIONS, NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
-from .tree_filter import build_tree, tree_enabled
+from .tree_filter import build_tree, drop_stale_focus, expand_cards, tree_enabled
 from .models import ReportDefinition, ReportRevision
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells, visible_record_columns
 
@@ -157,19 +157,21 @@ def draft_preview(request, pk):
     form = FilterForm(request.GET, date_basis=config["date_basis"], config=config)
     items, records, error = [], {}, ""
     active_filters, clear_filters_query = form.active_filters()
+    per_model = None
     if form.is_valid():
         try:
             validate_config(config)
-            items = results(config, form.cleaned_data)
+            config, per_model = expand_cards(config, form.cleaned_data)
+            items = results(config, drop_stale_focus(form.cleaned_data, config))
             if config.get("include_records"):
-                records = record_context(config, form.cleaned_data, request.GET.get("records_page", 1))
+                records = record_context(config, drop_stale_focus(form.cleaned_data, config), request.GET.get("records_page", 1))
         except ValidationError as exc:
             error = "；".join(exc.messages)
     return render(request, "sales/reporting/draft_preview.html", {
         "report": report, "config": config, "filter_form": form, "results": items,
         "scope_labels": scope_labels(config.get("fixed_filters", {})), "error": error,
         "query": filter_query(form.cleaned_data) if form.is_valid() else "", **records,
-        "is_preview": True, "standalone_preview": True, "active_filters": active_filters, "clear_filters_query": clear_filters_query,
+        "is_preview": True, "standalone_preview": True, "per_model": per_model, "active_filters": active_filters, "clear_filters_query": clear_filters_query,
         "draft_reports": sorted(ReportDefinition.objects.all(), key=lambda row: (row.draft.get("page_order", 0), row.pk)),
     })
 
@@ -186,7 +188,8 @@ def edit(request, pk=None):
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("reader_layout", "title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter")}, "fixed_filters": card.scope_data(),
+                            **({"per_model": True} if card.cleaned_data.get("per_model") else {})}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
@@ -284,11 +287,15 @@ def display(request, pk):
     items = []
     records = {}
     error = ""
+    config, per_model = report.published, None
     if form.is_valid():
         try:
-            items = results(report.published, form.cleaned_data, retain_candidates=True)
+            # 大數據分析「依勾選車型各一張圖」：先依讀者條件展開圖卡，後續查詢、點選、明細都用展開後的設定。
+            config, per_model = expand_cards(report.published, form.cleaned_data)
+            form.cleaned_data.update(drop_stale_focus(form.cleaned_data, config))
+            items = results(config, form.cleaned_data, retain_candidates=True)
             if report.published.get("include_records"):
-                records = record_context(report.published, form.cleaned_data, request.GET.get("records_page", 1))
+                records = record_context(config, form.cleaned_data, request.GET.get("records_page", 1))
         except ValidationError as exc:
             error = "；".join(exc.messages)
     query = filter_query(form.cleaned_data) if form.is_valid() else ""
@@ -297,10 +304,10 @@ def display(request, pk):
         from .cross_filter import selections, selection_label
         chosen = selections(form.cleaned_data.get("focus"))
         for item in chosen:
-            if item["card"] < len(report.published["cards"]):
+            if item["card"] < len(config["cards"]):
                 remaining = [value for value in chosen if value != item]
                 clear_filters = {**form.cleaned_data, "focus": json.dumps(remaining) if remaining else ""}
-                focus_items.append({"title": report.published["cards"][item["card"]]["title"] + "：" + selection_label(report.published, item),
+                focus_items.append({"title": config["cards"][item["card"]]["title"] + "：" + selection_label(config, item),
                     "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
     tree = None
@@ -316,7 +323,7 @@ def display(request, pk):
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "publication_key": publication_key(report), "focus_items": focus_items,
-                  "active_filters": active_filters, "clear_filters_query": clear_filters_query, "tree_filter": tree,
+                  "active_filters": active_filters, "clear_filters_query": clear_filters_query, "tree_filter": tree, "per_model": per_model,
                   "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),
                   "designer_frame": hasattr(request, "_designer_report"),
                   "report_base": "sales/reporting/designer_frame.html" if hasattr(request, "_designer_report") else "sales/reporting/layout.html",
@@ -340,12 +347,14 @@ def records_export(request, pk):
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     grouped = report.published.get("records_mode") == "population"
+    config, _ = expand_cards(report.published, filters)
+    filters = drop_stale_focus(filters, config)
     if grouped:
         from .population_table import population_queryset, population_cells, HEADERS, NOTE
         # accessible_report 與上方 export 檢核均已套用逐份授權。
-        queryset = population_queryset(report.published, filters)
+        queryset = population_queryset(config, filters)
     else:
-        queryset = record_queryset(report.published, filters)
+        queryset = record_queryset(config, filters)
     if queryset.count() > 5000:
         return HttpResponse("明細超過 5000 筆，請縮小篩選範圍後匯出。", status=400)
     columns = visible_record_columns(report.published)
@@ -375,10 +384,11 @@ def detail(request, pk, index):
     report = accessible_report(request, pk)
     if stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
-    card = selected_card(report.published, index)
     try:
         _, filters = filters_for(request, report.published)
-        queryset = drill_query(report.published, card, card_filters(filters, index), request.GET.get("group", "__all__"))
+        config, _ = expand_cards(report.published, filters)
+        card = selected_card(config, index)
+        queryset = drill_query(config, card, card_filters(filters, index), request.GET.get("group", "__all__"))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient", "operations").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
@@ -406,10 +416,11 @@ def export(request, pk, index):
         raise PermissionDenied
     if stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
-    card = selected_card(report.published, index)
     try:
         _, filters = filters_for(request, report.published)
-        result = card_result(report.published, card, card_filters(filters, index))
+        config, _ = expand_cards(report.published, filters)
+        card = selected_card(config, index)
+        result = card_result(config, card, card_filters(filters, index))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     export_format = request.GET.get('format', 'excel')

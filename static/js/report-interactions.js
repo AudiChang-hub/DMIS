@@ -414,7 +414,7 @@ function initReportVisuals(root) {
       if (total > 0 && rows.length) {
         const ns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(ns, "svg"); svg.setAttribute("viewBox", "0 0 300 300"); svg.classList.add("report-donut");
-        const solid = layout === 'analysis_overview' && overview.querySelectorAll('[data-chart-index]').length === 4;
+        const solid = layout === 'analysis_overview' && (chart.hasAttribute('data-per-model') || overview.querySelectorAll('[data-chart-index]').length === 4);
         if (solid) svg.classList.add('report-solid-pie');
         const ring = (color, fraction, offset) => {
           const circle = document.createElementNS(ns, "circle");

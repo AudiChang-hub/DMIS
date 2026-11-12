@@ -7,6 +7,6 @@
 {% if scope_labels %}<div class="report-scope-summary"><strong>固定範圍</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}</div>{% endif %}
 {% include 'sales/reporting/reader_filters.html' %}
 {% if error %}<p class="report-notice" role="alert">{{ error }}</p>{% endif %}
-<div class="report-grid">{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
+<div class="report-grid">{% include 'sales/reporting/per_model_note.html' %}{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
 {% include 'sales/reporting/records.html' %}
 {% endblock %}

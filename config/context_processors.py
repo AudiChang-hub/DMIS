@@ -13,7 +13,7 @@ HELP_TOPIC_BY_ROUTE = {
     "order_delete": "order-recycle-bin", "order_restore": "order-recycle-bin", "order_recycle_bin": "order-recycle-bin",
     "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",
-    "report_center": "reports", "report_display": "reports", "report_detail": "reports",
+    "report_center": "reports", "report_display": "reports", "report_detail": "reports", "dealer_payout_list": "reports",
     "report_manage": "reports", "report_create": "reports", "report_edit": "reports",
     "dashboard": "dashboard",
     "system_diagnostics": "system-integrity",

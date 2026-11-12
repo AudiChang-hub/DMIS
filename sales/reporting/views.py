@@ -136,6 +136,9 @@ def center(request):
     pages = [report for group in navigation(request) for report in group["pages"]]
     if not pages:
         request.session.pop("report_reader_page", None)
+        from sales.access.services import policy_for
+        if policy_for(request).screen("dealer_payouts"):
+            return redirect("dealer_payout_list")
         return render(request, "sales/reporting/center.html")
     remembered = request.session.get("report_reader_page", {})
     if not isinstance(remembered, dict) or remembered.get("user") != str(request.user.pk):

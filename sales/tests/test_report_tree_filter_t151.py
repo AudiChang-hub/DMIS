@@ -155,6 +155,14 @@ class TreeFilterTests(TestCase):
         self.assertNotIn("model", cleared)
         self.assertNotIn("empty_model", cleared)
 
+    def test_chip_tooltip_and_aria_label_name_the_brand_once(self):
+        """正式站 2.2.0：標籤提示與報讀文字出現「eReady：eReady：Fun」，品牌重複。"""
+        response = self.client.get(self.url(), {"model": self.ids(self.fun, self.light, self.ezzy)})
+        html = response.content.decode()
+        self.assertIn('aria-label="移除篩選 eReady：不含 Run"', html)
+        self.assertIn('title="移除篩選　eReady：不含 Run"', html)
+        self.assertNotIn("eReady：eReady", html)
+
     def test_chip_lists_models_or_whole_energy(self):
         tree = build_tree(self.carded)
         chip = tree_chips(tree, {"model": self.ids(self.light, self.ezzy)})[0]

@@ -45,7 +45,8 @@ class AccessPolicy:
             grant = self.screens.get(key, {})
             return bool(self.active and action in {"view", "export"} and
                 (self.root or not self.configured or (grant.get("view") and grant.get("export"))))
-        if key in {"profit", "order_delete"}:
+        # 淨利、刪除申請、車行給付（T-150）只認明確授權，舊制未設定帳號不預設開放。
+        if key in {"profit", "order_delete", "dealer_payouts"}:
             return bool(self.active and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
         screen = BY_KEY.get(key)
@@ -110,7 +111,8 @@ class AccessPolicy:
         if name == "report_center":
             from sales.reporting.models import ReportDefinition
             if not hasattr(self, "_report_center_allowed"):
-                self._report_center_allowed = any(self.report(report) for report in ReportDefinition.objects.filter(published__isnull=False))
+                self._report_center_allowed = self.screen("dealer_payouts") or any(
+                    self.report(report) for report in ReportDefinition.objects.filter(published__isnull=False))
             return self._report_center_allowed
         if name in REPORT_ROUTES:
             from sales.reporting.models import ReportDefinition

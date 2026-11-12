@@ -58,3 +58,7 @@ class ReportRevision(models.Model):
         app_label = "sales"
         ordering = ["-version"]
         constraints = [models.UniqueConstraint(fields=["report", "version"], name="unique_report_revision")]
+
+
+# T-150 車行給付追蹤；同屬 sales app，獨立模組避免和營運模型衝突。
+from .payout_models import DealerPayoutEntry, DealerPayoutEvent  # noqa: E402,F401

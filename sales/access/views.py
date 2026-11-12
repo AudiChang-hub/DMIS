@@ -85,11 +85,11 @@ def grouped_rows(rows):
     by_key = {row["key"]: row for row in rows if row["kind"] == "screens"}
     result = []
     for key, label, sections in SCREEN_GROUPS:
+        groups = [{"label": name, "rows": [by_key[item] for item in keys]} for name, keys in sections]
         if key == "reports":
-            groups = [{"label": name, "rows": [row for row in rows if row["kind"] == "reports" and row["section"] == group]}
-                      for group, name in NAVIGATION_GROUPS.items()]
-        else:
-            groups = [{"label": name, "rows": [by_key[item] for item in keys]} for name, keys in sections]
+            # 報表中心＝固定畫面（給付追蹤，T-150）＋逐張授權的已發布報表。
+            groups += [{"label": name, "rows": [row for row in rows if row["kind"] == "reports" and row["section"] == group]}
+                       for group, name in NAVIGATION_GROUPS.items()]
         result.append({"key": key, "label": label, "sections": [group for group in groups if group["rows"]]})
     return result
 

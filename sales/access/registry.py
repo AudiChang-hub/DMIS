@@ -27,6 +27,7 @@ SCREENS = (
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
     Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
+    Screen("dealer_payouts", "車行傭金／獎金給付（報表中心）", "dealer_payout_list", True, True),
     Screen("inventory", "車輛庫存與歷程", "inventory_list"),
     Screen("brands", "車輛品牌", "vehicle_brand_list"),
     Screen("models", "機種、售價與分期方案", "vehicle_model_list"),
@@ -56,7 +57,7 @@ SCREEN_GROUPS = (
     ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing", "order_gift")),)),
     ("orders", "全部訂單", (("訂單與作業", ("orders", "order_documents", "work", "order_finance", "profit", "order_delete")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
-    ("reports", "報表中心", ()),
+    ("reports", "報表中心", (("給付追蹤", ("dealer_payouts",)),)),
     ("data", "資料維護區", (
         ("車輛與商品", ("brands", "models", "inventory", "accessories")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
@@ -98,6 +99,10 @@ register("work", "order_owner_declaration_pdf", "export")
 register("operations", "operations_report")
 register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
+# 車行傭金／獎金給付（T-150）：查看列表、勾選與備註屬操作、CSV 屬匯出。
+register("dealer_payouts", "dealer_payout_list")
+register("dealer_payouts", "dealer_payout_update", "operate")
+register("dealer_payouts", "dealer_payout_export", "export")
 register("inventory", "inventory_list")
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_history_photo_delete inventory_allocation_priority", "operate")
 # 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。

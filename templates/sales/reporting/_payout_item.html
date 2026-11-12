@@ -1,0 +1,36 @@
+{% load sales_format %}<li class="payout-item payout-item--{{ item.status }}" data-payout-item>
+  <form class="payout-item__toggle" method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form{% if item.paid %} data-confirm="取消「{{ item.dealer.name }} {{ item.label }}」的已給付？歷程會保留。"{% endif %}>
+    {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="{% if item.paid %}unpaid{% else %}paid{% endif %}">
+    <label class="payout-check">
+      <input type="checkbox" id="paid-{{ item.source_key|slugify }}" name="paid_toggle" data-payout-toggle{% if item.paid %} checked{% endif %}{% if not can_operate or not item.checkable %} disabled{% endif %} aria-describedby="payout-label-{{ item.source_key|slugify }}">
+      <span class="payout-check__box" aria-hidden="true"></span>
+      <span class="payout-check__text">{% if item.estimate %}預估{% elif item.paid %}已給付{% else %}未給付{% endif %}</span>
+    </label>
+    <noscript>{% if can_operate and item.checkable %}<button class="button secondary small" type="submit">{% if item.paid %}取消已給付{% else %}標記已給付{% endif %}</button>{% endif %}</noscript>
+  </form>
+  <div class="payout-item__main">
+    <p class="payout-item__label" id="payout-label-{{ item.source_key|slugify }}">{% if item.kind == 'reward' %}<span class="payout-kind payout-kind--{{ item.kind }}">{{ item.kind_label }}</span>{% endif %}{{ item.short_label }}{% if item.period_label %}<small>{{ item.period_label }}</small>{% endif %}{% if item.kind == 'commission' %}<span class="payout-method payout-method--{{ item.method }}" title="{% if item.deduction %}系統建立的車行現金單：傭金已在「向車行收」扣掉{% else %}另外付給車行{% endif %}">{{ item.method_label }}</span>{% endif %}</p>
+    {% if item.paid %}<p class="payout-item__trail">{{ item.entry.paid_at|date:'Y/m/d H:i' }} {{ item.entry.paid_by }} 登記</p>{% endif %}
+    {% if item.changed %}
+    <div class="payout-item__diff" role="note">
+      <span>給付後金額有變：已付 {% if item.is_quantity %}{{ item.entry.paid_quantity|floatformat:'-2' }}{{ item.unit }}，目前 {{ item.quantity|floatformat:'-2' }}{{ item.unit }}{% else %}${{ item.entry.paid_amount|number_with_commas }}，目前 ${{ item.amount|number_with_commas }}，差 {% if item.difference > 0 %}+{% endif %}{{ item.difference|number_with_commas }}{% endif %}</span>
+      {% if can_operate %}<form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="補付或收回差額後再確認：以目前金額重新記為已給付？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="confirm"><button class="button secondary small" type="submit">確認差額</button></form>{% endif %}
+    </div>
+    {% endif %}
+    {% if item.details %}
+    <details class="payout-item__details"><summary>逐單明細 {{ item.details|length }} 張</summary>
+      <ul>{% for detail in item.details %}<li><span>{{ detail.number }}</span><span>{{ detail.label }}{% if detail.note %}<small>{{ detail.note }}</small>{% endif %}</span><span class="is-number">${{ detail.amount|number_with_commas }}</span></li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% if can_operate and item.checkable %}
+    <form class="payout-note" method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-payout-note>
+      {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="note">
+      <label class="visually-hidden" for="note-{{ item.source_key|slugify }}">{{ item.label }} 備註</label>
+      <input id="note-{{ item.source_key|slugify }}" name="note" value="{{ item.note }}" maxlength="500" placeholder="備註（例：11/20 匯款、機油下次一起給）" autocomplete="off">
+      <span class="payout-note__state" data-payout-note-state aria-live="polite"></span>
+      <noscript><button class="button ghost small" type="submit">儲存備註</button></noscript>
+    </form>
+    {% elif item.note %}<p class="payout-item__note">{{ item.note }}</p>{% endif %}
+  </div>
+  <p class="payout-item__value{% if item.estimate %} is-estimate{% endif %}">{% if item.is_quantity %}{{ item.quantity|floatformat:'-2' }}<small>{{ item.unit }}</small>{% else %}${{ item.amount|number_with_commas }}{% endif %}</p>
+</li>

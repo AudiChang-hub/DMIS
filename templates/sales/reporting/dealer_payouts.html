@@ -1,0 +1,123 @@
+{% extends 'sales/reporting/layout.html' %}{% load static sales_format screen_access %}
+{% block title %}車行傭金／獎金給付 · 報表中心{% endblock %}
+{% block page_class %}page-shell--wide report-reader-shell{% endblock %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}?v={{ app_version }}"><script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block report_content %}
+<div class="report-reader-layout">
+{% include 'sales/reporting/_reader_nav.html' with payout_page=True %}
+<div class="report-reader-main payout-page" data-payout-page>
+<header class="report-heading hero-row compact-hero">
+  <div>
+    <p class="eyebrow">報表中心 · 給付追蹤</p>
+    <h1>車行傭金／獎金給付</h1>
+    <p class="muted">領牌完成後列出要給車行的傭金與實物；台數獎金在統計期間結束、自動入帳後列出。勾「已給付」只做追蹤，不影響車行結算、掛帳與淨利。</p>
+  </div>
+  {% if can_export %}<div class="hero-actions"><a class="button ghost" href="{% url 'dealer_payout_export' %}?{{ request.GET.urlencode }}" data-no-busy>匯出 CSV</a></div>{% endif %}
+</header>
+
+<form class="payout-filters" method="get" aria-label="篩選給付項目">
+  <label class="payout-filters__field payout-filters__field--wide">車行
+    <select name="dealer" data-searchable-select="1" data-searchable-include-empty="1" data-search-placeholder="輸入車行搜尋">
+      <option value="">全部車行</option>
+      {% for dealer in dealers %}<option value="{{ dealer.pk }}"{% if selected.dealer == dealer.pk|stringformat:'s' %} selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="payout-filters__field">日期起<input type="date" name="start" value="{{ selected.start }}" min="{{ start_date|date:'Y-m-d' }}"></label>
+  <label class="payout-filters__field">日期迄<input type="date" name="end" value="{{ selected.end }}" min="{{ start_date|date:'Y-m-d' }}"></label>
+  <label class="payout-filters__field">狀態
+    <select name="status"><option value="">全部</option>{% for key, label in status_labels.items %}{% if key != 'estimate' or selected.estimate %}<option value="{{ key }}"{% if selected.status == key %} selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select>
+  </label>
+  <label class="payout-filters__field">項目
+    <select name="kind"><option value="">全部</option>{% for key, label in kind_labels.items %}<option value="{{ key }}"{% if selected.kind == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label class="payout-filters__field">給付方式
+    <select name="method"><option value="">全部</option>{% for key, label in method_labels.items %}<option value="{{ key }}"{% if selected.method == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label class="payout-filters__toggle"><input type="checkbox" name="estimate" value="1"{% if selected.estimate %} checked{% endif %}><span>含預估台數獎金<small>期間還沒結束，灰色顯示、不能勾選</small></span></label>
+  <div class="payout-filters__actions">{% if filters_active %}<a class="button ghost" href="{% url 'dealer_payout_list' %}">清除</a>{% endif %}<button class="button primary" type="submit">套用</button></div>
+</form>
+
+<div class="payout-board" id="payout-board" data-inplace-region>
+  <section class="payout-summary" aria-label="給付合計">
+    <div class="payout-summary__lead">
+      <span>未給付金額</span>
+      <strong class="payout-figure">${{ totals.unpaid_amount|number_with_commas }}</strong>
+      <small>{{ totals.unpaid_count }} 個項目未給付{% if totals.dealer_count %} · {{ totals.dealer_count }} 家車行{% endif %}</small>
+    </div>
+    <dl class="payout-summary__facts">
+      <div><dt>已給付金額</dt><dd>${{ totals.paid_amount|number_with_commas }}</dd></div>
+      <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if totals.changed_count or orphans %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.changed_count and orphans %} · {% endif %}{% if orphans %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
+      <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌</dd><small>傭金依領牌日、台數獎金依期間結束日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
+    </dl>
+  </section>
+
+  {% if orphans %}
+  <div class="callout callout--warning payout-orphans">
+    <span class="callout__icon" aria-hidden="true">!</span>
+    <div>
+      <h3>已給付但來源已不存在</h3>
+      <p>這些項目登記已給付後，訂單已退車、刪除，或已不符合台數獎金條件。請和車行確認是否要收回，處理後按「確認處理」。</p>
+      <ul class="payout-orphans__list">
+        {% for entry in orphans %}
+        <li>
+          <div><strong>{{ entry.dealer.name }}</strong><span>{{ entry.label }}</span><small>{% if entry.order %}{{ entry.order.number }} · {% endif %}{% if entry.paid_amount is not None %}已付 ${{ entry.paid_amount|number_with_commas }}{% else %}已給 {{ entry.paid_quantity|floatformat:'-2' }} {{ entry.paid_unit }}{% endif %} · {{ entry.paid_at|date:'Y/m/d' }} {{ entry.paid_by }}{% if entry.note %} · {{ entry.note }}{% endif %}</small></div>
+          {% if can_operate %}<form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="確認「{{ entry.dealer.name }} {{ entry.label }}」已和車行處理完畢？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="resolve"><input type="hidden" name="entry" value="{{ entry.pk }}"><button class="button secondary small" type="submit">確認處理</button></form>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {% for group in groups %}
+  <details class="payout-dealer" {% if group.unpaid_amount or group.unpaid_goods or group.attention or groups|length <= 3 %}open{% endif %}>
+    <summary class="payout-dealer__head">
+      <span class="payout-dealer__name"><strong>{{ group.dealer.name }}</strong><small>{{ group.count }} 個項目</small></span>
+      <span class="payout-dealer__due">
+        {% if group.unpaid_amount %}<span class="payout-dealer__amount"><small>未給付</small>${{ group.unpaid_amount|number_with_commas }}</span>{% endif %}
+        {% for goods in group.unpaid_goods %}<span class="payout-goods">{{ goods.label }} × {{ goods.quantity }}{{ goods.unit }}</span>{% endfor %}
+        {% if not group.unpaid_amount and not group.unpaid_goods %}<span class="payout-state payout-state--paid">全部已給付</span>{% endif %}
+        {% if group.attention %}<span class="payout-state payout-state--changed">金額有變 {{ group.attention }}</span>{% endif %}
+      </span>
+    </summary>
+    <div class="payout-dealer__body">
+      {% for row in group.orders %}
+      <article class="payout-order">
+        <header class="payout-order__meta">
+          <time datetime="{{ row.order.registration_date|date:'Y-m-d' }}">{{ row.order.registration_date|date:'m/d' }}<small>{{ row.order.registration_date|date:'Y' }}</small></time>
+          <div>
+            <p class="payout-order__vehicle">{{ row.order.vehicle_model.name }} <span>{{ row.order.color.name }}</span></p>
+            <p class="payout-order__ref">{% if can_open_orders %}<a href="{% url 'order_detail' row.order.pk %}">{{ row.order.number }}</a>{% else %}{{ row.order.number }}{% endif %} · {{ row.order.owner_name }}</p>
+          </div>
+        </header>
+        <ul class="payout-items">
+          {% for item in row.items %}{% include 'sales/reporting/_payout_item.html' %}{% endfor %}
+        </ul>
+      </article>
+      {% endfor %}
+      {% if group.bonuses %}
+      <div class="payout-bonuses">
+        <h3>台數獎金</h3>
+        <ul class="payout-items">{% for item in group.bonuses %}{% include 'sales/reporting/_payout_item.html' %}{% endfor %}</ul>
+      </div>
+      {% endif %}
+      {% if can_operate and group.unpaid_amount or can_operate and group.unpaid_goods %}
+      <form class="payout-dealer__batch" method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="把 {{ group.dealer.name }} 目前列出的未給付項目全部標記為已給付？{% if group.unpaid_amount %}金額合計 ${{ group.unpaid_amount|number_with_commas }}。{% endif %}">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="paid">
+        {% for row in group.orders %}{% for item in row.items %}{% if not item.paid and item.checkable %}<input type="hidden" name="key" value="{{ item.source_key }}">{% endif %}{% endfor %}{% endfor %}{% for item in group.bonuses %}{% if not item.paid and item.checkable %}<input type="hidden" name="key" value="{{ item.source_key }}">{% endif %}{% endfor %}
+        <button class="button secondary small" type="submit">{{ group.dealer.name }}全部標記已給付</button>
+      </form>
+      {% endif %}
+    </div>
+  </details>
+  {% empty %}
+  <div class="empty-state payout-empty">
+    <span class="empty-state__icon" aria-hidden="true">✓</span>
+    {% if filters_active %}<h3>沒有符合篩選的項目</h3><p>換個車行、日期或狀態，或按「清除」看全部。</p>{% else %}<h3>目前沒有要給車行的項目</h3><p>{{ start_date|date:'Y/m/d' }} 起領牌完成的車行單，有傭金或實物獎勵就會列在這裡。</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/reporting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/dealer-payouts.js' %}?v={{ app_version }}" defer></script>{% endblock %}

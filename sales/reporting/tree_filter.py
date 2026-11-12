@@ -156,7 +156,8 @@ def tree_chips(tree, filters):
             value = _summary(_parts(brand, chosen, labels))
         restored = (selected | leaves) & all_leaves
         model = None if restored == all_leaves else sorted(restored, key=int)
-        chips.append({"label": brand["label"], "value": value, "title": brand["label"] + "：" + value,
+        # title 只放值；active_filters.html 會在前面加上「品牌：」，與其他篩選標籤一致。
+        chips.append({"label": brand["label"], "value": value, "title": value,
                       "model": model, "empty": False})
     if not chips:
         # 網址只留下報表範圍外的車型：視同全部取消，提供一個恢復全選的標籤。

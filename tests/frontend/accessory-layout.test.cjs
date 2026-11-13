@@ -10,7 +10,9 @@ const scripts = fs.readFileSync('templates/sales/_order_form_scripts.html', 'utf
 // 配件精簡列（使用者 2026-10-21 T-50）：依配件區寬度排版，寬版一個配件一列、欄名在表頭。
 test('寬版一個配件一列，數量、類型、金額依內容給固定欄寬，表頭與列同一組欄寬', () => {
   assert.match(css, /\.accessory-section \{ container: accessory \/ inline-size; \}/);
-  assert.match(css, /@container accessory \(min-width: 760px\) \{\s*\.accessory-head, \.accessory-section \.accessory-row \{\s*grid-template-columns: minmax\(0, 1fr\) 4rem 6rem 6rem 6rem 7\.5rem 7\.5rem;/);
+  // T-153 方案 B：一列排完的門檻從 760px 提高到 920px，名稱格才放得下類別與名稱選單。
+  assert.doesNotMatch(css, /@container accessory \(min-width: 760px\)/);
+  assert.match(css, /@container accessory \(min-width: 920px\) \{\s*\.accessory-head, \.accessory-section \.accessory-row \{\s*grid-template-columns: minmax\(0, 1fr\) 4rem 6rem 6rem 6rem 7\.5rem 7\.5rem;/);
   assert.match(css, /grid-template-areas: "name qty type price labor total actions" "note note note note note note note";/);
   assert.match(form, /class="accessory-head" aria-hidden="true"/);
 });

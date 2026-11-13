@@ -65,7 +65,6 @@ from .services.document_signing import (
 from .services.dealer_workbook_sync import next_dealer_code
 from .services.excel_export import sanitize_excel_row
 from .forms import (
-    AccessoryCategoryForm,
     AccessoryProductForm,
     AccessoryProductMergeForm,
     AdminPasswordResetForm,
@@ -2232,7 +2231,6 @@ def sales_source_set_holiday_gift(request, pk):
 
 ACTIVE_TOGGLE_RESOURCES = {
     "accessory-product": (AccessoryProduct, "配件"),
-    "accessory-category": (AccessoryCategory, "配件類別"),
     "dealer-reward-catalog-item": (DealerRewardCatalogItem, "車行獎勵品項"),
     "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
@@ -9437,29 +9435,12 @@ def accessory_product_merge(request, pk):
 
 
 @login_required
+@require_http_methods(["GET"])
 def accessory_category_list(request):
-    """配件類別（T-138）：新增、改名、排序、停用；沒有配件在用的類別可刪除。"""
-    editing = get_object_or_404(AccessoryCategory, pk=request.GET["edit"]) if request.GET.get("edit", "").isdigit() else None
-    if request.method == "POST" and request.POST.get("action") == "delete":
-        category = get_object_or_404(AccessoryCategory, pk=request.POST.get("category_id"))
-        if category.products.exists():
-            messages.error(request, f"無法刪除「{category.name}」：仍有配件在這個類別。可改為停用，或先把配件改到其他類別。")
-        else:
-            label = category.name
-            category.delete()
-            messages.success(request, f"已刪除未使用的配件類別：{label}。")
-        return redirect("accessory_category_list")
-    form = AccessoryCategoryForm(request.POST or None, instance=editing)
-    if request.method == "POST" and form.is_valid():
-        category = form.save()
-        messages.success(request, f"已儲存配件類別：{category.name}。")
-        return redirect("accessory_category_list")
+    """配件類別：固定 7 類（使用者 2026-11-13 T-153），只列出、不能新增、改名、停用或刪除；
+    類別底下的配件名稱到「配件與工資」管理。"""
     categories = AccessoryCategory.objects.annotate(product_count=Count("products"))
-    return render(
-        request,
-        "sales/accessory_category_list.html",
-        {"form": form, "categories": categories, "editing": editing},
-    )
+    return render(request, "sales/accessory_category_list.html", {"categories": categories})
 
 
 @login_required

@@ -181,7 +181,7 @@ LOOKUPS = {
     "vehicle_price_options": ("orders", "models"),
 }
 TOGGLE_RESOURCES = {
-    "accessory-product": "accessories", "accessory-category": "accessories", "dealer-reward-catalog-item": "rewards",
+    "accessory-product": "accessories", "dealer-reward-catalog-item": "rewards",
     "brand-registration-fee-rule": "fees", "business-holiday": "holidays",
     "dealer-volume-bonus": "bonuses", "incentive-campaign": "incentives", "dealer-reward-campaign": "commissions",
     "installment-company": "installments", "installment-plan": "models", "subsidy-program": "subsidy_programs",

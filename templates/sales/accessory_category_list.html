@@ -2,50 +2,30 @@
 {% block title %}配件類別｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% comment %}配件類別（使用者 2026-11-09 T-138）：訂單配件先選類別再選名稱。版面沿用通路類別頁。{% endcomment %}
+{% comment %}配件類別固定 7 類（使用者 2026-11-13 T-153）：只列出，不能新增、改名、停用或刪除；類別底下的配件名稱到「配件與工資」管理。{% endcomment %}
 {% url 'accessory_product_list' as list_url %}{% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=list_url label="配件與工資" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">配件主檔</p>
     <h1>配件類別</h1>
-    <p class="muted">訂單上先選類別再選配件。類別可改名、調整排序或停用；配件要換類別，到配件的「編輯」修改。</p>
+    <p class="muted">訂單上先選類別再選配件。類別固定為下列 {{ categories|length }} 類，不能新增或刪除；按「配件數」可管理該類別底下的配件名稱。</p>
   </div>
 </section>
-<div class="master-layout source-category-layout">
-  <section class="form-section static-section">
-    <div class="section-title"><div><h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增類別{% endif %}</h2><p>停用的類別不會出現在訂單上，已歸在裡面的配件仍可在「全部類別」找到。</p></div></div>
-    <form method="post" class="stacked-form">{% csrf_token %}
-      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
-      <div class="form-actions">
-        {% if editing %}<a class="button ghost" href="{% url 'accessory_category_list' %}">取消修改</a>{% endif %}
-        <button class="button primary" type="submit">{% if editing %}套用修改{% else %}新增類別{% endif %}</button>
-      </div>
-    </form>
-  </section>
-  <section class="inventory-list-panel">
-    <div class="inventory-list-summary"><div><strong>既有類別</strong><span>共 {{ categories|length }} 個</span></div></div>
-    <div class="inventory-table-wrap">
-      <table class="inventory-table inventory-table--fit">
-        <thead><tr><th>類別名稱</th><th>排序</th><th>配件數</th><th>狀態</th><th></th></tr></thead>
-        <tbody>
-          {% for item in categories %}
-          <tr>
-            <td data-label="類別名稱"><strong>{{ item.name }}</strong></td>
-            <td data-label="排序">{{ item.sort_order }}</td>
-            <td data-label="配件數"><a href="{% url 'accessory_product_list' %}?category={{ item.pk }}">{{ item.product_count }} 項</a></td>
-            <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-category" pk=item.pk is_active=item.active item_name=item.name %}</td>
-            <td data-label="操作" class="inventory-row-action">
-              <span class="row-action-buttons">
-                <a class="button ghost small" href="?edit={{ item.pk }}">編輯</a>
-                {% if not item.product_count %}<form method="post" data-confirm="確定刪除沒有配件的類別「{{ item.name }}」嗎？">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="{{ item.pk }}"><button class="button danger small" type="submit">刪除</button></form>{% endif %}
-              </span>
-            </td>
-          </tr>
-          {% empty %}<tr><td colspan="5"><div class="empty-state"><strong>尚未建立配件類別</strong></div></td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-</div>
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><div><strong>配件類別</strong><span>共 {{ categories|length }} 類</span></div></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table inventory-table--fit">
+      <thead><tr><th>類別名稱</th><th>配件數</th></tr></thead>
+      <tbody>
+        {% for item in categories %}
+        <tr>
+          <td data-label="類別名稱"><strong>{{ item.name }}</strong></td>
+          <td data-label="配件數"><a href="{% url 'accessory_product_list' %}?category={{ item.pk }}">{{ item.product_count }} 項</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="2"><div class="empty-state"><strong>尚未建立配件類別</strong></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

@@ -3492,7 +3492,7 @@ class SalesOrder(TimeStampedModel):
     owner_birth_date = models.DateField("生日", blank=True, null=True)
     owner_nationality = models.CharField("國籍", max_length=80, blank=True)
     owner_address = models.TextField("戶籍／公司地址", blank=True)
-    owner_id_number = models.CharField("證件號碼／統一編號", max_length=40)
+    owner_id_number = models.CharField("證件號碼／統一編號", max_length=40, blank=True)
     residence_expiry = models.DateField("居留期限", blank=True, null=True)
     id_front = models.ImageField("證件正面", upload_to="orders/id/%Y/%m/", blank=True)
     id_back = models.ImageField("證件反面", upload_to="orders/id/%Y/%m/", blank=True)

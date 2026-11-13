@@ -649,7 +649,7 @@ def _order_detail_section_url(order_pk, section):
 @login_required
 def data_maintenance(request):
     context = {
-        "customer_count": SalesOrder.objects.values("owner_id_number").distinct().count(),
+        "customer_count": _customer_count(SalesOrder.objects.all()),
         "vehicle_model_count": VehicleModelFamily.objects.count(),
         "vehicle_model_version_count": VehicleModel.objects.count(),
         "catalog_photo_missing_count": VehicleColor.objects.filter(
@@ -4068,17 +4068,33 @@ def legacy_import_status(request, pk):
     )
 
 
+def _same_customer(value):
+    """客戶歸戶條件（使用者 2026-11-13 T-156）：有證號以證號歸戶（不變）；證號空白改以「姓名＋電話」歸戶，
+    不把所有沒填證號的訂單併成同一位客戶。value(欄位名) 回傳比對值（OuterRef 或某張訂單的欄位值）。"""
+    return Q(owner_id_number=value("owner_id_number")) & (
+        ~Q(owner_id_number="") | Q(owner_name=value("owner_name"), owner_phone=value("owner_phone"))
+    )
+
+
+def _customer_count(orders):
+    """客戶數：有證號依證號、證號空白依姓名＋電話各算一位（與客戶列表同一歸戶規則）。"""
+    return (
+        orders.exclude(owner_id_number="").values("owner_id_number").distinct().count()
+        + orders.filter(owner_id_number="").values("owner_name", "owner_phone").distinct().count()
+    )
+
+
 @login_required
 def customer_list(request):
     from sales.services.order_intake import scoped_orders
     visible_orders = scoped_orders(request.user)
     latest_id = (
-        visible_orders.filter(owner_id_number=OuterRef("owner_id_number"))
+        visible_orders.filter(_same_customer(OuterRef))
         .order_by("-order_date", "-id")
         .values("id")[:1]
     )
     order_count = (
-        visible_orders.filter(owner_id_number=OuterRef("owner_id_number"))
+        visible_orders.filter(_same_customer(OuterRef))
         .values("owner_id_number")
         .annotate(total=Count("id"))
         .values("total")[:1]
@@ -4113,7 +4129,7 @@ def customer_detail(request, pk):
     from sales.services.order_intake import scoped_orders
     customer = get_object_or_404(scoped_orders(request.user), pk=pk)
     orders = (
-        scoped_orders(request.user).filter(owner_id_number=customer.owner_id_number)
+        scoped_orders(request.user).filter(_same_customer(lambda name: getattr(customer, name)))
         .select_related("vehicle_model", "color", "source")
         .order_by("-order_date", "-id")
     )

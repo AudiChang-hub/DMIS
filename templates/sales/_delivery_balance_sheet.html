@@ -17,6 +17,7 @@
     {% for field in balance_payment_form %}{% if field.name != "confirmed" %}{% include "sales/_field.html" %}{% endif %}{% endfor %}
   </div>
   <p class="form-hint" data-balance-hint>實收要大於或等於應收 <span data-delivery-due-amount>${{ b.due|number_with_commas }}</span>，才能按下方「收尾款並完成交車」；送出時同時確認收款，金額不足不會交車、也不記錄收款。</p>
+  <p class="form-hint" data-balance-hint-zero hidden>目前沒有應收尾款，實收金額不必填，也不會記一筆 0 元收款；直接按下方按鈕完成交車。</p>
   </div>
 </div>
 {% endwith %}

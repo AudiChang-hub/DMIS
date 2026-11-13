@@ -7310,11 +7310,15 @@ def delivery_complete(request, pk):
         return redirect(detail_url)
     balance_form = None
     due = payment_summary(order)["delivery_due"] if order.source_type != SalesOrder.SourceType.DEALER else Decimal("0")
-    if due > 0 and not request.POST.get("balance-received_amount", "").strip():
+    received_text = request.POST.get("balance-received_amount", "").strip()
+    if due > 0 and not received_text:
         # 應收大於 0 時實收必填（使用者 2026-10-22 T-75）。
         messages.error(request, f"交付未完成：應收 {due:,.0f} 元，請填寫實收金額。")
         return redirect(detail_url)
-    if request.POST.get("balance-received_amount", "").strip():
+    if due <= 0 and received_text.replace(",", "").strip("0.") == "":
+        # 應收 0 時實收不必填，填 0 也當作沒填，不記一筆 0 元收款（使用者 2026-11-13 T-156）。
+        received_text = ""
+    if received_text:
         # 交車同時收尾款：尾款與交付在同一交易，任一失敗全部不寫入。
         # 交車收尾款看交車權限（UAT U-03，使用者 2026-11-06 選 A），與交車按鈕同一權限。
         balance = PaymentRecord.objects.select_for_update().filter(order=order, system_key="balance").first()

@@ -172,6 +172,7 @@ class ReportDesignerUxT164Tests(TestCase):
                 self.assertEqual(first.status_code, 302, first.content[:800])
                 report.refresh_from_db()
                 normalized = copy.deepcopy(report.draft)
+                self.assertEqual(normalized, config)  # T-165：原樣存回，不補預設值、不重排附加指標
                 second = self.client.post(edit, browser_payload(self.client.get(edit).content.decode(), "save"))
                 self.assertEqual(second.status_code, 302)
                 report.refresh_from_db()
@@ -183,7 +184,4 @@ class ReportDesignerUxT164Tests(TestCase):
                 for saved, original in zip(normalized["cards"], config["cards"]):
                     for key, value in original.items():
                         actual = saved.get(key, value) if key == "fixed_filters" and not value else saved.get(key)
-                        if key == "additional_metrics":
-                            # 既有行為（非 T-164 造成，已回報）：多選清單依選單順序送出，附加指標順序會被重排。
-                            actual, value = sorted(actual), sorted(value)
                         self.assertEqual(actual, value, (name, key))

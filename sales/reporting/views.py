@@ -292,6 +292,22 @@ def draft_preview(request, pk):
     })
 
 
+# T-165 根因：存檔時把每個選填欄位都寫成表單預設值（如 height 520、width 6、series ""），
+# 範本建立、從未設定過的鍵因此被補上，什麼都沒改只按儲存，草稿也和已發布版本不同而顯示「有未發布的修改」。
+# 原本沒有、而且送出值仍等於預設值的鍵不寫入；讀取端對缺少的鍵本來就用同一個預設值，畫面不變。
+REPORT_DEFAULTS = {"reader_layout": "standard", "navigation_group": "custom", "page_order": 0, "fixed_filters": {},
+                   "include_undated": False, "include_records": False, "records_columns": DEFAULT_RECORD_COLUMNS,
+                   "records_page_size": 10, "records_mode": "orders"}
+CARD_DEFAULTS = {"fixed_filters": {}, "series": "", "series_limit": 200, "series_other": False, "series_sort": "value",
+                 "additional_metrics": [], "width": 6, "height": 520, "font_size": 0, "title_align": "", "palette": "",
+                 "show_legend": "", "show_tooltip": "", "cross_filter": ""}
+
+
+def keep_untouched_defaults_absent(values, original, defaults):
+    return {key: value for key, value in values.items()
+            if key in original or key not in defaults or value != defaults[key]}
+
+
 def designer_return_url(request, report):
     """T-164 從報表頁「編輯此報表」進入時，返回同一份報表（含讀者當時的篩選）；只接受本報表的站內路徑。"""
     target = request.POST.get("return_to") or request.GET.get("from") or ""
@@ -320,6 +336,9 @@ def edit(request, pk=None):
         config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter")}, "fixed_filters": card.scope_data(),
                             **({"per_model": True} if card.cleaned_data.get("per_model") else {})}
                            for card in formset.ordered_forms]
+        config = keep_untouched_defaults_absent(config, report.draft if report else {}, REPORT_DEFAULTS)
+        config["cards"] = [keep_untouched_defaults_absent(values, card.initial or {}, CARD_DEFAULTS)
+                           for values, card in zip(config["cards"], formset.ordered_forms)]
         action = request.POST.get("action")
         try:
             validate_config(config)

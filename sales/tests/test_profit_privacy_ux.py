@@ -106,7 +106,7 @@ class ProfitPrivacyTests(TestCase):
         cls.model = VehicleModel.objects.create(brand="TEST", name="機種名稱很長很長超過十個字", energy_type="gas")
         cls.color = VehicleColor.objects.create(vehicle_model=cls.model, name="白")
         cls.order = SalesOrder.objects.create(owner_name="測試姓名", owner_phone="0900000000", owner_address="測試地址", owner_id_number="A123456789", vehicle_model=cls.model, color=cls.color, note="備註文字很長超過十二個字元的測試")
-        OrderOperationsProfile.objects.update_or_create(order=cls.order, defaults={"actual_disbursement": 987654, "vehicle_cost": 321})
+        OrderOperationsProfile.objects.update_or_create(order=cls.order, defaults={"actual_disbursement": 987654, "vehicle_cost": 321})  # 淨利另含建單帶入的強制險傭金 145（T-157）
 
     def setUp(self):
         cache.clear()
@@ -115,7 +115,7 @@ class ProfitPrivacyTests(TestCase):
         # 2026-10-15 起只有店內人員使用：有淨利授權直接顯示、可依淨利排序，不再有解鎖／立即鎖定。
         self.client.force_login(self.root)
         response = self.client.get(reverse("order_list"), {"sort": "profit,owner_name"})
-        self.assertContains(response, "987,333")
+        self.assertContains(response, "987,478")
         self.assertEqual(response.context["sort_value"], "profit,owner_name")
         for text in ("立即鎖定", "淨利已解鎖", "輸入密碼查看", "data-profit-until", "profit-lock.js"):
             self.assertNotContains(response, text)
@@ -127,13 +127,13 @@ class ProfitPrivacyTests(TestCase):
             self.client.force_login(user)
             self.assertFalse(AccessPolicy(user).screen("profit"))
             response = self.client.get(reverse("order_list"), {"sort": "profit"})
-            self.assertNotContains(response, "987,333")
+            self.assertNotContains(response, "987,478")
             self.assertNotEqual(response.context["sort_value"], "profit")
         grant = ScreenAccessGrant.objects.create(user=self.staff, screen_key="profit", view=True)
         self.client.force_login(self.staff)
-        self.assertContains(self.client.get(reverse("order_list")), "987,333")
+        self.assertContains(self.client.get(reverse("order_list")), "987,478")
         grant.delete()
-        self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
+        self.assertNotContains(self.client.get(reverse("order_list")), "987,478")
 
     def test_export_and_raw_financial_routes_follow_profit_grant(self):
         self.client.force_login(self.root)

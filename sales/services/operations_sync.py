@@ -203,6 +203,12 @@ def sync_order_operations(order_id, *, update_receivables=False):
         _sync_financial_field(profile, "plate_selection_income", order.plate_selection_fee)
         _sync_financial_field(profile, "agency_fee_income", default_agency_fee(order, profile))
         _sync_financial_field(profile, "installment_fee_expense", installment_fee)
+        if not profile.incentive_locked_at:
+            # 強制險傭金建單就帶入（T-157，使用者 2026-11-13 選 A），金額規則不變；領牌完成鎖定、人工改過不覆寫。
+            from .incentive_rule import compulsory_insurance_commission
+            commission = compulsory_insurance_commission(order)
+            if commission is not None:
+                _sync_financial_field(profile, "insurance_commission", commission)
     profile.installment_info = (
         f"{order.installment_company}／{order.installment_periods}期／"
         f"每期 {order.installment_monthly:.0f} 元"

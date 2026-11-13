@@ -60,17 +60,19 @@ class FinancialConsistencyTests(TestCase):
         payment.confirmed = True
         payment.save()
         self.assertEqual(self.profile(order).actual_disbursement, 65000)
-        self.assertEqual(self.profile(order).net_profit, 65000)
+        # 強制險傭金建單就帶入一年 145（T-157），淨利含這筆。
+        self.assertEqual(self.profile(order).insurance_commission, 145)
+        self.assertEqual(self.profile(order).net_profit, 65145)
         payment.received_amount = 66000
         with self.assertRaises(ValidationError):
             payment.save()
         # 已入帳金額只能沖銷後重新登記。
         reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="金額登記錯誤")
-        self.assertEqual(self.profile(order).net_profit, 0)
+        self.assertEqual(self.profile(order).net_profit, 145)
         self.assertEqual(self.profile(order).payment_disbursement_snapshot, {})
         PaymentRecord.objects.create(order=order, item_name="平台撥款更正", receipt_kind="lender", received_amount=66000,
                                      received_on=date(2026, 9, 3), confirmed=True)
-        self.assertEqual(self.profile(order).net_profit, 66000)
+        self.assertEqual(self.profile(order).net_profit, 66145)
 
     def test_payment_reversal_restores_manual_value(self):
         order = self.order(source_type="platform", source=self.platform)

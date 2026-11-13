@@ -58,6 +58,12 @@ class AccessoryCategoryOtherTests(TestCase):
         self.assertIn(">其他</option>", options)
         self.assertNotIn("乘載", options)
 
+    def test_custom_name_option_no_longer_reads_other(self):
+        # 使用者 2026-11-13 同意：類別有了「其他」，名稱選單的自填選項改叫「自行填寫名稱」，值仍是 other。
+        options = str(AccessoryLineForm()["accessory_product"])
+        self.assertIn('<option value="other">自行填寫名稱</option>', options)
+        self.assertNotIn("其他（自行填寫名稱）", options)
+
     def test_rename_keeps_products_and_is_reversible(self):
         old, seat = self.reset_to_old_name()
         migration.rename_to_other(apps, None)

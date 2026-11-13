@@ -48,7 +48,7 @@ class StoreHandlesOrdersTests(TestCase):
     def test_catalog_entry_offers_other_accessory_to_everyone(self):
         # 1.70.1：清單找不到的配件（例如手機架），從選車頁進來也一律可選「其他」自行填名稱與售價。
         page = self.client.get(reverse("order_start")).content.decode()
-        self.assertIn('<option value="other">其他（自行填寫名稱）</option>', page)
+        self.assertIn('<option value="other">自行填寫名稱</option>', page)
         custom = {"accessories-TOTAL_FORMS": "1", "accessories-0-accessory_product": "other",
                   "accessories-0-custom_name": "行車紀錄器", "accessories-0-quantity": "1",
                   "accessories-0-line_type": "purchase", "accessories-0-amount": "2500", "accessories-0-labor_fee": "300"}

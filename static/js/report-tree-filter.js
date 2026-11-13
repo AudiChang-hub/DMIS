@@ -13,6 +13,11 @@ function reportTreeStatus(checked, total) {
 function reportTreeRailCount(checked, total) {
   return `已選 ${checked}／${total}`;
 }
+// 收合窄邊的數量徽章（T-159）：主字一行、副字一行都不換行；全選寫「全部」，沒勾寫 0。
+function reportTreeRailBadge(checked, total) {
+  if (total && checked === total) return {state: 'all', main: '全部', sub: `${total} 款`};
+  return {state: checked ? 'some' : 'none', main: String(checked), sub: `/ ${total}`};
+}
 // 收合狀態記在 localStorage；無痕模式或封鎖儲存時讀寫會丟例外，一律當作展開、不影響操作。
 const REPORT_TREE_COLLAPSED_KEY = 'dmis.reportTreeCollapsed';
 function reportTreeReadCollapsed(storage) {
@@ -28,7 +33,7 @@ function reportTreeFormData(formData, checked, total) {
   if (!checked) { formData.delete('model'); formData.set('empty_model', '1'); }
   return formData;
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeCheckedState, reportTreeStatus, reportTreeFormData, reportTreeRailCount, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY};
+if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeCheckedState, reportTreeStatus, reportTreeFormData, reportTreeRailCount, reportTreeRailBadge, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY};
 (() => {
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-report-tree]');
@@ -41,6 +46,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   const inputs = [...tree.querySelectorAll('[data-tree-input]')];
   const status = root.querySelector('[data-report-tree-status]');
   const railCount = root.querySelector('[data-report-tree-rail-count]');
+  const railBadge = root.querySelector('[data-report-tree-rail-badge]');
+  const railButton = root.querySelector('[data-report-tree-rail]');
   const parentOf = item => item.parentElement.closest('[role="treeitem"]');
   const leavesOf = item => [...item.querySelectorAll('[data-tree-input]')];
   const isVisible = item => { for (let parent = parentOf(item); parent; parent = parentOf(parent)) if (parent.getAttribute('aria-expanded') === 'false') return false; return true; };
@@ -61,6 +68,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
     const checked = inputs.filter(input => input.checked).length;
     status.textContent = reportTreeStatus(checked, inputs.length);
     if (railCount) railCount.textContent = reportTreeRailCount(checked, inputs.length);
+    if (railBadge) {
+      const badge = reportTreeRailBadge(checked, inputs.length);
+      railBadge.dataset.state = badge.state;
+      railBadge.querySelector('[data-report-tree-rail-main]').textContent = badge.main;
+      railBadge.querySelector('[data-report-tree-rail-sub]').textContent = badge.sub;
+      railButton?.setAttribute('title', `展開車型篩選（${reportTreeRailCount(checked, inputs.length)} 款）`);
+    }
   }
   function apply() { refresh(); proxy?.dispatchEvent(new Event('change', {bubbles: true})); }
   function toggleChecked(item) {

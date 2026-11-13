@@ -224,11 +224,16 @@
   .report-tree-filter__collapse:focus-visible, .report-tree-filter__rail:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   .report-tree-filter.is-rail { padding: var(--space-1); overflow: hidden; }
   .report-tree-filter.is-rail > .report-tree-filter__head, .report-tree-filter.is-rail > .report-tree-filter__body { display: none; }
-  .report-tree-filter.is-rail > .report-tree-filter__rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; min-height: 240px; padding: var(--space-3) 0; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink); font: inherit; cursor: pointer; transition: background-color var(--dur-1) var(--ease-out); }
-  .report-tree-filter__rail:hover { background: var(--surface-tint); }
-  .report-tree-filter__rail-icon { flex: none; color: var(--muted); }
-  .report-tree-filter__rail:hover .report-tree-filter__rail-icon { color: var(--action-text); }
-  .report-tree-filter__rail-title { writing-mode: vertical-rl; font-family: var(--font-display); font-weight: 750; font-size: var(--text-base); letter-spacing: .12em; }
-  .report-tree-filter__rail-count { max-width: 48px; padding: var(--space-1); border-radius: var(--radius-sm); background: var(--surface-tint); color: var(--action-text); font-size: var(--text-2xs); font-weight: 700; line-height: 1.35; text-align: center; font-variant-numeric: tabular-nums; word-break: keep-all; }
+  /* 收合窄邊（T-159 重新設計）：上方展開鈕、直書標題、分隔線、數量徽章各自一段，寬度不變（56px）。 */
+  .report-tree-filter.is-rail > .report-tree-filter__rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); width: 100%; padding: var(--space-2) 0 var(--space-1); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink); font: inherit; cursor: pointer; transition: background-color var(--dur-1) var(--ease-out); }
+  .report-tree-filter__rail:hover { background: var(--surface-soft); }
+  .report-tree-filter__rail-icon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 1px solid var(--line-soft); border-radius: var(--radius-pill); background: var(--surface); color: var(--muted); transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out); }
+  .report-tree-filter__rail:hover .report-tree-filter__rail-icon { color: var(--action-text); border-color: var(--forest); background: var(--surface-tint); }
+  .report-tree-filter__rail-title { writing-mode: vertical-rl; text-orientation: upright; font-family: var(--font-display); font-weight: 750; font-size: var(--text-sm-plus); line-height: 1; letter-spacing: .28em; color: var(--ink); }
+  .report-tree-filter__rail-badge { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px; padding: var(--space-2) 0; border-top: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .report-tree-filter__rail-main { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; color: var(--action-text); }
+  .report-tree-filter__rail-badge[data-state="all"] .report-tree-filter__rail-main { font-size: var(--text-sm); letter-spacing: .04em; }
+  .report-tree-filter__rail-badge[data-state="none"] .report-tree-filter__rail-main { color: var(--amber-ink); }
+  .report-tree-filter__rail-sub { font-size: var(--text-2xs); font-weight: 650; line-height: 1.2; color: var(--muted); }
 }
 @media (prefers-reduced-motion: reduce) { .report-reader-layout.has-tree-filter, .report-tree-filter__collapse, .report-tree-filter__rail { transition: none; } }

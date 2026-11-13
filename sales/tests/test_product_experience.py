@@ -181,16 +181,12 @@ class ProductExperienceTests(TestCase):
             ("vehicle_model_list", "機種與售價", "vehicle_model_list.html"),
             ("inventory_list", "車輛庫存", "inventory_list.html"),
             ("accessory_product_list", "配件與工資", "accessory_product_list.html"),
-            ("dealer_reward_catalog_list", "車行獎勵品項", "dealer_reward_catalog_list.html"),
             ("customer_list", "客戶查詢", "customer_list.html"),
             ("sales_source_category_list", "通路類別", "sales_source_category_list.html"),
             ("sales_source_list", "車行", "sales_source_list.html"),
             ("price_list_distribution", "價格表分發", "price_list_distribution.html"),
             ("settlement_cost_rule_list", "車輛結算成本", "settlement_cost_rule_list.html"),
             ("incentive_rule_list", "原廠獎勵與補助", "incentive_campaign_list.html"),
-            ("dealer_reward_campaign_list", "車行獎勵活動", "dealer_reward_campaign_list.html"),
-            ("dealer_sales_program_list", "車行傭金與銷售獎勵", "dealer_sales_program_list.html"),
-            ("dealer_volume_bonus_list", "車行台數獎金", "dealer_volume_bonus_list.html"),
             ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
             ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
             ("business_holiday_list", "工作日與假日設定", "business_holiday_list.html"),
@@ -212,6 +208,22 @@ class ProductExperienceTests(TestCase):
                 if route != "user_management":
                     self.assertIn(f"url '{route}'", navigation)
                     self.assertIn(f"<strong>{label}</strong>", navigation)
+
+        # T-162：車行傭金與獎勵四頁共用一個入口，各頁以分頁列互通，頁首標題維持原名。
+        self.assertIn("<h2>車行傭金與獎勵</h2>", hub)
+        self.assertIn("<strong>車行傭金與獎勵</strong>", navigation)
+        for route, label, filename in (
+            ("dealer_sales_program_list", "車行傭金與銷售獎勵", "dealer_sales_program_list.html"),
+            ("dealer_reward_campaign_list", "車行獎勵活動", "dealer_reward_campaign_list.html"),
+            ("dealer_reward_catalog_list", "車行獎勵品項", "dealer_reward_catalog_list.html"),
+            ("dealer_volume_bonus_list", "車行台數獎金", "dealer_volume_bonus_list.html"),
+        ):
+            destination = Path("templates/sales", filename).read_text(encoding="utf-8")
+            with self.subTest(route=route):
+                self.assertIn(f"url '{route}'", hub)
+                self.assertIn(f"url '{route}'", navigation)
+                self.assertIn(f"<h1>{label}</h1>", destination)
+                self.assertIn('{% include "sales/_dealer_reward_tabs.html"', destination)
 
         self.client.force_login(self.user)
         for route, label in (

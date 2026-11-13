@@ -732,9 +732,12 @@ class DealerRewardCampaignScreenTests(CampaignFixtureMixin, TestCase):
         self.assertNotIn("rewards", sections["車輛與商品"])
         menu = self.client.get(reverse("dashboard")).content.decode()
         rules = menu.split('id="data-menu-rules"', 1)[1].split("</section>", 1)[0]
-        self.assertIn("車行獎勵活動", rules)
-        self.assertIn("車行獎勵品項", rules)
+        self.assertIn("<strong>車行傭金與獎勵</strong>", rules)
+        self.assertNotIn("<strong>車行獎勵品項</strong>", rules)
         maintenance = self.client.get(reverse("data_maintenance"))
-        self.assertContains(maintenance, reverse("dealer_reward_campaign_list"))
+        self.assertContains(maintenance, "<h2>車行傭金與獎勵</h2>", html=False)
+        # T-162：活動從共用入口的分頁列進入。
+        campaign_tab = f'<a href="{reverse("dealer_reward_campaign_list")}">獎勵活動</a>'
+        self.assertContains(self.client.get(reverse("dealer_sales_program_list")), campaign_tab, html=False)
         legacy_batch = self.client.get(reverse("vehicle_model_reward_batch"))
         self.assertRedirects(legacy_batch, reverse("dealer_reward_campaign_list"))

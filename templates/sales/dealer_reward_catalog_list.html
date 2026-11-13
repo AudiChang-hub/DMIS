@@ -13,6 +13,7 @@
   </div>
   <a class="button primary" href="{% url 'dealer_reward_catalog_create' %}">＋ 新增獎勵品項</a>
 </section>
+{% include "sales/_dealer_reward_tabs.html" with current="catalog" %}
 
 <nav class="source-status-switch" aria-label="依使用狀態查看車行獎勵品項">
   <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>

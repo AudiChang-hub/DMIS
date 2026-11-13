@@ -145,8 +145,7 @@ class DealerRewardCatalogTests(TestCase):
 
     def test_navigation_help_and_mobile_shortcut_expose_daily_master(self):
         maintenance = self.client.get(reverse("data_maintenance"))
-        self.assertContains(maintenance, self.list_url)
-        self.assertContains(maintenance, "車行獎勵品項")
+        self.assertContains(maintenance, "車行傭金與獎勵")
 
         dashboard = self.client.get(reverse("dashboard"))
         self.assertContains(dashboard, 'value="dealer-reward-items"')
@@ -157,14 +156,17 @@ class DealerRewardCatalogTests(TestCase):
         base = (Path(settings.BASE_DIR) / "templates" / "base.html").read_text(
             encoding="utf-8"
         )
-        # T-149：品項移到「費率與規則」，緊接在車行獎勵活動之後。
+        # T-149：品項在「費率與規則」；T-162 起四頁共用「車行傭金與獎勵」入口，分頁列中品項緊接在活動之後。
         self.assertGreater(
-            base.index("{% url 'dealer_reward_catalog_list' %}"),
+            base.index("{% url 'dealer_reward_catalog_list' as dr_url %}"),
             base.index('id="data-menu-rules"'),
         )
+        tabs = (Path(settings.BASE_DIR) / "templates" / "sales" / "_dealer_reward_tabs.html").read_text(
+            encoding="utf-8"
+        )
         self.assertLess(
-            base.index("{% url 'dealer_reward_campaign_list' %}"),
-            base.index("{% url 'dealer_reward_catalog_list' %}"),
+            tabs.index("{% url 'dealer_reward_campaign_list' %}"),
+            tabs.index("{% url 'dealer_reward_catalog_list' %}"),
         )
 
     def test_existing_reward_rows_are_converted_to_shared_catalog_items(self):

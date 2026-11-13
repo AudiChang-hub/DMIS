@@ -60,10 +60,8 @@
                 <h2 id="data-menu-rules">費率與規則</h2>
                 {% if_access 'settlement_cost_rule_list' %}<a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>{% endif_access %}
                 {% if_access 'incentive_rule_list' %}<a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>常態與加碼活動：實銷、促銷與分期補貼</small></a>{% endif_access %}
-                {% if_access 'dealer_sales_program_list' %}<a href="{% url 'dealer_sales_program_list' %}"><strong>車行傭金與銷售獎勵</strong><small>各車型每台的基礎傭金</small></a>{% endif_access %}
-                {% if_access 'dealer_reward_campaign_list' %}<a href="{% url 'dealer_reward_campaign_list' %}"><strong>車行獎勵活動</strong><small>指定車行、品牌、能源別，每台送實物或禮券</small></a>{% endif_access %}
-                {% if_access 'dealer_reward_catalog_list' %}<a href="{% url 'dealer_reward_catalog_list' %}"><strong>車行獎勵品項</strong><small>機油、禮券、點數等品項與成本</small></a>{% endif_access %}
-                {% if_access 'dealer_volume_bonus_list' %}<a href="{% url 'dealer_volume_bonus_list' %}"><strong>車行台數獎金</strong><small>門檻、期間與逐單結算</small></a>{% endif_access %}
+                {# 車行傭金與獎勵四頁共用一個入口（T-162），連到有權限的第一個分頁。 #}
+                {% can_access 'dealer_sales_program_list' as dr_commission %}{% can_access 'dealer_reward_campaign_list' as dr_campaign %}{% can_access 'dealer_reward_catalog_list' as dr_catalog %}{% can_access 'dealer_volume_bonus_list' as dr_bonus %}{% if dr_commission %}{% url 'dealer_sales_program_list' as dr_url %}{% elif dr_campaign %}{% url 'dealer_reward_campaign_list' as dr_url %}{% elif dr_catalog %}{% url 'dealer_reward_catalog_list' as dr_url %}{% elif dr_bonus %}{% url 'dealer_volume_bonus_list' as dr_url %}{% endif %}{% if dr_url %}<a href="{{ dr_url }}"><strong>車行傭金與獎勵</strong><small>基礎傭金、獎勵活動與品項、台數獎金</small></a>{% endif %}
                 {% if_access 'installment_company_list' %}<a href="{% url 'installment_company_list' %}"><strong>分期公司與方案</strong><small>公司、客服電話與機種分期方案</small></a>{% endif_access %}
                 {% if_access 'subsidy_program_list' %}<a href="{% url 'subsidy_program_list' %}"><strong>補助方案</strong><small>建單「申請補助」可勾選的方案與預設金額</small></a>{% endif_access %}
                 {% if_access 'brand_registration_fee_rule_list' %}<a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>{% endif_access %}

@@ -23,7 +23,10 @@ def default_customer_balance(order):
     zero = Decimal("0")
     if order.payment_type == "installment":
         if order.cash_receivable_v2:
-            return max(installment_customer_part(order) - (order.deposit_amount or zero), zero)
+            # 系統建立的分期車行單：由車行付的費用先扣傭金（T-154），其餘分期單照分期外應收。
+            dealer_due = dealer_account_due(order)
+            part = installment_customer_part(order) if dealer_due is None else dealer_due
+            return max(part - (order.deposit_amount or zero), zero)
         return max((order.actual_balance or zero) - (order.installment_amount or zero), zero)
     dealer_due = dealer_cash_credit(order)
     if dealer_due is not None:
@@ -31,20 +34,32 @@ def default_customer_balance(order):
     return order.actual_balance or zero
 
 
-def dealer_cash_credit(order):
-    """車行現金單的掛帳應收＝車行結算的「向車行收」金額（原現金價－傭金＋牌險＋選號＋配件），
-    傭金直接在掛帳裡抵掉（T-120 p16，使用者 2026-11-06 選 A，取代 10-17「掛帳不扣傭金」）。
-    只適用系統建立的車行現金單；分期車行單、Excel 匯入單照舊，回傳 None。"""
+def dealer_account_due(order):
+    """系統建立的車行單向車行收的金額（扣訂金前）＝車行結算＋台數獎金，可為負（傭金比要收的費用多，差額付給車行）。
+
+    - 現金單：原現金價－傭金＋牌險＋選號＋配件（T-120 p16，使用者 2026-11-06 選 A，取代 10-17「掛帳不扣傭金」）。
+    - 分期單：分期外應收（牌險、選號、配件等由車行付的費用）－傭金（T-154，使用者 2026-11-12 選 B）；
+      分期總價本身仍固定、不扣傭金，分期公司撥款不變。
+    台數獎金是期間結束後另外付給車行的錢（使用者 2026-11-11 T-148），不扣本單應收，加回。
+    Excel 匯入單與非車行單回傳 None。"""
     from sales.services.dealer_settlement import dealer_settlement
 
-    if (order.source_type != "dealer" or order.payment_type == "installment" or not order.cash_receivable_v2
+    if (order.source_type != "dealer" or not order.cash_receivable_v2
             or not order.pk or hasattr(order, "legacy_snapshot")):
         return None
     settlement = dealer_settlement(order)
     if settlement is None:
         return None
-    # 台數獎金是期間結束後另外付給車行的錢（使用者 2026-11-11 T-148），不扣本單掛帳應收，也就不會變成溢收。
-    return max(settlement["total"] + settlement["volume_bonus"], Decimal("0"))
+    return settlement["total"] + settlement["volume_bonus"]
+
+
+def dealer_cash_credit(order):
+    """車行現金單的掛帳應收＝車行結算的「向車行收」金額（傭金直接在掛帳裡抵掉），不會變成溢收。
+    只適用系統建立的車行現金單；分期車行單（見 `dealer_account_due`）、Excel 匯入單回傳 None。"""
+    if order.payment_type == "installment":
+        return None
+    due = dealer_account_due(order)
+    return None if due is None else max(due, Decimal("0"))
 
 
 PLATE_INCOME_FIELDS = (
@@ -89,5 +104,7 @@ def customer_receivable_total(order):
     balance = customer_balance(order)
     total = balance + deposit
     if balance <= zero and order.payment_type == "installment" and order.cash_receivable_v2:
-        total = min(total, max(installment_customer_part(order), zero))
+        dealer_due = dealer_account_due(order)
+        part = installment_customer_part(order) if dealer_due is None else dealer_due
+        total = min(total, max(part, zero))
     return total

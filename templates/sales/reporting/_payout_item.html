@@ -9,7 +9,7 @@
     <noscript>{% if can_operate and item.checkable %}<button class="button secondary small" type="submit">{% if item.paid %}取消已給付{% else %}標記已給付{% endif %}</button>{% endif %}</noscript>
   </form>
   <div class="payout-item__main">
-    <p class="payout-item__label" id="payout-label-{{ item.source_key|slugify }}">{% if item.kind == 'reward' %}<span class="payout-kind payout-kind--{{ item.kind }}">{{ item.kind_label }}</span>{% endif %}{{ item.short_label }}{% if item.period_label %}<small>{{ item.period_label }}</small>{% endif %}{% if item.kind == 'commission' %}<span class="payout-method payout-method--{{ item.method }}" title="{% if item.deduction %}系統建立的車行現金單：傭金已在「向車行收」扣掉{% else %}另外付給車行{% endif %}">{{ item.method_label }}</span>{% endif %}</p>
+    <p class="payout-item__label" id="payout-label-{{ item.source_key|slugify }}">{% if item.kind == 'reward' %}<span class="payout-kind payout-kind--{{ item.kind }}">{{ item.kind_label }}</span>{% endif %}{{ item.short_label }}{% if item.period_label %}<small>{{ item.period_label }}</small>{% endif %}{% if item.kind == 'commission' %}<span class="payout-method payout-method--{{ item.method }}" title="{% if item.deduction and item.separate_amount %}系統建立的分期車行單：傭金先抵應向車行收的費用，其餘另外付給車行{% elif item.deduction %}系統建立的車行{% if item.order.payment_type == 'installment' %}分期{% else %}現金{% endif %}單：傭金已在「向車行收」扣掉{% else %}另外付給車行{% endif %}">{{ item.method_label }}</span>{% endif %}</p>
     {% if item.paid %}<p class="payout-item__trail">{{ item.entry.paid_at|date:'Y/m/d H:i' }} {{ item.entry.paid_by }} 登記</p>{% endif %}
     {% if item.changed %}
     <div class="payout-item__diff" role="note">

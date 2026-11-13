@@ -144,9 +144,9 @@ def _save_commission(profile, before, created):
     elif changed:
         profile.save(update_fields=[*changed, "updated_at"])
     if "dealer_commission_expense" in changed:
-        # 車行現金單的掛帳應收扣傭金（T-120 p16）：傭金變了，系統尾款列（未收款時）跟著重算。
-        from sales.services.customer_receivable import dealer_cash_credit
-        if dealer_cash_credit(profile.order) is not None:
+        # 系統建立的車行單掛帳應收扣傭金（現金 T-120 p16、分期 T-154）：傭金變了，系統尾款列（未收款時）跟著重算。
+        from sales.services.customer_receivable import dealer_account_due
+        if dealer_account_due(profile.order) is not None:
             from sales.services.operations_sync import sync_order_operations
             sync_order_operations(profile.order_id)
     return profile

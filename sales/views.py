@@ -278,7 +278,6 @@ from .services.volume_bonus import (
     is_posted_period as volume_bonus_is_posted,
     scope_dealers as volume_bonus_scope_dealers,
 )
-from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 from .services.legacy_import import (
     PREVIEW_SCHEMA_VERSION,
@@ -4371,31 +4370,11 @@ def _operations_report_queryset(request):
     return rows.order_by(f"-{date_field}", "-id")
 
 
-def _operations_analysis(rows):
-    from sales.services.sales_metrics import summarize_sales
-    rows = list(rows)
-    summary = summarize_sales(rows)
-    models = {}
-    for order in rows:
-        if order.is_cancelled_sale:
-            continue
-        key = order.vehicle_model_id
-        bucket = models.setdefault(
-            key,
-            {
-                "label": f"{order.vehicle_model.brand} {order.vehicle_model.name}".strip(),
-                'orders': [],
-            },
-        )
-        bucket['orders'].append(order)
-    for bucket in models.values():
-        bucket.update(summarize_sales(bucket.pop('orders')))
-    return summary, sorted(models.values(), key=lambda item: (-item["count"], item["label"]))
-
-
 @login_required
 def operations_report(request):
     from sales.access.services import policy_for
+    from sales.services import operations_cockpit
+    from sales.services.profit_access import profit_is_unlocked
     policy = policy_for(request)
     if any(request.GET.get(key) for key in ("q", "risk", "date_from", "date_to", "energy_type", "payment_status", "include_cancelled")):
         if not policy.route("order_list"):
@@ -4403,36 +4382,10 @@ def operations_report(request):
         params = request.GET.copy()
         params["business_only"] = "0" if params.get("include_cancelled") == "1" or params.get("risk") == "refund" else "1"
         return redirect(f"{reverse('order_list')}?{params.urlencode()}")
-    metrics = build_dashboard_metrics()
-    summary, models = _operations_analysis(metrics["performance"]["orders"])
-    from sales.services.profit_access import profit_is_unlocked
-    if not profit_is_unlocked(request):
-        for bucket in [metrics["performance"], *metrics["trend"], summary, *models]:
-            for key in ("profit_total", "net_profit", "average_profit", "profit_change"):
-                bucket.pop(key, None)
-        metrics["charts"] = [chart for chart in metrics["charts"] if chart["label"] != "可計入訂單淨利"]
-    return render(request, "sales/operations_report.html", {
-        "dashboard": metrics, "analysis_summary": summary, "model_breakdown": models,
-        "show_company_workload": policy.screen("dashboard"),
-        "show_financial_summary": policy.screen("operations"),
-        "workload_cards": [
-            {"label": label, "count": metrics["workload"][key], "status": status}
-            for key, label, status in [
-                ("allocation", "待配車", "allocation_pending"), ("in_progress", "訂單進行中", "in_progress"),
-                ("registration", "待領牌", "registration_pending"), ("delivery", "待交付", "delivery_pending"),
-                ("urgent", "優先處理", "urgent"),
-            ]
-        ],
-        "inventory_cards": [
-            {"label": label, "count": metrics["inventory"][key], "status": status}
-            for key, label, status in [
-                ("total", "庫存總數", ""), ("available", "可售", "available"), ("reserved", "已預留", "reserved"),
-                ("issues", "車況異常", "condition_issue"),
-            ]
-        ],
-        "dealer_due_count": len({item["order"].pk for item in metrics["dealer_reminders"]}),
-        "fee_variance_count": metrics["registration_fee_variances"].count(),
-    })
+    # T-167 駕駛艙：指標與門檻在 services/operations_cockpit.py；這裡只依權限組 context。
+    data = operations_cockpit.load(request.GET.get("period", "month"), refresh=request.GET.get("refresh") == "1")
+    flags = operations_cockpit.viewer_flags(policy, profit_is_unlocked(request))
+    return render(request, "sales/operations_report.html", {"cockpit": operations_cockpit.for_viewer(data, flags)})
 
 
 def _reconciliation_queryset(request):

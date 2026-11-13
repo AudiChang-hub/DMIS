@@ -31,6 +31,14 @@ def _aware_end(day):
     return timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min))
 
 
+def _last_year(day):
+    """去年同一天；2/29 對到 2/28。"""
+    try:
+        return day.replace(year=day.year - 1)
+    except ValueError:
+        return day.replace(year=day.year - 1, day=28)
+
+
 # 在庫＝還在店裡的車：可售、已預留、車況異常（T-167；已售出、調出、已交車、停用都不算）。
 ON_HAND_STATUSES = (
     VehicleInventory.Status.AVAILABLE,
@@ -72,10 +80,18 @@ def build_dashboard_metrics(today=None):
     starts = [month_start]
     for _ in range(11):
         starts.insert(0, _previous_month(starts[0]))
-    source = list(SalesOrder.objects.filter(registration_date__range=(starts[0], today))
+    # 往前多取 12 個月當去年同期對照（T-167）；既有 12 個月走勢的口徑不變。
+    last_year_today = _last_year(today)
+    last_year_starts = [start.replace(year=start.year - 1) for start in starts]
+    source = list(SalesOrder.objects.filter(registration_date__range=(last_year_starts[0], today))
                   .exclude(status__in=CANCELLED_STATUSES).select_related('operations', 'vehicle_model', 'legacy_snapshot').prefetch_related('payment_records'))
     current = _sales_snapshot(month_start, today, source)
     previous = _sales_snapshot(previous_start, comparison_end, source)
+    trend_last_year = []
+    for start in last_year_starts:
+        end = min(_month_bounds(start)[1], last_year_today)
+        trend_last_year.append({'label': start.strftime('%Y/%m'), 'start': start.isoformat(), 'end': end.isoformat(),
+                                **_sales_snapshot(start, end, source)})
     trend = []
     for start in starts:
         end = min(_month_bounds(start)[1], today)
@@ -102,7 +118,8 @@ def build_dashboard_metrics(today=None):
         charts.append({'label': label, 'unit': unit, 'segments': segments, 'points': points,
                        'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
     all_orders = SalesOrder.objects.all()
-    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid', 'stale_allocation')}
+    risk_orders = {key: filter_payment_risk(all_orders, key) for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid', 'stale_allocation')}
+    risk = {key: rows.count() for key, rows in risk_orders.items()}
 
     active = SalesOrder.objects.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED]
@@ -125,8 +142,10 @@ def build_dashboard_metrics(today=None):
     registration_fee_variances = fee_variance_orders(SalesOrder.objects.all()).order_by("registration_date", "id")
     return {
         'trend': trend,
+        'trend_last_year': trend_last_year,
         'charts': charts,
         'risk': risk,
+        'risk_orders': risk_orders,
         'new_orders': all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES).count(),
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",

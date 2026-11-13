@@ -1,0 +1,19 @@
+{% load sales_format %}{% comment %}營運總表 KPI 卡：主數字、上月同期／去年同期兩個份量相同的比較、近 12 個月今年 vs 去年走勢。{% endcomment %}
+<article class="ops-card ops-kpi">
+  <header class="ops-kpi__head"><h3>{{ label }}</h3>{% if profit %}<span class="ops-tag ops-tag--amber" title="成本補齊前數字會變動">暫估</span>{% endif %}</header>
+  <p class="ops-kpi__value">{% if prefix %}<small>{{ prefix }}</small>{% endif %}<span data-ops-count>{{ big }}</span>{% if suffix %}<small>{{ suffix }}</small>{% endif %}</p>
+  <ul class="ops-chips">{% for chip in metric.chips %}<li class="ops-chip ops-chip--{{ chip.tone }}"><span>{{ chip.label }} {{ chip.base }}</span>{% if chip.change %}<b>{{ chip.change }}</b>{% endif %}</li>{% endfor %}</ul>
+  {% if series %}{% with spark=series.spark %}
+  <figure class="ops-spark" data-ops-spark>
+    <svg viewBox="0 0 {{ spark.width }} {{ spark.height }}" preserveAspectRatio="none" role="img" aria-label="{{ series.label }}近 12 個月走勢（實線今年、虛線去年同月）：{% for point in series.points %}{{ point.label }} {% if point.this is None %}未計入{% else %}{{ point.this|number_with_commas }}{% endif %}／去年 {% if point.last is None %}未計入{% else %}{{ point.last|number_with_commas }}{% endif %}{% if not forloop.last %}；{% endif %}{% endfor %}">
+      <line class="ops-spark__zero" x1="0" x2="{{ spark.width }}" y1="{{ spark.zero }}" y2="{{ spark.zero }}"/>
+      {% for segment in spark.last %}<polyline class="ops-spark__last" points="{{ segment }}"/>{% endfor %}
+      {% for segment in spark.this %}<polyline class="ops-spark__this" points="{{ segment }}"/>{% endfor %}
+      {% if spark.now %}<circle class="ops-spark__now" cx="{{ spark.now.0 }}" cy="{{ spark.now.1 }}" r="3.5"/>{% endif %}
+      {% for point in series.points %}<rect class="ops-spark__hit" x="{{ point.x }}" y="0" width="{{ spark.step }}" height="{{ spark.height }}" data-ops-tip="{{ point.label }}：{% if point.this is None %}未計入{% else %}{{ point.this|number_with_commas }}{% endif %} {{ series.unit }}｜{{ point.last_label }}：{% if point.last is None %}未計入{% else %}{{ point.last|number_with_commas }}{% endif %} {{ series.unit }}"><title>{{ point.label }}：{% if point.this is None %}未計入{% else %}{{ point.this|number_with_commas }}{% endif %} {{ series.unit }}；{{ point.last_label }}：{% if point.last is None %}未計入{% else %}{{ point.last|number_with_commas }}{% endif %} {{ series.unit }}</title></rect>{% endfor %}
+    </svg>
+    <figcaption><span class="ops-key ops-key--this">近 12 個月</span><span class="ops-key ops-key--last">去年同月</span></figcaption>
+  </figure>
+  {% endwith %}{% endif %}
+  {% if profit %}<p class="ops-kpi__note">{{ metric.ready }}／{{ metric.count }} 筆可計入{% if metric.average is not None %}，平均每台 ${{ metric.average|number_with_commas }}{% endif %}；不含租金、薪資等營業費用</p>{% elif note %}<p class="ops-kpi__note">{{ note }}</p>{% endif %}
+</article>

@@ -13,7 +13,7 @@ from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleColor, Pa
 from sales.services.dashboard_metrics import build_dashboard_metrics, _percent_change
 from sales.services.order_sorting import sort_context, sort_orders
 from sales.services.sales_metrics import summarize_sales, filter_payment_risk
-from sales.views import _operations_analysis, _operations_report_queryset
+from sales.views import _operations_report_queryset
 
 
 class CommandCenterTests(TestCase):
@@ -64,12 +64,11 @@ class CommandCenterTests(TestCase):
         OrderOperationsProfile.objects.filter(order=pending).update(legacy_finance_reconciliation={'status':'mismatch'})
         cancelled = self.make_order(date(2026,9,3), status='cancelled', profit=9000)
         rows = SalesOrder.objects.select_related('operations', 'vehicle_model').prefetch_related('payment_records')
-        summary, models = _operations_analysis(rows)
+        summary = summarize_sales(rows)
         dashboard = build_dashboard_metrics(date(2026,9,12))
         self.assertEqual(summary['count'], 2)
         self.assertEqual(summary['net_profit'], -100)
         self.assertEqual(summary['profit_pending'], 1)
-        self.assertEqual(models[0]['net_profit'], -100)
         self.assertEqual(dashboard['performance']['profit_total'], summary['net_profit'])
         self.assertEqual(dashboard['performance']['sales_total'], summary['vehicle_sales'])
         self.assertEqual(cancelled.operations.net_profit, 9000)
@@ -110,7 +109,7 @@ class CommandCenterTests(TestCase):
         self.assertEqual(response.status_code, 302)
         listing = self.client.get(response["Location"])
         self.assertEqual(listing.context['page_obj'].paginator.count, 2)
-        self.assertEqual(self.client.get(reverse('operations_report')).context['analysis_summary']['count'], 0)
+        self.assertEqual(self.client.get(reverse('operations_report')).context['cockpit']['pulse']['count']['value'], 0)
         exported = self.client.get(reverse('operations_report_export'), {'include_cancelled':1})
         sheet = load_workbook(BytesIO(exported.content)).active
         column = [c.value for c in sheet[1]].index('單筆淨利')+1
@@ -161,10 +160,10 @@ class CommandCenterTests(TestCase):
         unlock_profit(self, self.user)
         self.client.force_login(self.user)
         response = self.client.get(reverse('operations_report'))
-        self.assertContains(response, '近 12 個月公司走勢')
-        self.assertContains(response, '已有收款待確認')
-        self.assertContains(response, '不是包含全公司費用的公司淨利')
-        self.assertEqual(response.content.decode().count('viewBox="0 0 480 165"'), 3)
+        self.assertContains(response, '去年同月')
+        self.assertContains(response, '已收款待確認')
+        self.assertContains(response, '不含租金、薪資等營業費用')
+        self.assertEqual(response.content.decode().count('viewBox="0 0 240 56"'), 3)
         response = self.client.get(reverse('order_list'), {'sort':'registration_date,owner_name'})
         self.assertContains(response, '移除姓名排序')
         self.assertContains(response, '提前姓名排序順位')
@@ -179,7 +178,8 @@ class CommandCenterTests(TestCase):
         ScreenAccessGrant.objects.create(user=user, screen_key='dashboard', view=True)
         self.client.force_login(user)
         response = self.client.get(reverse('operations_report'))
-        self.assertContains(response, '近 12 個月公司走勢')
+        self.assertContains(response, '去年同月')
+        self.assertContains(response, '訂單流程')
         self.assertNotContains(response, 'href="/orders/?')
         self.assertNotContains(response, '＋ 建立訂單')
         self.assertNotContains(response, '本月車型表現')

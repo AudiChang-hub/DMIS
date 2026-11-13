@@ -27,7 +27,7 @@ class SystemHomeTests(TestCase):
 
     def test_home_is_personal_without_company_or_order_queries(self):
         self.client.force_login(self.staff)
-        with patch("sales.views.build_dashboard_metrics", side_effect=AssertionError("首頁不應查詢營運指標")):
+        with patch("sales.services.operations_cockpit.build", side_effect=AssertionError("首頁不應查詢營運指標")):
             response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "home-reader")
@@ -125,9 +125,10 @@ class SystemHomeTests(TestCase):
         ScreenAccessGrant.objects.create(user=self.staff, screen_key="operations", view=True)
         self.client.force_login(self.staff)
         response = self.client.get(reverse("operations_report"))
-        self.assertContains(response, "近 12 個月公司走勢")
-        self.assertNotContains(response, "即時工作量")
-        self.assertNotContains(response, "庫存概況")
+        self.assertContains(response, "去年同月")
+        self.assertContains(response, "待收合計")
+        self.assertNotContains(response, "訂單流程")
+        self.assertNotContains(response, 'data-side-nav-section="貨"')
         self.assertNotContains(response, 'href="/orders/')
         self.assertNotIn("orders", response.context)
         self.assertNotIn("page_obj", response.context)
@@ -165,7 +166,7 @@ class OperationsNavigationTests(TestCase):
         page = self.client.get(reverse("order_list"), params)
         self.assertEqual([o.pk for o in page.context["orders"]], [included.pk])
         report = self.client.get(reverse("operations_report"))
-        self.assertEqual(report.context["dashboard"]["performance"]["count"], page.context["page_obj"].paginator.count)
+        self.assertEqual(report.context["cockpit"]["pulse"]["count"]["value"], page.context["page_obj"].paginator.count)
         self.assertNotContains(report, included.number)
         self.assertNotContains(report, included.owner_name)
         redirected = self.client.get(reverse("operations_report"), params, follow=True)
@@ -208,5 +209,5 @@ class OperationsNavigationTests(TestCase):
         SalesOrder.objects.filter(pk__in=[order.pk, cancelled.pk]).update(registration_calculated_total=1000, plate_insurance_fee=2000)
         response = self.client.get(reverse("order_list"), {"attention": "fees"})
         self.assertEqual([o.pk for o in response.context["orders"]], [order.pk])
-        self.assertEqual(self.client.get(reverse("operations_report")).context["fee_variance_count"], 1)
+        self.assertEqual(self.client.get(reverse("operations_report")).context["cockpit"]["health"]["fee_variances"], 1)
         self.assertEqual(fee_variance_orders(SalesOrder.objects.all()).count(), 1)

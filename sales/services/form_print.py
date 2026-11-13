@@ -1,8 +1,8 @@
-"""套表列印：取代 Excel 合併列印 Word 套表（信封、減徵貨物稅聲明書、簽收單）。
+"""套表列印：取代 Excel 合併列印 Word 套表（信封、減徵貨物稅聲明書、簽收單、電車交車確認表）。
 
 信封輸出 Word 檔：沿用使用者 Word 原稿（2026-10-14）的版面與 21×17 cm 自訂紙張，
 瀏覽器無法把自訂紙張交給印表機，用 Word 列印才會和原本一樣（2026-10-17 使用者確認）。
-聲明書、簽收單輸出 A4 PDF，版面座標取自 Word 套表，單位 mm、原點左上。
+聲明書、簽收單、電車交車確認表輸出 A4 PDF，版面座標取自 Word 套表，單位 mm、原點左上。
 資料欄位與原合併欄位一一對應，見 FORM_FIELD_SOURCES。只讀訂單，不寫入任何資料。
 """
 import zipfile
@@ -12,8 +12,10 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from django.utils import timezone
+from reportlab.lib.colors import Color
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
@@ -47,6 +49,8 @@ FORMS = (
     # 使用者都叫它「新舊車主不同人聲明書」（2026-11-03）；正式名稱是減徵貨物稅的車主非同一人聲明書。
     FormSpec("tax_declaration", "新舊車主不同人聲明書（減徵貨物稅）", "A4", "汰舊換新、新舊車主不同人時使用"),
     FormSpec("receipt", "簽收單", "A4", "送車時給客人簽收"),
+    # T-158（使用者 2026-11-13）：eReady 原廠交車確認表，只給 eReady、eMOVING 的電車。
+    FormSpec("ev_delivery", "電車交車確認表", "A4", "eReady、eMOVING 交車時使用"),
 )
 FORM_KEYS = tuple(form.key for form in FORMS)
 FORM_BY_KEY = {form.key: form for form in FORMS}
@@ -210,7 +214,7 @@ def default_receipt_note(values):
 def form_warnings(order, values):
     """每份套表缺少的重要資料；只提示，不阻擋列印（空白處可手寫）。"""
     warnings = {key: [] for key in FORM_KEYS}
-    for key in FORM_KEYS:
+    for key in ("envelope", "tax_declaration", "receipt"):  # 交車確認表不印引擎／車身號碼
         if not values["identifier"]:
             warnings[key].append(values["identifier_label"])
     if not values["plate"]:
@@ -227,15 +231,29 @@ def form_warnings(order, values):
         for field, label in (("old_plate", "舊車牌"), ("old_engine", "舊車引擎號碼")):
             if not values[field]:
                 warnings["tax_declaration"].append(label)
+    if ev_delivery_applies(order) and not values["plate"]:
+        warnings["ev_delivery"].append("車牌")
     return warnings
 
 
 def suggested_forms(order, values):
-    """預設勾選：信封、簽收單都要；有汰舊才勾聲明書。"""
+    """預設勾選：信封、簽收單都要；有汰舊才勾聲明書；eReady、eMOVING 加勾電車交車確認表。"""
     picked = ["envelope", "receipt"]
     if order.is_trade_in_subsidy or values["old_plate"]:
         picked.insert(1, "tax_declaration")
+    if ev_delivery_applies(order):
+        picked.append("ev_delivery")
     return picked
+
+
+EV_DELIVERY_BRANDS = ("EREADY", "EMOVING")
+EV_DELIVERY_LOGO = Path(__file__).resolve().parent.parent / "form_templates" / "ev_delivery" / "eready_logo.jpg"
+
+
+def ev_delivery_applies(order):
+    """電車交車確認表只給 eReady、eMOVING 的電車（使用者 2026-11-13）；其他品牌不出現。"""
+    model = order.vehicle_model if order.vehicle_model_id else None
+    return bool(model and order.is_electric_vehicle and _text(model.brand).upper() in EV_DELIVERY_BRANDS)
 
 
 # ── 繪圖工具（座標 mm，y 為基線距頁頂） ──────────────────────────────
@@ -513,6 +531,142 @@ def _draw_receipt(pdf, order, values, today, note, address):
     page.line(115.1 + dx, sign_y + 0.8, 195.6 + dx, sign_y + 0.8, 0.8)
 
 
+def _ev_delivery_logo(brand):
+    """eReady 用原稿抽出的 logo；eMOVING 原稿沒有 logo，用品牌主檔上傳的 LOGO，沒有就留白（不自製）。"""
+    if brand.upper() == "EREADY":
+        return ImageReader(str(EV_DELIVERY_LOGO))
+    from sales.models import VehicleBrand
+    record = VehicleBrand.objects.filter(name__iexact=brand).exclude(logo="").first()
+    if not record:
+        return None
+    try:
+        with record.logo.open("rb") as handle:
+            return ImageReader(BytesIO(handle.read()))
+    except (OSError, ValueError):
+        return None
+
+
+def _plain_text_mode(pdf):
+    """_Page.text 的粗體用描邊（文字繪製模式 2），模式會延續到之後的文字；畫完粗體改回一般填色。
+
+    新文字物件預設認定模式為 0，直接設 0 不會輸出指令，所以先設 1 再設 0，確保寫出「0 Tr」。
+    """
+    text = pdf.beginText()
+    text.setTextRenderMode(1)
+    text.setTextRenderMode(0)
+    pdf.drawText(text)
+
+
+def _check_item(page, x, y, label, font, size=8.5):
+    """原稿的 □ 勾選框（邊長約 2.9 mm）加說明文字。"""
+    page.pdf.setLineWidth(0.6)
+    page.pdf.rect(x * mm, page.height - (y + 0.2) * mm, 2.9 * mm, 2.9 * mm, stroke=1, fill=0)
+    if label:
+        page.text(x + 6.6, y, label, font, size)
+
+
+def _draw_ev_delivery(pdf, order, values):
+    """eReady 交車確認表（使用者 2026-11-13 提供的 Word 套表，A4、Microsoft JhengHei UI）。
+
+    帶入型號、車色、車主、行動電話、車牌與通訊地址（原稿合併「戶籍地址」）；
+    交車日期、保養預約、勾選與簽名留給現場手寫。
+    """
+    page = _Page(pdf, A4[1])
+    font = SANS
+    logo = _ev_delivery_logo(values["brand"])
+    if logo:
+        box_w, box_h = 53.1, 14.3
+        width, height = logo.getSize()
+        scale = min(box_w / width, box_h / height)
+        w, h = width * scale, height * scale
+        pdf.drawImage(logo, 17.5 * mm, page.height - (13.0 + (box_h + h) / 2) * mm, w * mm, h * mm, mask="auto")
+    page.text(103.8, 22.4, "交車確認", font, 17.5, bold=True)
+    _plain_text_mode(pdf)
+    pdf.setLineWidth(1.2)
+    pdf.line(102.6 * mm, page.height - 24.6 * mm, 127.5 * mm, page.height - 24.6 * mm)
+
+    def label(x, y, text):
+        page.text(x, y, text, font, 8.5, bold=True)
+        _plain_text_mode(pdf)
+
+    def field(x1, x2, y, value="", value_x=None):
+        if value:
+            left = value_x or x1 + 2.6
+            page.text(left, y, value, font, _fit(value, font, 8.5, x2 - left - 1, minimum=6, page=page), bold=True)
+            _plain_text_mode(pdf)
+        page.underline(x1, x2, y + 2.2)
+
+    y = 35.7
+    label(17.7, y, "交車日期：")
+    for x1, x2, unit_x, unit in ((35.0, 43.8, 46.3, "年"), (52.5, 61.3, 63.8, "月"), (70.0, 78.8, 81.7, "日")):
+        field(x1, x2, y)
+        label(unit_x, y, unit)
+    label(97.8, y, "型號：")
+    field(107.2, 147.0, y, values["model_number"], 110.3)
+    label(150.3, y, "車色：")
+    field(159.3, 189.3, y, values["color"], 162.8)
+    y = 44.0
+    label(17.7, y, "車主姓名：")
+    field(35.0, 94.7, y, values["owner_name"])
+    label(97.8, y, "電話：")
+    field(107.2, 147.0, y)
+    label(110.3, y, "(   )")
+    label(150.2, y, "行動：")
+    field(159.3, 189.3, y, values["owner_phone"], 162.7)
+    y = 52.3
+    label(17.7, y, "車牌號碼：")
+    field(35.0, 107.2, y, values["plate"])
+    _check_item(page, 110.3, y, "", font)
+    label(113.6, y, "通訊地址同行照地址")
+    y = 60.7
+    label(17.7, y, "通訊地址：")
+    field(35.0, 189.3, y, values["owner_address"])
+
+    def heading(y, text):
+        page.text(20.0, y, text, font, 10, bold=True)
+        _plain_text_mode(pdf)
+
+    heading(73.7, "一、環車檢示與車輛功能說明")
+    for y, text in (
+        (80.3, "確認車輛外觀、配件"),
+        (87.4, "車身號碼 / 車牌號碼 與領牌證件及行照再次核對確認一致性"),
+        (94.5, "儀表板功能確認與說明(搭配車主小冊說明)"),
+        (101.6, "車主小冊說明：10 件事 eReady 車主不可不知"),
+        (108.7, "解鎖方式：上鎖狀態時，轉動龍頭至最左邊，再使用鑰匙卡解鎖，請先確保龍頭可以自由轉向，再開始騎乘。"),
+    ):
+        _check_item(page, 20.7, y, text, font)
+    heading(121.3, "二、APP 操作")
+    heading(145.0, "三、保養維修")
+    heading(181.7, "四、交車時相關證件物品點交:")
+    for y, left, right in (
+        (129.3, "資費方案確認：", "車控 APP 配對"),
+        (136.5, "Gogoro Network合約啟用", "車主APP說明"),
+        (153.2, "定期保養維修相關說明", "定期保養及預約方式說明"),
+        (189.6, "身分證", "發票"),
+        (196.8, "行照、領牌登記書、保險卡", "監理站單據"),
+        (203.9, "交付晶片鑰匙兩支", "車主手冊"),
+    ):
+        _check_item(page, 20.7, y, left, font)
+        _check_item(page, 111.0, y, right, font)
+    _check_item(page, 20.7, 160.3, "第一次 1,000 公里／3 個月保養預約於", font)
+    page.text(87.0, 160.3, "年", font, 8.5)
+    page.text(96.5, 160.3, "月", font, 8.5)
+    page.text(106.5, 160.3, "日，第二次 3,000 公里／6 個月保養", font, 8.5)
+    page.text(26.0, 167.5, "(以先到的為主)", font, 8.5)
+
+    for x, y, text in ((77.7, 241.5, "店鋪"), (135.1, 241.5, "店鋪"), (20.2, 247.8, "顧客簽名："),
+                       (77.7, 247.8, "交車人員："), (135.1, 247.8, "主管：")):
+        page.text(x, y, text, font, 8.5)
+    for x1, x2 in ((37.4, 75.0), (94.5, 132.1), (146.8, 189.3)):
+        page.underline(x1, x2, 250.0)
+
+    pdf.circle(21.0 * mm, page.height - 272.2 * mm, 0.7 * mm, stroke=0, fill=1)
+    page.text(25.2, 273.0, "流程：店鋪交車人員(說明) → 顧客(簽名) → 店鋪主管(簽名) → 原稿：店鋪、上傳 DMS 附件", font, 7)
+    pdf.setFillColor(Color(1, 0, 0))
+    page.text(25.3, 276.0, "DMS 附件 : 牌登、行照、交車確認表、個資同意書", font, 7)
+    pdf.setFillColor(Color(0, 0, 0))
+
+
 @dataclass
 class PrintJob:
     order: object
@@ -529,7 +683,7 @@ def ordered_jobs(jobs, *, group_by_form=True):
 
 
 def build_forms_pdf(jobs, *, group_by_form=True, today=None):
-    """依序輸出多張訂單的 A4 套表（聲明書、簽收單）為單一 PDF；信封另出 Word 檔。
+    """依序輸出多張訂單的 A4 套表（聲明書、簽收單、電車交車確認表）為單一 PDF；信封另出 Word 檔。
 
     group_by_form：同一種套表排在一起；否則依訂單順序。
     """
@@ -545,6 +699,8 @@ def build_forms_pdf(jobs, *, group_by_form=True, today=None):
             _draw_tax_declaration(pdf, job.order, values, today)
         elif job.form == "receipt":
             _draw_receipt(pdf, job.order, values, today, job.note, job.address)
+        elif job.form == "ev_delivery":
+            _draw_ev_delivery(pdf, job.order, values)
         else:
             raise ValueError(f"PDF 不含這種套表：{job.form}")
         pdf.showPage()

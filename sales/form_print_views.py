@@ -41,6 +41,8 @@ def _row(order):
                 "label": f"{spec.label}・{'電車' if order.is_electric_vehicle else '油車'}" if spec.key == "envelope" else spec.label,
                 "warnings": warnings[spec.key],
                 "suggested": spec.key in suggested,
+                # 電車交車確認表只給 eReady、eMOVING；其他訂單這一格不給勾。
+                "available": spec.key != "ev_delivery" or form_print.ev_delivery_applies(order),
             }
             for spec in form_print.FORMS
         ],
@@ -98,7 +100,10 @@ def _collect(request, forms):
         return None, f"勾選的項目裡沒有{kind}。"
     orders = _orders(request.user).in_bulk({pk for pk, _form in picked})
     # 不在權限範圍或已刪除：略過，不透露是否存在。
-    found = [(orders[pk], form) for pk, form in picked if pk in orders]
+    found = [
+        (orders[pk], form) for pk, form in picked
+        if pk in orders and (form != "ev_delivery" or form_print.ev_delivery_applies(orders[pk]))
+    ]
     if not found:
         return None, "勾選的訂單已不存在或沒有權限列印。"
     return found, None
@@ -137,7 +142,7 @@ def _file_response(content, *, content_type, ascii_name, quoted_name, inline):
 @login_required
 @require_POST
 def form_print_pdf(request):
-    found, error = _picked_orders(request, ("tax_declaration", "receipt"))
+    found, error = _picked_orders(request, ("tax_declaration", "receipt", "ev_delivery"))
     if error:
         return error
     pdf = form_print.build_forms_pdf(_print_jobs(request, found), group_by_form=request.POST.get("group") != "order")

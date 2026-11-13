@@ -32,7 +32,7 @@ def validate_taiwan_id(id_number):
 
 
 def owner_id_number_problem(owner_type, id_number):
-    """回傳白話的錯誤說明；沒問題回傳空字串。空白交給必填檢查。"""
+    """回傳白話的錯誤說明；沒問題回傳空字串。證號選填（2026-11-13 T-156），空白不檢查。"""
     value = (id_number or "").strip().upper()
     if not value:
         return ""

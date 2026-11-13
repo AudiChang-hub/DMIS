@@ -4842,7 +4842,7 @@ class OrderFlowTests(TestCase):
         form = order_response.context["form"]
         for name in ("delivery_method", "owner_phone", "owner_address", "id_front", "id_back", "id_verified"):
             self.assertFalse(form[name].field.required, name)
-        self.assertTrue(form["owner_id_number"].field.required)
+        self.assertFalse(form["owner_id_number"].field.required)  # 證號選填（2026-11-13 T-156）
         self.assertNotIn(
             "old_vehicle_valuation", order_response.context["form"].fields
         )

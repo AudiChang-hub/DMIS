@@ -103,6 +103,11 @@
 .finance-strip__disclosure > summary { color: var(--action-text); font-size: var(--text-sm); }
 .finance-strip__disclosure > p { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
 .finance-strip__disclosure form { margin: 0; }
+/* 領牌試算合計拆成「稅金＋強制險＝合計」（使用者 2026-11-12 p5） */
+.finance-registration .registration-breakdown__header { flex-wrap: wrap; row-gap: var(--space-2); }
+.finance-registration .registration-breakdown__header > div:first-child { flex: 1 1 14rem; min-width: 0; }
+.registration-breakdown__sum { text-align: right; }
+.registration-breakdown__sum small { color: var(--muted); font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
 .plate-variance { box-shadow: inset 3px 0 0 var(--amber-strong); }
 .plate-variance.is-confirmed { box-shadow: inset 3px 0 0 var(--green); }
 
@@ -215,7 +220,7 @@
 @media (min-width: 860.02px) {
   .finance-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .finance-ledger__legend { grid-column: 1 / -1; }
-  .finance-strip.has-variance { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  /* 內部折扣獨立一整列，牌險差異（有差異時）在下一列（使用者 2026-11-12 p4「這塊獨立」）。 */
 }
 @media (max-width: 860px) {
   .finance-overview__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -237,6 +242,8 @@
   .ledger-row { grid-template-columns: minmax(0, 1fr) minmax(116px, 44%); grid-template-areas: "label input" "tag input"; }
   .ledger-tag { justify-self: start; }
   .finance-amounts > summary { padding-inline: var(--inset-pad); }
+  .finance-registration .registration-breakdown__total { justify-items: start; }
+  .registration-breakdown__sum { text-align: left; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .ledger-row__input input { transition: border-color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out); }

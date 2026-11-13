@@ -11,9 +11,16 @@
             <p>{{ order.registration_date|date:"Y/m/d" }}{% if rate_label %} · {{ rate_label }}{% endif %} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
             {% endwith %}
           </div>
+          {% comment %}合計改標「稅金總額＋強制險費用」並列出拆解（使用者 2026-11-12 p5：例 715＋658＝1373）；只改顯示，不改試算。
+             固定整包規則沒有分項、強制險含在整包裡，照舊只顯示試算合計。{% endcomment %}
           <div class="registration-breakdown__total">
+            {% if order.registration_bundle_fee or order.registration_tax_total < 0 %}
             <span>試算合計</span>
             <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
+            {% else %}
+            <span>稅金總額＋強制險費用</span>
+            <strong class="registration-breakdown__sum" data-registration-sum><small>稅金 ${{ order.registration_tax_total|number_with_commas }} ＋ 強制險 ${{ order.compulsory_insurance_fee|number_with_commas }} ＝</small> ${{ order.registration_calculated_total|number_with_commas }}</strong>
+            {% endif %}
             {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale and not hide_variance_action %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
           </div>
         </div>

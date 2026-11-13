@@ -13,7 +13,7 @@
 <div class="finance-step__toolbar">
   <p class="finance-step__formula">{% site_text 'order_operations.5581c6988866' %}</p>
 </div>
-{# 收入與支出由上而下 ①～⑦（使用者 2026-11-09 p7）：①成交與車行結算 ②內部折扣／牌險差異 ③收款 ④尾款 ⑤收支總覽 ⑥領牌試算 ⑦收入／支出。 #}
+{# 收入與支出由上而下 ①～⑦（使用者 2026-11-09 p7）：①成交與車行結算 ②內部折扣（獨立一列，有牌險差異時在下一列，使用者 2026-11-12 p4） ③收款 ④尾款 ⑤收支總覽 ⑥領牌試算 ⑦收入／支出。 #}
 {% include "sales/_workspace_finance_settlement.html" %}
 {% if profile.legacy_finance_reconciliation and profit_unlocked %}
 <details class="note-box finance-step__legacy" open><summary>Excel 匯入財務核對</summary>
@@ -26,7 +26,7 @@
 </details>
 {% endif %}
 
-<div class="finance-strip{% if plate_variance %} has-variance{% endif %}">
+<div class="finance-strip">
   <section class="finance-strip__card finance-discount" aria-labelledby="internal-discount-title">
     <header class="finance-strip__head"><div><h2 id="internal-discount-title">內部折扣</h2><small>不出現在建立訂單畫面；按「套用折扣」後即扣減應收，配件主檔售價與工資快照不會被改寫。</small></div>{% if order.discount_status == "pending" %}<span class="status-pill">待確認</span>{% endif %}</header>
     <dl class="finance-strip__figures">

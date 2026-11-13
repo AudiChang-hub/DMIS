@@ -4399,7 +4399,7 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
 
         empty_response = self.client.get(reverse("operations_report"))
-        self.assertContains(empty_response, "訂單進行中")
+        self.assertContains(empty_response, "全部進行中")
         self.assertContains(empty_response, "?status=in_progress")
 
         order = self.make_order()
@@ -4407,7 +4407,8 @@ class OrderFlowTests(TestCase):
         order.save(update_fields=["status"])
 
         response = self.client.get(reverse("operations_report"))
-        self.assertEqual(response.context["dashboard"]["workload"]["in_progress"], 1)
+        stages = {stage["key"]: stage["count"] for stage in response.context["cockpit"]["flow"]["stages"]}
+        self.assertEqual(stages["allocated"], 1)
         self.assertNotContains(response, order.number)
 
         filtered = self.client.get(reverse("order_list"), {"status": "in_progress"})
@@ -5434,11 +5435,11 @@ class OrderOperationsTests(TestCase):
 
         response = self.client.get(reverse("operations_report"))
 
-        performance = response.context["dashboard"]["performance"]
-        self.assertEqual(performance["count"], 1)
-        self.assertEqual(performance["sales_total"], Decimal("80000"))
+        pulse = response.context["cockpit"]["pulse"]
+        self.assertEqual(pulse["count"]["value"], 1)
+        self.assertEqual(pulse["sales"]["value"], Decimal("80000"))
         # 淨利含建單即帶入的強制險傭金 145（T-157）。
-        self.assertEqual(performance["profit_total"], Decimal("20145"))
+        self.assertEqual(pulse["profit"]["value"], Decimal("20145"))
         self.assertContains(response, "營運總表")
 
     def test_settlement_cost_uses_registration_date_then_locks_historical_snapshot(self):
@@ -6227,13 +6228,10 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(list_response.status_code, 200)
         self.assertNotContains(list_response, self.order.number)
         self.assertContains(list_response, "車款成交額")
-        self.assertContains(list_response, "實際領牌日期")
-        self.assertContains(list_response, "本月車型表現")
-        self.assertEqual(list_response.context["analysis_summary"]["count"], 1)
-        self.assertEqual(
-            list_response.context["analysis_summary"]["vehicle_sales"],
-            Decimal("80000"),
-        )
+        self.assertContains(list_response, "車型貢獻")
+        self.assertNotContains(list_response, "本月車型表現")
+        self.assertEqual(list_response.context["cockpit"]["pulse"]["count"]["value"], 1)
+        self.assertEqual(list_response.context["cockpit"]["pulse"]["sales"]["value"], Decimal("80000"))
         self.assertEqual(export_response.status_code, 200)
         self.assertEqual(
             export_response["Content-Type"],

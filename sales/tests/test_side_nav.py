@@ -24,7 +24,8 @@ class SideNavTests(TestCase):
     def test_operations_report_has_section_index(self):
         page = self.client.get(reverse("operations_report"))
         self.assertContains(page, 'data-side-nav-key="operations"')
-        self.assertContains(page, 'data-side-nav-section="收款風險與退款"')
+        for label in ("現在好不好", "需要處理", "訂單流程", "錢", "貨", "結構變化", "車型貢獻"):
+            self.assertContains(page, f'data-side-nav-section="{label}"')
 
     def test_order_wizard_steps_live_in_side_nav(self):
         page = self.client.get(reverse("order_start"))
@@ -52,8 +53,8 @@ class SideNavTests(TestCase):
         page = self.client.get(reverse("vehicle_model_list") + "?q=不存在的車")
         self.assertNotContains(page, 'data-side-nav-key="vehicle-models"')
 
-    def test_operations_inventory_section_matches_workload_style(self):
-        # 1.86.14：庫存概況是頁尾段落，和即時工作量同樣用 dashboard-section，目錄標示由 side-nav.js 的頁底規則處理。
+    def test_operations_sections_share_cockpit_card(self):
+        # T-167：駕駛艙各段同用 ops-card，目錄標示由 side-nav.js 的頁底規則處理。
         content = self.client.get(reverse("operations_report")).content.decode()
-        self.assertIn('<section class="dashboard-section" data-side-nav-section="庫存概況">', content)
-        self.assertIn('<section class="dashboard-section" data-side-nav-section="即時工作量">', content)
+        self.assertIn('<section class="ops-card" aria-labelledby="ops-stock-title" data-side-nav-section="貨">', content)
+        self.assertIn('<section class="ops-card" aria-labelledby="ops-flow-title" data-side-nav-section="訂單流程">', content)

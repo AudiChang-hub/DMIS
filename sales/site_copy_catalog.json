@@ -851,26 +851,6 @@
     "default": "上傳後先檢查、修正與排除問題列；完成確認前不會寫入正式訂單或庫存。",
     "template": "templates/sales/legacy_import_list.html"
   },
-  "operations_report.cd4b2671ea91": {
-    "page": "營運總表",
-    "default": "掌握公司走向、收款風險與作業卡點。逐筆查詢集中於全部訂單，此處不重複列出訂單。",
-    "template": "templates/sales/operations_report.html"
-  },
-  "operations_report.911199825608": {
-    "page": "營運總表",
-    "default": "台數、成交額與淨利分開比較。最後一個月僅截至今日；淨利斷線代表沒有可計入資料，不是零獲利。",
-    "template": "templates/sales/operations_report.html"
-  },
-  "operations_report.8f3928fa3b5e": {
-    "page": "營運總表",
-    "default": "所有月份的目前未結事項；各類可能重疊，不相加",
-    "template": "templates/sales/operations_report.html"
-  },
-  "operations_report.e892df1710b3": {
-    "page": "營運總表",
-    "default": "依本月實際領牌日期；淨利只計入資料完整的訂單。",
-    "template": "templates/sales/operations_report.html"
-  },
   "order_account_scope.25058192b0c5": {
     "page": "下單身分與所屬通路",
     "default": "系統只給店內人員使用，畫面權限依各自設定。admin 為馭盛店內管理帳號。",

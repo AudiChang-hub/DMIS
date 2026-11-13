@@ -101,6 +101,8 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
 [data-report-editor] .report-field{margin-bottom:var(--stack-gap-sm);min-width:0}
 [data-report-editor] .report-field label{font-size:var(--text-base);font-weight:700}
 [data-report-editor] .report-field small{display:block;color:var(--muted)}
+.designer-hint{margin:calc(var(--space-2) * -1) 0 var(--space-3);padding:var(--space-2) var(--space-3);border-left:3px solid var(--blue);background:var(--blue-soft);color:var(--blue-ink);font-size:var(--text-sm-plus)}
+.designer-hint a{font-weight:700;color:inherit;text-decoration:underline;text-underline-offset:3px}
 .designer-card-scope{margin:var(--space-2) 0 0;padding:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-soft)}
 .designer-card-scope h3{margin:0 0 var(--space-2);font-size:var(--text-base)}
 .designer-card-scope .report-card-scope{margin:var(--space-2) 0 0;padding:0;border:0;background:none}

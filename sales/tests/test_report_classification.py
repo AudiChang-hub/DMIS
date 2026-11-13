@@ -135,7 +135,7 @@ class ReportClassificationTests(TestCase):
         self.assertEqual(published_snapshot()[1],88)
 
     def test_access_csrf_and_http_workflow(self):
-        self.assertContains(self.client.get(self.url), '報表分類設定')
+        self.assertContains(self.client.get(self.url), '<h1>車種類別設定</h1>')
         self.assertContains(self.client.get(self.url), 'id_category-enabled')
         self.assertContains(self.client.get(self.url), 'id_rule-enabled')
         client = Client(enforce_csrf_checks=True); client.force_login(self.admin)

@@ -4,7 +4,7 @@
 {% block title %}報表設計管理{% endblock %}
 {% block report_content %}
 <header class="report-heading hero-row compact-hero"><div><p class="eyebrow">僅 admin 可操作</p><h1>報表設計管理</h1><p class="muted">{% site_text 'manage.b4fa252089ca' %}</p></div><div class="hero-actions"><button type="button" class="button primary" data-open-start aria-haspopup="dialog">＋ 新增報表</button></div></header>
-{% if unclassified_count %}<a class="catalog-alert" href="{% url 'report_classification' %}#classification-unknown"><span class="catalog-alert__count">{{ unclassified_count }}</span><span><strong>個型號還沒歸入車種類別</strong><small>報表會先把它們算在「其他」。前往報表分類設定處理</small></span><span aria-hidden="true">→</span></a>{% endif %}
+{% if unclassified_count %}<a class="catalog-alert" href="{% url 'report_classification' %}#classification-unknown"><span class="catalog-alert__count">{{ unclassified_count }}</span><span><strong>個型號還沒歸入車種類別</strong><small>報表會先把它們算在「其他」。前往車種類別設定處理</small></span><span aria-hidden="true">→</span></a>{% endif %}
 <p class="catalog-status" data-catalog-status role="status" aria-live="polite"></p>
 <div class="catalog" data-report-catalog data-reorder-url="{% url 'report_reorder' %}">{% csrf_token %}
 {% for group in groups %}<section class="catalog-group" aria-labelledby="catalog-group-{{ group.key }}">

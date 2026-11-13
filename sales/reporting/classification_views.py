@@ -74,7 +74,7 @@ def manage(request):
                 raise ValidationError('操作不正確。')
             if action != 'preview':
                 apply_change(version, action, data, request.user)
-                messages.success(request, '分類已發布，正式報表改用新版本。' if action == 'publish' else '草稿已更新；請試算後發布，正式報表尚未變更。')
+                messages.success(request, '分類已發布，正式報表改用新版本。' if action == 'publish' else '草稿已更新；按「檢查影響並發布」後，正式報表才會改變。')
                 return redirect('report_classification')
         except (ValidationError, ValueError) as exc:
             error = '；'.join(exc.messages) if isinstance(exc, ValidationError) else '版本參數不正確。'
@@ -101,5 +101,5 @@ def manage(request):
         'page':page, 'search':search, 'rule_search':rule_search, 'fallback':FALLBACK,
         'has_changes':state.draft != state.published,
         'published_history':state.revisions.filter(action__in=['initial','publish'])[:30],
-        'history':history,
+        'history':history, 'edit_category':edit_category, 'edit_rule':edit_rule, 'rule_total':len(state.draft['rules']),
     }, status=status)

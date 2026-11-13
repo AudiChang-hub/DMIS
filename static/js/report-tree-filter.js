@@ -9,6 +9,18 @@ function reportTreeStatus(checked, total) {
   if (checked === total) return `全部 ${total} 個車型`;
   return checked ? `已選 ${checked}／${total} 個車型` : '未選取（不顯示資料）';
 }
+// 收合後窄邊上的數量（T-152）。
+function reportTreeRailCount(checked, total) {
+  return `已選 ${checked}／${total}`;
+}
+// 收合狀態記在 localStorage；無痕模式或封鎖儲存時讀寫會丟例外，一律當作展開、不影響操作。
+const REPORT_TREE_COLLAPSED_KEY = 'dmis.reportTreeCollapsed';
+function reportTreeReadCollapsed(storage) {
+  try { return storage?.getItem(REPORT_TREE_COLLAPSED_KEY) === '1'; } catch { return false; }
+}
+function reportTreeWriteCollapsed(storage, collapsed) {
+  try { storage?.setItem(REPORT_TREE_COLLAPSED_KEY, collapsed ? '1' : '0'); return true; } catch { return false; }
+}
 // 送出前改寫表單資料：全選不帶條件，全部取消改送 empty_model。
 function reportTreeFormData(formData, checked, total) {
   formData.delete('empty_model');
@@ -16,7 +28,7 @@ function reportTreeFormData(formData, checked, total) {
   if (!checked) { formData.delete('model'); formData.set('empty_model', '1'); }
   return formData;
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeCheckedState, reportTreeStatus, reportTreeFormData};
+if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeCheckedState, reportTreeStatus, reportTreeFormData, reportTreeRailCount, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY};
 (() => {
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-report-tree]');
@@ -28,6 +40,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   const items = [...tree.querySelectorAll('[role="treeitem"]')];
   const inputs = [...tree.querySelectorAll('[data-tree-input]')];
   const status = root.querySelector('[data-report-tree-status]');
+  const railCount = root.querySelector('[data-report-tree-rail-count]');
   const parentOf = item => item.parentElement.closest('[role="treeitem"]');
   const leavesOf = item => [...item.querySelectorAll('[data-tree-input]')];
   const isVisible = item => { for (let parent = parentOf(item); parent; parent = parentOf(parent)) if (parent.getAttribute('aria-expanded') === 'false') return false; return true; };
@@ -45,7 +58,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
       const leaves = leavesOf(item);
       item.setAttribute('aria-checked', reportTreeCheckedState(leaves.filter(input => input.checked).length, leaves.length));
     });
-    status.textContent = reportTreeStatus(inputs.filter(input => input.checked).length, inputs.length);
+    const checked = inputs.filter(input => input.checked).length;
+    status.textContent = reportTreeStatus(checked, inputs.length);
+    if (railCount) railCount.textContent = reportTreeRailCount(checked, inputs.length);
   }
   function apply() { refresh(); proxy?.dispatchEvent(new Event('change', {bubbles: true})); }
   function toggleChecked(item) {
@@ -112,6 +127,36 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   drawer.hidden = false;
   drawer.addEventListener('click', () => setDrawer(root.classList.contains('is-collapsed')));
   setDrawer(!narrow.matches);
+
+  // 寬螢幕向右收合（T-152）：收起後只留窄邊，報表欄吃掉面板空間；窄螢幕仍用上面的抽屜，不受影響。
+  const layout = root.closest('.report-reader-layout');
+  const collapse = root.querySelector('[data-report-tree-collapse]');
+  const rail = root.querySelector('[data-report-tree-rail]');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const storage = () => { try { return window.localStorage; } catch { return null; } };
+  // 圖表依新欄寬重算：沿用各圖既有的 resize 處理。
+  const relayout = () => window.dispatchEvent(new Event('resize'));
+  function setCollapsed(collapsed, {save = true, focus = false, animate = true} = {}) {
+    root.classList.toggle('is-rail', collapsed);
+    layout?.classList.toggle('is-tree-collapsed', collapsed);
+    collapse.setAttribute('aria-expanded', String(!collapsed));
+    rail.setAttribute('aria-expanded', String(!collapsed));
+    if (save) reportTreeWriteCollapsed(storage(), collapsed);
+    if (focus) (collapsed ? rail : collapse).focus({preventScroll: true});
+    if (!animate || reduceMotion.matches || !layout || narrow.matches) { relayout(); return; }
+    let done = false;
+    const finish = () => { if (!done) { done = true; layout.removeEventListener('transitionend', onEnd); relayout(); } };
+    const onEnd = event => { if (event.target === layout) finish(); };
+    layout.addEventListener('transitionend', onEnd);
+    setTimeout(finish, 450);
+  }
+  collapse.hidden = false; rail.hidden = false;
+  collapse.addEventListener('click', () => setCollapsed(true, {focus: true}));
+  rail.addEventListener('click', () => setCollapsed(false, {focus: true}));
+  // 載入時直接套用記住的狀態，不播動畫。
+  layout?.classList.add('is-tree-instant');
+  setCollapsed(reportTreeReadCollapsed(storage()), {save: false, animate: false});
+  requestAnimationFrame(() => requestAnimationFrame(() => layout?.classList.remove('is-tree-instant')));
 
   // 原地更新後（含移除標籤、上一頁）：勾選與台數以伺服器結果為準，展開狀態與焦點保留。
   document.addEventListener('report-filters-synced', event => {

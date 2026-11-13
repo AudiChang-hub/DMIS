@@ -3,7 +3,7 @@
   const root = document.querySelector("[data-form-print]");
   if (!root) return;
   const KEY = "dmis-form-print-v1";
-  const FORMS = ["envelope", "tax_declaration", "receipt", "ev_delivery"];
+  const FORMS = ["envelope", "tax_declaration", "receipt", "ev_delivery", "tax_consent"];
   const trayForm = root.querySelector("[data-tray-form]");
   const list = root.querySelector("[data-list]");
   const template = document.querySelector("[data-item-template]");

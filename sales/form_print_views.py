@@ -14,6 +14,7 @@ from sales.services import form_print, order_tabs
 from sales.services import form_print_preview as preview_service
 from sales.services.order_intake import scoped_orders
 from sales.services.order_search import build_order_search_query
+from sales.services.tax_consent_pdf import needs_tax_consent, payout_account_text
 
 PAGE_SIZE = 30
 MAX_JOBS = 300
@@ -25,6 +26,29 @@ def _orders(user):
         "source", "vehicle_model", "color", "allocated_vehicle", "operations",
         "installment_company_master", "legacy_snapshot",
     )
+
+
+UNAVAILABLE = {"ev_delivery": "限 eReady、eMOVING", "tax_consent": "限 SUZUKI 油車有汰舊"}
+
+
+def _applies(order, form):
+    if form == "ev_delivery":
+        return form_print.ev_delivery_applies(order)
+    if form == "tax_consent":
+        return needs_tax_consent(order)
+    return True
+
+
+def log_payout_account_views(request, jobs, action):
+    """退稅同意書顯示完整補助撥款帳戶：每張有帳戶的訂單記一筆查看紀錄（比照「查看完整帳號」）。只在 POST 呼叫。"""
+    actor = request.user.get_full_name() or request.user.get_username()
+    logged = set()
+    for job in jobs:
+        if job.form != "tax_consent" or job.order.pk in logged or not payout_account_text(job.order):
+            continue
+        logged.add(job.order.pk)
+        OrderEvent.objects.create(order=job.order, event_type="payout_account_viewed",
+                                  description=f"套表列印{action}退稅同意書（含補助撥款帳戶）", actor_name=actor)
 
 
 def _row(order):
@@ -41,8 +65,9 @@ def _row(order):
                 "label": f"{spec.label}・{'電車' if order.is_electric_vehicle else '油車'}" if spec.key == "envelope" else spec.label,
                 "warnings": warnings[spec.key],
                 "suggested": spec.key in suggested,
-                # 電車交車確認表只給 eReady、eMOVING；其他訂單這一格不給勾。
-                "available": spec.key != "ev_delivery" or form_print.ev_delivery_applies(order),
+                # 電車交車確認表只給 eReady、eMOVING，退稅同意書只給 SUZUKI 油車有汰舊；其他訂單這一格不給勾。
+                "available": _applies(order, spec.key),
+                "unavailable": UNAVAILABLE.get(spec.key, ""),
             }
             for spec in form_print.FORMS
         ],
@@ -102,7 +127,7 @@ def _collect(request, forms):
     # 不在權限範圍或已刪除：略過，不透露是否存在。
     found = [
         (orders[pk], form) for pk, form in picked
-        if pk in orders and (form != "ev_delivery" or form_print.ev_delivery_applies(orders[pk]))
+        if pk in orders and _applies(orders[pk], form)
     ]
     if not found:
         return None, "勾選的訂單已不存在或沒有權限列印。"
@@ -142,10 +167,12 @@ def _file_response(content, *, content_type, ascii_name, quoted_name, inline):
 @login_required
 @require_POST
 def form_print_pdf(request):
-    found, error = _picked_orders(request, ("tax_declaration", "receipt", "ev_delivery"))
+    found, error = _picked_orders(request, ("tax_declaration", "receipt", "ev_delivery", "tax_consent"))
     if error:
         return error
-    pdf = form_print.build_forms_pdf(_print_jobs(request, found), group_by_form=request.POST.get("group") != "order")
+    jobs = _print_jobs(request, found)
+    pdf = form_print.build_forms_pdf(jobs, group_by_form=request.POST.get("group") != "order")
+    log_payout_account_views(request, jobs, "列印")
     return _file_response(
         pdf, content_type="application/pdf", ascii_name="forms.pdf",
         quoted_name=quote("套表列印.pdf"), inline=True,
@@ -159,11 +186,14 @@ def form_print_preview(request):
 
     只讀不寫：信封的車控密碼不解密、不留處理紀錄。用 POST 是因為簽收單備註與交車住址要跟著送出，
     放在網址會進入瀏覽紀錄與存取紀錄。
+    唯一例外是退稅同意書（T-158，使用者 2026-11-13 要預覽就能核對帳號）：預覽即顯示補助撥款帳戶，記一筆查看紀錄。
     """
     found, error = _collect(request, form_print.FORM_KEYS)
     if error:
         return render(request, "sales/_form_print_preview.html", {"error": error}, status=400)
-    sections = preview_service.build_preview(_print_jobs(request, found), group_by_form=request.POST.get("group") != "order")
+    jobs = _print_jobs(request, found)
+    sections = preview_service.build_preview(jobs, group_by_form=request.POST.get("group") != "order")
+    log_payout_account_views(request, jobs, "預覽")
     response = render(request, "sales/_form_print_preview.html", {"sections": sections})
     response["Cache-Control"] = "private, no-store, max-age=0"
     return response

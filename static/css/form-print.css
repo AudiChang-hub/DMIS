@@ -20,7 +20,7 @@
 .paper i:nth-child(3) { width: 45%; }
 .paper--envelope i:first-child { width: 55%; margin-top: 3px; background: var(--ink-soft); }
 .paper--receipt i:first-child { width: 40%; margin-inline: auto; background: var(--ink-soft); }
-.paper--ev_delivery { width: 18px; height: 25px; }
+.paper--ev_delivery, .paper--tax_consent { width: 18px; height: 25px; }
 .paper--ev_delivery i:first-child { width: 35%; margin-left: auto; background: var(--ink-soft); }
 
 .form-print__cell { display: grid; justify-items: start; }

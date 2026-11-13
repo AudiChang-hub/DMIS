@@ -6666,16 +6666,57 @@ def order_documents_print(request, pk):
     except ValidationError:
         from sales.print_company_views import print_company_missing
         return _protect_private_response(print_company_missing(request, order))
-    requested = request.GET.getlist("part")
+    # 勾選面板以 POST 送出（T-158）；「列印全部客戶簽署文件」等連結仍是 GET。
+    requested = (request.POST if request.method == "POST" else request.GET).getlist("part")
     parts = [part for part in PRINT_PARTS if part in requested] if requested else list(PRINT_PARTS)
-    if not parts:
+    # T-158：SUZUKI 油車且有汰舊，欣鈴退稅同意書和訂購單、個資同意書一起印（紙本簽名，不屬於電子簽署文件）。
+    from sales.services.tax_consent_pdf import append_tax_consent, needs_tax_consent, payout_account_text
+    with_tax_consent = needs_tax_consent(order) and (not requested or "tax_consent" in requested)
+    if not parts and not with_tax_consent:
         messages.error(request, "請至少勾選一份要列印的文件。")
         return redirect(_order_detail_section_url(pk, "signed-documents"))
-    response = FileResponse(BytesIO(build_selected_pdf(order, parts)), content_type="application/pdf")
+    pdf = build_selected_pdf(order, parts) if parts else None
+    if with_tax_consent:
+        # 只有 POST 才帶入補助撥款帳戶並留查看紀錄；GET 只讀（T-114），帳號留白手寫。
+        account = payout_account_text(order) if request.method == "POST" else ""
+        pdf = append_tax_consent(pdf, order, account=account)
+        if account:
+            # 印出完整補助撥款帳戶，比照「查看完整帳號」留紀錄。
+            OrderEvent.objects.create(
+                order=order,
+                event_type="payout_account_viewed",
+                description="列印退稅同意書（含補助撥款帳戶）",
+                actor_name=_editing_name(request.user),
+            )
+    response = FileResponse(BytesIO(pdf), content_type="application/pdf")
     response["Content-Disposition"] = (
         f'inline; filename="{order.number}-documents.pdf"; '
         f"filename*=UTF-8''{order.number}%E7%B0%BD%E7%BD%B2%E6%96%87%E4%BB%B6.pdf"
     )
+    return _protect_private_response(response)
+
+
+@login_required
+@require_http_methods(["POST"])
+def order_tax_consent_preview(request, pk):
+    """訂單頁列印前預覽欣鈴退稅同意書（T-158）：使用者要預覽就能核對補助撥款帳戶，
+    所以只接受 POST，帶入帳戶時記一筆 payout_account_viewed；畫面與列印的是同一份 PDF。"""
+    from sales.services.form_print_preview import render_pages
+    from sales.services.tax_consent_pdf import build_tax_consent_pdf, needs_tax_consent, payout_account_text
+    order = get_object_or_404(SalesOrder.objects.select_related("vehicle_model"), pk=pk)
+    if not needs_tax_consent(order):
+        raise Http404
+    account = payout_account_text(order)
+    pages = render_pages(build_tax_consent_pdf(order, account=account))
+    if account:
+        OrderEvent.objects.create(
+            order=order,
+            event_type="payout_account_viewed",
+            description="預覽退稅同意書（含補助撥款帳戶）",
+            actor_name=_editing_name(request.user),
+        )
+    response = render(request, "sales/order_tax_consent_preview.html", {"order": order, "pages": pages, "account": account})
+    response["Cache-Control"] = "private, no-store, max-age=0"
     return _protect_private_response(response)
 
 

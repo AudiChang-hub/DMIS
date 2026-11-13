@@ -396,6 +396,11 @@ urlpatterns = [
         views.order_documents_print,
         name="order_documents_print",
     ),
+    path(
+        "orders/<int:pk>/documents/tax-consent-preview/",
+        views.order_tax_consent_preview,
+        name="order_tax_consent_preview",
+    ),
     path("orders/<int:pk>/sign/", views.order_sign, name="order_sign"),
     path("orders/<int:pk>/sign/done/", views.order_sign_done, name="order_sign_done"),
     path(

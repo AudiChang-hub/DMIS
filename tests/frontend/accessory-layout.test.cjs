@@ -19,6 +19,15 @@ test('窄版（手機）名稱與按鈕一列、數字分列，單件總額一�
   assert.match(css, /\[data-custom-accessory\]\[hidden\]\{display:none!important\}/);
   assert.match(css, /\.accessory-section \.remove-row-button \{ position: static;/);
 });
+// 使用者 2026-11-12 T-153「壓到了」：寬版類別＋名稱曾被塞進 7rem，名稱選單疊在自填欄上。
+test('寬版類別、名稱、自填欄依內容寬度排，放不下換行，不再固定 7rem', () => {
+  assert.doesNotMatch(css, /accessory-row__name:has\(\[data-custom-accessory\]:not\(\[hidden\]\)\) \{ grid-template-columns: minmax\(0, 7rem\)/);
+  assert.doesNotMatch(css, /accessory-row__picker \{ grid-template-columns: minmax\(5\.5rem, 7rem\)/);
+  assert.match(css, /\.accessory-section \.accessory-row__name \{ display: flex; flex-wrap: wrap; gap: var\(--space-2\); \}/);
+  assert.match(css, /\.accessory-section \.accessory-row__picker \{ display: contents; \}/);
+  assert.match(css, /\.accessory-section \.accessory-row__picker > \.field \+ \.field \{ flex: 999 0 auto; \}/);
+  assert.match(css, /\.accessory-section \.accessory-row__name > \[data-custom-accessory\] \{ flex: 1 1 10rem; \}/);
+});
 test('刪除與備註鈕在同一列，備註需要時才展開，建單精靈與訂單頁共用同一段', () => {
   assert.match(row, /data-accessory-note-toggle/);
   assert.match(row, /class="accessory-row__note" data-accessory-note \{% if not accessory_form\.note\.value and not accessory_form\.note\.errors %\}hidden\{% endif %\}/);

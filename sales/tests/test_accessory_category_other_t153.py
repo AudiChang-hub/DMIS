@@ -7,7 +7,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from sales.forms import AccessoryLineForm
-from sales.models import AccessoryCategory, AccessoryProduct, SalesOrder
+from sales.models import AccessoryCategory, AccessoryLine, AccessoryProduct, SalesOrder
+from sales.tests import test_order_lifecycle as lifecycle
 from sales.tests import test_order_wizard
 
 migration = importlib.import_module("sales.migrations.0205_fixed_accessory_categories")
@@ -85,3 +86,25 @@ class AccessoryCategoryFixedTests(TestCase):
         migration.fix_categories(apps, None)
         self.assertEqual(AccessoryProduct.objects.get(pk=seat.pk).category, other)
         self.assertFalse(AccessoryCategory.objects.filter(name="乘載").exists())
+
+
+class CustomNameCategoryRuleTests(TestCase):
+    setUp = lifecycle.OrderLifecycleTests.setUp
+    make_order = lifecycle.OrderLifecycleTests.make_order
+
+    def test_custom_name_needs_one_of_the_fixed_categories(self):
+        # 使用者 2026-11-13：在「全部類別」選自行填寫名稱，要從 7 類選一個，不能存成未分類。
+        data = {"accessory_category": "", "accessory_product": "other", "custom_name": "雨衣", "quantity": "1",
+                "line_type": "purchase", "amount": "200", "labor_fee": "0", "note": ""}
+        form = AccessoryLineForm(data, allow_manual=True)
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["accessory_category"], ["自行填寫名稱要先選類別，名稱會存進這個類別。"])
+        other = AccessoryCategory.objects.get(name="其他")
+        self.assertTrue(AccessoryLineForm({**data, "accessory_category": str(other.pk)}, allow_manual=True).is_valid())
+        # 既有自填列（明細不存類別）沒改名稱就照樣能存，不會因為這條規則擋住舊訂單；改了名稱才要選類別。
+        order, _vehicle = self.make_order()
+        line = AccessoryLine.objects.create(order=order, name="雨衣", amount=Decimal("200"))
+        self.assertTrue(AccessoryLineForm({**data, "quantity": "2"}, instance=line, allow_manual=True).is_valid())
+        renamed = AccessoryLineForm({**data, "custom_name": "輕便雨衣"}, instance=line, allow_manual=True)
+        self.assertFalse(renamed.is_valid())
+        self.assertIn("accessory_category", renamed.errors)

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from sales.forms import AccessoryLineForm, SubsidyDataForm, SubsidyItemForm
-from sales.models import AccessoryProduct, SalesOrder, SubsidyItem, VehicleColor, VehicleModel
+from sales.models import AccessoryCategory, AccessoryProduct, SalesOrder, SubsidyItem, VehicleColor, VehicleModel
 
 
 class OptionalFieldTests(TestCase):
@@ -47,12 +47,14 @@ class OptionalFieldTests(TestCase):
         self.assertFalse(form.fields["expected_amount"].required)
 
     def test_custom_accessory_defaults_quantity_and_labor(self):
-        form = AccessoryLineForm({"accessory_product": "other", "custom_name": "手機架", "quantity": "",
+        # T-153：自行填寫名稱要選類別。
+        other = str(AccessoryCategory.objects.get(name="其他").pk)
+        form = AccessoryLineForm({"accessory_category": other, "accessory_product": "other", "custom_name": "手機架", "quantity": "",
                                   "line_type": "purchase", "amount": "800", "labor_fee": ""}, allow_manual=True)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual((form.cleaned_data["quantity"], form.cleaned_data["labor_fee"]), (1, Decimal("0")))
         # 售價影響收費，仍須填寫。
-        form = AccessoryLineForm({"accessory_product": "other", "custom_name": "手機架", "quantity": "1",
+        form = AccessoryLineForm({"accessory_category": other, "accessory_product": "other", "custom_name": "手機架", "quantity": "1",
                                   "line_type": "purchase", "amount": "", "labor_fee": ""}, allow_manual=True)
         self.assertFalse(form.is_valid())
         self.assertIn("amount", form.errors)

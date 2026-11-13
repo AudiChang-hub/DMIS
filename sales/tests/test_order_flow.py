@@ -4359,7 +4359,7 @@ class OrderFlowTests(TestCase):
             "白",
             "2026/08/20",
             "ABC-1234",
-            "$ 19,800",
+            "$ 19,945",  # 含建單即帶入的強制險傭金 145（T-157）
             "測試車行",
             "momo員購",
         ):
@@ -5158,7 +5158,8 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(profile.total_income, Decimal("500"))
         self.assertEqual(profile.total_expense, Decimal("1000"))
-        self.assertEqual(profile.net_profit, Decimal("23000"))
+        # 含建單即帶入的強制險傭金 145（T-157）。
+        self.assertEqual(profile.net_profit, Decimal("23145"))
         self.assertEqual(profile.total_received, Decimal("5000"))
 
     def test_prefetched_payment_totals_do_not_issue_per_order_queries(self):
@@ -5233,7 +5234,8 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(profile.total_expense, Decimal("350"))
         self.assertEqual(profile.total_income, Decimal("700"))
-        self.assertEqual(profile.net_profit, Decimal("23850"))
+        # 含建單即帶入的強制險傭金 145（T-157）。
+        self.assertEqual(profile.net_profit, Decimal("23995"))
 
     def test_card_payment_details_require_card_payment_method(self):
         form = PaymentRecordForm(
@@ -5436,7 +5438,8 @@ class OrderOperationsTests(TestCase):
         performance = response.context["dashboard"]["performance"]
         self.assertEqual(performance["count"], 1)
         self.assertEqual(performance["sales_total"], Decimal("80000"))
-        self.assertEqual(performance["profit_total"], Decimal("20000"))
+        # 淨利含建單即帶入的強制險傭金 145（T-157）。
+        self.assertEqual(performance["profit_total"], Decimal("20145"))
         self.assertContains(response, "營運總表")
 
     def test_settlement_cost_uses_registration_date_then_locks_historical_snapshot(self):

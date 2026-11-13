@@ -4870,6 +4870,7 @@ class OrderOperationsProfile(TimeStampedModel):
         "sales_bonus",
         "promotion_subsidy",
         "installment_interest_subsidy",
+        "insurance_commission",
         "actual_disbursement",
         "dealer_commission_expense",
     )

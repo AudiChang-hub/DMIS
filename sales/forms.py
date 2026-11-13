@@ -2069,7 +2069,7 @@ class AccessoryLineForm(forms.ModelForm):
         self.fields["custom_name"].widget.attrs.setdefault("placeholder", "填寫配件名稱")
         self.fields["accessory_product"].choices = [("", self.fields["accessory_product"].empty_label),
                                                     *self._grouped_product_choices(),
-                                                    ("other", "其他（自行填寫名稱）")]
+                                                    ("other", "自行填寫名稱")]
         current_category = self.instance.accessory_product.category_id if self.instance.accessory_product_id else None
         self.fields["accessory_category"].queryset = AccessoryCategory.objects.filter(
             Q(active=True) | Q(pk=current_category)

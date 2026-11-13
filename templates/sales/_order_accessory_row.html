@@ -4,7 +4,7 @@
   {{ accessory_form.id }}
   <span hidden>{{ accessory_form.DELETE }}</span>
   <div class="accessory-row__name">
-    {# 先選類別再選名稱（T-138）：類別只篩選下方名稱清單；名稱清單依類別分組，找不到就選「其他」自填，存檔後自動加入該類別。 #}
+    {# 先選類別再選名稱（T-138）：類別只篩選下方名稱清單；名稱清單依類別分組，找不到就選「自行填寫名稱」，存檔後自動加入該類別。 #}
     <div class="accessory-row__picker">
       {% include "sales/_field.html" with field=accessory_form.accessory_category %}
       {% include "sales/_field.html" with field=accessory_form.accessory_product %}

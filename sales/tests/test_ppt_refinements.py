@@ -303,7 +303,7 @@ class PptRefinementTests(TestCase):
         everyone = AccessoryLineForm(data=data, allow_manual=False)
         self.assertTrue(everyone.is_valid(), everyone.errors)
         self.assertEqual(everyone.cleaned_data['amount'], 0)
-        self.assertIn('其他（自行填寫名稱）', str(everyone['accessory_product']))
+        self.assertIn('自行填寫名稱', str(everyone['accessory_product']))
         missing = AccessoryLineForm(data={**data, 'custom_name': ''}, allow_manual=True)
         self.assertFalse(missing.is_valid())
         self.assertIn('custom_name', missing.errors)

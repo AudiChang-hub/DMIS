@@ -67,17 +67,19 @@
             {% for item in row.forms %}
             <td data-label="{{ item.spec.label }}">
               <div class="form-print__cell">
+                {% if item.available %}
                 <label class="form-print__toggle">
                   <input type="checkbox" data-form="{{ item.spec.key }}" data-label="{{ item.label }}"{% if item.suggested %} data-suggested{% endif %}>
                   <span>{{ item.label }}</span>
                 </label>
                 {% if item.warnings %}<small class="form-print__warn">缺：{{ item.warnings|join:"、" }}</small>{% endif %}
+                {% else %}<small class="form-print__na">不適用（限 eReady、eMOVING）</small>{% endif %}
               </div>
             </td>
             {% endfor %}
           </tr>
           {% empty %}
-          <tr><td colspan="6"><div class="empty-state"><strong>{% if query %}找不到符合「{{ query }}」的訂單{% else %}這個範圍沒有訂單{% endif %}</strong><p>換個關鍵字，或把範圍改成「全部」。</p></div></td></tr>
+          <tr><td colspan="{{ forms|length|add:3 }}"><div class="empty-state"><strong>{% if query %}找不到符合「{{ query }}」的訂單{% else %}這個範圍沒有訂單{% endif %}</strong><p>換個關鍵字，或把範圍改成「全部」。</p></div></td></tr>
           {% endfor %}
         </tbody>
       </table>

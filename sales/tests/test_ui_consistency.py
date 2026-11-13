@@ -366,6 +366,14 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertIn(".desktop-data-menu:hover > a::after { position: absolute; top: 100%;", app)
 
+    def test_data_menu_vehicle_group_order(self):
+        """資料維護選單「車輛與商品」順序：品牌→機種與售價→庫存→配件與工資→原廠車型比對（使用者 2026-11-13）。"""
+        base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+        group = base.split('<h2 id="data-menu-vehicles">', 1)[1].split("</section>", 1)[0]
+        labels = re.findall(r"<strong>([^<]+)</strong>", group)
+
+        self.assertEqual(labels, ["車輛品牌", "機種與售價", "車輛庫存", "配件與工資", "原廠車型比對"])
+
     def test_header_nav_fits_medium_screens(self):
         """861–1100px 導覽膠囊要收窄，且基礎內距規則必須在它之前，否則頁首會超出畫面。"""
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")

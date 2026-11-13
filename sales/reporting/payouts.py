@@ -45,7 +45,7 @@ class PayoutItem:
     quantity: Decimal | None = None
     unit: str = ""
     order: object = None
-    deduction: bool = False
+    deduction_amount: Decimal = ZERO
     estimate: bool = False
     day: date | None = None
     period_label: str = ""
@@ -72,11 +72,28 @@ class PayoutItem:
         return (self.entry.paid_amount or ZERO) if self.paid and not self.is_quantity else ZERO
 
     @property
+    def deduction(self):
+        return self.deduction_amount > ZERO
+
+    @property
+    def separate_amount(self):
+        return max(self.amount - self.deduction_amount, ZERO)
+
+    @property
+    def methods(self):
+        """抵扣與另付可能並存（分期車行單：傭金先抵應向車行收的費用，其餘另付，T-154）；篩選兩邊都列。"""
+        if not self.deduction:
+            return ("separate",)
+        return ("deduction",) if not self.separate_amount else ("deduction", "separate")
+
+    @property
     def method(self):
-        return "deduction" if self.deduction else "separate"
+        return self.methods[0]
 
     @property
     def method_label(self):
+        if len(self.methods) > 1:
+            return f"抵扣 ${self.deduction_amount:,.0f}／另付 ${self.separate_amount:,.0f}"
         return METHOD_LABELS[self.method]
 
     @property
@@ -145,11 +162,23 @@ def order_vehicle_label(order):
     return f"{order.vehicle_model.name} {order.color.name}".strip()
 
 
-def is_deduction_order(order):
-    """系統建立的車行現金單：傭金已在「向車行收」扣掉（`customer_receivable.dealer_cash_credit` 同一條件）。"""
-    return bool(
-        order.payment_type != "installment" and order.cash_receivable_v2 and not hasattr(order, "legacy_snapshot")
-    )
+def deduction_amount(order, amount):
+    """傭金（不含台數獎金）裡已在「向車行收」扣掉的部分（`customer_receivable.dealer_account_due` 同一條件）。
+
+    系統建立的車行現金單全額抵扣；系統建立的分期車行單只抵扣應向車行收的費用（扣訂金後），其餘另付（T-154）。
+    """
+    from sales.services.customer_receivable import dealer_account_due
+
+    if not (order.cash_receivable_v2 and not hasattr(order, "legacy_snapshot")):
+        return ZERO
+    if order.payment_type != "installment":
+        return amount
+    due = dealer_account_due(order)
+    if due is None:
+        return ZERO
+    # due＝應向車行收的費用－傭金（扣訂金前），加回傭金就是要收的費用；訂金已收的部分不再抵扣。
+    fees = due + amount - (order.deposit_amount or ZERO)
+    return min(amount, max(fees, ZERO))
 
 
 def _bonus_in_commission(order, profile):
@@ -177,7 +206,7 @@ def commission_items():
             label=f"{order_vehicle_label(order)} 傭金",
             amount=amount,
             order=order,
-            deduction=is_deduction_order(order),
+            deduction_amount=deduction_amount(order, amount),
             day=order.registration_date,
         ))
     return items
@@ -320,7 +349,7 @@ def filter_items(items, *, dealer_id=None, start=None, end=None, status="", kind
             continue
         if kind and item.kind != kind:
             continue
-        if method and item.method != method:
+        if method and method not in item.methods:
             continue
         result.append(item)
     return result

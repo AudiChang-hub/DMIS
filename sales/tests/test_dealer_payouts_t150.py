@@ -74,15 +74,18 @@ class PayoutItemTests(PayoutTestBase):
         SalesOrder.all_objects.filter(pk=order.pk).update(commission_recipient=self.other_dealer)
         self.assertEqual(payouts.current_item(KEY.format(order.pk)).dealer, self.other_dealer)
 
-    def test_deduction_only_for_system_cash_dealer_orders(self):
+    def test_deduction_only_for_system_dealer_orders(self):
         cash = self.registered(cash_receivable_v2=True)
+        # T-154：系統建立的分期車行單，傭金先抵應向車行收的費用（此單客人自付車款 19,800＋牌險 2,350，全額抵扣）。
         installment = self.registered(
             cash_receivable_v2=True, payment_type="installment", installment_amount=Decimal("60000"),
             installment_company="測試分期", installment_periods=24,
             payment_splits=[{"method": "cash", "amount": 19800}, {"method": "installment", "amount": 60000}])
+        old = self.registered()
         self.assertTrue(payouts.current_item(KEY.format(cash.pk)).deduction)
-        self.assertFalse(payouts.current_item(KEY.format(installment.pk)).deduction)
-        self.assertEqual(payouts.current_item(KEY.format(installment.pk)).method_label, "另付")
+        self.assertEqual(payouts.current_item(KEY.format(installment.pk)).method_label, "抵扣應收")
+        self.assertFalse(payouts.current_item(KEY.format(old.pk)).deduction)
+        self.assertEqual(payouts.current_item(KEY.format(old.pk)).method_label, "另付")
 
 
 class PayoutWriteTests(PayoutTestBase):

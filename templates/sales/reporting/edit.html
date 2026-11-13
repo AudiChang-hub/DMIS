@@ -3,33 +3,67 @@
 {% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-designer.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/report-chart-picker.css' %}?v={{ app_version }}">{% endblock %}
 {% block scripts %}{{ block.super }}<script src="{% static 'js/report-chart-picker.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block title %}{% if report %}編輯報表{% else %}建立報表{% endif %}{% endblock %}
-{% block report_nav %}{% url 'report_manage' as manage_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=manage_url label="報表設計管理" root_url=data_url root_label="資料維護區" %}{% endblock %}
+{% block report_nav %}{% url 'report_manage' as manage_url %}{% url 'data_maintenance' as data_url %}{% url 'report_center' as center_url %}{% if return_url %}{% include "sales/_page_back.html" with fallback_url=return_url label=report.published.title|default:report.draft.title root_url=center_url root_label="報表中心" %}{% else %}{% include "sales/_page_back.html" with fallback_url=manage_url label="報表設計管理" root_url=data_url root_label="資料維護區" %}{% endif %}{% endblock %}
 {% block report_content %}
-<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">{% site_text 'edit.45288452ca9c' %}</p><h1>{% if report %}編輯報表{% else %}建立報表{% endif %}</h1><p class="muted">{% site_text 'edit.51aaf2bc3ae2' %}</p></div>{% if report.published %}<div class="hero-actions"><a class="button ghost" href="{% url 'report_display' report.pk %}" target="_blank" rel="noopener">查看已發布版本 ↗</a></div>{% endif %}</header>
-<form method="post" data-report-editor data-unsaved="{% if request.method == 'POST' %}true{% else %}false{% endif %}" autocomplete="off">{% csrf_token %}{{ form.version }}
+<form method="post" data-report-editor data-unsaved="{% if request.method == 'POST' %}true{% else %}false{% endif %}" autocomplete="off">{% csrf_token %}{{ form.version }}{% if return_url %}<input type="hidden" name="return_to" value="{{ return_url }}">{% endif %}
 {{ form.non_field_errors }}
-<section class="report-panel"><h2>報表設定</h2><div class="report-form-grid">{% for field in form.primary_fields %}<div class="report-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}</div></section>
-<section class="report-panel report-scope-editor"><h2>這份報表固定統計哪些訂單？</h2><p>{% site_text 'edit.19009959b48b' %}</p><div class="report-form-grid">{% for field in form.scope_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div></section>
-<details class="report-panel report-record-settings" {% if form.include_records.value or form.records_columns.errors %}open{% endif %}><summary>來源訂單附表（可選）</summary><p>{% site_text 'edit.8cad70e264d4' %}</p><label class="report-record-toggle">{{ form.include_records }}{{ form.include_records.label }}</label>{{ form.include_records.errors }}<div class="report-form-grid"><div class="report-field"><label for="{{ form.records_mode.id_for_label }}">{{ form.records_mode.label }}</label>{{ form.records_mode }}{{ form.records_mode.errors }}</div><div class="report-field"><label for="{{ form.records_page_size.id_for_label }}">{{ form.records_page_size.label }}</label>{{ form.records_page_size }}{{ form.records_page_size.errors }}</div></div><h3>逐筆明細顯示欄位</h3><p>{% site_text 'edit.fd4d0cf594cc' %}</p><div class="report-record-options">{{ form.records_columns }}</div>{{ form.records_columns.errors }}</details>
-<details class="report-panel report-dictionary"><summary>資料字典與計算口徑</summary><p>{% site_text 'edit.f6cfe346052b' %}</p><dl><dt>count</dt><dd>符合條件的訂單台數。</dd><dt>sale_total</dt><dd>訂單車價（vehicle_price）合計，不代表實收、收入認列或淨利。</dd><dt>average_price</dt><dd>符合條件訂單的平均車價，不是各群平均再平均。</dd></dl><p>{% site_text 'edit.7ee41ca2fe6b' %}</p><p>{% site_text 'edit.8a599d5b6014' %}</p><p>{% site_text 'edit.2b0cc3a8fff6' %}</p></details>
+<header class="designer-head hero-row compact-hero">
+<div class="designer-head__title">
+<h1 class="designer-head__eyebrow">{% if report %}編輯報表{% else %}建立報表{% endif %}</h1>
+<div class="designer-head__name"><label class="sr-only" for="{{ form.title.id_for_label }}">報表名稱</label>{{ form.title }}<span class="designer-state" data-state="{{ publish_state }}">{% if publish_state == 'new' %}尚未儲存{% elif publish_state == 'draft' %}草稿・尚未開放{% elif publish_state == 'changed' %}已發布・有未發布的修改{% else %}已發布{% endif %}</span></div>{{ form.title.errors }}
+</div>
+<div class="designer-head__meta">
+<label class="designer-meta-field" for="{{ form.audience.id_for_label }}"><span>{{ form.audience.label }}</span>{{ form.audience }}</label>
+<label class="designer-meta-field" for="{{ form.navigation_group.id_for_label }}"><span>{{ form.navigation_group.label }}</span>{{ form.navigation_group }}</label>
+{% if report.published %}<a class="button ghost" href="{% url 'report_display' report.pk %}" target="_blank" rel="noopener">查看已發布版本<span aria-hidden="true"> ↗</span></a>{% endif %}
+</div>{{ form.audience.errors }}{{ form.navigation_group.errors }}
+</header>
+<section class="designer-scope" aria-labelledby="designer-scope-title">
+<h2 id="designer-scope-title">這份報表只算</h2>
+<div class="designer-chips" data-scope-chips data-empty-text="全部訂單（不含草稿與取消）" aria-live="polite"></div>
+<button type="button" class="button ghost" data-open-scope aria-haspopup="dialog">調整條件</button>
+<label class="designer-meta-field designer-scope__date" for="{{ form.date_basis.id_for_label }}"><span>{{ form.date_basis.label }}</span>{{ form.date_basis }}</label>{{ form.date_basis.errors }}
+</section>
+<dialog class="designer-scope-dialog" data-scope-dialog aria-labelledby="designer-scope-dialog-title">
+<header><div><h2 id="designer-scope-dialog-title">這份報表只算哪些訂單？</h2><p>{% site_text 'edit.19009959b48b' %}</p></div><button type="button" class="button ghost" data-close-scope aria-label="關閉條件設定">關閉</button></header>
+<div class="designer-scope-dialog__body">
+<div class="report-form-grid">{% for field in form.common_scope_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div>
+<details class="designer-subsection designer-legacy-scope" {% if form.legacy_scope_used %}open{% endif %}><summary>沿用原 Excel 報表的比對條件</summary><p>{% site_text 'edit.1136f6017978' %}</p><div class="report-form-grid">{% for field in form.legacy_scope_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div></details>
+</div>
+<footer><button type="button" class="button primary" data-close-scope>完成</button></footer>
+</dialog>
 {{ formset.management_form }}{{ formset.non_form_errors }}
 <section class="report-design-workbench" data-workbench hidden>
 <div class="designer-toolbar" aria-label="畫布工具列">
-<button type="button" class="button ghost" data-focus-workbench aria-pressed="false">專注設計</button>
-<button type="button" class="button ghost" data-toggle-navigator aria-expanded="true">頁面與圖表</button>
-<div class="designer-mode" role="group" aria-label="操作模式"><button type="button" data-designer-mode="edit" aria-pressed="true">編輯版面</button><button type="button" data-designer-mode="preview" aria-pressed="false">互動預覽</button></div>
-<label>內容寬度 <select data-canvas-width><option value="1440">桌面 1440 px</option><option value="1180">桌面 1180 px</option><option value="820">平板 820 px</option><option value="390">手機 390 px</option></select></label>
-<label>縮放 <select data-canvas-zoom><option value="fit">符合寬度</option><option value="page">整頁</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option></select></label>
-<output data-zoom-label></output><button type="button" class="button ghost" data-refresh-canvas>更新預覽</button><button type="button" class="button ghost" data-toggle-properties aria-expanded="true">圖表設定</button>
+<div class="designer-mode" role="group" aria-label="操作模式">
+<button type="button" data-designer-mode="edit" aria-pressed="true">編輯</button>
+<button type="button" data-designer-mode="preview" aria-pressed="false">讀者視角試用</button>
 </div>
-<aside class="designer-navigator" aria-label="頁面與圖表"><h2>頁面</h2><p class="report-muted">切換前請儲存本頁草稿。</p><nav>{% for page in designer_pages %}<a href="{% url 'report_edit' page.pk %}" {% if page.pk == report.pk %}aria-current="page"{% endif %}>{{ page.reader_title }}</a>{% endfor %}</nav><h2>本頁圖表</h2><div data-designer-chart-list></div><button type="button" class="button ghost" data-add-card>＋ 新增圖表</button></aside>
-<div class="report-canvas-area"><p data-canvas-status role="status" aria-live="polite">正在載入整頁實際資料…</p><p class="designer-mode-help" data-mode-help>{% site_text 'edit.d7a227788033' %}</p><div class="designer-viewport"><div class="report-design-canvas" data-design-canvas></div></div></div>
-<aside class="report-property-panel" aria-label="所選圖表設定"><h2>圖表設定</h2><p>{% site_text 'edit.d3842b583a77' %}</p><div class="designer-property-tabs" role="tablist" aria-label="圖表設定分類"><button type="button" role="tab" data-property-tab="data" aria-selected="true">資料</button><button type="button" role="tab" data-property-tab="style" aria-selected="false">樣式</button><button type="button" role="tab" data-property-tab="layout" aria-selected="false">版面</button><button type="button" role="tab" data-property-tab="interaction" aria-selected="false">互動</button></div><div data-report-cards>{% for card in rendered_cards %}{% include 'sales/reporting/card_form.html' %}{% endfor %}</div><div class="designer-interaction-help" hidden data-interaction-help><h3>預覽中的操作</h3><p>{% site_text 'edit.f5fbfe8a4786' %}</p><p>{% site_text 'edit.a20499db3da0' %}</p><p>{% site_text 'edit.ecf6a72e5c6a' %}</p></div></aside>
+<label>畫面寬度 <select data-canvas-width><option value="auto">自動</option><option value="1440">寬螢幕 1440</option><option value="820">平板 820</option><option value="390">手機 390</option></select></label>
+<output data-zoom-label class="designer-zoom" hidden></output>
+<p class="designer-toolbar__status" data-canvas-status role="status" aria-live="polite">正在載入實際資料…</p>
+<button type="button" class="button ghost" data-refresh-canvas>重新整理預覽</button>
+<button type="button" class="button ghost" data-focus-workbench aria-pressed="false">全螢幕</button>
+</div>
+<div class="report-canvas-area">
+<p class="designer-mode-help" data-mode-help>點一下圖表，右側就會出現它的設定；拖曳圖表左上角的標籤可以排序，拖曳右下角可以調整大小。</p>
+<div class="designer-viewport"><div class="report-design-canvas" data-design-canvas></div></div>
+</div>
+<aside class="report-property-panel" aria-label="所選圖表設定">
+<div class="designer-panel-head" data-chart-head><label for="designer-chart-switch">正在設定</label><div class="designer-panel-head__row"><select id="designer-chart-switch" data-chart-switch></select><button type="button" class="button ghost designer-add-card" data-add-card>＋ 新增圖表</button></div><span class="report-muted" data-card-message role="status"></span></div>
+<div class="designer-interaction-help" hidden data-interaction-help><h2>讀者視角試用</h2><p>{% site_text 'edit.c93c32be5be2' %}</p><p>{% site_text 'edit.a20499db3da0' %}</p><p>{% site_text 'edit.0d2a4f410301' %}</p><button type="button" class="button ghost" data-designer-mode="edit">回到編輯</button></div>
+<div data-report-cards>{% for card in rendered_cards %}{% include 'sales/reporting/card_form.html' %}{% endfor %}</div>
+</aside>
 </section>
 <noscript><p>{% site_text 'edit.a59458cd388d' %}</p></noscript>
 <template data-card-template>{% include 'sales/reporting/card_form.html' with card=formset.empty_form %}</template>
-<span class="report-muted" data-card-message role="status"></span>
-<div class="report-savebar"><span data-save-state role="status">{% if report %}目前版本 {{ report.version }}{% else %}尚未儲存{% endif %}</span><div class="report-actions"><button type="button" class="button ghost" data-designer-mode="preview">預覽本次設計</button><button class="button ghost" name="action" value="save">儲存草稿</button><button class="button primary" name="action" value="publish">儲存並發布</button></div></div>
+<details class="report-panel report-page-settings" data-more-settings>
+<summary>其他報表設定 <small>說明、閱讀版型、未領牌訂單、分組內順序、來源訂單附表、資料字典</small></summary>
+<div class="report-form-grid">{% for field in form.settings_fields %}<div class="report-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}</div>
+<details class="report-record-settings designer-subsection" {% if form.include_records.value or form.records_columns.errors %}open{% endif %}><summary>來源訂單附表（可選）</summary><p>{% site_text 'edit.8cad70e264d4' %}</p><label class="report-record-toggle">{{ form.include_records }}{{ form.include_records.label }}</label>{{ form.include_records.errors }}<div class="report-form-grid"><div class="report-field"><label for="{{ form.records_mode.id_for_label }}">{{ form.records_mode.label }}</label>{{ form.records_mode }}{{ form.records_mode.errors }}</div><div class="report-field"><label for="{{ form.records_page_size.id_for_label }}">{{ form.records_page_size.label }}</label>{{ form.records_page_size }}{{ form.records_page_size.errors }}</div></div><h3>逐筆明細顯示欄位</h3><p>{% site_text 'edit.fd4d0cf594cc' %}</p><div class="report-record-options">{{ form.records_columns }}</div>{{ form.records_columns.errors }}</details>
+<details class="report-dictionary designer-subsection"><summary>資料字典與計算口徑</summary><p>{% site_text 'edit.f6cfe346052b' %}</p><dl><dt>訂單台數 <code>count</code></dt><dd>符合條件的訂單台數。</dd><dt>訂單車價合計 <code>sale_total</code></dt><dd>訂單車價（vehicle_price）合計，不代表實收、收入認列或淨利。</dd><dt>平均訂單車價 <code>average_price</code></dt><dd>符合條件訂單的平均車價，不是各群平均再平均。</dd></dl><p>{% site_text 'edit.7ee41ca2fe6b' %}</p><p>{% site_text 'edit.8a599d5b6014' %}</p><p>{% site_text 'edit.2b0cc3a8fff6' %}</p></details>
+</details>
+<div class="report-savebar"><div class="report-savebar__state"><span data-save-state role="status">{% if report %}目前版本 {{ report.version }}{% else %}尚未儲存{% endif %}</span><small>{% site_text 'edit.5776cc633a95' %}</small></div><div class="report-actions"><button class="button ghost" name="action" value="save">儲存草稿</button><button class="button primary" name="action" value="publish">儲存並發布</button></div></div>
 </form>
 {% if preview is not None %}<section id="report-preview"><header class="report-heading"><div><p class="eyebrow">{% site_text 'edit.251ca316b0fc' %}</p><h2>預覽結果</h2><p>{% site_text 'edit.e8416d495019' %}</p></div></header><div class="report-grid">{% for result in preview %}{% include 'sales/reporting/result.html' %}{% endfor %}</div></section>{% endif %}
 {% include 'sales/reporting/records.html' %}

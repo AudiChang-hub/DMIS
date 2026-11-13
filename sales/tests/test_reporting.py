@@ -1508,7 +1508,7 @@ class ReportingTests(TestCase):
             self.assertEqual(self.client.post(reverse("report_lifecycle", args=[self.report.pk]), {"action": "unpublish", "version": 1}).status_code, 403)
         self.login()
         self.assertEqual(self.client.get(reverse("report_manage")).status_code, 200)
-        self.assertContains(self.client.get(reverse("report_edit", args=[self.report.pk])), "發布報表")
+        self.assertContains(self.client.get(reverse("report_edit", args=[self.report.pk])), 'value="publish">儲存並發布')
 
     def test_anonymous_redirect_and_csrf_enforced(self):
         self.assertEqual(self.client.get(reverse("report_center")).status_code, 302)

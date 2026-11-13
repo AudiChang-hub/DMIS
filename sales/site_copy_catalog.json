@@ -1336,19 +1336,19 @@
     "default": "尚未作為正式報表交付。這裡不會儲存、發布或改動訂單；篩選只影響本次核對。圖表點選下鑽與匯出仍在正式發布頁使用。",
     "template": "templates/sales/reporting/draft_preview.html"
   },
-  "edit.45288452ca9c": {
+  "edit.5776cc633a95": {
     "page": "共通畫面說明",
-    "default": "設計工作台 · 僅 admin",
-    "template": "templates/sales/reporting/edit.html"
-  },
-  "edit.51aaf2bc3ae2": {
-    "page": "共通畫面說明",
-    "default": "草稿與已發布版本互相獨立；「發布報表」會一併儲存本次變更，不必先按儲存。",
+    "default": "草稿和讀者看到的版本互相獨立；按「儲存並發布」會一併儲存，不必先存草稿。",
     "template": "templates/sales/reporting/edit.html"
   },
   "edit.19009959b48b": {
     "page": "共通畫面說明",
     "default": "未勾選表示不限。同欄多選取聯集，不同欄位同時符合；讀者只能再縮小範圍，不能解除這裡的限制。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.1136f6017978": {
+    "page": "共通畫面說明",
+    "default": "既有報表沿用原 Excel 報表時用來比對的條件，新報表一般用不到；有設定時，會一併顯示在上方「這份報表只算」。",
     "template": "templates/sales/reporting/edit.html"
   },
   "edit.8cad70e264d4": {
@@ -1381,19 +1381,9 @@
     "default": "數字即時讀取來源，不回寫訂單、傭金或財務快照。最多 8 張圖、每張最多 200 群；Top N 不會被標示為完整總數。",
     "template": "templates/sales/reporting/edit.html"
   },
-  "edit.d7a227788033": {
+  "edit.c93c32be5be2": {
     "page": "共通畫面說明",
-    "default": "選取圖表後在右側設定；拖曳選取框標題可排序，右下角可調整大小。滑鼠與鍵盤皆可操作。",
-    "template": "templates/sales/reporting/edit.html"
-  },
-  "edit.d3842b583a77": {
-    "page": "共通畫面說明",
-    "default": "修改後自動更新整頁預覽；仍須儲存並發布，讀者才會看到變更。",
-    "template": "templates/sales/reporting/edit.html"
-  },
-  "edit.f5fbfe8a4786": {
-    "page": "共通畫面說明",
-    "default": "切換「互動預覽」後，滑鼠移到圖形會顯示對照色與數字；點選分類會依該報表既有設定連動其他圖表。",
+    "default": "滑鼠移到圖形會顯示對照色與數字；點選分類會依這份報表的設定連動其他圖表。",
     "template": "templates/sales/reporting/edit.html"
   },
   "edit.a20499db3da0": {
@@ -1401,9 +1391,9 @@
     "default": "按住 Ctrl／⌘ 可複選；可清除選取、查看來源訂單明細、調整日期與匯出 CSV。試選條件只影響本次預覽，不會寫入訂單或發布設定。",
     "template": "templates/sales/reporting/edit.html"
   },
-  "edit.ecf6a72e5c6a": {
+  "edit.0d2a4f410301": {
     "page": "共通畫面說明",
-    "default": "回到「編輯版面」即可選取、拖曳與調整圖表；不會誤觸資料篩選。",
+    "default": "按「回到編輯」就能再點選、拖曳與調整圖表；編輯時點圖表不會觸發資料篩選。",
     "template": "templates/sales/reporting/edit.html"
   },
   "edit.a59458cd388d": {

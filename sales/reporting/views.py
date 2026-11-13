@@ -13,6 +13,7 @@ from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -179,9 +180,18 @@ def draft_preview(request, pk):
     })
 
 
+def designer_return_url(request, report):
+    """T-164 從報表頁「編輯此報表」進入時，返回同一份報表（含讀者當時的篩選）；只接受本報表的站內路徑。"""
+    target = request.POST.get("return_to") or request.GET.get("from") or ""
+    if not report or len(target) > 4000 or not target.startswith(f"/reports/{report.pk}/") or "//" in target or "\\" in target:
+        return ""
+    return target
+
+
 @editor_required
 def edit(request, pk=None):
     report = get_object_or_404(ReportDefinition, pk=pk) if pk else None
+    return_url = designer_return_url(request, report)
     config = report.draft if report else initial_config()
     form = ReportForm(request.POST or None, initial={**config, "version": report.version if report else 0})
     formset = CardFormSet(request.POST or None, initial=config["cards"], prefix="cards")
@@ -228,7 +238,9 @@ def edit(request, pk=None):
                     report.save()
                     ReportRevision.objects.create(report=report, version=report.version, action=action, config=config, actor=request.user)
                 messages.success(request, "報表已發布。" if action == "publish" else "草稿已儲存，已發布版本不受影響。")
-                return redirect("report_edit", pk=report.pk)
+                target = reverse("report_edit", args=[report.pk])
+                return_url = designer_return_url(request, report)
+                return redirect(target + ("?" + urlencode({"from": return_url}) if return_url else ""))
             else:
                 raise ValidationError("請使用儲存草稿、預覽或發布按鈕。")
         except ValidationError as error:
@@ -237,11 +249,9 @@ def edit(request, pk=None):
     if request.method == "POST" and request.POST.get("action") == "canvas":
         return JsonResponse({"errors": {"report": form.errors.get_json_data(), "cards": formset.errors, "formset": list(formset.non_form_errors())}}, status=400)
     rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
-    designer_pages = sorted(ReportDefinition.objects.all(), key=lambda row: (list(NAVIGATION_GROUPS).index(row.draft.get("navigation_group", "custom")), row.draft.get("page_order", 0), row.pk))
-    for page in designer_pages:
-        page.reader_title = reader_title(page.draft)
+    publish_state = "new" if not report else "draft" if not report.published else "changed" if report.draft != report.published else "published"
     return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
-                  "designer_pages": designer_pages,
+                  "return_url": return_url, "publish_state": publish_state,
                   "preview": preview, "is_preview": True, **preview_records, "revisions": report.revisions.all()[:20] if report else []}, status=status)
 
 

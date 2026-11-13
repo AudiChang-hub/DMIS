@@ -9,6 +9,21 @@ from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES
 from .tree_filter import TREE_FIELDS, tree_chips
 
+# T-164：沿用原 Excel 報表的比對條件與分類，只在設計器分組與改顯示名稱，鍵值與讀者頁不變。
+LEGACY_SCOPES = {"legacy_source", "model_presence", *MODEL_TEXT_SCOPES}
+COMMON_DIMENSIONS = ("month", "year", "day", "brand", "family", "model", "color", "energy", "legacy_energy",
+                     "legacy_motor_type", "source_type", "source", "recipient")
+DESIGNER_DIMENSION_LABELS = {"legacy_motor_type": "車種類別（白牌、綠牌、速克達…）"}
+
+
+def designer_dimension_choices():
+    """設計器的「依什麼分」選單：常用在前，原報表分類另成一組；值與 DIMENSIONS 完全相同。"""
+    label = lambda key: DESIGNER_DIMENSION_LABELS.get(key, DIMENSIONS[key].replace("（比對用）", ""))
+    common = [key for key in COMMON_DIMENSIONS if key in DIMENSIONS]
+    common += [key for key in DIMENSIONS if key not in common and "比對用" not in DIMENSIONS[key]]
+    legacy = [key for key in DIMENSIONS if key not in common]
+    return [("常用", [(key, label(key)) for key in common]), ("沿用原 Excel 報表的分類", [(key, label(key)) for key in legacy])]
+
 
 class ScopeForm(forms.Form):
     def __init__(self, *args, **kwargs):
@@ -47,6 +62,16 @@ class ScopeForm(forms.Form):
     def scope_fields(self):
         return [self["fixed_" + key] for key in SCOPE_LABELS]
 
+    # T-164 設計器分組顯示：常用條件在前，原 Excel 報表比對條件收進「進階」；不影響驗證與儲存格式。
+    def common_scope_fields(self):
+        return [self["fixed_" + key] for key in SCOPE_LABELS if key not in LEGACY_SCOPES]
+
+    def legacy_scope_fields(self):
+        return [self["fixed_" + key] for key in SCOPE_LABELS if key in LEGACY_SCOPES]
+
+    def legacy_scope_used(self):
+        return any(field.value() for field in self.legacy_scope_fields())
+
     def scope_count(self):
         return sum(len((field.value() or "").splitlines()) if field.name.removeprefix("fixed_") in MODEL_TEXT_SCOPES
                    else len(field.value() or []) for field in self.scope_fields())
@@ -75,15 +100,15 @@ class ReportForm(ScopeForm):
     def clean_reader_layout(self):
         return self.cleaned_data["reader_layout"] or "standard"
 
-    title = forms.CharField(label="報表名稱", max_length=100)
+    title = forms.CharField(label="報表名稱", max_length=100, widget=forms.TextInput(attrs={"class": "designer-title-input"}))
     description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
-    audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
-    date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期"), ("established_on", "訂單成立日期"), ("order_date", "訂單版本日期")])
+    audience = forms.ChoiceField(label="開放給", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
+    date_basis = forms.ChoiceField(label="用哪個日期統計", choices=[("registration_date", "領牌日期"), ("established_on", "訂單成立日期"), ("order_date", "訂單版本日期")])
     include_undated = forms.BooleanField(label="未選期間時包含尚未領牌訂單", required=False,
         help_text="僅影響本報表分析；日期未填寫另列，不計入任何月份。指定期間或月份時仍排除未填日期。")
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
-    navigation_group = forms.ChoiceField(label="側欄分類", choices=NAVIGATION_GROUPS.items(), required=False)
-    page_order = forms.IntegerField(label="側欄順序（小的在前）", min_value=0, max_value=999, required=False)
+    navigation_group = forms.ChoiceField(label="報表中心分組", choices=NAVIGATION_GROUPS.items(), required=False)
+    page_order = forms.IntegerField(label="分組內順序（小的在前）", min_value=0, max_value=999, required=False)
     include_records = forms.BooleanField(label="顯示來源訂單明細表", required=False)
     records_columns = forms.MultipleChoiceField(label="明細顯示欄位", choices=RECORD_COLUMNS.items(), initial=DEFAULT_RECORD_COLUMNS,
         required=False, widget=forms.CheckboxSelectMultiple)
@@ -93,6 +118,12 @@ class ReportForm(ScopeForm):
 
     def primary_fields(self):
         return [field for field in super().primary_fields() if field.name != "include_records" and not field.name.startswith("records_")]
+
+    HEAD_FIELDS = ("title", "audience", "navigation_group", "date_basis")
+
+    def settings_fields(self):
+        """設計器頂列以外、收在「其他報表設定」的欄位。"""
+        return [field for field in self.primary_fields() if field.name not in self.HEAD_FIELDS]
 
     def clean_navigation_group(self):
         return self.cleaned_data["navigation_group"] or "custom"
@@ -128,17 +159,28 @@ class CardForm(ScopeForm):
         explanations = {
             "width": "半寬可與下一張並排；全寬獨占一列。窄螢幕依正式版型調整。",
             "height": "320–1200 px，設定最小高度；文字或資料較多會自然延伸，不裁切內容。",
-            "title": "顯示在圖表上方，例如每月銷售台數；只修改標題，不修改統計口徑。",
-            "chart": "長條比較數量、圓餅比較占比、折線看趨勢、堆疊看組成、資料表看明細數字。",
-            "dimension": "先依此欄分組，例如月份或品牌；更換分類會改變每一根長條代表的意義。",
-            "metric": "每一群要彙總的值；傭金與獎金沿用 DMIS 既有結果，不在此重新計算付款。",
-            "limit": "1–200 群。只限制圖表顯示群數，不等於完整資料總數；超出時會有提示。",
-            "sort": "日期由近到遠適合近期趨勢；數值由高到低適合排行。",
+            "chart": "長條比數量、圓環看占比、折線看趨勢、堆疊看組成、資料表看數字。",
+            "dimension": "每一根長條（或每一列）代表什麼，例如月份、品牌、車行。",
+            "metric": "傭金與獎金沿用 DMIS 既有結果，這裡不會重新計算。",
+            "limit": "1–200。只限制顯示幾項，超出時圖上會提示。",
+            "sort": "看趨勢選日期順序；看排行選數值由高到低。",
             "font_size": "只調整此圖文字；畫布縮放則是整頁等比例縮放，兩者不同。",
             "title_align": "覆寫此圖標題位置；選依原版型即可維持原報表習慣。",
         }
         for name, explanation in explanations.items():
             self.fields[name].help_text = explanation
+        self.fields["title"].help_text = ""
+        self.fields["dimension"].choices = designer_dimension_choices()
+        self.fields["series"].choices = [("", "不細分"), *designer_dimension_choices()]
+
+    BASIC_FIELDS = ("title", "chart", "metric", "formula", "dimension", "series", "sort", "limit")
+
+    def basic_fields(self):
+        """右側面板常用設定：依「圖表類型 → 看什麼 → 依什麼分 → 排序」的問句順序。"""
+        return [self[name] for name in self.BASIC_FIELDS]
+
+    def advanced_fields(self):
+        return [field for field in self.primary_fields() if field.name not in self.BASIC_FIELDS and field.name not in ("DELETE", "ORDER")]
 
     width = forms.TypedChoiceField(label="圖表寬度", choices=[(6, "半寬（並排）"), (12, "全寬")], coerce=int, required=False, empty_value=6, initial=6)
     height = forms.IntegerField(label="圖表高度（像素）", min_value=320, max_value=1200, required=False, initial=520)
@@ -147,9 +189,9 @@ class CardForm(ScopeForm):
         return self.cleaned_data.get("height") or 520
 
     title = forms.CharField(label="圖表名稱", max_length=100)
-    chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
-    dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())
-    series = forms.ChoiceField(label="細分系列／第二分類", choices=[("", "不細分"), *DIMENSIONS.items()], required=False,
+    chart = forms.ChoiceField(label="圖表類型", choices=CHARTS.items())
+    dimension = forms.ChoiceField(label="依什麼分", choices=DIMENSIONS.items())
+    series = forms.ChoiceField(label="再細分", choices=[("", "不細分"), *DIMENSIONS.items()], required=False,
         help_text="堆疊圖作為系列；資料表作為第二個分組欄位，例如月份＋歸屬車行。")
     series_limit = forms.IntegerField(label="最多顯示幾個系列", min_value=1, max_value=200, initial=200, required=False,
         help_text="依下方系列排序取前 N 個；數值排名以目前顯示主分類中的合計計算。")
@@ -161,7 +203,7 @@ class CardForm(ScopeForm):
         help_text="資料表可同時顯示最多 4 個附加指標；不要重複選主要指標。")
     formula = forms.CharField(label="自訂試算公式", required=False, max_length=200,
                               help_text="僅自訂試算使用，例如 sale_total / count；支援 + − * / 與括號。")
-    limit = forms.IntegerField(label="最多顯示幾群", min_value=1, max_value=200, initial=20)
+    limit = forms.IntegerField(label="最多顯示幾項", min_value=1, max_value=200, initial=20)
     sort = forms.ChoiceField(label="排列方式", choices=[("key", "分類順序（日期由早到晚）"), ("key_desc", "分類倒序（日期由近到遠）"), ("value", "數值由高到低")])
 
     def clean_formula(self):

@@ -252,17 +252,10 @@
       <header><div><span>快速建立通路</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
       <p>{% site_text 'legacy_import_detail.d5aadd852687' %}</p>
       <div class="import-master-form-grid">
-        {% include "sales/_field.html" with field=sales_source_quick_form.source_category %}
+        {% include "sales/_field.html" with field=sales_source_quick_form.source_type %}
         {% include "sales/_field.html" with field=sales_source_quick_form.name %}
         {% include "sales/_field.html" with field=sales_source_quick_form.address %}
       </div>
-      <details class="import-inline-category-create">
-        <summary>＋ 現有類別不適用，建立新類別</summary>
-        <div class="import-master-form-grid">
-          {% include "sales/_field.html" with field=sales_source_quick_form.new_category_name %}
-          {% include "sales/_field.html" with field=sales_source_quick_form.new_category_behavior %}
-        </div>
-      </details>
       <div class="form-actions"><button class="button ghost" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">建立並完成對應</button></div>
     </form>
   </dialog>

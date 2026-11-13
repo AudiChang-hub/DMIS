@@ -45,11 +45,6 @@
     <div><h2>客戶查詢</h2><p>{% site_text 'data_maintenance.8f2d8c214578' %}</p><strong>{{ customer_count }} 位客戶</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
-  {% if_access 'sales_source_category_list' %}<a class="maintenance-card" href="{% url 'sales_source_category_list' %}">
-    <span class="maintenance-card__icon">類</span>
-    <div><h2>通路類別</h2><p>{% site_text 'data_maintenance.156fba8a63ca' %}</p><strong>{{ sales_source_category_count }} 個類別</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
   {% if_access 'sales_source_list' %}<a class="maintenance-card" href="{% url 'sales_source_list' %}">
     <span class="maintenance-card__icon">行</span>
     <div><h2>車行</h2><p>{% site_text 'data_maintenance.befed6a27348' %}</p><strong>{{ dealer_source_count }} 家車行</strong></div>

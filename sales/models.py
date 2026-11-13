@@ -348,6 +348,25 @@ class SalesSourceCategory(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    # 設定畫面已移除：類別由來源類型自動帶入，不再由使用者選擇。
+    DEFAULT_NAMES = {
+        SystemBehavior.STORE: "本店員工",
+        SystemBehavior.DEALER: "車行",
+        SystemBehavior.PLATFORM: "網路平台",
+    }
+
+    @classmethod
+    def default_for(cls, source_type):
+        """回傳此來源類型的預設類別；沒有就建立（不看是否啟用）。"""
+        name = cls.DEFAULT_NAMES[source_type]
+        category = (
+            cls.objects.filter(name=name, system_behavior=source_type).first()
+            or cls.objects.filter(system_behavior=source_type).order_by("id").first()
+        )
+        if category is None:
+            category = cls.objects.create(name=name, system_behavior=source_type)
+        return category
+
 
 class VehicleBrand(TimeStampedModel):
     parent = models.ForeignKey(
@@ -544,8 +563,7 @@ class SalesSource(TimeStampedModel):
         if invalid_staff_stores:
             raise ValidationError({"staff_stores": "所在店包含無效選項。"})
 
-        if self.category_id and self.source_type != self.category.system_behavior:
-            self.source_type = self.category.system_behavior
+        self._sync_category_with_source_type()
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
         if self.source_type == self.SourceType.DEALER:
@@ -558,8 +576,7 @@ class SalesSource(TimeStampedModel):
     def save(self, *args, **kwargs):
         from sales.services.taiwan_address import infer_taiwan_region
 
-        if self.category_id:
-            self.source_type = self.category.system_behavior
+        category_changed = self._sync_category_with_source_type()
         assigned_code = False
         if self.source_type == self.SourceType.PLATFORM and not self.code:
             self.code = self.next_general_source_code()
@@ -568,9 +585,24 @@ class SalesSource(TimeStampedModel):
             self.has_line_group = False
         else:
             self.city, self.district = infer_taiwan_region(self.address)
-        if assigned_code and kwargs.get("update_fields") is not None:
-            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"code"}
+        if kwargs.get("update_fields") is not None:
+            extra = ({"code"} if assigned_code else set()) | (
+                {"category"} if category_changed else set()
+            )
+            if extra:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | extra
         return super().save(*args, **kwargs)
+
+    def _sync_category_with_source_type(self):
+        """來源類型決定通路類別；只有沒填類型時才沿用類別的處理方式。"""
+        if not self.source_type and self.category_id:
+            self.source_type = self.category.system_behavior
+        if not self.source_type:
+            return False
+        if self.category_id and self.category.system_behavior == self.source_type:
+            return False
+        self.category = SalesSourceCategory.default_for(self.source_type)
+        return True
 
 
 class SalesSourcePlatformContact(TimeStampedModel):

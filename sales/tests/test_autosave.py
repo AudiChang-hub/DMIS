@@ -96,9 +96,9 @@ class DataMaintenanceDraftTests(TestCase):
         from django.contrib.auth import get_user_model
         user = get_user_model().objects.create_superuser("draft-root", password="test-only")
         self.client.force_login(user)
-        page = self.client.get(reverse("sales_source_category_list")).content.decode()
+        page = self.client.get(reverse("installment_company_list")).content.decode()
         self.assertIn("js/form-draft.js", page)
-        self.assertIn("新增類別", page)
+        self.assertIn("新增分期公司", page)
         script = Path("static/js/form-draft.js").read_text(encoding="utf-8")
         for skipped in ("'password'", "'file'", "'hidden'"):
             self.assertIn(skipped, script)

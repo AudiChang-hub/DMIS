@@ -116,7 +116,6 @@ from .forms import (
     RequiredPasswordChangeForm,
     SalesOrderForm,
     SalesSourceBrandPolicyFormSet,
-    SalesSourceCategoryForm,
     SalesSourceCooperationForm,
     SalesSourceCooperationProfileForm,
     SalesSourceForm,
@@ -176,7 +175,6 @@ from .models import (
     SalesOrderSearchIndex,
     SalesSource,
     SalesSourceBrandPolicy,
-    SalesSourceCategory,
     SalesSourceCooperationProfile,
     SalesSourcePlatformContact,
     Store,
@@ -667,7 +665,6 @@ def data_maintenance(request):
         "staff_source_count": SalesSource.objects.filter(
             source_type=SalesSource.SourceType.STORE
         ).count(),
-        "sales_source_category_count": SalesSourceCategory.objects.count(),
         "price_list_distribution_count": PriceListDistributionMonth.objects.count(),
         "installment_company_count": InstallmentCompany.objects.count(),
         "subsidy_program_count": SubsidyProgram.objects.filter(active=True).count(),
@@ -2242,7 +2239,6 @@ ACTIVE_TOGGLE_RESOURCES = {
     "installment-plan": (InstallmentPlanVersion, "分期方案版本"),
     "positioned-print-template": (PositionedPrintTemplate, "列印範本"),
     "sales-source": (SalesSource, "通路"),
-    "sales-source-category": (SalesSourceCategory, "通路類別"),
     "settlement-cost-rule": (VehicleSettlementCostRule, "車輛結算成本版本"),
     "vehicle-brand": (VehicleBrand, "車輛品牌"),
     "vehicle-model": (VehicleModel, "車型版本"),
@@ -2501,70 +2497,20 @@ def sales_source_form(request, pk=None):
     source = get_object_or_404(SalesSource, pk=pk) if pk else SalesSource()
     post_data = request.POST or None
     brand_overview = _sales_source_brand_overview(source)
-    initial = None
     requested_kind = request.GET.get("kind", "").strip()
-    form_source_type = source.source_type if source.pk else requested_kind
-    if not form_source_type and post_data and post_data.get("category"):
-        form_source_type = (
-            SalesSourceCategory.objects.filter(pk=post_data.get("category"))
-            .values_list("system_behavior", flat=True)
-            .first()
-            or ""
-        )
-    if not source.pk and not post_data:
-        if requested_kind in {value for value, _ in SalesSource.SourceType.choices}:
-            category = SalesSourceCategory.objects.filter(
-                active=True, system_behavior=requested_kind
-            ).order_by("name").first()
-            if category:
-                initial = {"category": category}
-    if form_source_type == SalesSource.SourceType.DEALER:
-        fixed_category = (
-            source.category
-            if source.category_id
-            and source.category.system_behavior == SalesSource.SourceType.DEALER
-            else SalesSourceCategory.objects.filter(
-                active=True,
-                system_behavior=SalesSource.SourceType.DEALER,
-            ).order_by("name").first()
-        )
-        if fixed_category:
-            initial = {**(initial or {}), "category": fixed_category}
-            if post_data:
-                post_data = post_data.copy()
-                post_data["category"] = str(fixed_category.pk)
+    # 通路類別由系統依來源類型自動帶入；類型取自既有資料或進入的清單。
+    if source.pk:
+        form_source_type = source.source_type
+    elif requested_kind in {value for value, _ in SalesSource.SourceType.choices}:
+        form_source_type = requested_kind
+    else:
+        form_source_type = SalesSource.SourceType.DEALER
     if form_source_type == SalesSource.SourceType.STORE:
-        fixed_category = None
-        if (
-            source.category_id
-            and source.category.system_behavior == SalesSource.SourceType.STORE
-        ):
-            fixed_category = source.category
-        elif post_data and post_data.get("category"):
-            fixed_category = SalesSourceCategory.objects.filter(
-                pk=post_data.get("category"),
-                system_behavior=SalesSource.SourceType.STORE,
-            ).first()
-        if fixed_category is None:
-            fixed_category = SalesSourceCategory.objects.filter(
-                active=True,
-                system_behavior=SalesSource.SourceType.STORE,
-            ).order_by("name").first()
-        if fixed_category:
-            initial = {**(initial or {}), "category": fixed_category}
-            if post_data:
-                post_data = post_data.copy()
-                post_data["category"] = str(fixed_category.pk)
-        form = SalesSourceStaffForm(
-            post_data,
-            instance=source,
-            initial=initial,
-        )
+        form = SalesSourceStaffForm(post_data, instance=source)
     else:
         form = SalesSourceForm(
             post_data,
             instance=source,
-            initial=initial,
             source_type=form_source_type,
         )
     cooperation_sections = _sales_source_cooperation_sections(
@@ -2594,11 +2540,7 @@ def sales_source_form(request, pk=None):
         ),
     )
     form_valid = form.is_valid() if request.method == "POST" else False
-    is_dealer = bool(
-        form_valid
-        and form.cleaned_data["category"].system_behavior
-        == SalesSource.SourceType.DEALER
-    )
+    is_dealer = form_valid and form_source_type == SalesSource.SourceType.DEALER
     cooperation_valid = all(
         section["form"].is_valid() for section in cooperation_sections
     ) if request.method == "POST" and is_dealer else True
@@ -2609,8 +2551,8 @@ def sales_source_form(request, pk=None):
     )
     platform_contact_valid = (
         platform_contact_formset.is_valid()
-        if request.method == "POST" and form_valid and not is_dealer
-        and form.cleaned_data["category"].system_behavior == SalesSource.SourceType.PLATFORM
+        if request.method == "POST" and form_valid
+        and form_source_type == SalesSource.SourceType.PLATFORM
         else True
     )
     if (
@@ -2662,14 +2604,7 @@ def sales_source_form(request, pk=None):
             SalesSource.SourceType.PLATFORM: "sales_source_platform_list",
         }.get(source.source_type, "sales_source_list")
         return redirect(destination)
-    context_kind = source.source_type if source.pk else requested_kind
-    if post_data and post_data.get("category"):
-        context_kind = (
-            SalesSourceCategory.objects.filter(pk=post_data.get("category"))
-            .values_list("system_behavior", flat=True)
-            .first()
-            or context_kind
-        )
+    context_kind = form_source_type
     form_context = {
         SalesSource.SourceType.DEALER: {
             "label": "車行",
@@ -2697,10 +2632,6 @@ def sales_source_form(request, pk=None):
             "platform_contact_formset": platform_contact_formset,
             "source": source if source.pk else None,
             "brand_overview": brand_overview,
-            "category_behaviors": {
-                str(category.pk): category.system_behavior
-                for category in form.fields["category"].queryset
-            },
             "district_options_by_city": TAIWAN_DISTRICTS,
             "source_context_label": form_context["label"],
             "source_context_kind": context_kind,
@@ -3372,38 +3303,6 @@ def legacy_import_list(request):
         request,
         "sales/legacy_import_list.html",
         {"form": form, "batches": batches[:50], "show_archived": show_archived, "upload_blocked": upload_blocked},
-    )
-
-
-@login_required
-@require_http_methods(["GET", "POST"])
-@transaction.atomic
-def sales_source_category_list(request):
-    editing = None
-    edit_pk = request.GET.get("edit")
-    if edit_pk:
-        editing = get_object_or_404(SalesSourceCategory, pk=edit_pk)
-    if request.method == "POST" and request.POST.get("action") == "delete":
-        category = get_object_or_404(SalesSourceCategory, pk=request.POST.get("category_id"))
-        if category.sources.exists():
-            messages.error(request, f"無法刪除「{category.name}」：仍有通路正在使用。可改為停用。")
-        else:
-            label = category.name
-            category.delete()
-            messages.success(request, f"已刪除未使用的通路類別：{label}。")
-        return redirect("sales_source_category_list")
-    form = SalesSourceCategoryForm(request.POST or None, instance=editing)
-    if request.method == "POST" and form.is_valid():
-        category = form.save()
-        messages.success(request, f"已儲存通路類別：{category.name}。")
-        return redirect("sales_source_category_list")
-    categories = SalesSourceCategory.objects.annotate(
-        source_count=Count("sources")
-    ).order_by("system_behavior", "name", "id")
-    return render(
-        request,
-        "sales/sales_source_category_list.html",
-        {"form": form, "categories": categories, "editing": editing},
     )
 
 

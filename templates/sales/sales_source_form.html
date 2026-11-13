@@ -17,7 +17,6 @@
   {% csrf_token %}
   {% if source_context_kind == 'store' %}
   <section class="form-section static-section source-editor-section staff-editor-section">
-    {{ form.category.as_hidden }}
     <div class="section-title">
       <div>
         <p class="eyebrow">人員與傭金設定</p>
@@ -52,11 +51,6 @@
       </div>
     </div>
     <div class="source-basic-layout">
-      {% if source_context_kind == 'dealer' %}
-        {{ form.category.as_hidden }}
-      {% else %}
-        <div class="source-category-field">{% include "sales/_field.html" with field=form.category %}</div>
-      {% endif %}
       {{ form.city.as_hidden }}
       {{ form.district.as_hidden }}
 
@@ -329,14 +323,13 @@
 {% endblock %}
 
 {% block scripts %}
-{{ category_behaviors|json_script:"source-category-behaviors" }}
+{{ source_context_kind|json_script:"source-context-kind" }}
 {{ district_options_by_city|json_script:"source-district-options" }}
 <script>
 (() => {
   const policyRows = document.getElementById("policy-rows");
   const policyDetails = document.querySelector(".dealer-brand-details");
-  const categoryBehaviors = JSON.parse(document.getElementById("source-category-behaviors").textContent);
-  const categorySelect = document.getElementById("id_category");
+  const sourceKind = JSON.parse(document.getElementById("source-context-kind").textContent);
   const nameLabel = document.querySelector("[data-source-name-field] label");
   const presence = document.querySelector("[data-line-group-presence]");
   const addressInput = document.getElementById("id_address");
@@ -392,7 +385,7 @@
   }
 
   function updateSourceContext() {
-    const behavior = categoryBehaviors[String(categorySelect?.value || "")] || "";
+    const behavior = sourceKind || "";
     const labels = {dealer: "車行名稱", platform: "平台名稱", store: "人員名稱"};
     if (nameLabel) {
       const required = nameLabel.querySelector("em");
@@ -473,7 +466,6 @@
   });
 
   document.querySelector("[data-cooperation-overview]")?.addEventListener("change", updateBrandOverview);
-  categorySelect?.addEventListener("change", updateSourceContext);
   addressInput?.addEventListener("input", scheduleRegionInference);
   addressInput?.addEventListener("change", inferRegionFromAddress);
   addressInput?.addEventListener("blur", inferRegionFromAddress);

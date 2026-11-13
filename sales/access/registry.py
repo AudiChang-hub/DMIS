@@ -127,7 +127,7 @@ register("accessories", "accessory_product_create accessory_product_edit accesso
 register("rewards", "dealer_reward_catalog_list")
 register("rewards", "dealer_reward_catalog_create dealer_reward_catalog_edit dealer_reward_catalog_quick_create", "operate")
 register("customers", "customer_list customer_detail")
-register("sources", "sales_source_list sales_source_staff_list sales_source_platform_list sales_source_category_list sales_source_holiday_gift_manage")
+register("sources", "sales_source_list sales_source_staff_list sales_source_platform_list sales_source_holiday_gift_manage")
 register("sources", "sales_source_create sales_source_edit sales_source_delete sales_source_set_active sales_source_set_holiday_gift", "operate")
 register("distribution", "price_list_distribution price_list_distribution_item_update price_list_distribution_assignments price_list_distribution_sync")
 register("costs", "settlement_cost_rule_list vehicle_model_settlement_costs")
@@ -189,7 +189,7 @@ TOGGLE_RESOURCES = {
     "dealer-volume-bonus": "bonuses", "incentive-campaign": "incentives", "dealer-reward-campaign": "commissions",
     "installment-company": "installments", "installment-plan": "models", "subsidy-program": "subsidy_programs",
     "positioned-print-template": "templates", "sales-source": "sources",
-    "sales-source-category": "sources", "settlement-cost-rule": "costs",
+    "settlement-cost-rule": "costs",
     "vehicle-brand": "brands", "vehicle-model": "models", "vehicle-price-version": "models",
 }
 MEDIA_SCREENS = {"order": "orders", "draft": "orders", "vehicle": "inventory", "vehicle_history": "inventory", "transfer_signoff": "inventory", "payment": "work", "delivery": "work"}

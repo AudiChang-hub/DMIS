@@ -93,7 +93,6 @@ class ActiveQuickToggleTests(TestCase):
             "installment_company_list.html": "installment-company",
             "installment_plan_list.html": "installment-plan",
             "positioned_template_list.html": "positioned-print-template",
-            "sales_source_category_list.html": "sales-source-category",
             "sales_source_holiday_gift_manage.html": "sales-source",
             "sales_source_simple_list.html": "sales-source",
             "settlement_cost_rule_list.html": "settlement-cost-rule",

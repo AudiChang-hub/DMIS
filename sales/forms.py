@@ -1043,7 +1043,7 @@ class SalesSourceForm(forms.ModelForm):
     class Meta:
         model = SalesSource
         fields = [
-            "category", "name", "responsible_person", "phone",
+            "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
             "city", "district", "sym_vehicle_capacity",
             "suzuki_vehicle_capacity", "credit_limit", "holiday_gift", "note", "active",
@@ -1064,20 +1064,13 @@ class SalesSourceForm(forms.ModelForm):
 
     def __init__(self, *args, source_type=None, **kwargs):
         super().__init__(*args, **kwargs)
-        category_queryset = SalesSourceCategory.objects.filter(
-            Q(active=True) | Q(pk=self.instance.category_id)
+        # 通路類別由來源類型自動帶入；類型取自既有資料或進入的清單。
+        valid_types = {value for value, _ in SalesSource.SourceType.choices}
+        behavior = self.instance.source_type or (
+            source_type if source_type in valid_types else SalesSource.SourceType.DEALER
         )
-        if source_type in {value for value, _ in SalesSource.SourceType.choices}:
-            category_queryset = category_queryset.filter(system_behavior=source_type)
-        self.fields["category"].queryset = category_queryset.order_by(
-            "system_behavior", "name"
-        )
-        self.fields["category"].required = True
-        behavior = (
-            self.instance.category.system_behavior
-            if self.instance.category_id
-            else self.instance.source_type
-        )
+        self.source_type = behavior
+        self.instance.source_type = behavior
         self.fields["name"].label = {
             SalesSource.SourceType.DEALER: "車行名稱",
             SalesSource.SourceType.PLATFORM: "平台名稱",
@@ -1094,11 +1087,7 @@ class SalesSourceForm(forms.ModelForm):
         from sales.services.taiwan_address import infer_taiwan_region, is_valid_district
 
         cleaned_data = super().clean()
-        category = cleaned_data.get("category")
-        is_dealer = bool(
-            category
-            and category.system_behavior == SalesSource.SourceType.DEALER
-        )
+        is_dealer = self.source_type == SalesSource.SourceType.DEALER
         has_line_group = (
             is_dealer and cleaned_data.get("line_group_presence") == "yes"
         )
@@ -1125,7 +1114,7 @@ class SalesSourceForm(forms.ModelForm):
 
     def save(self, commit=True):
         source = super().save(commit=False)
-        source.source_type = source.category.system_behavior
+        source.source_type = self.source_type
         source.has_line_group = (
             source.source_type == SalesSource.SourceType.DEALER
             and self.cleaned_data.get("line_group_presence") == "yes"
@@ -1148,7 +1137,7 @@ class SalesSourceStaffForm(forms.ModelForm):
     class Meta:
         model = SalesSource
         fields = [
-            "category", "name", "staff_stores", "phone", "staff_commission", "active",
+            "name", "staff_stores", "phone", "staff_commission", "active",
         ]
         labels = {
             "name": "姓名",
@@ -1161,11 +1150,7 @@ class SalesSourceStaffForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["category"].queryset = SalesSourceCategory.objects.filter(
-            Q(active=True) | Q(pk=self.instance.category_id),
-            system_behavior=SalesSource.SourceType.STORE,
-        ).order_by("name")
-        self.fields["category"].required = True
+        self.instance.source_type = SalesSource.SourceType.STORE
         if not self.is_bound:
             self.fields["staff_stores"].initial = list(self.instance.staff_stores or [])
         self.fields["staff_commission"].widget.attrs.update(
@@ -1176,12 +1161,6 @@ class SalesSourceStaffForm(forms.ModelForm):
                 field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
-    def clean_category(self):
-        category = self.cleaned_data["category"]
-        if category.system_behavior != SalesSource.SourceType.STORE:
-            raise forms.ValidationError("本頁只能選擇本店人員分類。")
-        return category
-
     def save(self, commit=True):
         source = super().save(commit=False)
         source.source_type = SalesSource.SourceType.STORE
@@ -1189,31 +1168,6 @@ class SalesSourceStaffForm(forms.ModelForm):
         if commit:
             source.save()
         return source
-
-
-class SalesSourceCategoryForm(forms.ModelForm):
-    class Meta:
-        model = SalesSourceCategory
-        fields = ["name", "system_behavior", "active", "note"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["name"].label = "類別名稱"
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-    def clean_system_behavior(self):
-        behavior = self.cleaned_data["system_behavior"]
-        if (
-            self.instance.pk
-            and self.instance.system_behavior != behavior
-            and self.instance.sources.exists()
-        ):
-            raise forms.ValidationError(
-                "此類別已有通路使用，不能改變系統處理方式；請另建新類別後再調整通路。"
-            )
-        return behavior
 
 
 class SalesSourceCooperationForm(forms.Form):
@@ -2952,23 +2906,10 @@ class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
 
 
 class LegacySalesSourceQuickCreateForm(forms.ModelForm):
-    source_category = forms.ModelChoiceField(
-        label="通路類別",
-        queryset=SalesSourceCategory.objects.none(),
-        required=False,
-        help_text="例如：車行、網路平台、本店員工。",
-    )
-    new_category_name = forms.CharField(
-        label="新類別名稱",
-        required=False,
-        max_length=80,
-        help_text="現有類別不適用時才填寫，例如：本店員工。",
-    )
-    new_category_behavior = forms.ChoiceField(
-        label="新類別的系統處理方式",
-        required=False,
-        choices=SalesSourceCategory.SystemBehavior.choices,
-        help_text="本店來源不套車行傭金；車行與網路平台會進入各自對帳流程。",
+    source_type = forms.ChoiceField(
+        label="來源類型",
+        choices=SalesSource.SourceType.choices,
+        help_text="車行與網路平台會進入各自對帳流程；本店來源不套車行傭金。通路類別由系統自動帶入。",
     )
 
     class Meta:
@@ -2981,46 +2922,15 @@ class LegacySalesSourceQuickCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["source_category"].queryset = SalesSourceCategory.objects.filter(
-            active=True
-        ).order_by("system_behavior", "name")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
-    def clean(self):
-        cleaned = super().clean()
-        selected = cleaned.get("source_category")
-        new_name = (cleaned.get("new_category_name") or "").strip()
-        behavior = cleaned.get("new_category_behavior")
-        if not selected and not new_name:
-            self.add_error("source_category", "請選擇既有類別，或建立一個新類別。")
-        if new_name and not behavior:
-            self.add_error("new_category_behavior", "建立新類別時請選擇系統處理方式。")
-        existing = SalesSourceCategory.objects.filter(name__iexact=new_name).first()
-        if existing and behavior and existing.system_behavior != behavior:
-            self.add_error(
-                "new_category_name",
-                f"「{existing.name}」已存在，且系統處理方式為{existing.get_system_behavior_display()}。",
-            )
-        return cleaned
-
     @transaction.atomic
     def save(self, commit=True):
         source = super().save(commit=False)
-        new_name = (self.cleaned_data.get("new_category_name") or "").strip()
-        if new_name:
-            category, _ = SalesSourceCategory.objects.get_or_create(
-                name=new_name,
-                defaults={
-                    "system_behavior": self.cleaned_data["new_category_behavior"],
-                    "active": True,
-                },
-            )
-        else:
-            category = self.cleaned_data["source_category"]
-        source.category = category
-        source.source_type = category.system_behavior
+        source.source_type = self.cleaned_data["source_type"]
+        source.category = SalesSourceCategory.default_for(source.source_type)
         if commit:
             source.save()
         return source

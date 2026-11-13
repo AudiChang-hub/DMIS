@@ -509,7 +509,6 @@ class ChannelFinanceTests(TestCase):
         self.client.force_login(self.user)
         for name in (
             "sales_source_list",
-            "sales_source_category_list",
             "installment_company_list",
             "dealer_volume_bonus_list",
         ):
@@ -605,14 +604,14 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("name", response.json()["errors"])
 
-    def test_source_form_derives_system_behavior_from_category(self):
+    def test_staff_form_assigns_store_category_without_user_choice(self):
+        # T-163：通路類別設定畫面移除，新增本店人員不再選類別，由系統自動帶入。
         category = SalesSourceCategory.objects.get(name="本店員工")
         self.client.force_login(self.user)
 
         response = self.client.post(
-            reverse("sales_source_create"),
+            reverse("sales_source_create") + "?kind=store",
             {
-                "category": category.pk,
                 "name": "文傑",
                 "phone": "0912-345-678",
                 "staff_stores": [SalesSource.StaffStore.YUSHENG],

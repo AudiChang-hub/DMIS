@@ -206,8 +206,26 @@ class OperationsNavigationTests(TestCase):
         from sales.services.order_filters import fee_variance_orders
         order = self.make_order(timezone.localdate())
         cancelled = self.make_order(timezone.localdate(), status="cancel_refund_pending")
-        SalesOrder.objects.filter(pk__in=[order.pk, cancelled.pk]).update(registration_calculated_total=1000, plate_insurance_fee=2000)
+        SalesOrder.objects.filter(pk__in=[order.pk, cancelled.pk]).update(registration_calculated_total=2000, plate_insurance_fee=1000)
         response = self.client.get(reverse("order_list"), {"attention": "fees"})
         self.assertEqual([o.pk for o in response.context["orders"]], [order.pk])
         self.assertEqual(self.client.get(reverse("operations_report")).context["cockpit"]["health"]["fee_variances"], 1)
         self.assertEqual(fee_variance_orders(SalesOrder.objects.all()).count(), 1)
+
+    def test_fee_variance_only_flags_fee_below_calculated(self):
+        # T-168（使用者 2026-11-13 選 A）：只標 0 < 牌險費 < 試算合計；填 0（不向客人收）與收得比成本高都不標。
+        # 正式站 23 張被標的單都是照通路價填（1,400／1,500／2,000）或填 0。
+        from sales.models import SalesOrder
+        from sales.services.order_filters import fee_variance_orders
+        today = timezone.localdate()
+        above, below, waived = (self.make_order(today) for _ in range(3))
+        for order, fee in ((above, 1400), (below, 1300), (waived, 0)):
+            SalesOrder.objects.filter(pk=order.pk).update(
+                registration_calculated_total=1385, plate_insurance_fee=fee, plate_insurance_auto=False)
+        self.assertEqual(list(fee_variance_orders(SalesOrder.objects.all()).values_list("pk", flat=True)), [below.pk])
+        response = self.client.get(reverse("order_list"), {"attention": "fees"})
+        self.assertEqual([o.pk for o in response.context["orders"]], [below.pk])
+        # 確認過且試算與牌險費都沒變的單照舊不標。
+        SalesOrder.objects.filter(pk=below.pk).update(
+            registration_fee_variance_confirmed_calculated_total=1385, registration_fee_variance_confirmed_actual_total=1300)
+        self.assertFalse(fee_variance_orders(SalesOrder.objects.all()).exists())

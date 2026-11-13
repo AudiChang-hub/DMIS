@@ -465,10 +465,20 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
 
     def test_plate_variance_confirm_lives_in_strip_once(self):
         order = self.make_order()
-        SalesOrder.objects.filter(pk=order.pk).update(registration_calculated_total=2000)
+        SalesOrder.objects.filter(pk=order.pk).update(registration_calculated_total=3000)
         _page, finance = self.finance_panel(order)
         self.assertIn("牌險差異", finance)
         self.assertEqual(finance.count(reverse("registration_fee_variance_confirm", args=[order.pk])), 1)
+
+    def test_plate_variance_card_uses_list_rule(self):
+        # T-168：訂單頁「牌險差異」卡與全部訂單 attention=fees 同一口徑；收得比成本高、填 0 都不顯示。
+        for fee in (Decimal("2350"), Decimal("0")):
+            with self.subTest(fee=fee):
+                order = self.make_order(plate_insurance_fee=fee)
+                SalesOrder.objects.filter(pk=order.pk).update(registration_calculated_total=2000, plate_insurance_auto=False)
+                _page, finance = self.finance_panel(order)
+                self.assertNotIn("牌險差異", finance)
+                self.assertNotIn(reverse("registration_fee_variance_confirm", args=[order.pk]), finance)
 
     def test_non_dealer_order_has_no_settlement(self):
         page, _finance = self.finance_panel(self.make_order(source_type="store", source=self.staff))

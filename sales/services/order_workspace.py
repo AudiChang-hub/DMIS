@@ -4,8 +4,9 @@ from django.template.loader import render_to_string
 
 from sales.access.services import policy_for
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm, YearMonthDateInput
-from sales.models import OrderOperationsProfile
+from sales.models import OrderOperationsProfile, SalesOrder
 from sales.services.audit_note import discount_summary
+from sales.services.order_filters import plate_fee_variance_q
 from sales.services.order_intake import can_edit_finance
 from sales.services.order_origin import current_order_origin
 from sales.services.payment_summary import payment_summary
@@ -154,7 +155,7 @@ def finance_overview_context(form, profile, order):
 
     plate_variance = None
     calculated = order.registration_calculated_total
-    if calculated and order.plate_insurance_fee != calculated:
+    if order.pk and SalesOrder.objects.filter(plate_fee_variance_q(), pk=order.pk).exists():
         plate_variance = {
             'calculated': calculated,
             'actual': order.plate_insurance_fee,

@@ -55,7 +55,8 @@ class FinanceBlocksT155Tests(ledger.FinanceLedgerTestBase):
         self.assertNotIn("稅金總額＋強制險費用", card)
 
     def test_internal_discount_is_its_own_row(self):
-        order = self.make_order(**self.registration_fields(plate_insurance_fee=Decimal("1400")))
+        # 牌險費少於試算才有差異卡（T-168）。
+        order = self.make_order(**self.registration_fields(plate_insurance_fee=Decimal("1300")))
         _page, finance = self.finance_panel(order)
         strip = finance.split('<div class="finance-strip', 1)[1].split('id="finance-receipts"', 1)[0]
         self.assertTrue(strip.startswith('">'), "finance-strip 不再帶 has-variance 並排樣式")

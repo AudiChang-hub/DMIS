@@ -428,6 +428,45 @@ class IncentiveCampaignApplyTests(CampaignFixtureMixin, TestCase):
         self.assertContains(tab, "實銷獎勵金 2,000")
         self.assertNotContains(self.client.get(reverse("vehicle_model_incentives", args=[self.sui.pk])), "Fun 原廠獎勵")
 
+    def test_list_splits_active_and_inactive_tabs_with_counts(self):
+        make_campaign(name="（已整理）Fun 舊活動", items={"sales_bonus": 100}, vehicle_models=[self.fun],
+                      effective_from=date(2026, 1, 1), active=False)
+        url = reverse("incentive_rule_list")
+        listing = self.client.get(url)
+        tabs = listing.context["tabs"]
+        self.assertEqual([(tab["key"], tab["count"], tab["active"]) for tab in tabs],
+                         [("active", 3, True), ("inactive", 1, False)], "預設顯示啟用中，頁籤標出筆數")
+        self.assertContains(listing, "Fun 原廠獎勵")
+        self.assertNotContains(listing, "（已整理）Fun 舊活動")
+        self.assertNotContains(listing, '<option value="inactive"', msg_prefix="狀態篩選不再重複列出已停用")
+        inactive = self.client.get(url, {"tab": "inactive"})
+        self.assertContains(inactive, "（已整理）Fun 舊活動")
+        self.assertNotContains(inactive, "Fun 原廠獎勵")
+        self.assertNotContains(inactive, 'id="campaign-status"', msg_prefix="停用頁籤不顯示狀態篩選")
+        legacy = self.client.get(url, {"status": "inactive"})
+        self.assertEqual(legacy.context["selected"]["tab"], "inactive", "舊網址的已停用篩選改到停用頁籤")
+        self.assertContains(legacy, "（已整理）Fun 舊活動")
+
+    def test_list_tabs_keep_other_filters(self):
+        make_campaign(name="Fun 停用加碼", kind=IncentiveCampaign.Kind.BONUS, items={"sales_bonus": 100},
+                      vehicle_models=[self.fun], effective_from=date(2026, 1, 1), effective_to=date(2026, 1, 31),
+                      active=False)
+        url = reverse("incentive_rule_list")
+        response = self.client.get(url, {"q": "fun", "kind": "bonus", "status": "current", "page": "2"},
+                                   HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        tabs = {tab["key"]: tab for tab in response.context["tabs"]}
+        self.assertEqual(tabs["inactive"]["count"], 1, "停用頁籤筆數依同一組搜尋與類型計算")
+        self.assertIn("q=fun", tabs["inactive"]["url"])
+        self.assertIn("kind=bonus", tabs["inactive"]["url"])
+        self.assertIn("status=current", tabs["inactive"]["url"])
+        self.assertIn("tab=inactive", tabs["inactive"]["url"])
+        self.assertNotIn("page=", tabs["inactive"]["url"], "切換頁籤回到第一頁")
+        self.assertContains(response, 'aria-label="原廠獎勵活動狀態"', msg_prefix="自動套用篩選時頁籤筆數一起更新")
+        inactive = self.client.get(url, {"q": "fun", "kind": "bonus", "status": "current", "tab": "inactive"})
+        self.assertContains(inactive, "Fun 停用加碼")
+        self.assertContains(inactive, '<input type="hidden" name="status" value="current">',
+                            msg_prefix="停用頁籤保留狀態篩選，切回啟用中照舊套用")
+
 
 class IncentiveBackfillTests(CampaignFixtureMixin, TestCase):
     """回溯（T-161）：只讀掃描、逐張勾選覆寫、OrderChange、權限、匯入單不列、預覽後被改就整批不寫。"""

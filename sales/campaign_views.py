@@ -3,6 +3,7 @@
 活動依品牌、能源別、指定年式與期間套用；訂單依實際領牌日帶入，領牌完成後固定（見 BUSINESS_RULES）。
 """
 from datetime import date
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -77,6 +78,11 @@ def _prefill_model(request, form):
 
 # ---- 原廠獎勵與補助活動 ----
 
+# 清單分「啟用中」「停用」兩個頁籤（T-166）；狀態篩選收斂掉與頁籤重複的「已停用」，只在啟用中頁籤使用。
+INCENTIVE_TABS = (("active", "啟用中", "目前會套用到訂單的活動"), ("inactive", "停用", "已停用、不再套用的活動"))
+INCENTIVE_STATUS_FILTERS = {key: label for key, label in STATUS_FILTERS.items() if key != "inactive"}
+
+
 def _keyword_models(keyword):
     """模糊比對車型（T-161）：品牌（含別名）、機種、車名、型號、原廠型號、年份，不分大小寫、部分符合即可。"""
     query = (
@@ -97,13 +103,17 @@ def incentive_campaign_list(request):
     keyword = request.GET.get("q", "").strip()
     kind = request.GET.get("kind", "")
     status = request.GET.get("status", "")
-    status = status if status in STATUS_FILTERS else ""
+    tab = request.GET.get("tab", "")
+    if status == "inactive":  # 舊網址的「已停用」篩選改為停用頁籤
+        tab, status = "inactive", ""
+    tab = tab if tab in {key for key, _label, _hint in INCENTIVE_TABS} else "active"
+    status = status if status in INCENTIVE_STATUS_FILTERS else ""
     campaigns = IncentiveCampaign.objects.prefetch_related("vehicle_models", "items", "dealers").annotate(
         order_count=Count("order_applications", distinct=True),
     )
     if kind in IncentiveCampaign.Kind.values:
         campaigns = campaigns.filter(kind=kind)
-    campaigns = list(campaigns.order_by("-active", "kind", "-effective_from", "-id"))
+    campaigns = list(campaigns.order_by("kind", "-effective_from", "-id"))
     if keyword:
         # 車型模糊搜尋：列出適用到符合年式的活動，並標出命中的年式；活動名稱或備註符合也列出。
         hits = _keyword_models(keyword)
@@ -114,13 +124,24 @@ def incentive_campaign_list(request):
             if campaign.hit_models or folded in campaign.name.casefold() or folded in (campaign.note or "").casefold():
                 matched.append(campaign)
         campaigns = matched
-    page = Paginator(_status_filtered(campaigns, status), 100).get_page(request.GET.get("page"))
+    rows = {
+        "active": _status_filtered([campaign for campaign in campaigns if campaign.active], status),
+        "inactive": _status_filtered([campaign for campaign in campaigns if not campaign.active], ""),
+    }
+    kept = {key: value for key, value in (("q", keyword), ("kind", kind), ("status", status)) if value}
+    tabs = [
+        {"key": key, "label": label, "hint": hint, "count": len(rows[key]), "active": key == tab,
+         "url": f"{request.path}?{urlencode({**kept, 'tab': key})}"}
+        for key, label, hint in INCENTIVE_TABS
+    ]
+    page = Paginator(rows[tab], 100).get_page(request.GET.get("page"))
     context = {
         "campaigns": page.object_list,
         "page_obj": page,
         "kinds": IncentiveCampaign.Kind.choices,
-        "statuses": STATUS_FILTERS.items(),
-        "selected": {"q": keyword, "kind": kind, "status": status},
+        "statuses": INCENTIVE_STATUS_FILTERS.items(),
+        "tabs": tabs,
+        "selected": {"q": keyword, "kind": kind, "status": status, "tab": tab},
     }
     template = ("sales/_incentive_campaign_results.html"
                 if request.headers.get("X-Requested-With") == "XMLHttpRequest" else "sales/incentive_campaign_list.html")

@@ -23,18 +23,20 @@
     <label for="campaign-kind">類型</label>
     <select id="campaign-kind" name="kind"><option value="">全部</option>{% for value, label in kinds %}<option value="{{ value }}"{% if selected.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   </div>
-  <div class="inventory-filter">
+  <input type="hidden" name="tab" value="{{ selected.tab }}">
+  {# 狀態只分啟用中的活動；停用頁籤不顯示，但保留原值，切回啟用中時照舊套用（T-166）。 #}
+  {% if selected.tab == 'active' %}<div class="inventory-filter">
     <label for="campaign-status">狀態</label>
     <select id="campaign-status" name="status"><option value="">全部</option>{% for value, label in statuses %}<option value="{{ value }}"{% if selected.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-  </div>
+  </div>{% elif selected.status %}<input type="hidden" name="status" value="{{ selected.status }}">{% endif %}
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'incentive_rule_list' %}">清除</a>
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}?tab={{ selected.tab }}">清除</a>
   </div>
 </form>
 
-<section class="inventory-list-panel" data-campaign-results aria-live="polite">
+<div class="campaign-results" data-campaign-results aria-live="polite">
   {% include "sales/_incentive_campaign_results.html" %}
-</section>
+</div>
 {% include "sales/_incentive_backfill_dialog.html" %}
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/incentive-campaigns.js' %}?v={{ app_version }}" defer></script>{% endblock %}

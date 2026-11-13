@@ -111,13 +111,17 @@ class AccessoryCategoryTests(TestCase):
         self.assertFalse(dupe.active)
         self.assertIn("已合併到「輕便安全帽」", dupe.note)
 
-    def test_category_page_creates_and_only_deletes_empty(self):
+    def test_category_page_is_locked_to_fixed_categories(self):
+        # 使用者 2026-11-13 T-153：類別固定 7 類，頁面只列出、可點進去管理名稱，不能新增、改名、停用或刪除。
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get(reverse("accessory_category_list")).status_code, 200)
-        self.client.post(reverse("accessory_category_list"), {"name": "後貨架", "sort_order": "30", "active": "on"})
-        self.assertTrue(AccessoryCategory.objects.filter(name="後貨架").exists())
-        self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": self.helmet.pk})
-        self.assertTrue(AccessoryCategory.objects.filter(pk=self.helmet.pk).exists())
-        empty = AccessoryCategory.objects.get(name="後貨架")
-        self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": empty.pk})
-        self.assertFalse(AccessoryCategory.objects.filter(pk=empty.pk).exists())
+        page = self.client.get(reverse("accessory_category_list"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, f'{reverse("accessory_product_list")}?category={self.helmet.pk}')
+        self.assertNotContains(page, 'name="action" value="delete"')
+        self.assertNotContains(page, "新增類別")
+        before = list(AccessoryCategory.objects.values_list("pk", "name", "active"))
+        self.assertEqual(self.client.post(reverse("accessory_category_list"), {"name": "後貨架", "sort_order": "30", "active": "on"}).status_code, 405)
+        self.assertEqual(self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": self.helmet.pk}).status_code, 405)
+        toggle = self.client.post(reverse("master_record_set_active", args=["accessory-category", self.helmet.pk]), {"active": "0"})
+        self.assertEqual(toggle.status_code, 404)
+        self.assertEqual(list(AccessoryCategory.objects.values_list("pk", "name", "active")), before)

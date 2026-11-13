@@ -3089,21 +3089,6 @@ class AccessoryProductForm(forms.ModelForm):
         apply_mobile_keyboard_attrs(self)
 
 
-class AccessoryCategoryForm(forms.ModelForm):
-    """配件類別（T-138）：名稱、排序（數字小的排前面）、啟用。"""
-
-    class Meta:
-        model = AccessoryCategory
-        fields = ["name", "sort_order", "active"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["sort_order"].help_text = "數字小的排前面。"
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-
 class AccessoryProductMergeForm(forms.Form):
     """把重複或打錯的配件併到另一項（T-138）：訂單上的配件名稱與金額不變，只改掛到保留的那一項，原項目停用。"""
 

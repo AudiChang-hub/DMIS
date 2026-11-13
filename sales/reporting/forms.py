@@ -107,7 +107,8 @@ class ReportForm(ScopeForm):
     include_undated = forms.BooleanField(label="未選期間時包含尚未領牌訂單", required=False,
         help_text="僅影響本報表分析；日期未填寫另列，不計入任何月份。指定期間或月份時仍排除未填日期。")
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
-    navigation_group = forms.ChoiceField(label="報表中心分組", choices=NAVIGATION_GROUPS.items(), required=False)
+    navigation_group = forms.ChoiceField(label="報表中心分組", choices=NAVIGATION_GROUPS.items(), required=False,
+        initial="custom")  # T-165：未設定時讀取端視為自訂報表；不可預設停在第一項「銷售統計」，否則沒改就存檔會換組
     page_order = forms.IntegerField(label="分組內順序（小的在前）", min_value=0, max_value=999, required=False)
     include_records = forms.BooleanField(label="顯示來源訂單明細表", required=False)
     records_columns = forms.MultipleChoiceField(label="明細顯示欄位", choices=RECORD_COLUMNS.items(), initial=DEFAULT_RECORD_COLUMNS,
@@ -217,6 +218,14 @@ class CardForm(ScopeForm):
 
     def clean_series_sort(self):
         return self.cleaned_data["series_sort"] or "value"
+
+    def clean_additional_metrics(self):
+        # T-165 根因：多選清單依選單順序送出（count、sale_total…、dealer_commission、dealer_bonus），
+        # 存回時會把台數統計的「台數獎金、傭金」重排成「傭金、台數獎金」，表格兩欄因此對調。
+        # 與 records_columns 相同：保留已存的順序，新勾選的依選單順序接在後面。
+        selected = self.cleaned_data["additional_metrics"]
+        existing = self.initial.get("additional_metrics") or []
+        return [key for key in existing if key in selected] + [key for key in selected if key not in existing]
 
 
 class ModelSelectionField(forms.MultipleChoiceField):

@@ -178,14 +178,20 @@ class CockpitTests(TestCase):
     # ── 錢 ──
 
     def test_receivables_split_before_and_after_delivery(self):
+        # 2.7.1：已交車但只剩撥款待入帳的單，不可算成「交車前應收」（正式站 10 張裡有已交車待撥款的單）。
         delivered = self.make_order(date(2026, 9, 1), status="completed")
         pending = self.make_order(status="allocation_pending")
         for order in (delivered, pending):
             PaymentRecord.objects.create(order=order, expected_amount=500, received_amount=100, confirmed=False)
+        payout_only = self.make_order(date(2026, 9, 2), status="completed")
+        PaymentRecord.objects.create(order=payout_only, receipt_kind="lender", expected_amount=500, received_amount=0,
+                                     confirmed=False)
         money = operations_cockpit.build("month", date(2026, 9, 12))["money"]
-        self.assertEqual(money["outstanding_count"], 2)
-        self.assertEqual(money["unsettled_count"] + money["before_delivery_count"], money["outstanding_count"])
-        self.assertGreaterEqual(money["before_delivery_count"], 1)
+        self.assertEqual(money["outstanding_count"], 3)
+        self.assertEqual(money["awaiting_payout_count"], 1)
+        self.assertEqual(money["unsettled_count"] + money["before_delivery_count"] + money["awaiting_payout_count"],
+                         money["outstanding_count"])
+        self.assertEqual(money["before_delivery_count"], 1)
 
     # ── 頁面與權限 ──
 

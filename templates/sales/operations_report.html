@@ -83,7 +83,7 @@
       <div class="ops-figs">
         <div class="ops-fig"><strong>{{ c.money.unsettled_count }}</strong><span>交車後未結清{% if c.money.unsettled_amount %} · ${{ c.money.unsettled_amount|number_with_commas }}{% endif %}</span></div>
         <div class="ops-fig"><strong>{{ c.money.before_delivery_count }}</strong><span>交車前應收（正常）</span></div>
-        {% if c.reconciliation %}<div class="ops-fig"><strong>{{ c.reconciliation.pending }}</strong><span>撥款待入帳{% if c.flags.operations and c.reconciliation.expected %} · ${{ c.reconciliation.expected|number_with_commas }}{% endif %}</span></div>{% endif %}
+        <div class="ops-fig"><strong>{{ c.money.awaiting_payout_count }}</strong><span>已交車待撥款</span></div>
       </div>
       <div class="ops-subhead">交車後未結清 · 帳齡（交車日起）</div>
       <div class="ops-bar" role="img" aria-label="{% for bucket in c.money.aging %}{{ bucket.label }} {{ bucket.count }} 張{% if not forloop.last %}，{% endif %}{% endfor %}">
@@ -92,6 +92,7 @@
       </div>
       <ul class="ops-legend">{% for bucket in c.money.aging %}<li><span class="ops-legend__swatch ops-bar__seg--{{ forloop.counter }}" aria-hidden="true"></span>{{ bucket.label }} <b>{{ bucket.count }}</b>{% if bucket.amount %} · ${{ bucket.amount|number_with_commas }}{% endif %}</li>{% endfor %}</ul>
       <dl class="ops-facts">
+        {% if c.reconciliation %}<div><dt>分期／平台撥款待入帳</dt><dd>{% if c.links.reconciliation_list %}<a href="{% url 'reconciliation_list' %}?status=pending">{{ c.reconciliation.pending }} 筆</a>{% else %}{{ c.reconciliation.pending }} 筆{% endif %}{% if c.flags.operations and c.reconciliation.expected %} · 預計 ${{ c.reconciliation.expected|number_with_commas }}{% endif %}</dd></div>{% endif %}
         {% if c.flags.operations %}<div><dt>待收合計（{{ c.money.outstanding_count }} 張）</dt><dd>${{ c.money.outstanding_amount|number_with_commas }}</dd></div>{% endif %}
         {% if c.flags.operations %}<div><dt>車行掛帳</dt><dd>{% if c.money.dealer_credit %}${{ c.money.dealer_credit_total|number_with_commas }}（{{ c.money.dealer_credit|length }} 家{% if c.money.dealer_credit_over %}，{{ c.money.dealer_credit_over }} 家超額度{% endif %}）{% else %}目前沒有{% endif %}</dd></div>{% endif %}
         {% if c.payouts %}<div><dt>車行傭金／獎金未給付</dt><dd>{% if c.payouts.unpaid_count %}{% if c.links.dealer_payout_list %}<a href="{% url 'dealer_payout_list' %}?status=unpaid">{% endif %}{{ c.payouts.unpaid_count }} 項{% if c.payouts.unpaid_amount %} · ${{ c.payouts.unpaid_amount|number_with_commas }}{% endif %}{% if c.links.dealer_payout_list %}</a>{% endif %}{% else %}目前沒有{% endif %}</dd></div>{% endif %}

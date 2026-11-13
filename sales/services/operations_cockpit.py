@@ -265,7 +265,7 @@ def _money(metrics, today):
 
     outstanding = metrics["risk_orders"]["outstanding"].select_related("legacy_snapshot").prefetch_related(
         "payment_records", "accessories", "other_fees")
-    outstanding_total, unsettled = ZERO, []
+    outstanding_total, unsettled, before_delivery, awaiting_payout = ZERO, [], 0, 0
     for order in outstanding:
         summary = payment_summary(order)
         outstanding_total += max(summary["customer_due"], ZERO) + max(summary["lender_due"], ZERO)
@@ -273,6 +273,10 @@ def _money(metrics, today):
         if order.status in DELIVERED and summary["customer_due"] > 0:
             delivered = order.delivered_at or order.registration_completed_at
             unsettled.append((summary["customer_due"], _age_days(today, delivered)))
+        elif order.status in DELIVERED:
+            awaiting_payout += 1     # 客戶已收清，只剩分期／平台撥款（事後對帳）或匯入單收款待核
+        else:
+            before_delivery += 1
     buckets = []
     for low, high, label in RECEIVABLE_AGE_BUCKETS:
         rows = [row for row in unsettled if row[1] is not None and row[1] >= low and (high is None or row[1] <= high)]
@@ -295,7 +299,8 @@ def _money(metrics, today):
         "unsettled_count": len(unsettled),
         "unsettled_amount": sum((row[0] for row in unsettled), ZERO),
         "unsettled_oldest": max(ages) if ages else None,
-        "before_delivery_count": metrics["risk"]["outstanding"] - len(unsettled),
+        "before_delivery_count": before_delivery,
+        "awaiting_payout_count": awaiting_payout,
         "aging": buckets,
         "unconfirmed": metrics["risk"]["unconfirmed"],
         "refund": metrics["risk"]["refund"],

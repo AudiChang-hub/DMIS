@@ -1,7 +1,24 @@
-{% extends 'sales/reporting/layout.html' %}{% load site_copy %}
+{% extends 'sales/reporting/layout.html' %}{% load site_copy %}{% load static %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-catalog.css' %}?v={{ app_version }}">{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/report-catalog.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block title %}報表設計管理{% endblock %}
 {% block report_content %}
-<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">僅 admin 可操作</p><h1>報表設計管理</h1><p class="muted">{% site_text 'manage.3176240ab03f' %}</p></div><div class="hero-actions"><a class="button primary" href="{% url 'report_create' %}">＋ 建立報表</a></div></header>
-<div class="report-grid">{% for report in reports %}<section class="report-panel report-cover"><span class="report-tag">{% if report.published %}已發布{% else %}僅草稿{% endif %} · 版本 {{ report.version }}</span><h2>{{ report.draft.title }}</h2><p>{{ report.draft.description }}</p><p class="report-muted">{% if report.published %}讀者看到的版本：{{ report.published.title }}{% else %}尚未開放讀者查看{% endif %}</p><footer><a class="button primary" href="{% url 'report_draft_preview' report.pk %}">核對草稿</a><a class="button ghost" href="{% url 'report_edit' report.pk %}">編輯設計</a><form method="post" action="{% url 'report_lifecycle' report.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ report.version }}"><button class="button ghost" name="action" value="duplicate">複製成新報表</button></form></footer></section>{% empty %}<section class="report-panel report-empty empty-state"><h2>建立第一份報表</h2><p>{% site_text 'manage.7cb008aae515' %}</p><a class="button primary" href="{% url 'report_create' %}">使用銷售分析模板</a></section>{% endfor %}</div>
+<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">僅 admin 可操作</p><h1>報表設計管理</h1><p class="muted">{% site_text 'manage.b4fa252089ca' %}</p></div><div class="hero-actions"><button type="button" class="button primary" data-open-start aria-haspopup="dialog">＋ 新增報表</button></div></header>
+{% if unclassified_count %}<a class="catalog-alert" href="{% url 'report_classification' %}#classification-unknown"><span class="catalog-alert__count">{{ unclassified_count }}</span><span><strong>個型號還沒歸入車種類別</strong><small>報表會先把它們算在「其他」。前往報表分類設定處理</small></span><span aria-hidden="true">→</span></a>{% endif %}
+<p class="catalog-status" data-catalog-status role="status" aria-live="polite"></p>
+<div class="catalog" data-report-catalog data-reorder-url="{% url 'report_reorder' %}">{% csrf_token %}
+{% for group in groups %}<section class="catalog-group" aria-labelledby="catalog-group-{{ group.key }}">
+<header class="catalog-group__head"><h2 id="catalog-group-{{ group.key }}">{{ group.label }}</h2><span class="catalog-count" data-group-count>{{ group.reports|length }} 份</span></header>
+<ol class="catalog-list" data-group-list data-group="{{ group.key }}" data-group-label="{{ group.label }}">{% for report in group.reports %}{% include 'sales/reporting/_catalog_row.html' %}{% endfor %}</ol>
+<p class="catalog-empty" data-group-empty{% if group.reports %} hidden{% endif %}>還沒有報表；把報表拖到這裡，就會放進「{{ group.label }}」。</p>
+</section>{% endfor %}
+</div>
+<dialog class="catalog-start" data-start-dialog aria-labelledby="catalog-start-title">
+<header><div><h2 id="catalog-start-title">新增報表：從哪裡開始？</h2><p>{% site_text 'manage.7cb008aae515' %}</p></div><button type="button" class="button ghost" data-close-start aria-label="關閉新增報表">關閉</button></header>
+<div class="catalog-start__body">
+<section aria-labelledby="catalog-start-templates"><h3 id="catalog-start-templates">從範本開始</h3><div class="catalog-starters">{% for starter in starters %}<a class="catalog-starter" href="{% url 'report_create' %}?start={{ starter.key }}"><span class="catalog-thumb" data-kind="{{ starter.kind }}" aria-hidden="true"></span><strong>{{ starter.label }}</strong><small>{{ starter.summary }}</small></a>{% endfor %}</div></section>
+{% if reports %}<section aria-labelledby="catalog-start-copy"><h3 id="catalog-start-copy">複製既有報表再修改</h3><p class="catalog-start__hint">複製後是只有 admin 看得到的草稿，原報表不受影響。</p><ul class="catalog-copy-list">{% for group in groups %}{% for report in group.reports %}<li><form method="post" action="{% url 'report_lifecycle' report.pk %}">{% csrf_token %}<input type="hidden" name="version" value="{{ report.version }}" data-version-for="{{ report.pk }}"><button class="catalog-copy" name="action" value="duplicate"><span class="catalog-thumb" data-kind="{{ report.first_chart }}" aria-hidden="true"></span><span class="catalog-copy__text"><strong>{{ report.reader_title }}</strong><small>{{ group.label }} · {{ report.card_count }} 張圖</small></span></button></form></li>{% endfor %}{% endfor %}</ul></section>{% endif %}
+</div>
+</dialog>
 {% include 'sales/reporting/progress.html' %}
 {% endblock %}

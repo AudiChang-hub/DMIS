@@ -154,7 +154,7 @@ register("accounts", "user_management")
 register("accounts", "user_account_create user_account_edit user_account_status user_account_reset_password", "operate")
 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
-ROOT_ONLY = set("historical_delivery_complete announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
+ROOT_ONLY = set("historical_delivery_complete announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle report_reorder".split())
 ROOT_ONLY.add("order_account_scope")
 ROOT_ONLY.add("transfer_signoff_void")  # 作廢調車簽收會把車改回庫存
 ROOT_ONLY.add("inventory_restore")  # 停用／已售出／已調出等車輛改回現有庫存（2026-10-19 方案 B）

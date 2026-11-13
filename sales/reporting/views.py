@@ -148,9 +148,121 @@ def center(request):
     return display(request, selected.pk)
 
 
+def publish_state(report):
+    if not report:
+        return "new"
+    return "draft" if not report.published else "changed" if report.draft != report.published else "published"
+
+
+def catalog_groups(reports):
+    """T-164 報表目錄：依報表中心的分組與順序排列（以草稿為準，拖拉後草稿與已發布一致）。"""
+    groups = {key: [] for key in NAVIGATION_GROUPS}
+    for report in reports:
+        draft = report.draft
+        report.reader_title = reader_title(draft)
+        report.publish_state = publish_state(report)
+        cards = draft.get("cards", [])
+        report.card_count = len(cards)
+        report.first_chart = cards[0].get("chart", "bar") if cards else "table"
+        group = draft.get("navigation_group", "custom")
+        groups[group if group in groups else "custom"].append(report)
+    return [{"key": key, "label": NAVIGATION_GROUPS[key],
+             "reports": sorted(pages, key=lambda page: (page.draft.get("page_order", 0), page.pk))} for key, pages in groups.items()]
+
+
+def unclassified_model_count():
+    from .classification import initial_snapshot, unclassified
+    from .models import ReportClassification
+    row = ReportClassification.objects.filter(pk=1).values("draft").first()
+    return unclassified(row["draft"] if row and row["draft"] else initial_snapshot()).count()
+
+
 @editor_required
 def manage(request):
-    return render(request, "sales/reporting/manage.html", {"reports": ReportDefinition.objects.all()})
+    from .starters import starter_choices
+    reports = list(ReportDefinition.objects.all())
+    return render(request, "sales/reporting/manage.html", {"groups": catalog_groups(reports), "reports": reports,
+                  "starters": starter_choices(), "unclassified_count": unclassified_model_count()})
+
+
+def plan_page_orders(entries):
+    """依目標順序決定每份報表的 page_order，盡量沿用原值：保留最長的遞增序列，只替其他報表在空檔中找新值；
+    空檔不夠或超過 999 時，整組改為 10、20、30…。entries 為 [(pk, 原值或 None)]，回傳 {pk: 新值}。"""
+    values = [value for _, value in entries]
+    best, previous = [1 if value is not None else 0 for value in values], [-1] * len(values)
+    for i, value in enumerate(values):
+        if value is None:
+            continue
+        for j in range(i):
+            if values[j] is not None and values[j] < value and best[j] + 1 > best[i]:
+                best[i], previous[i] = best[j] + 1, j
+    keep, cursor = set(), max(range(len(values)), key=lambda i: best[i], default=-1)
+    while cursor >= 0 and best[cursor]:
+        keep.add(cursor)
+        cursor = previous[cursor]
+    result, i = {}, 0
+    while i < len(entries):
+        if i in keep:
+            result[entries[i][0]] = values[i]
+            i += 1
+            continue
+        end = i
+        while end < len(entries) and end not in keep:
+            end += 1
+        low = result[entries[i - 1][0]] if i else 0
+        high = values[end] if end < len(entries) else min(1000, low + 10 * (end - i + 1))
+        count = end - i
+        planned = [low + (high - low) * (step + 1) // (count + 1) for step in range(count)]
+        if any(not low < value < high for value in planned) or len(set(planned)) != count or (planned and planned[-1] > 999):
+            step = 10 if len(entries) * 10 <= 999 else 1
+            return {pk: min(999, (index + 1) * step) for index, (pk, _) in enumerate(entries)}
+        result.update({entries[i + offset][0]: value for offset, value in enumerate(planned)})
+        i = end
+    return result
+
+
+@editor_required
+@require_POST
+def reorder(request):
+    """T-164 拖拉調整分組與順序：只改 navigation_group／page_order，草稿與已發布同步生效，各留一筆 revision。
+
+    必須送出全部報表；任何一份版本不符就整批拒絕，避免覆蓋另一個分頁的修改。"""
+    try:
+        pages = json.loads(request.body or b"{}")["pages"]
+        items = [(int(item["pk"]), str(item["group"]), int(item["version"])) for item in pages]
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"error": "排序資料格式不正確，請重新整理後再試。"}, status=400)
+    if len(items) > 500 or len({pk for pk, _, _ in items}) != len(items) or any(group not in NAVIGATION_GROUPS for _, group, _ in items):
+        return JsonResponse({"error": "排序資料格式不正確，請重新整理後再試。"}, status=400)
+    changed = []
+    with transaction.atomic():
+        reports = {report.pk: report for report in ReportDefinition.objects.select_for_update().order_by("pk")}
+        if set(reports) != {pk for pk, _, _ in items}:
+            return JsonResponse({"error": "報表清單已變更（有新增或刪除），請重新整理後再排。"}, status=409)
+        if any(reports[pk].version != version for pk, _, version in items):
+            return JsonResponse({"error": "有報表已在其他分頁更新，請重新整理後再排。"}, status=409)
+        positions = {}
+        for key in NAVIGATION_GROUPS:
+            members = [pk for pk, group, _ in items if group == key]
+            current = [(pk, reports[pk].draft.get("page_order", 0) if reports[pk].draft.get("navigation_group", "custom") == key else None) for pk in members]
+            positions.update({pk: (key, order) for pk, order in plan_page_orders(current).items()})
+        for pk, (group, order) in positions.items():
+            report = reports[pk]
+            configs = [report.draft] + ([report.published] if report.published else [])
+            if all(config.get("navigation_group", "custom") == group and config.get("page_order", 0) == order for config in configs):
+                continue
+            for config in configs:
+                config["navigation_group"], config["page_order"] = group, order
+                try:
+                    validate_config(config)
+                except ValidationError as error:
+                    transaction.set_rollback(True)
+                    return JsonResponse({"error": f"「{reader_title(report.draft)}」不能放在「{NAVIGATION_GROUPS[group]}」：{' '.join(error.messages)}"}, status=400)
+            report.version += 1
+            report.save(update_fields=["draft", "published", "version", "updated_at"])
+            ReportRevision.objects.create(report=report, version=report.version, action="reorder", config=report.draft, actor=request.user)
+            changed.append(report.pk)
+    return JsonResponse({"changed": changed, "versions": {str(pk): report.version for pk, report in reports.items()}})
 
 
 @editor_required
@@ -192,7 +304,11 @@ def designer_return_url(request, report):
 def edit(request, pk=None):
     report = get_object_or_404(ReportDefinition, pk=pk) if pk else None
     return_url = designer_return_url(request, report)
-    config = report.draft if report else initial_config()
+    if report:
+        config = report.draft
+    else:
+        from .starters import starter_config
+        config = starter_config(request.GET.get("start", ""))
     form = ReportForm(request.POST or None, initial={**config, "version": report.version if report else 0})
     formset = CardFormSet(request.POST or None, initial=config["cards"], prefix="cards")
     preview = None
@@ -249,9 +365,8 @@ def edit(request, pk=None):
     if request.method == "POST" and request.POST.get("action") == "canvas":
         return JsonResponse({"errors": {"report": form.errors.get_json_data(), "cards": formset.errors, "formset": list(formset.non_form_errors())}}, status=400)
     rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
-    publish_state = "new" if not report else "draft" if not report.published else "changed" if report.draft != report.published else "published"
     return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
-                  "return_url": return_url, "publish_state": publish_state,
+                  "return_url": return_url, "publish_state": publish_state(report),
                   "preview": preview, "is_preview": True, **preview_records, "revisions": report.revisions.all()[:20] if report else []}, status=status)
 
 

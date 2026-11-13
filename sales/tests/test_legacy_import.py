@@ -21,7 +21,6 @@ from sales.models import (
     SalesSource,
     SalesSourceBrandPolicy,
     SalesSourceCooperationProfile,
-    SalesSourceCategory,
     Store,
     VehicleColor,
     VehicleInventory,
@@ -1518,9 +1517,7 @@ class LegacyImportTests(TestCase):
             {
                 "source_value": "新車行",
                 "resolution_action": "create",
-                "source-create-source_category": SalesSourceCategory.objects.get(
-                    name="車行"
-                ).pk,
+                "source-create-source_type": SalesSource.SourceType.DEALER,
                 "source-create-name": "新車行",
                 "source-create-address": "新北市測試路",
             },
@@ -1547,7 +1544,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.source, source)
         self.assertEqual(order.transaction_type, SalesOrder.TransactionType.REGULAR_NEW)
 
-    def test_quick_create_can_add_staff_category_inline(self):
+    def test_quick_create_staff_gets_store_category_automatically(self):
         content = workbook_bytes()
         workbook = load_workbook(BytesIO(content))
         workbook["銷貨"]["AN4"] = "文傑"
@@ -1572,9 +1569,7 @@ class LegacyImportTests(TestCase):
             {
                 "source_value": "文傑",
                 "resolution_action": "create",
-                "source-create-source_category": "",
-                "source-create-new_category_name": "本店員工",
-                "source-create-new_category_behavior": SalesSourceCategory.SystemBehavior.STORE,
+                "source-create-source_type": SalesSource.SourceType.STORE,
                 "source-create-name": "文傑",
                 "source-create-address": "",
             },

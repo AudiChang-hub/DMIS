@@ -245,10 +245,10 @@ urlpatterns = [
         views.sales_source_platform_list,
         name="sales_source_platform_list",
     ),
+    # 通路類別改由系統依來源類型自動帶入，舊書籤轉回資料維護區。
     path(
         "data/channels/categories/",
-        views.sales_source_category_list,
-        name="sales_source_category_list",
+        RedirectView.as_view(pattern_name="data_maintenance", permanent=False),
     ),
     path(
         "data/channels/holiday-gifts/",

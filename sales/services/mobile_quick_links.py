@@ -58,12 +58,6 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "route": "sales_source_staff_list",
     },
     {
-        "key": "source-categories",
-        "label": "通路類別",
-        "icon": "類",
-        "route": "sales_source_category_list",
-    },
-    {
         "key": "installment-companies",
         "label": "分期公司與方案",
         "icon": "期",

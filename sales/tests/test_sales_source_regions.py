@@ -124,11 +124,10 @@ class TaiwanAddressRegionTests(TestCase):
             response.context["source_context_kind"],
             SalesSource.SourceType.DEALER,
         )
-        self.assertContains(response, 'type="hidden" name="category"')
+        self.assertNotContains(response, 'name="category"')
         self.assertNotContains(response, '<label for="id_category">')
-        self.assertNotContains(response, '<select name="category"')
 
-    def test_legacy_dealer_without_category_gets_fixed_hidden_category(self):
+    def test_legacy_dealer_without_category_gets_default_category(self):
         user = get_user_model().objects.create_user(
             username="legacy-dealer-form-user",
             password="pass12345",
@@ -146,11 +145,9 @@ class TaiwanAddressRegionTests(TestCase):
         response = self.client.get(reverse("sales_source_edit", args=[source.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            f'<input type="hidden" name="category" value="{category.pk}" id="id_category">',
-            html=True,
-        )
+        source.refresh_from_db()
+        self.assertEqual(source.category, category)
+        self.assertNotContains(response, 'name="category"')
 
 
 class SalesSourceRegionListTests(TestCase):
@@ -600,19 +597,13 @@ class SalesSourceRegionListTests(TestCase):
         self.assertNotContains(platform_response, self.keelung.name)
 
     def test_staff_form_uses_dedicated_fields_and_saves_store_commission(self):
-        staff_category, _ = SalesSourceCategory.objects.get_or_create(
-            name="本店人員",
-            defaults={"system_behavior": SalesSource.SourceType.STORE},
-        )
-
         form_page = self.client.get(
             reverse("sales_source_create"),
             {"kind": SalesSource.SourceType.STORE},
         )
         response = self.client.post(
-            reverse("sales_source_create"),
+            reverse("sales_source_create") + "?kind=store",
             {
-                "category": staff_category.pk,
                 "name": "測試銷售人員",
                 "phone": "0912-345-678",
                 "staff_stores": [
@@ -764,7 +755,7 @@ class SalesSourceRegionListTests(TestCase):
         self.assertNotContains(inactive_response, active_staff.name)
 
     def test_create_form_uses_requested_source_context_and_return_path(self):
-        staff_category = SalesSourceCategory.objects.create(
+        SalesSourceCategory.objects.create(
             name="本店人員",
             system_behavior=SalesSource.SourceType.STORE,
         )
@@ -781,11 +772,8 @@ class SalesSourceRegionListTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "新增本店人員")
         self.assertContains(response, reverse("sales_source_staff_list"))
-        self.assertIn(staff_category, response.context["form"].fields["category"].queryset)
-        self.assertNotIn(
-            dealer_category,
-            response.context["form"].fields["category"].queryset,
-        )
+        self.assertNotIn("category", response.context["form"].fields)
+        self.assertNotContains(response, dealer_category.name)
 
     def test_edit_form_returns_to_the_matching_source_screen(self):
         platform = SalesSource.objects.create(

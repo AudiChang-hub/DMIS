@@ -199,7 +199,7 @@
     {% help_visible 'first-setup' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="first-setup" data-guide-topic>
       <div class="guide-topic-heading"><span>建檔</span><div><p class="eyebrow">系統清空後</p><h2>首次建立基本資料</h2></div></div>
       <p>系統清空後，只保留帳號與畫面權限、門市（存放地點）、馭盛開單公司、通路類別、工作日與假日設定、報表；品牌、機種、車色、售價、分期、規則、車行、網路平台、本店人員、庫存與訂單都要重新建立。請依下列順序做，前一步沒做，後一步會選不到或存不了。</p>
-      <div class="guide-tip"><strong>開始前請 admin 確認</strong><span>「資料維護區 → 列印範本設定 → 訂購單公司資訊」的馭盛公司全名、統一編號、地址與電話仍正確；「通路類別」中本店來源、車行、網路平台三種各至少有一個啟用中的類別，否則無法新增本店人員、車行或平台。門市已保留，可以直接進車。</span></div>
+      <div class="guide-tip"><strong>開始前請 admin 確認</strong><span>「資料維護區 → 列印範本設定 → 訂購單公司資訊」的馭盛公司全名、統一編號、地址與電話仍正確。門市已保留，可以直接進車。</span></div>
       <ol class="guide-steps">
         <li><strong>車輛品牌。</strong><span>資料維護區 → 車輛品牌。新增機種、領牌與強制險時的品牌都從這裡選。</span></li>
         <li><strong>機種／年式與顏色。</strong><span>資料維護區 → 機種與售價 →「＋ 新增機種／年式」：填品牌、能源別、機種、原廠型號、年份、型式（油車填排氣量，電動車選領牌級別），同頁按「＋ 新增顏色」。</span></li>
@@ -275,7 +275,7 @@
 
     {% help_visible 'sales-sources' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="sales-sources" data-guide-topic>
       <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>車行、網路平台與本店人員</h2></div></div>
-      <p>三種來源各有獨立清單，不會混在同一個畫面；通路類別也從資料維護區進入。</p>
+      <p>三種來源各有獨立清單，不會混在同一個畫面；通路類別由系統依清單自動帶入，不用另外設定。</p>
       <div class="guide-example"><strong>這一台要算給另一間車行</strong><p>新訂單在「訂單來源」點「這台算給其他車行」，選好後隨訂單儲存。已儲存、已交付或已完成的訂單，到訂單頁右上角的小卡按「變更車行」，選車行、按「儲存歸屬」；選回「原銷售車行」可恢復預設。</p><p>例如 B 的一台指定給 A：這台台數、基礎傭金與台數獎金歸 A，原銷售來源仍是 B。本店單也能指定車行，保留本店來源與承辦人，不新增基礎傭金；選「不指定車行」可取消。網路平台維持原限制。</p><p>只更新歸屬與未結算試算，不重算原車價、原傭金及其他收支，也不變更交付紀錄；台數沿用原領牌期間。獎金在正式結算後才分攤到成本與淨利。已取消或已結算的訂單不能直接調整，也不能直接加入目標車行已結算的期間。此操作不等於付款，修改人、時間與前後值會保留。</p></div>
       <div class="guide-two-column">
         <section><h3>車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。列表可直接按「Google Maps 導航」規劃路線。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li><li>掛帳額度：空白不設上限但仍追蹤，0 表示收清才能交車，超過額度不能交車。</li><li>停止合作請停用；永久刪除見下方說明。</li></ul></section>

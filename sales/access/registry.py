@@ -135,6 +135,8 @@ register("costs", "settlement_cost_rule_create settlement_cost_rule_edit settlem
 register("incentives", "incentive_rule_list vehicle_model_incentives")
 register("incentives", "incentive_rule_create incentive_rule_edit incentive_rule_delete", "operate")
 register("incentives", "incentive_campaign_create incentive_campaign_edit incentive_campaign_delete", "operate")
+# 回溯掃描（T-161）：GET 預覽需查看、POST 覆寫需操作；覆寫另在畫面內檢查「訂單內部財務編輯」的操作權限。
+register("incentives", "incentive_campaign_backfill")
 register("bonuses", "dealer_volume_bonus_list dealer_volume_bonus_detail")
 register("bonuses", "dealer_volume_bonus_create dealer_volume_bonus_edit dealer_volume_bonus_delete", "operate")
 register("installments", "installment_company_list installment_company_quick_create")

@@ -65,3 +65,50 @@ class IncentiveCampaignConversionMigrationTests(TransactionTestCase):
         self.assertEqual(apps.get_model("sales", "IncentiveCampaign").objects.count(), 0)
         self.assertEqual(apps.get_model("sales", "DealerRewardCampaign").objects.count(), 0)
         self.assertEqual(apps.get_model("sales", "VehicleIncentiveRule").objects.count(), 2)
+
+
+@tag("migration")
+class IncentiveCampaignConsolidationMigrationTests(TransactionTestCase):
+    """資料遷移 0208（T-161）：轉換形狀的活動依品牌整理、舊活動停用保留；反向還原。"""
+
+    migrate_from = ("sales", "0207_incentive_campaign_items")
+    migrate_to = ("sales", "0208_consolidate_incentive_campaigns")
+
+    def setUp(self):
+        super().setUp()
+        MigrationExecutor(connection).migrate([self.migrate_from])
+        self.addCleanup(lambda: MigrationExecutor(connection).migrate(
+            MigrationExecutor(connection).loader.graph.leaf_nodes()))
+
+    def _apps(self, target):
+        return MigrationExecutor(connection).loader.project_state([target]).apps
+
+    def test_consolidates_and_reverses(self):
+        apps = self._apps(self.migrate_from)
+        VehicleModel = apps.get_model("sales", "VehicleModel")
+        Rule = apps.get_model("sales", "VehicleIncentiveRule")
+        Campaign = apps.get_model("sales", "IncentiveCampaign")
+        for name in ("Fun", "Run"):
+            model = VehicleModel.objects.create(brand="eReady", name=name, energy_type="electric", model_year=2023)
+            rule = Rule.objects.create(vehicle_model=model, sales_bonus=2000, promotion_subsidy=1500,
+                                       announced_on=date(2026, 8, 1), effective_from=date(2026, 8, 1), active=True)
+            campaign = Campaign.objects.create(name=f"eReady {name} 2023 年式 原廠獎勵", kind="regular", sales_bonus=2000,
+                                               promotion_subsidy=1500, source_types=[], promotion_source_types=["platform"],
+                                               brands=[], energy_types=[], effective_from=date(2026, 8, 1),
+                                               announced_on=date(2026, 8, 1), legacy_rule_id=rule.pk)
+            campaign.vehicle_models.add(model)
+
+        MigrationExecutor(connection).migrate([self.migrate_to])
+        Campaign = self._apps(self.migrate_to).get_model("sales", "IncentiveCampaign")
+        created = Campaign.objects.filter(conversion_batch="t161").order_by("pk")
+        self.assertEqual([c.name for c in created], ["eReady 原廠獎勵", "eReady 促銷補助（網路平台）"])
+        self.assertEqual([sorted(c.items.values_list("item", "amount")) for c in created],
+                         [[("sales_bonus", 2000)], [("promotion_subsidy", 1500)]])
+        self.assertEqual(created[1].source_types, ["platform"])
+        self.assertEqual(Campaign.objects.filter(conversion_batch="t161-merged", active=False).count(), 2)
+
+        MigrationExecutor(connection).migrate([self.migrate_from])
+        Campaign = self._apps(self.migrate_from).get_model("sales", "IncentiveCampaign")
+        self.assertEqual(Campaign.objects.count(), 2)
+        self.assertFalse(Campaign.objects.filter(active=False).exists())
+        self.assertFalse(Campaign.objects.filter(name__startswith="（已整理）").exists())

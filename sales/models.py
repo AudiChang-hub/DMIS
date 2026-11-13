@@ -2693,8 +2693,27 @@ class CampaignConditions(TimeStampedModel):
         return self.name
 
 
+INCENTIVE_ITEM_CHOICES = (
+    ("sales_bonus", "實銷獎勵金"),
+    ("promotion_subsidy", "促銷補助金"),
+    ("installment_interest_subsidy", "分期補貼息"),
+)
+ALL_CAMPAIGN_SOURCE_TYPES = [value for value, _label in CAMPAIGN_SOURCE_TYPES]
+
+
+def default_campaign_source_types():
+    # 新增活動預設三個通路全勾（T-161）；全勾＝全部通路，都不勾＝暫停。
+    return list(ALL_CAMPAIGN_SOURCE_TYPES)
+
+
 class IncentiveCampaign(CampaignConditions):
-    """原廠獎勵與補助活動（T-149）：依實際領牌日套用；常態取一筆（開始日最新），加碼全部累加。"""
+    """原廠獎勵與補助活動（T-149；T-161 改為項目列）：依實際領牌日套用。
+
+    活動由多列項目（實銷獎勵金／促銷補助金／分期補貼息＋金額）組成；常態逐項取開始日最新的一筆，
+    加碼全部累加。通路以整個活動為單位，都不勾＝暫停；可指定車行（比對收款車行）。
+    `sales_bonus`／`promotion_subsidy`／`installment_interest_subsidy`／`promotion_source_types`
+    是 2.1.0 的舊欄位，2.5.0 起不再讀寫，下一版收斂刪除。
+    """
 
     class Kind(models.TextChoices):
         REGULAR = "regular", "常態"
@@ -2710,7 +2729,18 @@ class IncentiveCampaign(CampaignConditions):
     installment_interest_subsidy = models.DecimalField(
         "分期補貼息", max_digits=12, decimal_places=0, default=0, validators=[MinValueValidator(0)],
     )
-    source_types = models.JSONField("適用通路", default=list, blank=True, help_text="空白代表全部通路。")
+    source_types = models.JSONField(
+        "適用通路", default=default_campaign_source_types, blank=True,
+        help_text="勾選的通路才套用；三個全勾＝全部通路，都不勾＝暫停這個活動。",
+    )
+    dealers = models.ManyToManyField(
+        SalesSource,
+        blank=True,
+        related_name="incentive_campaigns",
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+        verbose_name="適用車行",
+        help_text="空白代表全部車行。",
+    )
     promotion_source_types = models.JSONField(
         "促銷補助適用通路",
         default=default_promotion_source_types,
@@ -2718,6 +2748,10 @@ class IncentiveCampaign(CampaignConditions):
         help_text="促銷補助金只帶給勾選的通路；空白代表全部通路。",
     )
     announced_on = models.DateField("公告日期", default=timezone.localdate)
+    conversion_batch = models.CharField(
+        "資料轉換批次", max_length=40, blank=True, default="", db_default="", editable=False,
+        help_text="由資料轉換建立或整理的活動（例如 T-161 整理），反向 migration 依此還原。",
+    )
     legacy_rule = models.OneToOneField(
         VehicleIncentiveRule,
         on_delete=models.SET_NULL,
@@ -2737,31 +2771,65 @@ class IncentiveCampaign(CampaignConditions):
         super().clean()
         errors = {}
         valid_sources = {value for value, _label in CAMPAIGN_SOURCE_TYPES}
-        for field_name in ("source_types", "promotion_source_types"):
-            values = [value for value in dict.fromkeys(getattr(self, field_name) or []) if value]
-            if any(value not in valid_sources for value in values):
-                errors[field_name] = "通路不正確。"
-            setattr(self, field_name, values)
+        values = [value for value in dict.fromkeys(self.source_types or []) if value]
+        if any(value not in valid_sources for value in values):
+            errors["source_types"] = "通路不正確。"
+        # 依固定順序儲存（本店、車行、網路平台），比對與顯示一致。
+        self.source_types = [value for value in ALL_CAMPAIGN_SOURCE_TYPES if value in values]
         if self.kind == self.Kind.BONUS and not self.effective_to:
             errors["effective_to"] = "加碼活動請填結束日期。"
         if errors:
             raise ValidationError(errors)
 
     def applies_to_source(self, source_type):
-        return not self.source_types or source_type in self.source_types
+        return source_type in (self.source_types or [])
 
-    def gives_promotion_to(self, source_type):
-        return not self.promotion_source_types or source_type in self.promotion_source_types
+    @property
+    def is_paused(self):
+        """都不勾通路＝暫停（T-161）：不套用到任何訂單。"""
+        return not self.source_types
+
+    def applies_to_dealer(self, dealer_id):
+        """指定車行時比對收款車行；沒有收款車行的單（網路平台、未指定車行的本店單）不看這個條件。"""
+        dealer_ids = {dealer.pk for dealer in self.dealers.all()}
+        return not dealer_ids or dealer_id is None or dealer_id in dealer_ids
+
+    def item_amounts(self):
+        """{項目: 金額}，只含有填的項目。"""
+        return {item.item: item.amount for item in self.items.all()}
+
+    @property
+    def item_labels(self):
+        labels = dict(INCENTIVE_ITEM_CHOICES)
+        order = [value for value, _label in INCENTIVE_ITEM_CHOICES]
+        rows = sorted(self.items.all(), key=lambda item: order.index(item.item))
+        return [f"{labels[item.item]} {item.amount:,.0f}" for item in rows]
 
     @property
     def source_type_labels(self):
         labels = dict(CAMPAIGN_SOURCE_TYPES)
         return [labels[value] for value in self.source_types or [] if value in labels]
 
-    @property
-    def promotion_source_type_labels(self):
-        labels = dict(CAMPAIGN_SOURCE_TYPES)
-        return [labels[value] for value in self.promotion_source_types or [] if value in labels]
+
+class IncentiveCampaignItem(TimeStampedModel):
+    """原廠獎勵活動的項目列（T-161）：每列一個項目與金額，同一活動同一項目只能一列。"""
+
+    campaign = models.ForeignKey(
+        IncentiveCampaign, on_delete=models.CASCADE, related_name="items", verbose_name="原廠獎勵活動",
+    )
+    item = models.CharField("項目", max_length=40, choices=INCENTIVE_ITEM_CHOICES)
+    amount = models.DecimalField("金額", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(fields=["campaign", "item"], name="unique_incentive_campaign_item"),
+        ]
+        verbose_name = "原廠獎勵活動項目"
+        verbose_name_plural = "原廠獎勵活動項目"
+
+    def __str__(self):
+        return f"{self.get_item_display()} {self.amount}"
 
 
 class DealerRewardCampaign(CampaignConditions):

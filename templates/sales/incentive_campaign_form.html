@@ -10,45 +10,53 @@
   <div>
     <p class="eyebrow">原廠獎勵與補助</p>
     <h1>{% if campaign %}編輯活動{% else %}新增活動{% endif %}</h1>
-    <p class="muted">訂單依實際領牌日找符合的活動帶入金額；領牌完成後固定，之後修改活動不影響已完成的訂單。</p>
+    <p class="muted">訂單依實際領牌日找符合的活動帶入金額；領牌完成後固定，之後修改活動不影響已完成的訂單。要套用到過去的訂單，請在清單按「掃描既有訂單」。</p>
   </div>
+  {% if campaign %}<div class="hero-actions"><button type="button" class="button ghost" data-backfill-open data-url="{% url 'incentive_campaign_backfill' campaign.pk %}">掃描既有訂單</button></div>{% endif %}
 </section>
-<form method="post" class="campaign-form" data-campaign-form>
+<form method="post" class="campaign-form" data-campaign-form data-paused-confirm="這個活動沒有勾選任何通路，存檔後會暫停，不會套用到任何訂單。確定要存檔嗎？">
   {% csrf_token %}
-  {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% if form.non_field_errors or formset.non_form_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>{% endif %}
   {% if campaign and order_count %}<p class="campaign-usage">已套用到 {{ order_count }} 張訂單；修改只影響尚未完成領牌的訂單。</p>{% endif %}
 
   <section class="card campaign-section" aria-labelledby="campaign-basic-title">
-    <header class="campaign-section__heading"><div><p class="eyebrow">01 · 活動與金額</p><h2 id="campaign-basic-title">這個活動給多少？</h2></div></header>
+    <header class="campaign-section__heading"><div><p class="eyebrow">01 · 活動內容</p><h2 id="campaign-basic-title">這個活動給什麼？</h2></div></header>
     <div class="form-grid campaign-grid">
       <div class="span-2">{% include "sales/_field.html" with field=form.name %}</div>
       <fieldset class="campaign-kind-choice{% if form.kind.errors %} has-error{% endif %}">
         <legend>類型</legend>
-        <div>{% for choice in form.kind %}<label class="campaign-kind-option">{{ choice.tag }}<span><strong>{{ choice.choice_label }}</strong><small>{% if choice.data.value == "regular" %}平常的原廠獎勵；同一年式只取開始日最新的一筆{% else %}短期加碼；累加在常態之上，須填結束日{% endif %}</small></span></label>{% endfor %}</div>
+        <div>{% for choice in form.kind %}<label class="campaign-kind-option">{{ choice.tag }}<span><strong>{{ choice.choice_label }}</strong><small>{% if choice.data.value == "regular" %}平常的原廠獎勵；每個項目只取開始日最新的一筆常態{% else %}短期加碼；累加在常態之上，須填結束日{% endif %}</small></span></label>{% endfor %}</div>
         {% for error in form.kind.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>
-      {% include "sales/_field.html" with field=form.sales_bonus %}
-      {% include "sales/_field.html" with field=form.promotion_subsidy %}
-      {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
+    </div>
+    <div class="campaign-items" data-campaign-items>
+      <div class="campaign-items__heading"><h3>項目</h3><button type="button" class="button ghost small" data-add-campaign-item>＋ 新增項目</button></div>
+      {{ formset.management_form }}
+      <div class="campaign-items__rows" data-campaign-item-rows>
+        {% for item_form in formset %}{% include "sales/_incentive_campaign_item.html" %}{% endfor %}
+      </div>
+      <template data-campaign-item-template>{% include "sales/_incentive_campaign_item.html" with item_form=formset.empty_form %}</template>
+      <p class="help-text">每列選一個項目並填金額；同一個項目只能一列。沒有列出的項目代表這個活動不給。</p>
     </div>
   </section>
 
   {% include "sales/_campaign_conditions.html" with step="02" %}
 
   <section class="card campaign-section" aria-labelledby="campaign-channel-title">
-    <header class="campaign-section__heading"><div><p class="eyebrow">03 · 通路</p><h2 id="campaign-channel-title">哪些訂單來源適用？</h2></div></header>
+    <header class="campaign-section__heading"><div><p class="eyebrow">03 · 通路與車行</p><h2 id="campaign-channel-title">哪些訂單適用？</h2></div></header>
     <div class="campaign-channel-grid">
       <fieldset class="campaign-chips{% if form.source_types.errors %} has-error{% endif %}">
         <legend>{{ form.source_types.label }}</legend>
         <div class="campaign-chips__options">{% for choice in form.source_types %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
         <small class="help-text">{{ form.source_types.help_text }}</small>
+        <p class="campaign-paused-note" data-campaign-paused-note hidden>沒有勾選通路：存檔後這個活動會暫停，不套用到任何訂單。</p>
         {% for error in form.source_types.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>
-      <fieldset class="campaign-chips{% if form.promotion_source_types.errors %} has-error{% endif %}">
-        <legend>{{ form.promotion_source_types.label }}</legend>
-        <div class="campaign-chips__options">{% for choice in form.promotion_source_types %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
-        <small class="help-text">{{ form.promotion_source_types.help_text }}</small>
-        {% for error in form.promotion_source_types.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      <fieldset class="campaign-chips campaign-dealer-mode{% if form.dealer_mode.errors or form.dealers.errors %} has-error{% endif %}">
+        <legend>{{ form.dealer_mode.label }}</legend>
+        <div class="campaign-chips__options">{% for choice in form.dealer_mode %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small class="help-text">{{ form.dealer_mode.help_text }}</small>
+        <div class="campaign-dealer-picker" data-campaign-dealer-picker>{% include "sales/_field.html" with field=form.dealers %}</div>
       </fieldset>
     </div>
   </section>
@@ -71,5 +79,6 @@
   </div>
 </form>
 {% if campaign %}<form id="delete-campaign" method="post" action="{% url 'incentive_campaign_delete' campaign.pk %}" data-confirm="確定刪除此活動？已被訂單採用的活動不能刪除，請改為停用。">{% csrf_token %}</form>{% endif %}
+{% include "sales/_incentive_backfill_dialog.html" %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/incentive-campaigns.js' %}?v={{ app_version }}" defer></script>{% endblock %}

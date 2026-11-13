@@ -41,10 +41,12 @@ def financial_reference(order, day):
     """僅讀取目前主檔在指定日期的版本參考，不模擬儲存／重算歷史金額。"""
     cost = resolve_settlement_cost(order.vehicle_model_id, day)
     vehicle_model = order.vehicle_model if order.vehicle_model_id else None
-    incentive_rows, incentive_sum, _matched, _promo, _regular = incentive_totals(vehicle_model, order.source_type, day)
+    dealer = order_reward_dealer(order)
+    incentive_rows, incentive_sum, _matched, _promo, _regular = incentive_totals(
+        vehicle_model, order.source_type, day, dealer.pk if dealer else None,
+    )
     policy = resolve_dealer_brand_policy(order.source_id, order.vehicle_model, day)
     # 車行獎勵活動依領牌日（T-149）：列出指定日期會套用的活動。
-    dealer = order_reward_dealer(order)
     reward_campaigns = resolve_dealer_reward_campaigns(vehicle_model, dealer.pk if dealer else None, day)
     reference = {
         "車輛成本": f"版本 #{cost.pk}：{cost.amount} 元" if cost else "無適用版本（不代表實際成本為零）",

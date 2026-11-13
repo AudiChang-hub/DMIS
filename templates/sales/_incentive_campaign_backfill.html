@@ -1,0 +1,41 @@
+{% load sales_format %}<header class="campaign-backfill__head">
+  <div><p class="eyebrow">掃描既有訂單</p><h2 id="campaign-backfill-title">{{ campaign.name }}</h2>
+    <p class="muted">領牌日在 {{ campaign.effective_from|date:"Y/m/d" }}～{% if campaign.effective_to %}{{ campaign.effective_to|date:"Y/m/d" }}{% else %}今天{% endif %}、符合通路、車行與車型的系統建立訂單（不含 Excel 匯入單與取消的單）。套用後金額依目前所有活動重新計算。</p></div>
+  <button type="button" class="button ghost small" data-backfill-close aria-label="關閉">關閉</button>
+</header>
+{% if rows %}
+<form method="post" action="{% url 'incentive_campaign_backfill' campaign.pk %}" class="campaign-backfill__form" data-backfill-form
+      data-flagged-confirm="勾選的訂單中有已領牌固定或人工改過金額的單，覆寫後會改成系統計算的金額。確定要覆寫嗎？">
+  {% csrf_token %}
+  <div class="campaign-backfill__toolbar">
+    <label class="checkbox-label"><input type="checkbox" data-backfill-select-all><span>全選有變動的訂單</span></label>
+    <span class="muted">共 {{ rows|length }} 張，{{ changed_count }} 張金額會變動</span>
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table campaign-backfill__table">
+      <thead><tr><th scope="col"><span class="visually-hidden">勾選</span></th><th scope="col">訂單</th><th scope="col">目前（實銷／促銷／分期）</th><th scope="col">套用後</th><th scope="col">標記</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="{% if not row.changed %}is-unchanged{% endif %}">
+          <td data-label="勾選">{% if row.changed %}<input type="checkbox" name="order" value="{{ row.order.pk }}" aria-label="覆寫訂單 {{ row.order.pk }}" {% if row.default_checked %}checked{% endif %} {% if row.locked or row.manual %}data-flagged{% endif %} data-backfill-row><input type="hidden" name="token_{{ row.order.pk }}" value="{{ row.token }}">{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td data-label="訂單"><a href="{% url 'order_detail' row.order.pk %}" target="_blank" rel="noopener"><strong>{{ row.order.owner_name|default:"未填車主" }}</strong></a><span>{{ row.order.vehicle_model.name }} · {{ row.order.get_source_type_display }} · 領牌 {{ row.order.registration_date|date:"Y/m/d" }}</span></td>
+          <td data-label="目前">${{ row.current.sales_bonus|number_with_commas }}／${{ row.current.promotion_subsidy|number_with_commas }}／${{ row.current.installment_interest_subsidy|number_with_commas }}</td>
+          <td data-label="套用後"><strong>${{ row.after.sales_bonus|number_with_commas }}／${{ row.after.promotion_subsidy|number_with_commas }}／${{ row.after.installment_interest_subsidy|number_with_commas }}</strong></td>
+          <td data-label="標記">{% if not row.changed %}<span class="status-pill">無變動</span>{% endif %}{% if row.locked %}<span class="status-pill cost-rule-future">已領牌固定</span>{% endif %}{% if row.manual %}<span class="status-pill cost-rule-inactive">人工改過：{{ row.manual|join:"、" }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <footer class="campaign-backfill__actions">
+    <span class="muted">已領牌固定、人工改過的單預設不勾；沒勾的單一律不動，每張覆寫的單都會留下處理紀錄。</span>
+    <div>
+      <button type="button" class="button ghost" data-backfill-close>取消</button>
+      {% if can_apply %}<button type="submit" class="button primary">覆寫勾選的訂單</button>{% else %}<span class="muted">需要「原廠獎勵與補助」與「訂單內部財務編輯」的操作權限才能覆寫。</span>{% endif %}
+    </div>
+  </footer>
+</form>
+{% else %}
+<div class="empty-state"><strong>沒有符合的系統訂單</strong><p>{% if campaign.is_paused %}這個活動沒有勾選通路（已暫停），不會套用到任何訂單。{% else %}期間內沒有符合通路、車行與車型的已領牌訂單。{% endif %}</p></div>
+<footer class="campaign-backfill__actions"><div><button type="button" class="button ghost" data-backfill-close>關閉</button></div></footer>
+{% endif %}

@@ -5,7 +5,7 @@
 {% block content %}
 {% include "sales/_vehicle_model_workspace.html" with workspace_tab="incentives" %}
 <header class="model-workspace-intro">
-  <div><h2>原廠獎勵與補助</h2><p class="muted">已改為活動制：在「原廠獎勵與補助」設定活動並指定品牌、能源別或年式。這裡列出條件涵蓋本年式的活動，訂單依實際領牌日套用。</p></div>
+  <div><h2>原廠獎勵與補助</h2><p class="muted">在「原廠獎勵與補助」設定活動（項目列、車型、通路與車行）。這裡列出條件涵蓋本年式的活動，訂單依實際領牌日套用；指定車行的活動只給名單內的車行。</p></div>
   <div class="hero-actions">
     {% if_access 'incentive_rule_list' %}<a class="button ghost" href="{% url 'incentive_rule_list' %}">查看全部活動</a>{% endif_access %}
     {% if_access 'incentive_campaign_create' %}<a class="button primary" href="{% url 'incentive_campaign_create' %}?model={{ vehicle_model.pk }}">＋ 新增本年式活動</a>{% endif_access %}
@@ -39,12 +39,8 @@
         <strong>{{ campaign.name }}</strong>
         <span class="status-pill cost-rule-{{ campaign.display_status }}">{{ campaign.display_status_label }}</span>
       </div>
-      <p class="campaign-card__meta">{{ campaign.effective_from|date:"Y/m/d" }} 起{% if campaign.effective_to %}，至 {{ campaign.effective_to|date:"Y/m/d" }}{% endif %} · {{ campaign.conditions_text }}{% if campaign.source_types %} · 通路：{{ campaign.source_type_labels|join:"、" }}{% endif %}</p>
-      <dl class="price-version-values model-rule-values--three">
-        <div><dt>實銷獎勵金</dt><dd>${{ campaign.sales_bonus|floatformat:0 }}</dd></div>
-        <div><dt>促銷補助金</dt><dd>${{ campaign.promotion_subsidy|floatformat:0 }}<small>{% if campaign.promotion_source_types %}給{{ campaign.promotion_source_type_labels|join:"、" }}{% else %}全部通路{% endif %}</small></dd></div>
-        <div><dt>分期補貼息</dt><dd>${{ campaign.installment_interest_subsidy|floatformat:0 }}</dd></div>
-      </dl>
+      <p class="campaign-card__meta">{{ campaign.effective_from|date:"Y/m/d" }} 起{% if campaign.effective_to %}，至 {{ campaign.effective_to|date:"Y/m/d" }}{% endif %} · {{ campaign.conditions_text }}{% if campaign.is_paused %} · 未選通路（暫停）{% elif campaign.source_types|length < 3 %} · 通路：{{ campaign.source_type_labels|join:"、" }}{% endif %}{% with dealers=campaign.dealers.all %}{% if dealers %} · 指定 {{ dealers|length }} 家車行{% endif %}{% endwith %}</p>
+      <ul class="campaign-card__items">{% for label in campaign.item_labels %}<li>{{ label }}</li>{% empty %}<li class="muted">尚未設定項目</li>{% endfor %}</ul>
       {% if_access 'incentive_campaign_edit' %}<a class="button ghost small" href="{% url 'incentive_campaign_edit' campaign.pk %}">編輯活動</a>{% endif_access %}
     </article>
     {% empty %}

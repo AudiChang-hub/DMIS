@@ -708,6 +708,8 @@ urlpatterns = [
          name="incentive_campaign_edit"),
     path("data/incentive-campaigns/<int:pk>/delete/", campaign_views.incentive_campaign_delete,
          name="incentive_campaign_delete"),
+    path("data/incentive-campaigns/<int:pk>/backfill/", campaign_views.incentive_campaign_backfill,
+         name="incentive_campaign_backfill"),
     path("data/dealer-reward-campaigns/", campaign_views.dealer_reward_campaign_list,
          name="dealer_reward_campaign_list"),
     path("data/dealer-reward-campaigns/new/", campaign_views.dealer_reward_campaign_create,

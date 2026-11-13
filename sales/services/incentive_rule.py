@@ -44,49 +44,52 @@ def _calculated_disbursement(order):
     return None
 
 
-def resolve_incentive_campaigns(vehicle_model, source_type, registration_date):
-    """依實際領牌日找符合的原廠獎勵活動（T-149）：回傳 (常態, [加碼])。
+def resolve_incentive_campaigns(vehicle_model, source_type, registration_date, dealer_id=None):
+    """依實際領牌日找符合的原廠獎勵活動，回傳 [(活動, {項目: 金額})]（T-161）。
 
-    常態取開始日最新的一筆（與原本車型版本相同，新的蓋過舊的）；加碼全部累加。
+    - 先依通路（都不勾＝暫停）、收款車行、車輛條件過濾。
+    - 常態「逐項」取開始日最新的一筆（同一天取 id 較大）：只填實銷的新活動不會蓋掉舊活動的促銷。
+    - 加碼全部累加。
     """
     if vehicle_model is None or not registration_date:
-        return None, []
+        return []
     candidates = active_on(
-        IncentiveCampaign.objects.prefetch_related("vehicle_models"), registration_date,
+        IncentiveCampaign.objects.prefetch_related("vehicle_models", "items", "dealers"), registration_date,
     ).select_related("legacy_rule")
     matched = [
         campaign for campaign in candidates
-        if campaign.applies_to_source(source_type) and vehicle_matches(campaign, vehicle_model)
+        if campaign.applies_to_source(source_type) and campaign.applies_to_dealer(dealer_id)
+        and vehicle_matches(campaign, vehicle_model)
     ]
-    regulars = [campaign for campaign in matched if campaign.kind == IncentiveCampaign.Kind.REGULAR]
-    regular = max(regulars, key=lambda campaign: (campaign.effective_from, campaign.pk)) if regulars else None
-    bonuses = sorted(
-        (campaign for campaign in matched if campaign.kind == IncentiveCampaign.Kind.BONUS),
-        key=lambda campaign: campaign.pk,
-    )
-    return regular, bonuses
+    regulars = sorted((c for c in matched if c.kind == IncentiveCampaign.Kind.REGULAR), key=lambda c: c.pk)
+    chosen = {}
+    for field_name in INCENTIVE_FIELDS:
+        having = [campaign for campaign in regulars if field_name in campaign.item_amounts()]
+        if having:
+            best = max(having, key=lambda campaign: (campaign.effective_from, campaign.pk))
+            chosen.setdefault(best, {})[field_name] = best.item_amounts()[field_name]
+    rows = [(campaign, chosen[campaign]) for campaign in regulars if campaign in chosen]
+    for campaign in sorted((c for c in matched if c.kind == IncentiveCampaign.Kind.BONUS), key=lambda c: c.pk):
+        amounts = campaign.item_amounts()
+        if amounts:
+            rows.append((campaign, amounts))
+    return [
+        (campaign, {field_name: amounts.get(field_name, Decimal("0")) for field_name in INCENTIVE_FIELDS}, set(amounts))
+        for campaign, amounts in rows
+    ]
 
 
-def campaign_amounts(campaign, source_type):
-    """單一活動帶給這張單的金額；促銷補助只給活動勾選的通路。"""
-    return {
-        "sales_bonus": campaign.sales_bonus,
-        "promotion_subsidy": campaign.promotion_subsidy if campaign.gives_promotion_to(source_type) else Decimal("0"),
-        "installment_interest_subsidy": campaign.installment_interest_subsidy,
-    }
-
-
-def incentive_totals(vehicle_model, source_type, registration_date):
-    """回傳 (各活動明細, 合計, 是否有符合的活動, 會帶入促銷的活動是否存在)。"""
-    regular, bonuses = resolve_incentive_campaigns(vehicle_model, source_type, registration_date)
-    campaigns = ([regular] if regular else []) + bonuses
-    rows = [(campaign, campaign_amounts(campaign, source_type)) for campaign in campaigns]
+def incentive_totals(vehicle_model, source_type, registration_date, dealer_id=None):
+    """回傳 (各活動明細, 合計, 是否有符合的活動, 是否有活動給促銷, 第一筆常態)。"""
+    resolved = resolve_incentive_campaigns(vehicle_model, source_type, registration_date, dealer_id)
+    rows = [(campaign, amounts) for campaign, amounts, _given in resolved]
     totals = {
         field_name: sum((amounts[field_name] for _campaign, amounts in rows), Decimal("0"))
         for field_name in INCENTIVE_FIELDS
     }
-    promotion_applies = any(campaign.gives_promotion_to(source_type) for campaign in campaigns)
-    return rows, totals, bool(campaigns), promotion_applies, regular
+    promotion_applies = any("promotion_subsidy" in given for _campaign, _amounts, given in resolved)
+    regular = next((campaign for campaign, _amounts in rows if campaign.kind == IncentiveCampaign.Kind.REGULAR), None)
+    return rows, totals, bool(rows), promotion_applies, regular
 
 
 def apply_order_incentive_rule(order, actor_name="", *, lock=False):
@@ -94,9 +97,12 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
     if profile.incentive_locked_at:
         return profile
 
+    from sales.services.dealer_reward_campaign import order_reward_dealer
+
     vehicle_model = order.vehicle_model if order.vehicle_model_id else None
+    dealer = order_reward_dealer(order)
     rows, totals, matched, promotion_applies, regular = incentive_totals(
-        vehicle_model, order.source_type, order.registration_date,
+        vehicle_model, order.source_type, order.registration_date, dealer.pk if dealer else None,
     )
     protected_fields = set(profile.manual_financial_fields or [])
     released = set()
@@ -111,7 +117,7 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         protected_fields -= released
     for field_name in INCENTIVE_FIELDS:
         if field_name not in protected_fields:
-            # 沒有符合的活動帶 0；促銷補助只給活動勾選的通路（預設只有網路平台），仍可人工更正。
+            # 沒有符合的活動帶 0；通路、車行由活動決定，仍可人工更正。
             setattr(profile, field_name, totals[field_name])
     insurance_commission = compulsory_insurance_commission(order)
     if insurance_commission is not None and "insurance_commission" not in protected_fields:
@@ -148,6 +154,12 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         profile.incentive_locked_by = actor_name
         update_fields.extend(["incentive_locked_at", "incentive_locked_by"])
     profile.save(update_fields=update_fields)
+    replace_incentive_applications(profile, rows, order.registration_date)
+    return profile
+
+
+def replace_incentive_applications(profile, rows, registration_date):
+    """訂單套用的活動明細整批換成這次的結果（明細存當時金額，之後改活動不影響）。"""
     profile.incentive_applications.all().delete()
     OrderIncentiveApplication.objects.bulk_create([
         OrderIncentiveApplication(
@@ -155,9 +167,8 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
             campaign=campaign,
             kind=campaign.kind,
             campaign_name=campaign.name,
-            registration_date=order.registration_date,
+            registration_date=registration_date,
             **amounts,
         )
         for campaign, amounts in rows
     ])
-    return profile

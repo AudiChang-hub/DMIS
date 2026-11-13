@@ -61,7 +61,7 @@ class AssignAccessoryCategoriesTests(TestCase):
         self.assertIn("SUI 後貨架｜未分類｜改裝部品｜變更", output)
         self.assertIn("Saluto 遙控鑰匙｜行車紀錄器｜原廠配件｜變更", output)
         self.assertIn("輕便安全帽｜安全帽｜安全帽｜不變", output)
-        self.assertIn("前側保桿｜（新增）｜改裝部品｜新增", output)
+        self.assertIn("前側保桿｜（新增）｜保桿｜新增", output)
         self.assertIn("清單 26 筆，需寫入 14 筆；不在清單上的主檔 0 筆", output)
         self.assertIn("dry-run：未變更", output)
         self.assertEqual(self.categories(), before)
@@ -76,6 +76,7 @@ class AssignAccessoryCategoriesTests(TestCase):
         self.assertEqual(self.categories(), expected)
         new = AccessoryProduct.objects.get(name="前側保桿")
         self.assertEqual((new.sale_price, new.labor_fee, new.note), (Decimal("1500"), Decimal("200"), NOTE))
+        self.assertEqual(new.category.name, "保桿")  # 使用者 2026-11-13 改指定到保桿
         self.linked.refresh_from_db()
         self.assertEqual(self.linked.accessory_product, self.products["SUI 日規後貨架"])  # 訂單明細仍連在主檔
         self.custom.refresh_from_db()

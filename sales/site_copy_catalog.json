@@ -1426,9 +1426,9 @@
     "default": "未勾選表示不限；與其他欄位條件同時套用。",
     "template": "templates/sales/reporting/filter_field.html"
   },
-  "manage.3176240ab03f": {
+  "manage.b4fa252089ca": {
     "page": "報表設計管理",
-    "default": "先建立草稿、預覽數字，再發布給指定對象。設計公式不會修改訂單或正式帳務。",
+    "default": "拖曳 ⠿ 可以調整報表在報表中心的分組與順序，放開就生效；按報表名稱或「編輯」進入設計。",
     "template": "templates/sales/reporting/manage.html"
   },
   "manage.7cb008aae515": {

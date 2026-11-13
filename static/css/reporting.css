@@ -237,3 +237,7 @@
   .report-tree-filter__rail-sub { font-size: var(--text-2xs); font-weight: 650; line-height: 1.2; color: var(--muted); }
 }
 @media (prefers-reduced-motion: reduce) { .report-reader-layout.has-tree-filter, .report-tree-filter__collapse, .report-tree-filter__rail { transition: none; } }
+/* T-164 報表頁「編輯此報表」入口：只在有設計權限時出現，不影響一般讀者版面。 */
+.report-heading-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.report-heading-actions [data-report-edit-link]::before{content:"";width:14px;height:14px;margin-right:var(--space-2);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.6 13.4 2 14l.6-3.6z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.6 13.4 2 14l.6-3.6z'/%3E%3C/svg%3E") center/contain no-repeat}
+@media print{.report-heading-actions [data-report-edit-link]{display:none!important}}

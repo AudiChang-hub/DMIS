@@ -24,9 +24,13 @@
 - **新增報表先選起點**：「＋ 新增報表」開啟對話框，可選 `starters.py` 的 5 個範本（`report_create?start=<key>`；未知的 key 回到預設範本，不接受任意設定），或複製既有報表（沿用 `report_lifecycle` duplicate）。
 - **未歸類型號提醒**：依車種分類草稿計算 `unclassified()` 的筆數，連到報表分類設定。
 
-## 後續（已核可，另行發布）
+## 第三版：車種類別設定
 
-- 第三版：「報表分類設定」改名為「車種類別設定」並改為以待處理事項為主，同時修正按鈕版面。
+- **改名**：「報表分類設定」改為「車種類別設定」，涵蓋選單、資料維護區卡片、首頁快速前往、頁面與文案分類。網址、route 名稱、權限鍵和 `ReportClassification.verbose_name` 都不變（改 verbose_name 會產生 migration）。
+- **頁面順序**：狀態列（草稿有變更時才出現「檢查影響並發布」）→ 待歸類型號（主要任務：整列點選、表頭全選、已選數量、固定的歸入列）→ 收合的「類別」「型號規則」「版本與還原」（編輯中、驗證失敗或搜尋規則時自動展開）。
+- **試算與發布合一**：按鈕名稱改為「檢查影響並發布」，沿用原本的 preview → publish token 流程。結果改在對話框顯示，沒有 JavaScript 時以一般區塊顯示。發布規則與確認勾選都不變。
+- **修正按鈕版面**：`_form_fields` 本身已是兩欄格線，舊版又包在兩欄的 `.classification-editor` 裡，操作列被撐成整欄高度，「清空表單」變成圓形、「儲存」變成高長方塊。改為單欄，操作列靠右。同時移除覆蓋 `.button` 外觀的 `.classification-workspace button` 規則。
+- **設計器連結**：「依什麼分」或「再細分」選到車種類別時，顯示前往車種類別設定的提示。
 
 ## 驗證
 
@@ -40,3 +44,5 @@
 前端：`designerCanvasWidth`、`designerChipText`。
 
 第二版：`sales/tests/test_report_catalog_t164.py` 涵蓋目錄順序與狀態、排序只改版面欄位且兩邊同步、只動到被移動的報表、版本不符／清單不完整／格式錯誤／per_model 驗證失敗整批回滾、權限與 CSRF、`plan_page_orders` 的性質、範本皆可通過驗證並可開啟。前端：`report-catalog-t164.test.cjs`。
+
+第三版：`sales/tests/test_report_classification_ux_t164.py`、前端 `classificationBatchText`。

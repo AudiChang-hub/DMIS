@@ -110,6 +110,14 @@ if (typeof document !== 'undefined') (() => {
     });
   }
 
+  /* 依什麼分／再細分選到「車種類別」時，提示類別在哪裡管理。 */
+  function syncHints() {
+    panels().forEach(panel => {
+      const hint = panel.querySelector('[data-motor-type-hint]');
+      if (hint) hint.hidden = ![field(panel, 'dimension'), field(panel, 'series')].some(input => input?.value === 'legacy_motor_type');
+    });
+  }
+
   function select(panel) {
     selected = panel;
     panels().forEach(item => { item.dataset.selected = String(item === panel); });
@@ -123,7 +131,7 @@ if (typeof document !== 'undefined') (() => {
       return new Option(`圖表 ${index + 1}：${field(panel, 'title').value || '新圖表'}${chart ? `（${chart}）` : ''}`, String(index));
     }));
     select(panels().includes(selected) ? selected : panels()[0]);
-    syncPerModel(); refreshChips();
+    syncPerModel(); syncHints(); refreshChips();
   }
   function setMode(next) {
     mode = next;

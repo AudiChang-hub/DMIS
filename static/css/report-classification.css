@@ -1,23 +1,90 @@
+/* 車種類別設定（T-164 第三版：待歸類優先、發布前檢查對話框、其他設定收合）。 */
 .classification-workspace{max-width:1200px;margin:auto;font-size:var(--text-base)}
 .classification-workspace .report-panel{scroll-margin-top:100px}
-.classification-status,.classification-row-actions,.classification-links,.classification-search{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
-.classification-status{justify-content:space-between}
-.classification-links{margin:var(--stack-gap-sm) 0}
-.classification-links a,.classification-row-actions a{padding:var(--space-3) var(--space-3);border:1px solid var(--line);border-radius:var(--radius-sm);min-height:44px;box-sizing:border-box}
-.classification-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--stack-gap-sm);padding:var(--inset-pad);background:var(--surface-soft);border-radius:var(--radius-md);margin: var(--stack-gap-sm) 0 var(--stack-gap-sm)}
-.classification-editor p{display:flex;flex-direction:column;gap:var(--space-2);margin:0;min-width:0}
 .classification-workspace input:not([type=checkbox]),.classification-workspace select{width:100%;box-sizing:border-box;min-height:44px;font:inherit;padding:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)}
 .classification-workspace input[type=color]{padding:var(--space-1)}
 .classification-workspace input[type=checkbox]{width:22px;height:22px;accent-color:var(--forest)}
-.classification-workspace button{min-height:44px;padding:var(--space-3) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-sm);font:inherit;cursor:pointer}
 .classification-workspace small,.classification-workspace .helptext{font-size:var(--text-sm-plus);color:var(--muted)}
+.classification-workspace :is(button,a,input,select,summary):focus-visible{outline:3px solid var(--forest);outline-offset:3px}
+.classification-error{margin:0 0 var(--stack-gap-sm)}
+.classification-workspace .errorlist{color:var(--red)}
+
+/* 發布狀態列 */
+.classification-status{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin:0 0 var(--stack-gap);padding:var(--space-4) var(--space-5);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface)}
+.classification-status[data-state=changed]{border-color:var(--amber-border);background:var(--amber-soft)}
+.classification-status__text{display:grid;gap:var(--space-1)}
+.classification-status__text strong{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-md)}
+.classification-status__text strong::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--green)}
+.classification-status[data-state=changed] .classification-status__text strong{color:var(--amber-ink)}
+.classification-status[data-state=changed] .classification-status__text strong::before{background:var(--amber)}
+.classification-status form{margin:0}
+
+/* 待歸類型號（主要任務） */
+.classification-task{border-color:var(--line-strong)}
+.classification-task__head{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-3)}
+.classification-task__head h2{margin:0 0 var(--space-2);font-size:var(--text-xl);font-weight:800;letter-spacing:-.02em}
+.classification-task__head p{margin:0;max-width:68ch;color:var(--muted)}
+.classification-search{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin:0}
+.classification-search input{flex:1;min-width:170px;max-width:320px}
 .classification-table{margin-block:var(--stack-gap-sm)}
-
 .classification-table td{overflow-wrap:anywhere}
+.classification-table td[data-label="類別"]{white-space:nowrap}
+.classification-table tr[data-select-row]{cursor:pointer}
+.classification-table tr.is-selected td{background:var(--surface-tint)}
+.classification-check{display:inline-grid;place-items:center;min-width:44px;min-height:44px;cursor:pointer}
+.classification-batch{position:sticky;bottom:var(--space-3);z-index:4;display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-3) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);box-shadow:0 8px 24px color-mix(in srgb,var(--shadow-ink) 12%,transparent)}
+.classification-batch[data-active=true]{border-color:var(--forest)}
+.classification-batch [data-batch-count]{flex:1;min-width:140px;font-weight:700}
+.classification-batch[data-active=false] [data-batch-count]{font-weight:400;color:var(--muted)}
+.classification-batch select{width:auto;min-width:180px}
+.classification-pager{display:flex;align-items:center;gap:var(--space-3);margin-top:var(--space-3);color:var(--muted)}
 
+/* 其他設定：收合區塊 */
+.classification-section{margin-top:var(--stack-gap-sm)}
+.classification-section>summary{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);cursor:pointer;list-style:none;margin:calc(var(--space-2) * -1) 0;padding:var(--space-2) 0}
+.classification-section>summary::-webkit-details-marker{display:none}
+.classification-section>summary>span{display:grid;gap:2px}
+.classification-section>summary strong{font-size:var(--text-md)}
+.classification-section>summary::after{content:"";width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform var(--dur-1) var(--ease-out)}
+.classification-section[open]>summary{margin-bottom:var(--space-4)}
+.classification-section[open]>summary::after{transform:rotate(-135deg)}
+.classification-chips{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-3)}
+.classification-chip{display:inline-flex;align-items:center;padding:var(--space-1) var(--space-3);border:1px solid var(--line);border-radius:var(--radius-pill);font-size:var(--text-sm-plus);font-weight:700}
+.classification-chip.is-disabled{color:var(--muted);text-decoration:line-through}
 .classification-color,.inventory-table td .classification-color{display:inline-block;vertical-align:-2px;width:16px;height:16px;border:1px solid var(--line);border-radius:var(--radius-xs);margin-right:var(--space-2)}
-.classification-search input,.classification-search select{flex:1;min-width:170px;max-width:400px}
-.classification-error,.classification-workspace .errorlist{color:var(--red)}
-.classification-publish{display:grid;gap:var(--stack-gap-sm);padding:var(--inset-pad);border:2px solid var(--forest);border-radius:var(--radius-md)}
-.classification-workspace :is(button,a,input,select):focus-visible{outline:3px solid var(--forest);outline-offset:3px}
-@media(max-width:650px){.classification-editor{grid-template-columns:1fr;padding:var(--inset-pad)}.classification-workspace .report-panel{padding:var(--card-pad)}.classification-workspace h1{font-size:var(--text-2xl)}.classification-row-actions{min-width:170px}}
+.classification-chip .classification-color{width:12px;height:12px;border-radius:50%}
+/* 表單：欄位本身已是兩欄格線，操作列獨佔一行靠右，按鈕不被撐高（修正舊版圓形／長條按鈕）。 */
+.classification-editor{display:grid;gap:var(--stack-gap-sm);padding:var(--inset-pad);background:var(--surface-soft);border-radius:var(--radius-md);margin:var(--stack-gap-sm) 0}
+.classification-editor h3{margin:0;font-size:var(--text-base)}
+.classification-editor .form-actions{display:flex;justify-content:flex-end;align-items:center;gap:var(--space-2);flex-wrap:wrap;margin:0}
+.classification-row-actions{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap}
+.classification-row-actions form{margin:0}
+.classification-log{margin-top:var(--space-3)}
+.classification-log summary{cursor:pointer;color:var(--action-text);font-weight:700}
+
+/* 發布前檢查對話框 */
+.classification-dialog{width:min(920px,calc(100vw - 32px));max-height:min(88vh,900px);padding:0;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink);box-shadow:0 24px 60px color-mix(in srgb,var(--shadow-ink) 28%,transparent)}
+.classification-dialog:not([open]){display:none}
+.classification-dialog[open]{display:flex;flex-direction:column;position:relative}
+.classification-dialog:modal{position:fixed}
+.classification-dialog::backdrop{background:color-mix(in srgb,var(--ink) 38%,transparent)}
+.classification-dialog>header{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-4);padding:var(--space-5) var(--space-5) var(--space-3);border-bottom:1px solid var(--line)}
+.classification-dialog>header h2{margin:0 0 var(--space-2);font-size:var(--text-lg)}
+.classification-dialog>header p{margin:0;color:var(--muted)}
+.classification-dialog__close{flex:none;white-space:nowrap}
+.classification-dialog__body{flex:1;overflow:auto;padding:var(--space-3) var(--space-5)}
+.classification-note{color:var(--muted);font-size:var(--text-sm-plus)}
+.classification-publish{display:grid;gap:var(--space-3);padding:var(--space-4) var(--space-5);border-top:1px solid var(--line);background:var(--surface-soft)}
+.classification-publish .check-row{display:flex;align-items:flex-start;gap:var(--space-3);font-weight:700;cursor:pointer}
+.classification-publish .form-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin:0}
+
+@media(max-width:650px){
+  .classification-workspace .report-panel{padding:var(--card-pad)}
+  .classification-workspace h1{font-size:var(--text-2xl)}
+  .classification-status{padding:var(--space-4)}
+  .classification-batch{position:static;box-shadow:none}
+  .classification-batch [data-batch-count]{flex-basis:100%}
+  .classification-batch select{flex:1;min-width:0}
+  .classification-search input{max-width:none}
+}
+@media(prefers-reduced-motion:reduce){.classification-section>summary::after{transition:none}}

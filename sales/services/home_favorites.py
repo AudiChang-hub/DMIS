@@ -18,7 +18,7 @@ EXTRA_LINKS = (
     {"key": "diagnostics", "label": "系統狀態檢查", "route": "system_diagnostics"},
     {"key": "integrity", "label": "系統完整性報告", "route": "system_integrity_report"},
     {"key": "report-design", "label": "報表設計管理", "route": "report_manage"},
-    {"key": "report-categories", "label": "報表分類設定", "route": "report_classification"},
+    {"key": "report-categories", "label": "車種類別設定", "route": "report_classification"},
     {"key": "announcements", "label": "系統公告管理", "route": "announcement_manage"},
 )
 LINKS = {item["key"]: item for item in (*MOBILE_QUICK_LINK_DEFINITIONS, *EXTRA_LINKS)}

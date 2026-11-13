@@ -421,9 +421,9 @@
     "default": "建立草稿、設計圖表、預覽公式與發布報表；不改動正式帳務。",
     "template": "templates/sales/data_maintenance.html"
   },
-  "data_maintenance.7365034c0b5e": {
+  "data_maintenance.bf2476e747e0": {
     "page": "資料維護區",
-    "default": "管理車種類別、型號規則、未分類清單與發布版本。",
+    "default": "決定每個型號在報表裡算哪一種車（白牌、綠牌、速克達…），處理還沒歸類的新型號。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.5ecd54819548": {
@@ -1271,39 +1271,39 @@
     "default": "管理者發布報表並開放查看後，就會出現在這裡。",
     "template": "templates/sales/reporting/center.html"
   },
-  "classification.dfb6eb191b8d": {
-    "page": "報表分類設定",
-    "default": "管理報表車種分類，不修改訂單、車型主檔、能源、佣金或收款。",
+  "classification.f112365d00d3": {
+    "page": "車種類別設定",
+    "default": "決定每個型號在報表裡算哪一種車，例如白牌電車、綠牌電車、速克達。只影響報表與報表 CSV，不改訂單、車型主檔、能源別或財務。",
     "template": "templates/sales/reporting/classification.html"
   },
   "classification.3b1904850cb4": {
-    "page": "報表分類設定",
+    "page": "車種類別設定",
     "default": "修改先存草稿；還原也不會立即取代正式分類。",
     "template": "templates/sales/reporting/classification.html"
   },
   "classification.7a5d593c3d6a": {
-    "page": "報表分類設定",
+    "page": "車種類別設定",
     "default": "包含歷史訂單，不含草稿及取消訂單。畫面最多列 200 組，總數包含所有變更。",
     "template": "templates/sales/reporting/classification.html"
   },
-  "classification.1e77f7d6888d": {
-    "page": "報表分類設定",
-    "default": "有規則使用或曾發布使用的類別不能直接刪除。停用後所屬規則不再生效，資料會落到「其他」，請先試算。",
+  "classification.01d24ce38712": {
+    "page": "車種類別設定",
+    "default": "有規則使用或曾發布使用的類別不能直接刪除，只能停用。停用後所屬規則不再生效，資料會落到「其他」，發布前請先檢查影響。",
     "template": "templates/sales/reporting/classification.html"
   },
   "classification.ae50d973d1d4": {
-    "page": "報表分類設定",
+    "page": "車種類別設定",
     "default": "精確型號優先；不同類別的系列開頭重疊時會阻擋儲存。可先停用舊規則，再建立新規則。數字系列例如 UQ125DA；數字／-代碼系列例如 GSX250F、GSX-R150。",
     "template": "templates/sales/reporting/classification.html"
   },
-  "classification.0f6efc50cc18": {
-    "page": "報表分類設定",
-    "default": "顯示不含草稿及取消訂單的原型號彙總；主檔名稱僅供參考，同一原型號可能對應多個主檔。本頁選取會建立／更新精確型號規則，尚未發布前不影響正式報表。",
+  "classification.96008d740eac": {
+    "page": "車種類別設定",
+    "default": "這些型號目前在報表裡都算「其他」。勾選後選類別存入草稿，會建立精確型號規則；發布前不影響正式報表。主檔名稱僅供參考，同一原型號可能對應多個主檔。",
     "template": "templates/sales/reporting/classification.html"
   },
-  "classification.ad43e12b9927": {
-    "page": "報表分類設定",
-    "default": "還原會建立新草稿，仍需試算並發布；目前正式版本不立即改變。以下列出最近 30 個發布版本。",
+  "classification.4ca60d65d715": {
+    "page": "車種類別設定",
+    "default": "還原會建立新草稿，仍要「檢查影響並發布」才會生效；目前正式版本不會立即改變。以下列出最近 30 個發布版本。",
     "template": "templates/sales/reporting/classification.html"
   },
   "detail_panel.4fc503f4a0d9": {

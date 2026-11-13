@@ -80,7 +80,7 @@
                 </div>
                 <div class="data-menu-tool-group"><h3>報表設計</h3>
                   {% if show_management_tools and user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}
-                  {% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
+                  {% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>車種類別設定</strong></a>{% endif_access %}{% endif %}
                 </div>
                 <div class="data-menu-tool-group"><h3>資料匯入與系統檢查</h3>
                   {% if_access 'legacy_import_list' %}<a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>{% endif_access %}

@@ -9439,7 +9439,8 @@ def accessory_product_merge(request, pk):
 def accessory_category_list(request):
     """配件類別：固定 7 類（使用者 2026-11-13 T-153），只列出、不能新增、改名、停用或刪除；
     類別底下的配件名稱到「配件與工資」管理。"""
-    categories = AccessoryCategory.objects.annotate(product_count=Count("products"))
+    # 分組查詢不會套用模型預設排序，要明確指定，否則改名後的類別會照 id 排。
+    categories = AccessoryCategory.objects.annotate(product_count=Count("products")).order_by("sort_order", "name")
     return render(request, "sales/accessory_category_list.html", {"categories": categories})
 
 

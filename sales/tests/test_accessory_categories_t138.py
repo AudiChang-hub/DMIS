@@ -118,6 +118,11 @@ class AccessoryCategoryTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, f'{reverse("accessory_product_list")}?category={self.helmet.pk}')
         self.assertNotContains(page, 'name="action" value="delete"')
+        # 依排序列出（改名後的「行車紀錄器」id 較大，仍排第 3）。
+        html = page.content.decode()
+        names = ["安全帽", "手機架", "行車紀錄器", "保桿", "外觀件", "原廠配件", "其他"]
+        positions = [html.index(f"<strong>{name}</strong>") for name in names]
+        self.assertEqual(positions, sorted(positions))
         self.assertNotContains(page, "新增類別")
         before = list(AccessoryCategory.objects.values_list("pk", "name", "active"))
         self.assertEqual(self.client.post(reverse("accessory_category_list"), {"name": "後貨架", "sort_order": "30", "active": "on"}).status_code, 405)

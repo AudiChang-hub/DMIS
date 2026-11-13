@@ -48,7 +48,7 @@
   </section>
   {% if plate_variance %}
   <section class="finance-strip__card plate-variance{% if plate_variance.confirmed %} is-confirmed{% endif %}" aria-labelledby="plate-variance-title">
-    <header class="finance-strip__head"><div><h2 id="plate-variance-title">牌險差異</h2><small>實收牌險與系統領牌試算不同</small></div><span class="status-pill">{% if plate_variance.confirmed %}已確認{% else %}待確認{% endif %}</span></header>
+    <header class="finance-strip__head"><div><h2 id="plate-variance-title">牌險差異</h2><small>實收牌險少於系統領牌試算</small></div><span class="status-pill">{% if plate_variance.confirmed %}已確認{% else %}待確認{% endif %}</span></header>
     <dl class="finance-strip__figures">
       <div><dt>系統試算</dt><dd>${{ plate_variance.calculated|number_with_commas }}</dd></div>
       <div><dt>實際牌險</dt><dd>${{ plate_variance.actual|number_with_commas }}</dd></div>

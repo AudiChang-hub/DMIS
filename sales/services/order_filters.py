@@ -1,6 +1,6 @@
 """營運指標、查單與舊匯出共用的明細條件。"""
 from django.core.exceptions import SuspiciousOperation
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils.dateparse import parse_date
 
 from sales.models import VehicleModel
@@ -9,10 +9,18 @@ from .sales_metrics import CANCELLED_STATUSES, filter_payment_risk
 FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "business_only", "include_cancelled", "attention", "drafts")
 
 
+def plate_fee_variance_q():
+    """牌險差異：0 < 牌險費 < 試算合計（T-168，使用者 2026-11-13 選 A）。
+
+    填 0（不向客人收）與收得比試算高（照通路價收）都不算。全部訂單 attention=fees 與訂單頁「牌險差異」卡共用。
+    """
+    return Q(registration_calculated_total__gt=0, plate_insurance_fee__gt=0,
+             plate_insurance_fee__lt=F("registration_calculated_total"))
+
+
 def fee_variance_orders(rows):
-    return (rows.filter(registration_date__isnull=False, registration_calculated_total__gt=0)
+    return (rows.filter(plate_fee_variance_q(), registration_date__isnull=False)
         .exclude(status__in=CANCELLED_STATUSES)
-        .exclude(plate_insurance_fee=F("registration_calculated_total"))
         .exclude(registration_fee_variance_confirmed_calculated_total=F("registration_calculated_total"),
                  registration_fee_variance_confirmed_actual_total=F("plate_insurance_fee")))
 

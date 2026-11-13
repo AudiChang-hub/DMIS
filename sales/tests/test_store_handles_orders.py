@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from django.test import TestCase
 
-from sales.models import SalesOrder
+from sales.models import AccessoryCategory, SalesOrder
 from sales.tests import test_order_intake as intake_fixtures
 
 
@@ -50,6 +50,7 @@ class StoreHandlesOrdersTests(TestCase):
         page = self.client.get(reverse("order_start")).content.decode()
         self.assertIn('<option value="other">自行填寫名稱</option>', page)
         custom = {"accessories-TOTAL_FORMS": "1", "accessories-0-accessory_product": "other",
+                  "accessories-0-accessory_category": str(AccessoryCategory.objects.get(name="其他").pk),  # T-153：自行填寫名稱要選類別
                   "accessories-0-custom_name": "行車紀錄器", "accessories-0-quantity": "1",
                   "accessories-0-line_type": "purchase", "accessories-0-amount": "2500", "accessories-0-labor_fee": "300"}
         response = self.submit("order_start", **custom)
@@ -59,6 +60,7 @@ class StoreHandlesOrdersTests(TestCase):
 
     def custom_accessory(self, name, amount="2500", labor="300", line_type="purchase"):
         return {"accessories-TOTAL_FORMS": "1", "accessories-0-accessory_product": "other",
+                "accessories-0-accessory_category": str(AccessoryCategory.objects.get(name="其他").pk),  # T-153：自行填寫名稱要選類別
                 "accessories-0-custom_name": name, "accessories-0-quantity": "1",
                 "accessories-0-line_type": line_type, "accessories-0-amount": amount, "accessories-0-labor_fee": labor}
 

@@ -11,7 +11,7 @@ from pypdf import PdfReader, PdfWriter
 
 from sales.announcement_views import AnnouncementForm
 from sales.forms import AccessoryLineForm, PaymentRecordForm, SubsidyDataForm
-from sales.models import AnnouncementImage, AnnouncementAttachment, SystemAnnouncement, OrderIntakeAttachment, PaymentRecord, SalesOrder
+from sales.models import AccessoryCategory, AnnouncementImage, AnnouncementAttachment, SystemAnnouncement, OrderIntakeAttachment, PaymentRecord, SalesOrder
 from sales.services.operations_sync import sync_order_operations
 from sales.services.settlement_cost import apply_order_settlement_cost
 from sales.tests import test_order_workspace as workspace_fixtures
@@ -295,7 +295,9 @@ class PptRefinementTests(TestCase):
         self.assertEqual(customer_balance(self.order), 0)
 
     def test_other_accessory_requires_name_and_gift_is_zero(self):
-        data = dict(accessory_product='other', custom_name='手機架', quantity=1, line_type='gift', amount=999, labor_fee=50)
+        # T-153：自行填寫名稱要選類別。
+        data = dict(accessory_category=AccessoryCategory.objects.get(name='其他').pk, accessory_product='other',
+                    custom_name='手機架', quantity=1, line_type='gift', amount=999, labor_fee=50)
         form = AccessoryLineForm(data=data, allow_manual=True)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['amount'], 0)

@@ -2124,6 +2124,11 @@ class AccessoryLineForm(forms.ModelForm):
         if self.data.get(self.add_prefix("accessory_product")) == "other" and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
             return data
+        # 自行填寫的名稱要歸到固定 7 類之一（使用者 2026-11-13 T-153）：在「全部類別」選了也要再選類別，
+        # 不能存成未分類。只檢查新增或改了名稱的列，既有自填列原樣保留不擋。
+        if (self.data.get(self.add_prefix("accessory_product")) == "other" and not data.get("accessory_category")
+                and (not self.instance.pk or custom_name != self.instance.name)):
+            self.add_error("accessory_category", "自行填寫名稱要先選類別，名稱會存進這個類別。")
         if not product and custom_name:
             # 數量空白視為 1、工資空白視為 0；類型與售價影響收費，仍須填寫。
             if data.get("quantity") in (None, ""):

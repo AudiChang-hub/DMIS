@@ -4,7 +4,7 @@ import uuid
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from sales.models import OrderDraft, OrderEvent, SalesOrder
+from sales.models import AccessoryCategory, OrderDraft, OrderEvent, SalesOrder
 from sales.services import order_wizard as wizard
 from sales.tests import test_drafts, test_reception_entry
 
@@ -185,8 +185,10 @@ class OrderWizardTests(TestCase):
     def test_selected_accessories_show_on_confirm_and_count_in_total(self):
         draft = self.walk_to("accessories")
         lines = {"accessories-TOTAL_FORMS": "2", "accessories-INITIAL_FORMS": "0"}
+        other = str(AccessoryCategory.objects.get(name="其他").pk)
         for index, (name, amount, labor, quantity) in enumerate((("安全帽", "1500", "0", "2"), ("手機架", "800", "200", "1"))):
             lines.update({f"accessories-{index}-accessory_product": "other", f"accessories-{index}-custom_name": name,
+                          f"accessories-{index}-accessory_category": other,  # T-153：自行填寫名稱要選類別
                           f"accessories-{index}-quantity": quantity, f"accessories-{index}-line_type": "purchase",
                           f"accessories-{index}-amount": amount, f"accessories-{index}-labor_fee": labor})
         self.assertEqual(self.post("accessories", draft=draft, **lines).status_code, 302)

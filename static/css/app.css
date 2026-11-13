@@ -7166,7 +7166,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 /* 類別＋名稱並排（T-138）：類別窄、名稱寬；配件區太窄時上下排。 */
 .accessory-section .accessory-row__picker { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-2); }
 @container accessory (max-width: 359px) { .accessory-section .accessory-row__picker { grid-template-columns: minmax(0, 1fr); } }
-@container accessory (min-width: 760px) { .accessory-section .accessory-row__picker { grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr); } }
 .accessory-section .accessory-row__quantity { grid-area: qty; }
 .accessory-section .accessory-row__type { grid-area: type; }
 .accessory-section .accessory-row__price { grid-area: price; }
@@ -7222,8 +7221,13 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .accessory-section .accessory-row .field > label {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
   }
-  /* 選「其他」時自填名稱接在選單右邊，同一列。 */
-  .accessory-section .accessory-row__name:has([data-custom-accessory]:not([hidden])) { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr); }
+  /* 類別、名稱、自填名稱依序排（T-153）：類別寬度固定為最長的類別名、名稱至少放得下選項文字，
+     名稱格不夠寬就換到下一行，不再把兩個選單擠進 7rem 而壓到自填欄。 */
+  .accessory-section .accessory-row__name { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .accessory-section .accessory-row__picker { display: contents; }
+  .accessory-section .accessory-row__picker > .field { flex: 1 0 auto; max-width: 100%; }
+  .accessory-section .accessory-row__picker > .field + .field { flex: 999 0 auto; }
+  .accessory-section .accessory-row__name > [data-custom-accessory] { flex: 1 1 10rem; }
   .accessory-section .accessory-row [data-accessory-quantity-total] { white-space: nowrap; }
   .accessory-section .accessory-row__note .field > label { position: static; width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; }
 }

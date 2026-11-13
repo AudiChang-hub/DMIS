@@ -88,7 +88,7 @@ class ActiveQuickToggleTests(TestCase):
             "business_holiday_list.html": "business-holiday",
             "dealer_volume_bonus_list.html": "dealer-volume-bonus",
             "dealer_reward_catalog_list.html": "dealer-reward-catalog-item",
-            "incentive_campaign_list.html": "incentive-campaign",
+            "_incentive_campaign_results.html": "incentive-campaign",
             "dealer_reward_campaign_list.html": "dealer-reward-campaign",
             "installment_company_list.html": "installment-company",
             "installment_plan_list.html": "installment-plan",

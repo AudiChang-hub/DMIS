@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Prefetch, Q
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
@@ -22,6 +22,7 @@ from .forms import (
     DEALER_REWARD_STANDARD_UNITS,
     DEALER_REWARD_UNIT_OTHER,
     IncentiveCampaignForm,
+    IncentiveCampaignItemFormSet,
 )
 from .models import (
     DealerRewardCampaign,
@@ -30,9 +31,11 @@ from .models import (
     IncentiveCampaign,
     VehicleModel,
 )
-from .services.campaign_conditions import campaigns_for_vehicle_model, condition_summary
+from .services.campaign_conditions import campaigns_for_vehicle_model, condition_summary, vehicle_matches
+from .services.vehicle_brands import vehicle_brand_search_q
 
 STATUS_FILTERS = {
+    "paused": "已暫停（未選通路）",
     "current": "進行中",
     "future": "尚未開始",
     "expired": "已結束",
@@ -44,6 +47,8 @@ def _status_filtered(campaigns, status):
     rows = []
     for campaign in campaigns:
         campaign.display_status, campaign.display_status_label = campaign.lifecycle_status
+        if campaign.active and getattr(campaign, "is_paused", False):
+            campaign.display_status, campaign.display_status_label = "paused", STATUS_FILTERS["paused"]
         campaign.conditions_text = condition_summary(campaign)
         if status and campaign.display_status != status:
             continue
@@ -72,6 +77,20 @@ def _prefill_model(request, form):
 
 # ---- 原廠獎勵與補助活動 ----
 
+def _keyword_models(keyword):
+    """模糊比對車型（T-161）：品牌（含別名）、機種、車名、型號、原廠型號、年份，不分大小寫、部分符合即可。"""
+    query = (
+        vehicle_brand_search_q(keyword)
+        | Q(family__name__icontains=keyword)
+        | Q(name__icontains=keyword)
+        | Q(model_number__icontains=keyword)
+        | Q(factory_model_codes__code__icontains=keyword)
+    )
+    if keyword.isdigit() and len(keyword) == 4:
+        query |= Q(model_year=int(keyword))
+    return list(VehicleModel.objects.filter(query).distinct().order_by("brand", "name", "-model_year", "pk"))
+
+
 @login_required
 @require_http_methods(["GET", "HEAD"])
 def incentive_campaign_list(request):
@@ -79,36 +98,63 @@ def incentive_campaign_list(request):
     kind = request.GET.get("kind", "")
     status = request.GET.get("status", "")
     status = status if status in STATUS_FILTERS else ""
-    campaigns = IncentiveCampaign.objects.prefetch_related("vehicle_models").annotate(
+    campaigns = IncentiveCampaign.objects.prefetch_related("vehicle_models", "items", "dealers").annotate(
         order_count=Count("order_applications", distinct=True),
     )
     if kind in IncentiveCampaign.Kind.values:
         campaigns = campaigns.filter(kind=kind)
-    campaigns = _search(campaigns, keyword).order_by("-active", "kind", "-effective_from", "-id")
+    campaigns = list(campaigns.order_by("-active", "kind", "-effective_from", "-id"))
+    if keyword:
+        # 車型模糊搜尋：列出適用到符合年式的活動，並標出命中的年式；活動名稱或備註符合也列出。
+        hits = _keyword_models(keyword)
+        folded = keyword.casefold()
+        matched = []
+        for campaign in campaigns:
+            campaign.hit_models = [model for model in hits if vehicle_matches(campaign, model)]
+            if campaign.hit_models or folded in campaign.name.casefold() or folded in (campaign.note or "").casefold():
+                matched.append(campaign)
+        campaigns = matched
     page = Paginator(_status_filtered(campaigns, status), 100).get_page(request.GET.get("page"))
-    return render(request, "sales/incentive_campaign_list.html", {
+    context = {
         "campaigns": page.object_list,
         "page_obj": page,
         "kinds": IncentiveCampaign.Kind.choices,
         "statuses": STATUS_FILTERS.items(),
         "selected": {"q": keyword, "kind": kind, "status": status},
-    })
+    }
+    template = ("sales/_incentive_campaign_results.html"
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest" else "sales/incentive_campaign_list.html")
+    return render(request, template, context)
 
 
 def _incentive_campaign_form_view(request, instance=None):
+    campaign = instance or IncentiveCampaign()
     form = IncentiveCampaignForm(request.POST or None, instance=instance)
     _prefill_model(request, form)
-    if request.method == "POST" and form.is_valid():
-        try:
-            with transaction.atomic():
-                campaign = form.save()
-        except (ValidationError, IntegrityError) as exc:
-            form.add_error(None, exc)
+    formset = IncentiveCampaignItemFormSet(request.POST or None, instance=campaign, prefix="items")
+    if request.method == "POST" and form.is_valid() and formset.is_valid():
+        conflicts = form.regular_conflicts(formset.items())
+        if conflicts:
+            form.add_error(
+                "effective_from",
+                f"已有同一天開始、涵蓋相同年式且有相同項目的常態活動：{'、'.join(conflicts)}；請改開始日或調整條件。",
+            )
         else:
-            messages.success(request, f"已{'更新' if instance else '建立'}原廠獎勵活動：{campaign.name}")
-            return redirect("incentive_rule_list")
+            try:
+                with transaction.atomic():
+                    saved = form.save()
+                    formset.instance = saved
+                    formset.save()
+            except (ValidationError, IntegrityError) as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, f"已{'更新' if instance else '建立'}原廠獎勵活動：{saved.name}")
+                if saved.is_paused:
+                    messages.warning(request, f"「{saved.name}」沒有勾選任何通路，已暫停，不會套用到任何訂單。")
+                return redirect("incentive_rule_list")
     return render(request, "sales/incentive_campaign_form.html", {
         "form": form,
+        "formset": formset,
         "campaign": instance,
         "order_count": instance.order_applications.count() if instance else 0,
     })
@@ -160,6 +206,7 @@ def vehicle_model_incentives(request, model_pk):
     )
     previews = []
     for source_type, label in (("platform", "網路平台訂單"), ("dealer", "車行訂單"), ("store", "本店訂單")):
+        # 試算不帶收款車行：指定車行的活動另在活動卡上標示。
         rows, totals, matched, _promo, _regular = incentive_totals(vehicle_model, source_type, today)
         previews.append({"label": label, "totals": totals, "names": [campaign.name for campaign, _ in rows]})
     return render(request, "sales/vehicle_model_incentives.html", {
@@ -167,6 +214,47 @@ def vehicle_model_incentives(request, model_pk):
         "campaigns": campaigns,
         "previews": previews,
         "today": today,
+    })
+
+
+def _backfill_policy(request):
+    from .access.services import policy_for
+
+    policy = policy_for(request)
+    return policy, policy.screen("incentives", "operate") and policy.screen("order_finance", "operate")
+
+
+@login_required
+@require_http_methods(["GET", "HEAD", "POST"])
+def incentive_campaign_backfill(request, pk):
+    """掃描既有訂單（T-161）：GET 只讀列出符合的訂單；POST 覆寫勾選的訂單（需原廠獎勵與訂單內部財務的操作權限）。"""
+    from .services import incentive_backfill
+
+    campaign = get_object_or_404(IncentiveCampaign.objects.prefetch_related("vehicle_models", "items", "dealers"), pk=pk)
+    _policy, can_apply = _backfill_policy(request)
+    if request.method == "POST":
+        if not can_apply:
+            return HttpResponseForbidden("需要「原廠獎勵與補助」與「訂單內部財務編輯」的操作權限。")
+        selections = {}
+        for value in request.POST.getlist("order"):
+            if value.isdigit():
+                selections[int(value)] = request.POST.get(f"token_{value}", "")
+        if not selections:
+            messages.info(request, "沒有勾選訂單，未寫入任何資料。")
+            return redirect("incentive_rule_list")
+        try:
+            updated = incentive_backfill.apply(campaign, selections, request.user.get_username())
+        except ValidationError as exc:
+            messages.error(request, "；".join(exc.messages))
+        else:
+            messages.success(request, f"已依「{campaign.name}」覆寫 {updated} 張訂單的原廠獎勵與補助，處理紀錄已留存。")
+        return redirect("incentive_rule_list")
+    rows = incentive_backfill.scan(campaign)
+    return render(request, "sales/_incentive_campaign_backfill.html", {
+        "campaign": campaign,
+        "rows": rows,
+        "can_apply": can_apply,
+        "changed_count": sum(1 for row in rows if row["changed"]),
     })
 
 

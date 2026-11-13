@@ -15,7 +15,7 @@ class SharedPaginationUiTests(SimpleTestCase):
         "release_history.html",
         "gift_distribution.html",
         "site_copy_manage.html",
-        "incentive_campaign_list.html",
+        "_incentive_campaign_results.html",
         "dealer_reward_campaign_list.html",
         "inventory_list.html",
         "legacy_import_detail.html",

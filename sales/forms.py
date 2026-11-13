@@ -31,7 +31,9 @@ from .models import (
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
+    ALL_CAMPAIGN_SOURCE_TYPES,
     CAMPAIGN_SOURCE_TYPES,
+    INCENTIVE_ITEM_CHOICES,
     DealerRewardCampaign,
     DealerRewardCampaignItem,
     DealerRewardCatalogItem,
@@ -62,6 +64,7 @@ from .models import (
     VehicleColor,
     VehicleInventory,
     IncentiveCampaign,
+    IncentiveCampaignItem,
     VehicleBrand,
     VehicleFactoryModelCode,
     VehicleModel,
@@ -4160,76 +4163,150 @@ class CampaignConditionsFormMixin:
 
 
 class IncentiveCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):
+    """原廠獎勵活動（T-161）：金額改為項目列（另一個 formset），通路以活動為單位、預設全勾，可指定車行。"""
+
+    DEALER_ALL = "all"
+    DEALER_SELECTED = "selected"
+
     brands = forms.MultipleChoiceField(label="品牌", required=False, widget=forms.SelectMultiple)
     energy_types = forms.MultipleChoiceField(label="能源別", required=False, widget=forms.CheckboxSelectMultiple)
     source_types = forms.MultipleChoiceField(
         label="適用通路", required=False, choices=CAMPAIGN_SOURCE_TYPES, widget=forms.CheckboxSelectMultiple,
-        help_text="都不勾代表全部通路。",
+        help_text="活動的所有項目只套用到勾選的通路；三個全勾＝全部通路，都不勾＝暫停這個活動。",
     )
-    promotion_source_types = forms.MultipleChoiceField(
-        label="促銷補助給哪些通路", required=False, choices=CAMPAIGN_SOURCE_TYPES,
-        widget=forms.CheckboxSelectMultiple,
-        help_text="促銷補助金只帶給勾選的通路；都不勾代表全部通路。實銷獎勵金與分期補貼息不受影響。",
+    dealer_mode = forms.ChoiceField(
+        label="適用車行", choices=((DEALER_ALL, "全部車行"), (DEALER_SELECTED, "指定車行")),
+        initial=DEALER_ALL, widget=forms.RadioSelect,
+        help_text="比對收款車行：車行訂單，以及有指定歸屬車行的本店訂單；網路平台訂單不看這個條件。",
     )
 
     class Meta:
         model = IncentiveCampaign
         fields = [
-            "name", "kind", "sales_bonus", "promotion_subsidy", "installment_interest_subsidy",
-            "source_types", "promotion_source_types", "brands", "energy_types", "vehicle_models",
+            "name", "kind", "source_types", "dealers", "brands", "energy_types", "vehicle_models",
             "announced_on", "effective_from", "effective_to", "note", "active",
         ]
         widgets = {
             "kind": forms.RadioSelect,
-            "sales_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "promotion_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "installment_interest_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "dealers": forms.SelectMultiple(),
             "vehicle_models": CampaignVehicleModelSelectMultiple(),
             "announced_on": DateInput(),
             "effective_from": DateInput(),
             "effective_to": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),
-            "name": forms.TextInput(attrs={"placeholder": "例如：11 月特簽加碼"}),
+            "name": forms.TextInput(attrs={"placeholder": "例如：11 月特簽"}),
         }
         help_texts = {
-            "kind": "常態：同一年式同一天只取開始日最新的一筆；加碼：累加在常態之上，須填結束日。",
+            "kind": "常態：每個項目只取開始日最新的一筆常態；加碼：累加在常態之上，須填結束日。",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_conditions()
-        if not self.instance.pk:
-            self.initial.setdefault("promotion_source_types", ["platform"])
+        selected = list(self.instance.dealers.values_list("pk", flat=True)) if self.instance.pk else []
+        self.fields["dealers"].queryset = SalesSource.objects.filter(
+            Q(active=True) | Q(pk__in=selected), source_type=SalesSource.SourceType.DEALER,
+        ).order_by("name")
+        self.fields["dealers"].required = False
+        self.fields["dealers"].label = "指定車行"
+        self.fields["dealers"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "搜尋並複選車行", "data-campaign-dealers": ""}
+        )
+        self.fields["source_types"].widget.attrs["data-campaign-sources"] = ""
+        self.fields["dealer_mode"].widget.attrs["data-campaign-dealer-mode"] = ""
+        if self.instance.pk:
+            self.initial["source_types"] = list(self.instance.source_types or [])
+            self.initial["dealer_mode"] = self.DEALER_SELECTED if selected else self.DEALER_ALL
+        else:
+            self.initial.setdefault("source_types", list(ALL_CAMPAIGN_SOURCE_TYPES))
         self._finish_widgets()
 
     def clean(self):
         data = super().clean()
+        if data.get("dealer_mode") == self.DEALER_SELECTED:
+            if not data.get("dealers"):
+                self.add_error("dealers", "選了「指定車行」，請至少選一家車行。")
+        else:
+            data["dealers"] = SalesSource.objects.none()
         try:
-            matched = self.clean_conditions(data)
+            self.clean_conditions(data)
         except ValidationError as exc:
             self.add_error(None, exc)
-            return data
-        start = data.get("effective_from")
-        if data.get("kind") == IncentiveCampaign.Kind.REGULAR and data.get("active") and start:
-            # 常態同一天開始又涵蓋同一年式、同一通路時無法判斷該取哪一筆，直接擋下；開始日不同時由較新的取代。
-            from .services.campaign_conditions import vehicle_matches
-
-            others = IncentiveCampaign.objects.filter(
-                kind=IncentiveCampaign.Kind.REGULAR, active=True, effective_from=start,
-            ).exclude(pk=self.instance.pk).prefetch_related("vehicle_models")
-            models = list(VehicleModel.objects.filter(pk__in=matched))
-            sources = set(data.get("source_types") or [])
-            conflicts = [
-                other.name for other in others
-                if any(vehicle_matches(other, model) for model in models)
-                and (not other.source_types or not sources or set(other.source_types) & sources)
-            ]
-            if conflicts:
-                self.add_error(
-                    "effective_from",
-                    f"已有同一天開始、涵蓋相同年式的常態活動：{'、'.join(conflicts)}；請改開始日或調整條件。",
-                )
         return data
+
+    def regular_conflicts(self, items):
+        """同一天開始、涵蓋相同年式、通路與車行有交集，且有填同一個項目的常態不能並存（無法判斷取哪一筆）。"""
+        data = self.cleaned_data
+        start = data.get("effective_from")
+        if data.get("kind") != IncentiveCampaign.Kind.REGULAR or not data.get("active") or not start:
+            return []
+        from .services.campaign_conditions import vehicle_matches
+
+        sources = set(data.get("source_types") or [])
+        dealers = {dealer.pk for dealer in data.get("dealers") or []}
+        models = list(VehicleModel.objects.filter(pk__in=getattr(self, "matched_model_ids", set())))
+        others = (IncentiveCampaign.objects.filter(kind=IncentiveCampaign.Kind.REGULAR, active=True, effective_from=start)
+                  .exclude(pk=self.instance.pk).prefetch_related("vehicle_models", "items", "dealers"))
+        conflicts = []
+        for other in others:
+            other_dealers = {dealer.pk for dealer in other.dealers.all()}
+            if (set(other.item_amounts()) & set(items) and set(other.source_types or []) & sources
+                    and (not dealers or not other_dealers or dealers & other_dealers)
+                    and any(vehicle_matches(other, model) for model in models)):
+                conflicts.append(other.name)
+        return conflicts
+
+
+class IncentiveCampaignItemForm(forms.ModelForm):
+    class Meta:
+        model = IncentiveCampaignItem
+        fields = ["item", "amount"]
+        widgets = {"amount": forms.NumberInput(attrs={"min": "0", "step": "1", "inputmode": "numeric"})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["item"].choices = [("", "請選擇項目"), *INCENTIVE_ITEM_CHOICES]
+        self.fields["item"].label = "項目"
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class BaseIncentiveCampaignItemFormSet(BaseInlineFormSet):
+    def validate_unique(self):
+        # 重複項目由 clean() 用白話訊息提示；資料庫仍有唯一限制把關。
+        return
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        seen = set()
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            item = form.cleaned_data.get("item")
+            if item in seen:
+                raise ValidationError("同一個項目只能有一列，請合併金額。")
+            seen.add(item)
+        if not seen:
+            raise ValidationError("請至少新增一個項目。")
+
+    def items(self):
+        return {form.cleaned_data["item"]: form.cleaned_data["amount"] for form in self.forms
+                if form.cleaned_data and not form.cleaned_data.get("DELETE")}
+
+
+IncentiveCampaignItemFormSet = inlineformset_factory(
+    IncentiveCampaign,
+    IncentiveCampaignItem,
+    form=IncentiveCampaignItemForm,
+    formset=BaseIncentiveCampaignItemFormSet,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    validate_min=False,  # 至少一列由 clean() 以白話訊息檢查
+)
 
 
 class DealerRewardCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):

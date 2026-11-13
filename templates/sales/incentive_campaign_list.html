@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static screen_access pagination_tags %}
+{% extends "base.html" %}{% load static screen_access %}
 {% block title %}原廠獎勵與補助｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,15 +9,15 @@
   <div>
     <p class="eyebrow">依實際領牌日套用</p>
     <h1>原廠獎勵與補助</h1>
-    <p class="muted">以活動設定：指定品牌、能源別或年式與期間。常態活動同一年式只取開始日最新的一筆，加碼活動累加在常態之上；領牌完成後金額固定在訂單。</p>
+    <p class="muted">每個活動由項目列（實銷獎勵金、促銷補助金、分期補貼息）組成，並指定車型、通路與車行。常態活動每個項目只取開始日最新的一筆，加碼活動累加在常態之上；領牌完成後金額固定在訂單，要套用到過去的訂單請按「掃描既有訂單」。</p>
   </div>
   {% if_access 'incentive_campaign_create' %}<a class="button primary" href="{% url 'incentive_campaign_create' %}">＋ 新增活動</a>{% endif_access %}
 </section>
 
-<form method="get" class="master-filters campaign-filters">
+<form method="get" class="master-filters campaign-filters" data-campaign-filters role="search" aria-label="篩選原廠獎勵活動">
   <div class="inventory-filter master-search">
-    <label for="campaign-q">搜尋</label>
-    <input id="campaign-q" type="search" name="q" value="{{ selected.q }}" placeholder="活動名稱、品牌、車型或備註">
+    <label for="campaign-q">車型或活動</label>
+    <input id="campaign-q" type="search" name="q" value="{{ selected.q }}" placeholder="輸入品牌、車名、型號或活動名稱，例如 sui、EZZY" autocomplete="off">
   </div>
   <div class="inventory-filter">
     <label for="campaign-kind">類型</label>
@@ -29,33 +29,12 @@
   </div>
   <div class="inventory-filter-actions">
     <a class="button ghost" href="{% url 'incentive_rule_list' %}">清除</a>
-    <button class="button primary" type="submit">搜尋</button>
   </div>
 </form>
 
-<section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong></div>
-  <div class="inventory-table-wrap">
-    <table class="inventory-table campaign-table">
-      <thead><tr><th>活動</th><th>適用車輛</th><th>實銷獎勵金</th><th>促銷補助金</th><th>分期補貼息</th><th>期間</th><th>狀態</th><th></th></tr></thead>
-      <tbody>
-        {% for campaign in campaigns %}
-        <tr>
-          <td data-label="活動"><span class="campaign-kind campaign-kind--{{ campaign.kind }}">{{ campaign.get_kind_display }}</span><strong>{{ campaign.name }}</strong>{% if campaign.source_types %}<span>通路：{{ campaign.source_type_labels|join:"、" }}</span>{% endif %}{% if campaign.order_count %}<span>已套用 {{ campaign.order_count }} 張訂單</span>{% endif %}</td>
-          <td data-label="適用車輛">{{ campaign.conditions_text }}</td>
-          <td data-label="實銷獎勵金"><strong>${{ campaign.sales_bonus|floatformat:0 }}</strong></td>
-          <td data-label="促銷補助金"><strong>${{ campaign.promotion_subsidy|floatformat:0 }}</strong><span>{% if campaign.promotion_source_types %}給{{ campaign.promotion_source_type_labels|join:"、" }}{% else %}全部通路{% endif %}</span></td>
-          <td data-label="分期補貼息"><strong>${{ campaign.installment_interest_subsidy|floatformat:0 }}</strong></td>
-          <td data-label="期間"><strong>{{ campaign.effective_from|date:"Y/m/d" }}</strong><span>至 {{ campaign.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
-          <td data-label="狀態"><div class="quick-active-toggle-stack">{% include "sales/_active_quick_toggle.html" with resource="incentive-campaign" pk=campaign.pk is_active=campaign.active item_name=campaign.name %}{% if campaign.active %}<span class="status-pill cost-rule-{{ campaign.display_status }}">{{ campaign.display_status_label }}</span>{% endif %}</div></td>
-          <td class="inventory-row-action">{% if_access 'incentive_campaign_edit' %}<a class="button ghost small" href="{% url 'incentive_campaign_edit' campaign.pk %}">編輯</a>{% endif_access %}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="8"><div class="empty-state"><strong>沒有符合的活動</strong><p>建立活動後，訂單會依實際領牌日期自動帶入。</p></div></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% pagination page_obj aria_label="原廠獎勵活動分頁" %}
+<section class="inventory-list-panel" data-campaign-results aria-live="polite">
+  {% include "sales/_incentive_campaign_results.html" %}
 </section>
+{% include "sales/_incentive_backfill_dialog.html" %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/incentive-campaigns.js' %}?v={{ app_version }}" defer></script>{% endblock %}

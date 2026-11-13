@@ -5776,14 +5776,16 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(listing.status_code, 200)
         self.assertContains(listing, "原廠獎勵與補助")
-        self.assertContains(listing, "1500")
+        self.assertContains(listing, "實銷獎勵金 1,500")
         self.assertContains(listing, "持續有效")
         self.assertContains(listing, "常態")
         self.assertNotContains(listing, "分期撥款比例")
         self.assertEqual(editing.status_code, 200)
         self.assertContains(editing, "實銷獎勵金")
         self.assertContains(editing, "結束日期")
-        self.assertContains(editing, "促銷補助給哪些通路")
+        self.assertNotContains(editing, "促銷補助給哪些通路")
+        self.assertContains(editing, "＋ 新增項目")
+        self.assertContains(editing, "適用車行")
         self.assertNotContains(editing, 'name="rates-TOTAL_FORMS"')
         self.assertRedirects(legacy, reverse("incentive_rule_list"))
 

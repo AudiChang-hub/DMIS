@@ -32,3 +32,26 @@ test('樹狀勾選經由表單內的代理欄位走既有的 300ms 防抖；其�
   assert.equal(reportFilterDelay({dataset: {}, type: 'hidden', name: 'revision'}), null);
   assert.equal(reportFilterDelay({dataset: {reportMulti: ''}}), 300);
 });
+
+// T-152：寬螢幕向右收合，狀態記在 localStorage；讀寫失敗不影響操作。
+const {reportTreeRailCount, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY} = require('../../static/js/report-tree-filter.js');
+
+test('收合後窄邊顯示目前勾選數量', () => {
+  assert.equal(reportTreeRailCount(39, 39), '已選 39／39');
+  assert.equal(reportTreeRailCount(3, 39), '已選 3／39');
+});
+
+test('收合狀態寫入與讀回；沒有儲存或被封鎖時當作展開', () => {
+  const data = new Map();
+  const storage = {getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value)};
+  assert.equal(reportTreeReadCollapsed(storage), false);
+  assert.equal(reportTreeWriteCollapsed(storage, true), true);
+  assert.equal(data.get(REPORT_TREE_COLLAPSED_KEY), '1');
+  assert.equal(reportTreeReadCollapsed(storage), true);
+  reportTreeWriteCollapsed(storage, false);
+  assert.equal(reportTreeReadCollapsed(storage), false);
+  const blocked = {getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }};
+  assert.equal(reportTreeReadCollapsed(blocked), false);
+  assert.equal(reportTreeWriteCollapsed(blocked, true), false);
+  assert.equal(reportTreeReadCollapsed(null), false);
+});

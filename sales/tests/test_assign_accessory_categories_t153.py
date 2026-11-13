@@ -74,6 +74,8 @@ class AssignAccessoryCategoriesTests(TestCase):
         self.assertIn("未分類主檔 0 筆", output)
         expected = {name: category for category, names in PLAN.items() for name in names}
         self.assertEqual(self.categories(), expected)
+        counts = {name: list(self.categories().values()).count(name) for name in PLAN}
+        self.assertEqual(counts, {"安全帽": 1, "手機架": 1, "保桿": 4, "改裝部品": 16, "行車紀錄器": 2, "原廠配件": 1, "其他": 1})
         new = AccessoryProduct.objects.get(name="前側保桿")
         self.assertEqual((new.sale_price, new.labor_fee, new.note), (Decimal("1500"), Decimal("200"), NOTE))
         self.assertEqual(new.category.name, "保桿")  # 使用者 2026-11-13 改指定到保桿

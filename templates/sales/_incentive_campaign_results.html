@@ -1,4 +1,12 @@
-{% load screen_access pagination_tags %}<div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong>{% if selected.q %}<span>符合「{{ selected.q }}」的車型或活動</span>{% endif %}</div>
+{% load screen_access pagination_tags %}{# 頁籤放在結果區內，篩選自動套用時筆數與連結一起更新；切換頁籤保留其他篩選（T-166）。 #}
+<nav class="inventory-scope-tabs campaign-scope-tabs" aria-label="原廠獎勵活動狀態">{% for tab in tabs %}
+  <a class="inventory-scope-tab{% if tab.active %} is-active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>
+    <span><strong>{{ tab.label }}</strong><small>{{ tab.hint }}</small></span>
+    <b>{{ tab.count }}</b>
+  </a>{% endfor %}
+</nav>
+<section class="inventory-list-panel">
+<div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong>{% if selected.q %}<span>符合「{{ selected.q }}」的車型或活動</span>{% endif %}</div>
 <div class="inventory-table-wrap">
   <table class="inventory-table campaign-table">
     <thead><tr><th>活動</th><th>適用車輛</th><th>項目</th><th>通路與車行</th><th>期間</th><th>狀態</th><th></th></tr></thead>
@@ -17,9 +25,10 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7"><div class="empty-state"><strong>沒有符合的活動</strong><p>{% if selected.q %}沒有活動適用到符合「{{ selected.q }}」的年式；可改用車名的一部分，例如「sui」「ezzy」。{% else %}建立活動後，訂單會依實際領牌日期自動帶入。{% endif %}</p></div></td></tr>
+      <tr><td colspan="7"><div class="empty-state"><strong>沒有符合的活動</strong><p>{% if selected.q %}沒有活動適用到符合「{{ selected.q }}」的年式；可改用車名的一部分，例如「sui」「ezzy」。{% elif selected.tab == 'inactive' %}目前沒有停用的活動。{% else %}建立活動後，訂單會依實際領牌日期自動帶入。{% endif %}</p></div></td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 {% pagination page_obj aria_label="原廠獎勵活動分頁" %}
+</section>

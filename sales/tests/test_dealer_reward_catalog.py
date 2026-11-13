@@ -151,7 +151,7 @@ class DealerRewardCatalogTests(TestCase):
         self.assertContains(dashboard, 'value="dealer-reward-items"')
 
         guide = self.client.get(reverse("user_guide"))
-        self.assertContains(guide, "費率與規則 → 車行獎勵品項")
+        self.assertContains(guide, "費率與規則 → 車行傭金與獎勵」的「獎勵品項」分頁")
 
         base = (Path(settings.BASE_DIR) / "templates" / "base.html").read_text(
             encoding="utf-8"

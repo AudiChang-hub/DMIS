@@ -31,6 +31,14 @@ def _aware_end(day):
     return timezone.make_aware(datetime.combine(day + timedelta(days=1), time.min))
 
 
+# 在庫＝還在店裡的車：可售、已預留、車況異常（T-167；已售出、調出、已交車、停用都不算）。
+ON_HAND_STATUSES = (
+    VehicleInventory.Status.AVAILABLE,
+    VehicleInventory.Status.RESERVED,
+    VehicleInventory.Status.CONDITION_ISSUE,
+)
+
+
 def _percent_change(current, previous):
     if previous == 0:
         return None
@@ -154,9 +162,7 @@ def build_dashboard_metrics(today=None):
             ).count(),
         },
         "inventory": {
-            "total": VehicleInventory.objects.exclude(
-                status=VehicleInventory.Status.INACTIVE
-            ).count(),
+            "total": sum(inventory_counts.get(status, 0) for status in ON_HAND_STATUSES),
             "available": inventory_counts.get(VehicleInventory.Status.AVAILABLE, 0),
             "reserved": inventory_counts.get(VehicleInventory.Status.RESERVED, 0),
             "issues": inventory_counts.get(

@@ -4397,6 +4397,12 @@ class SalesOrder(TimeStampedModel):
         return max(self.registration_calculated_total - itemized, 0)
 
     @property
+    def registration_tax_total(self):
+        """顯示用：試算合計拆成「稅金總額＋強制險費用」的稅金總額（號牌、行照、檢驗、公路養管、牌照稅；
+        使用者 2026-11-12 簡報 p5，例 715＋658＝1,373）。不改試算合計的算法。"""
+        return (self.registration_calculated_total or 0) - (self.compulsory_insurance_fee or 0)
+
+    @property
     def registration_extra_fee_total(self):
         """牌險以外另收的領牌費用：選號費＋舊有動保設定費（使用者 2026-10-15：牌險不含選號）。"""
         return (self.plate_selection_fee or 0) + (self.lien_registration_fee or 0)

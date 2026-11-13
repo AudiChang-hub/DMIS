@@ -152,8 +152,9 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertNotContains(response, " · M2 · ")
         self.assertContains(response, "公路養管")
         self.assertContains(response, "$190")
-        self.assertContains(response, "試算合計")
-        self.assertContains(response, "$1,498")
+        # 合計改標「稅金總額＋強制險費用」並列出拆解（T-155，使用者 2026-11-12 p5）。
+        self.assertContains(response, "稅金總額＋強制險費用")
+        self.assertContains(response, "稅金 $840 ＋ 強制險 $658 ＝</small> $1,498")
         # 「尾款計算」那一列與「成交金額與尾款試算」已拿掉（2026-11-09 p7），尾款改在收入與支出的 ④。
         self.assertNotContains(response, "尾款計算")
         self.assertNotContains(response, "成交金額與尾款試算")

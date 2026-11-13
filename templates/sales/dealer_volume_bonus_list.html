@@ -9,6 +9,7 @@
   <div><p class="eyebrow">車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}設定獎金條件後系統自動計算，不用結算；期間結束自動加進傭金支出。{% else %}依領牌日期與獎金歸屬車行自動統計，各期間、各車行分開計算；期間內為預估，結束後自動入帳。{% endif %}</p></div>
   {% if tab == 'rules' %}<a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>{% endif %}
 </section>
+{% include "sales/_dealer_reward_tabs.html" with current="bonus" %}
 <nav class="bonus-page-tabs" aria-label="台數獎金功能">
   <a href="{{ list_url }}?tab=rules"{% if tab == 'rules' %} aria-current="page"{% endif %}>規則管理</a>
   <a href="{{ list_url }}?tab=trial"{% if tab == 'trial' %} aria-current="page"{% endif %}>台數試算</a>

@@ -1,0 +1,8 @@
+{% load screen_access %}{# 車行傭金與獎勵：四頁共用分頁列（T-162）。各分頁依原本的畫面權限顯示，網址不變。 #}
+{% can_access 'dealer_sales_program_list' as tab_commission %}{% can_access 'dealer_reward_campaign_list' as tab_campaign %}{% can_access 'dealer_reward_catalog_list' as tab_catalog %}{% can_access 'dealer_volume_bonus_list' as tab_bonus %}
+<nav class="account-tabs dealer-reward-tabs" aria-label="車行傭金與獎勵">
+  {% if tab_commission %}<a href="{% url 'dealer_sales_program_list' %}"{% if current == 'commission' %} aria-current="page"{% endif %}>基礎傭金</a>{% endif %}
+  {% if tab_campaign %}<a href="{% url 'dealer_reward_campaign_list' %}"{% if current == 'campaign' %} aria-current="page"{% endif %}>獎勵活動</a>{% endif %}
+  {% if tab_catalog %}<a href="{% url 'dealer_reward_catalog_list' %}"{% if current == 'catalog' %} aria-current="page"{% endif %}>獎勵品項</a>{% endif %}
+  {% if tab_bonus %}<a href="{% url 'dealer_volume_bonus_list' %}"{% if current == 'bonus' %} aria-current="page"{% endif %}>台數獎金</a>{% endif %}
+</nav>

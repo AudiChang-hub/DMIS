@@ -336,11 +336,6 @@
     "default": "維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。",
     "template": "templates/sales/data_maintenance.html"
   },
-  "data_maintenance.7b1ac913dc4c": {
-    "page": "資料維護區",
-    "default": "集中維護實物、紅包、禮券與點數的單位及成本版本。",
-    "template": "templates/sales/data_maintenance.html"
-  },
   "data_maintenance.8f2d8c214578": {
     "page": "資料維護區",
     "default": "從既有訂單查詢車主聯絡資料與歷史訂單；資料仍由訂單修改。",
@@ -384,16 +379,6 @@
   "data_maintenance.275db464f367": {
     "page": "資料維護區",
     "default": "以活動維護實銷獎勵、促銷補助與分期補貼息，可指定品牌、能源別或年式。",
-    "template": "templates/sales/data_maintenance.html"
-  },
-  "data_maintenance.a3460965ce09": {
-    "page": "資料維護區",
-    "default": "依車型維護每台給車行的現金基礎傭金；實物、禮券等改在「車行獎勵活動」設定。",
-    "template": "templates/sales/data_maintenance.html"
-  },
-  "data_maintenance.024404dfac26": {
-    "page": "資料維護區",
-    "default": "依車行、品牌與領牌期間設定門檻及保存逐單結算。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.aaa509a64a8f": {

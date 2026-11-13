@@ -16,6 +16,7 @@
     {% if_access 'dealer_reward_campaign_create' %}<a class="button primary" href="{% url 'dealer_reward_campaign_create' %}">＋ 新增活動</a>{% endif_access %}
   </div>
 </section>
+{% include "sales/_dealer_reward_tabs.html" with current="campaign" %}
 
 <form method="get" class="master-filters campaign-filters">
   <div class="inventory-filter master-search">

@@ -156,7 +156,7 @@ class DealerVehicleRewardTests(TestCase):
         route = reverse("dealer_sales_program_list")
         maintenance = self.client.get(reverse("data_maintenance"))
         self.assertContains(maintenance, route)
-        self.assertContains(maintenance, "每台給車行的現金基礎傭金")
+        self.assertContains(maintenance, "車行傭金與獎勵")
 
         dashboard = self.client.get(reverse("dashboard"))
         self.assertContains(dashboard, "車行傭金與銷售獎勵")

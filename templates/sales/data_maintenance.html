@@ -87,26 +87,13 @@
     <div><h2>原廠獎勵與補助</h2><p>{% site_text 'data_maintenance.275db464f367' %}</p><strong>{{ incentive_campaign_count }} 個啟用活動</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
-  {% if_access 'dealer_sales_program_list' %}<a class="maintenance-card" href="{% url 'dealer_sales_program_list' %}">
+  {# 車行傭金與獎勵四頁共用一個入口（T-162），連到有權限的第一個分頁。 #}
+  {% can_access 'dealer_sales_program_list' as dr_commission %}{% can_access 'dealer_reward_campaign_list' as dr_campaign %}{% can_access 'dealer_reward_catalog_list' as dr_catalog %}{% can_access 'dealer_volume_bonus_list' as dr_bonus %}{% if dr_commission %}{% url 'dealer_sales_program_list' as dr_url %}{% elif dr_campaign %}{% url 'dealer_reward_campaign_list' as dr_url %}{% elif dr_catalog %}{% url 'dealer_reward_catalog_list' as dr_url %}{% elif dr_bonus %}{% url 'dealer_volume_bonus_list' as dr_url %}{% endif %}
+  {% if dr_url %}<a class="maintenance-card" href="{{ dr_url }}">
     <span class="maintenance-card__icon">佣</span>
-    <div><h2>車行傭金與銷售獎勵</h2><p>{% site_text 'data_maintenance.a3460965ce09' %}</p><strong>{{ dealer_sales_program_count }} 個啟用車型已設定基礎傭金</strong></div>
+    <div><h2>車行傭金與獎勵</h2><p>每台基礎傭金、獎勵活動與品項，以及自動計算的台數獎金。</p><strong>{% if dr_commission %}傭金 {{ dealer_sales_program_count }} 車型 · 活動 {{ dealer_reward_campaign_count }}{% endif %}{% if dr_catalog %}{% if dr_commission %} · {% endif %}品項 {{ dealer_reward_catalog_count }}{% endif %}{% if dr_bonus %}{% if dr_commission or dr_catalog %} · {% endif %}台數獎金 {{ dealer_bonus_rule_count }} 規則{% endif %}</strong></div>
     <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'dealer_reward_campaign_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_campaign_list' %}">
-    <span class="maintenance-card__icon">贈</span>
-    <div><h2>車行獎勵活動</h2><p>指定車行、品牌、能源別或年式與期間，每領牌一台送實物、紅包、禮券或點數。</p><strong>{{ dealer_reward_campaign_count }} 個啟用活動</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'dealer_reward_catalog_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
-    <span class="maintenance-card__icon">禮</span>
-    <div><h2>車行獎勵品項</h2><p>{% site_text 'data_maintenance.7b1ac913dc4c' %}</p><strong>{{ dealer_reward_catalog_count }} 個品項</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'dealer_volume_bonus_list' %}<a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">
-    <span class="maintenance-card__icon">獎</span>
-    <div><h2>車行台數獎金</h2><p>{% site_text 'data_maintenance.024404dfac26' %}</p><strong>{{ dealer_bonus_rule_count }} 筆獎金規則</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
+  </a>{% endif %}
   {% if_access 'installment_company_list' %}<a class="maintenance-card" href="{% url 'installment_company_list' %}">
     <span class="maintenance-card__icon">期</span>
     <div><h2>分期公司與方案</h2><p>{% site_text 'data_maintenance.aaa509a64a8f' %}</p><strong>{{ installment_company_count }} 家公司</strong></div>

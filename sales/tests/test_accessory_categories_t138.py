@@ -120,7 +120,7 @@ class AccessoryCategoryTests(TestCase):
         self.assertNotContains(page, 'name="action" value="delete"')
         # 依排序列出（改名後的「行車紀錄器」id 較大，仍排第 3）。
         html = page.content.decode()
-        names = ["安全帽", "手機架", "行車紀錄器", "保桿", "外觀件", "原廠配件", "其他"]
+        names = ["安全帽", "手機架", "行車紀錄器", "保桿", "改裝部品", "原廠配件", "其他"]
         positions = [html.index(f"<strong>{name}</strong>") for name in names]
         self.assertEqual(positions, sorted(positions))
         self.assertNotContains(page, "新增類別")

@@ -42,7 +42,7 @@ class WizardCustomAccessoryCategoryTests(TestCase):
 
 
 class AccessoryCategoryFixedTests(TestCase):
-    SEVEN = ["安全帽", "手機架", "行車紀錄器", "保桿", "外觀件", "原廠配件", "其他"]
+    SEVEN = ["安全帽", "手機架", "行車紀錄器", "保桿", "改裝部品", "原廠配件", "其他"]
 
     def test_migrated_categories_are_the_fixed_seven(self):
         self.assertEqual(list(AccessoryCategory.objects.values_list("name", flat=True)), self.SEVEN)
@@ -71,9 +71,9 @@ class AccessoryCategoryFixedTests(TestCase):
         self.assertEqual(moved["乘載"].pk, old["乘載"].pk)  # 原地改名，類別 id 不變
         self.assertEqual(moved["乘載"].name, "其他")
         self.assertEqual(moved["電子與鑰匙"].name, "行車紀錄器")
-        self.assertEqual(moved["外觀改裝"].name, "外觀件")
+        self.assertEqual(moved["外觀改裝"].name, "改裝部品")
         self.assertEqual(moved["安全帽"].name, "安全帽")
-        self.assertIsNone(moved["後貨架／置物"])  # 類別刪除，配件留著（之後由清空指令處理）
+        self.assertIsNone(moved["後貨架／置物"])  # 類別刪除，配件留著（之後由 assign_accessory_categories 歸類）
         migration.restore_categories(apps, None)
         self.assertEqual(list(AccessoryCategory.objects.values_list("name", flat=True)),
                          ["安全帽", "手機架", "後貨架／置物", "保桿", "外觀改裝", "電子與鑰匙", "乘載"])

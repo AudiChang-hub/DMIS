@@ -27,12 +27,20 @@ function bindDeliveryForms(scope = document) {
       summary.querySelector("[data-balance-gap-label]").textContent = gap > 0 || !filled ? "尚差" : gap < 0 ? "多收" : "差額";
       summary.querySelector("[data-balance-gap]").textContent = money(Math.abs(filled ? gap : due));
       summary.querySelector("[data-balance-state]").textContent = !filled
-        ? "填入實收金額，足額後即可收尾款並完成交車。"
+        ? (due > 0 ? "填入實收金額，足額後即可收尾款並完成交車。" : "目前沒有應收尾款，不必填實收金額，可以直接完成交車。")
         : gap > 0 ? `還差 ${money(gap)}，補足後才能完成交車。` : "已足額，可以收尾款並完成交車。";
     };
+    // 應收 0（含以下）時實收不必填（使用者 2026-11-13 T-156）：收款列存檔讓應收變 0 時，拿掉必填與「必填」字樣、換成免填提示；
+    // 應收回到大於 0 時恢復。送出時後端以最新應收判斷，應收 0 不填實收也不記 0 元收款。
+    const requiredMark = amount.labels?.[0]?.querySelector("em");
+    const zeroHint = fieldset.querySelector("[data-balance-hint-zero]");
     const sync = () => {
       syncSummary();
       const due = dueNow();
+      amount.required = due > 0;
+      if (requiredMark) requiredMark.hidden = due <= 0;
+      if (hint) hint.hidden = due <= 0;
+      if (zeroHint) zeroHint.hidden = due > 0;
       const short = due > 0 && !(Number(amount.value || 0) >= due);
       button.dataset.balanceShort = short ? "1" : "";
       const blocked = Boolean(blockers && !blockers.hidden);

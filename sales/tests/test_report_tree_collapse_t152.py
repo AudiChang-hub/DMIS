@@ -44,6 +44,17 @@ class TreeCollapseTests(TestCase):
         self.assertIn(">車型篩選</span>", html)
         self.assertIn("data-report-tree-rail-count", html)
 
+    def test_rail_badge_is_visual_only_and_does_not_wrap(self):
+        """T-159：窄邊數量改成徽章（視覺用、報讀走完整文字），徽章不換行、窄邊寬度維持 56px。"""
+        html = self.client.get(reverse("report_display", args=[self.analysis.pk])).content.decode()
+        self.assertRegex(html, r'class="report-tree-filter__rail-badge" aria-hidden="true" data-report-tree-rail-badge')
+        self.assertIn('<span class="sr-only"><span data-report-tree-rail-count></span>，展開</span>', html)
+        css = (ROOT / "static/css/reporting.css").read_text(encoding="utf-8")
+        badge = re.search(r"\.report-tree-filter__rail-badge \{[^}]*\}", css).group(0)
+        self.assertIn("white-space: nowrap", badge)
+        self.assertNotIn("report-tree-filter__rail-count {", css)
+        self.assertIn("is-tree-collapsed { grid-template-columns: 240px minmax(0, 1fr) 56px; }", css)
+
     def test_other_groups_have_no_collapse_controls(self):
         html = self.client.get(reverse("report_display", args=[self.sales.pk])).content.decode()
         self.assertNotIn("data-report-tree-collapse", html)

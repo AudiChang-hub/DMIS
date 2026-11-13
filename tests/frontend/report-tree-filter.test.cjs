@@ -55,3 +55,15 @@ test('收合狀態寫入與讀回；沒有儲存或被封鎖時當作展開', ()
   assert.equal(reportTreeWriteCollapsed(blocked, true), false);
   assert.equal(reportTreeReadCollapsed(null), false);
 });
+
+// T-159：收合窄邊的數量改為徽章，主字與副字各一行、不再拆成「已選／39／／39」。
+const {reportTreeRailBadge} = require('../../static/js/report-tree-filter.js');
+
+test('窄邊徽章：全選寫全部、部分寫勾選數、沒勾寫 0', () => {
+  assert.deepEqual(reportTreeRailBadge(39, 39), {state: 'all', main: '全部', sub: '39 款'});
+  assert.deepEqual(reportTreeRailBadge(3, 39), {state: 'some', main: '3', sub: '/ 39'});
+  assert.deepEqual(reportTreeRailBadge(0, 39), {state: 'none', main: '0', sub: '/ 39'});
+  for (const badge of [reportTreeRailBadge(39, 39), reportTreeRailBadge(3, 39), reportTreeRailBadge(120, 130)]) {
+    assert.ok(badge.main.length <= 3 && badge.sub.length <= 6, '徽章文字要短到 44px 內一行放得下');
+  }
+});

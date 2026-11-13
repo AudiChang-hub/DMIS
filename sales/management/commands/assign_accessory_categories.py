@@ -62,7 +62,7 @@ class Command(BaseCommand):
         categories = {item.name: item for item in AccessoryCategory.objects.all()}
         missing_categories = sorted(set(PLAN) - set(categories))
         if missing_categories:
-            raise CommandError("找不到類別：" + "、".join(missing_categories) + "（先套用 migration 0205）")
+            raise CommandError("找不到類別：" + "、".join(missing_categories) + "（先套用 migration 0206）")
         targets = target_of()
         missing = [name for name in targets if name not in NEW_NAMES and find(name) is None]
         changed = 0

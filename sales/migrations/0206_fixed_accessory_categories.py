@@ -60,7 +60,7 @@ def restore_categories(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("sales", "0204_dealer_payouts"),
+        ("sales", "0205_owner_id_number_optional"),
     ]
 
     operations = [

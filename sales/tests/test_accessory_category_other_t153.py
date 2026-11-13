@@ -1,14 +1,44 @@
-"""使用者 2026-11-12 T-153：配件類別「乘載」改名為「其他」，掛在底下的配件跟著走、不遺失。"""
+"""使用者 2026-11-12 T-153：配件類別「乘載」改名為「其他」，掛在底下的配件跟著走、不遺失；
+2026-11-13：在類別內新增的配件名稱只儲存在該類別。"""
 import importlib
 from decimal import Decimal
 
 from django.apps import apps
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.urls import reverse
 
 from sales.forms import AccessoryLineForm
-from sales.models import AccessoryCategory, AccessoryProduct
+from sales.models import AccessoryCategory, AccessoryProduct, SalesOrder
+from sales.tests import test_order_wizard
 
 migration = importlib.import_module("sales.migrations.0205_rename_accessory_category_other")
+
+
+@override_settings(MEDIA_ROOT=test_order_wizard.MEDIA)
+class WizardCustomAccessoryCategoryTests(TestCase):
+    setUp = test_order_wizard.OrderWizardTests.setUp
+    image = test_order_wizard.OrderWizardTests.image
+    complete_data = test_order_wizard.OrderWizardTests.complete_data
+    post = test_order_wizard.OrderWizardTests.post
+    draft = test_order_wizard.OrderWizardTests.draft
+    walk_to = test_order_wizard.OrderWizardTests.walk_to
+
+    def test_chosen_category_survives_later_steps_and_learns_into_it(self):
+        helmet = AccessoryCategory.objects.get(name="安全帽")
+        draft = self.walk_to("accessories")
+        line = {"accessories-TOTAL_FORMS": "1", "accessories-INITIAL_FORMS": "0",
+                "accessories-0-accessory_category": str(helmet.pk), "accessories-0-accessory_product": "other",
+                "accessories-0-custom_name": "3/4安全帽", "accessories-0-quantity": "1",
+                "accessories-0-line_type": "purchase", "accessories-0-amount": "1500", "accessories-0-labor_fee": "0"}
+        self.assertEqual(self.post("accessories", draft=draft, **line).status_code, 302)
+        # 換到下一步由草稿重新載入：選過的類別要還在，否則送出時「其他」名稱會歸到未分類。
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "deposit"}).content.decode()
+        select = page.split('name="accessories-0-accessory_category"', 1)[1].split("</select>", 1)[0]
+        self.assertIn(f'<option value="{helmet.pk}" selected>安全帽</option>', select)
+        self.assertEqual(self.post("deposit", draft=self.draft(), **line).status_code, 302)
+        self.post("confirm", action="submit", draft=self.draft(), **line)
+        self.assertTrue(SalesOrder.objects.filter(owner_name="測試車主").exists())
+        self.assertEqual(AccessoryProduct.objects.get(name="3/4安全帽").category, helmet)
 
 
 class AccessoryCategoryOtherTests(TestCase):

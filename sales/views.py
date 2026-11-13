@@ -5203,6 +5203,8 @@ def _initial_intake_forms(request, draft, reception):
             draft.data,
             "accessories",
             (
+                # 類別也要還原（T-153）：否則換步驟後類別回到「全部類別」，自填名稱送出時歸到未分類。
+                "accessory_category",
                 "accessory_product",
                 "custom_name",
                 "quantity",

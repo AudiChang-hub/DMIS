@@ -51,7 +51,7 @@ ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
     "delivery_complete", "delivery_payment_update", "deposit_payment_update", "cancellation_request", "cancellation_withdraw", "refund_complete",
     "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close", "order_close",
     "subsidy_toggle", "subsidy_document_upload", "subsidy_document_delete", "subsidy_data_update", "subsidy_ocr_decision",
-    "registration_fee_variance_confirm", "identity_documents_print", "order_owner_declaration_pdf",
+    "registration_fee_variance_confirm", "identity_documents_print", "order_owner_declaration_pdf", "order_tax_consent_preview",
     "order_attachment_upload", "order_attachment_delete", "order_intake_attachment_delete", "order_file_delete", "order_item_file_delete", "order_attachments_zip", "order_attachment_classify",
 }
 

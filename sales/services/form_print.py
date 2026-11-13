@@ -51,6 +51,8 @@ FORMS = (
     FormSpec("receipt", "簽收單", "A4", "送車時給客人簽收"),
     # T-158（使用者 2026-11-13）：eReady 原廠交車確認表，只給 eReady、eMOVING 的電車。
     FormSpec("ev_delivery", "電車交車確認表", "A4", "eReady、eMOVING 交車時使用"),
+    # T-158：SUZUKI 油車有汰舊時的欣鈴申請退稅同意書；預覽與列印都帶入補助撥款帳戶（呼叫端記查看紀錄）。
+    FormSpec("tax_consent", "欣鈴退稅同意書", "A4", "SUZUKI 油車有汰舊時使用"),
 )
 FORM_KEYS = tuple(form.key for form in FORMS)
 FORM_BY_KEY = {form.key: form for form in FORMS}
@@ -76,6 +78,7 @@ FORM_FIELD_SOURCES = {
     "舊車牌照號碼": "舊車車牌",
     "舊車引擎號碼": "營運資料的舊車引擎號碼",
     "強制險年期（簽收單）": "訂單的強制險期間（一年／兩年）",
+    "銀行／郵局帳號（退稅同意書）": "營運資料的補助撥款銀行＋匯款帳戶；預覽、列印都會顯示並記入處理紀錄，沒填留白",
 }
 
 MAKER_NAMES = {
@@ -233,16 +236,23 @@ def form_warnings(order, values):
                 warnings["tax_declaration"].append(label)
     if ev_delivery_applies(order) and not values["plate"]:
         warnings["ev_delivery"].append("車牌")
+    from sales.services.tax_consent_pdf import needs_tax_consent, payout_account_text
+    if needs_tax_consent(order) and not payout_account_text(order):
+        warnings["tax_consent"].append("補助撥款帳戶（留白手寫）")
     return warnings
 
 
 def suggested_forms(order, values):
-    """預設勾選：信封、簽收單都要；有汰舊才勾聲明書；eReady、eMOVING 加勾電車交車確認表。"""
+    """預設勾選：信封、簽收單都要；有汰舊才勾聲明書；eReady、eMOVING 加勾電車交車確認表；
+    SUZUKI 油車有汰舊加勾退稅同意書。"""
     picked = ["envelope", "receipt"]
     if order.is_trade_in_subsidy or values["old_plate"]:
         picked.insert(1, "tax_declaration")
     if ev_delivery_applies(order):
         picked.append("ev_delivery")
+    from sales.services.tax_consent_pdf import needs_tax_consent
+    if needs_tax_consent(order):
+        picked.append("tax_consent")
     return picked
 
 
@@ -683,7 +693,9 @@ def ordered_jobs(jobs, *, group_by_form=True):
 
 
 def build_forms_pdf(jobs, *, group_by_form=True, today=None):
-    """依序輸出多張訂單的 A4 套表（聲明書、簽收單、電車交車確認表）為單一 PDF；信封另出 Word 檔。
+    """依序輸出多張訂單的 A4 套表（聲明書、簽收單、電車交車確認表、退稅同意書）為單一 PDF；信封另出 Word 檔。
+
+    退稅同意書會印出補助撥款帳戶，呼叫端（POST）要記 payout_account_viewed（log_payout_account_views）。
 
     group_by_form：同一種套表排在一起；否則依訂單順序。
     """
@@ -701,6 +713,9 @@ def build_forms_pdf(jobs, *, group_by_form=True, today=None):
             _draw_receipt(pdf, job.order, values, today, job.note, job.address)
         elif job.form == "ev_delivery":
             _draw_ev_delivery(pdf, job.order, values)
+        elif job.form == "tax_consent":
+            from sales.services.tax_consent_pdf import draw_tax_consent, payout_account_text
+            draw_tax_consent(pdf, job.order, account=payout_account_text(job.order))
         else:
             raise ValueError(f"PDF 不含這種套表：{job.form}")
         pdf.showPage()

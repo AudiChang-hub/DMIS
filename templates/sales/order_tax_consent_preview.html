@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}欣鈴退稅同意書預覽 · {{ order.number }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'order_detail' order.pk as order_detail_url %}
+{% include "sales/_page_back.html" with fallback_url=order_detail_url label="返回訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">{{ order.number }}・{{ order.owner_name }}</p><h1>欣鈴退稅同意書預覽</h1>
+    <p class="muted">{% if account %}已帶入補助撥款帳戶，請核對銀行與帳號；這次查看已記入訂單處理紀錄。{% else %}補助撥款帳戶還沒填，印出後在帳號欄手寫。{% endif %}</p></div>
+</section>
+<section class="section-block signing-document">
+  <div class="section-body signing-document__pages">{% for page in pages %}<img class="signing-document__preview" src="{{ page.src }}" alt="欣鈴退稅同意書內容預覽">{% endfor %}</div>
+  <div class="section-body">
+    <form method="post" action="{% url 'order_documents_print' order.pk %}" target="_blank">{% csrf_token %}
+      <input type="hidden" name="part" value="tax_consent">
+      <div class="form-actions"><a class="button ghost" href="{{ order_detail_url }}">返回訂單</a><button type="submit" class="button primary">列印退稅同意書</button></div>
+    </form>
+  </div>
+</section>
+{% endblock %}

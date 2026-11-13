@@ -73,7 +73,7 @@
                   <span>{{ item.label }}</span>
                 </label>
                 {% if item.warnings %}<small class="form-print__warn">缺：{{ item.warnings|join:"、" }}</small>{% endif %}
-                {% else %}<small class="form-print__na">不適用（限 eReady、eMOVING）</small>{% endif %}
+                {% else %}<small class="form-print__na">不適用（{{ item.unavailable }}）</small>{% endif %}
               </div>
             </td>
             {% endfor %}

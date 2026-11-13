@@ -11,7 +11,7 @@ from sales.models import AccessoryCategory, AccessoryLine, AccessoryProduct, Sal
 from sales.tests import test_order_lifecycle as lifecycle
 from sales.tests import test_order_wizard
 
-migration = importlib.import_module("sales.migrations.0205_fixed_accessory_categories")
+migration = importlib.import_module("sales.migrations.0206_fixed_accessory_categories")
 
 
 @override_settings(MEDIA_ROOT=test_order_wizard.MEDIA)

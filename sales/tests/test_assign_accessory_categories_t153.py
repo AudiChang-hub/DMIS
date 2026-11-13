@@ -14,7 +14,7 @@ from sales.models import AccessoryCategory, AccessoryLine, AccessoryProduct
 from sales.services.accessory_catalog import learn_custom_accessories
 from sales.tests import test_order_lifecycle as lifecycle
 
-# 正式站 2026-11-13 套用 0205 後的樣子：後貨架／置物刪除（未分類）、外觀改裝→改裝部品、電子與鑰匙→行車紀錄器、乘載→其他。
+# 正式站 2026-11-13 套用 0206 後的樣子：後貨架／置物刪除（未分類）、外觀改裝→改裝部品、電子與鑰匙→行車紀錄器、乘載→其他。
 BEFORE = {
     "輕便安全帽": "安全帽", "五匹手機架": "手機架", "前土除保桿": "保桿", "左右前側保桿": "保桿", "左右後側保桿": "保桿",
     "刀鋒燈罩": "改裝部品", "原廠踩發桿": "改裝部品", "增高螺絲": "改裝部品", "方向燈框": "改裝部品", "腳踏飛翼": "改裝部品",

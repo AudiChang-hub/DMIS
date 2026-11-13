@@ -7202,8 +7202,9 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
     grid-template-areas: "name name name name actions" "qty type price labor total" "note note note note note";
   }
 }
-/* 寬：一列排完，欄名改在表頭；欄位標籤保留給讀屏。 */
-@container accessory (min-width: 760px) {
+/* 寬：一列排完，欄名改在表頭；欄位標籤保留給讀屏。
+   門檻 920px（T-153，使用者 2026-11-13 選方案 B）：其他欄固定約 690px，名稱格要放得下類別與名稱選單，不足就用上一段的兩行排法。 */
+@container accessory (min-width: 920px) {
   .accessory-head, .accessory-section .accessory-row {
     grid-template-columns: minmax(0, 1fr) 4rem 6rem 6rem 6rem 7.5rem 7.5rem;
     column-gap: var(--space-3);

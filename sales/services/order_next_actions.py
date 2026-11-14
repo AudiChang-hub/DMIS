@@ -242,7 +242,7 @@ def _registration_action(order, registration_missing):
     return NextAction(
         key="registration",
         title="確認領牌完成",
-        description="領牌資料與必備文件已齊，請核對後完成此階段。",
+        description="領牌日期與車牌已填；實際領牌後按「確認完成」，才算實際領牌日並鎖定成本與獎勵。",
         action_label="前往領牌確認",
         url=_tab_url(order, "registration"),
         target_tab="registration",

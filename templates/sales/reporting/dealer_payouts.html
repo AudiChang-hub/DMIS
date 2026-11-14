@@ -47,7 +47,7 @@
     <dl class="payout-summary__facts">
       <div><dt>已給付金額</dt><dd>${{ totals.paid_amount|number_with_commas }}</dd></div>
       <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if totals.changed_count or orphans %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.changed_count and orphans %} · {% endif %}{% if orphans %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
-      <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌</dd><small>傭金依領牌日、台數獎金依期間結束日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
+      <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌</dd><small>傭金依領牌日、台數獎金依期間結束日、車行獎勵未確認領牌時依訂單日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
     </dl>
   </section>
 
@@ -56,12 +56,18 @@
     <span class="callout__icon" aria-hidden="true">!</span>
     <div>
       <h3>已給付但來源已不存在</h3>
-      <p>這些項目登記已給付後，訂單已退車、刪除，或已不符合台數獎金條件。請和車行確認是否要收回，處理後按「確認處理」。</p>
+      <p>這些項目登記已給付後，訂單已退車、刪除，或已不符合台數獎金條件；標「資格撤銷・待追回」的是確認領牌後實際領牌日不在活動期間的車行獎勵。請和車行確認是否要收回，處理後按對應的按鈕結案。</p>
       <ul class="payout-orphans__list">
         {% for entry in orphans %}
         <li>
-          <div><strong>{{ entry.dealer.name }}</strong><span>{{ entry.label }}</span><small>{% if entry.order %}{{ entry.order.number }} · {% endif %}{% if entry.paid_amount is not None %}已付 ${{ entry.paid_amount|number_with_commas }}{% else %}已給 {{ entry.paid_quantity|floatformat:'-2' }} {{ entry.paid_unit }}{% endif %} · {{ entry.paid_at|date:'Y/m/d' }} {{ entry.paid_by }}{% if entry.note %} · {{ entry.note }}{% endif %}</small></div>
-          {% if can_operate %}<form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="確認「{{ entry.dealer.name }} {{ entry.label }}」已和車行處理完畢？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="resolve"><input type="hidden" name="entry" value="{{ entry.pk }}"><button class="button secondary small" type="submit">確認處理</button></form>{% endif %}
+          <div><strong>{{ entry.dealer.name }}</strong>{% if entry.revoked %}<span class="payout-state payout-state--changed">資格撤銷・待追回</span>{% endif %}<span>{{ entry.label }}</span><small>{% if entry.order %}{{ entry.order.number }} · {% endif %}{% if entry.paid_amount is not None %}已付 ${{ entry.paid_amount|number_with_commas }}{% else %}已給 {{ entry.paid_quantity|floatformat:'-2' }} {{ entry.paid_unit }}{% endif %} · {{ entry.paid_at|date:'Y/m/d' }} {{ entry.paid_by }}{% if entry.note %} · {{ entry.note }}{% endif %}</small></div>
+          {% if can_operate %}{% if entry.revoked %}
+          {# 資格撤銷的車行獎勵（T-176）：由使用者決定已追回或不追回，記在處理事件後結案。 #}
+          <div class="payout-orphans__actions">
+            <form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="「{{ entry.dealer.name }} {{ entry.label }}」已向車行追回？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="resolve"><input type="hidden" name="outcome" value="recovered"><input type="hidden" name="entry" value="{{ entry.pk }}"><button class="button secondary small" type="submit">已追回</button></form>
+            <form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="「{{ entry.dealer.name }} {{ entry.label }}」不向車行追回，照已給付結案？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="resolve"><input type="hidden" name="outcome" value="waived"><input type="hidden" name="entry" value="{{ entry.pk }}"><button class="button ghost small" type="submit">不追回</button></form>
+          </div>
+          {% else %}<form method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-confirm="確認「{{ entry.dealer.name }} {{ entry.label }}」已和車行處理完畢？">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="action" value="resolve"><input type="hidden" name="entry" value="{{ entry.pk }}"><button class="button secondary small" type="submit">確認處理</button></form>{% endif %}{% endif %}
         </li>
         {% endfor %}
       </ul>
@@ -84,7 +90,8 @@
       {% for row in group.orders %}
       <article class="payout-order">
         <header class="payout-order__meta">
-          <time datetime="{{ row.order.registration_date|date:'Y-m-d' }}">{{ row.order.registration_date|date:'m/d' }}<small>{{ row.order.registration_date|date:'Y' }}</small></time>
+          {# 尚未確認領牌的單（車行獎勵預先觸發，T-176）列訂單成立日並註明。 #}
+          {% with day=row.order.reward_basis_date %}<time datetime="{{ day|date:'Y-m-d' }}">{{ day|date:'m/d' }}<small>{% if row.order.registration_completed_at %}{{ day|date:'Y' }}{% else %}訂單日{% endif %}</small></time>{% endwith %}
           <div>
             <p class="payout-order__vehicle">{{ row.order.vehicle_model.name }} <span>{{ row.order.color.name }}</span></p>
             <p class="payout-order__ref">{% if can_open_orders %}<a href="{% url 'order_detail' row.order.pk %}">{{ row.order.number }}</a>{% else %}{{ row.order.number }}{% endif %} · {{ row.order.owner_name }}</p>

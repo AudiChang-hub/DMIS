@@ -2783,6 +2783,9 @@ input[type="file"].form-control { padding: var(--space-3); }
 .registration-completion.has-missing { color: var(--amber); background: var(--amber-soft); }
 .registration-completion.is-ready { color: var(--action-text); background: var(--mint); }
 .registration-completion button:disabled { cursor: not-allowed; opacity: .45; }
+/* 「確認完成」按鈕不被說明文字擠成兩行（T-172）。 */
+.registration-completion > form { flex: none; }
+.registration-completion .button { white-space: nowrap; }
 .delivery-stage > p { margin: var(--stack-gap-sm) var(--stack-gap) var(--stack-gap); color: var(--muted); }
 .info-card { background: var(--blue-soft); border: 1px solid var(--blue-border); }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: var(--stack-gap); gap: var(--stack-gap); }

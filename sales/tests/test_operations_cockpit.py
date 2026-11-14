@@ -76,7 +76,7 @@ class CockpitTests(TestCase):
         order = SalesOrder.objects.create(
             owner_name="駕駛艙合成測試", owner_phone="0912345678", owner_address="合成地址", owner_id_number="A123456789",
             vehicle_model=model, color=color, registration_date=day, established_on=established or day, status=status,
-            vehicle_price=price, **extra)
+            vehicle_price=price, **{"registration_completed_at": timezone.now() if day else None, **extra})  # T-172 A′
         OrderOperationsProfile.objects.filter(order=order).update(
             actual_disbursement=price, vehicle_cost=price - profit, legacy_finance_reconciliation={})
         return order

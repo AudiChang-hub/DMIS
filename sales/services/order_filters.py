@@ -3,7 +3,7 @@ from django.core.exceptions import SuspiciousOperation
 from django.db.models import F, Q
 from django.utils.dateparse import parse_date
 
-from sales.models import VehicleModel
+from sales.models import VehicleModel, registration_confirmed_q
 from .sales_metrics import CANCELLED_STATUSES, filter_payment_risk
 
 FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "business_only", "include_cancelled", "attention", "drafts")
@@ -19,7 +19,8 @@ def plate_fee_variance_q():
 
 
 def fee_variance_orders(rows):
-    return (rows.filter(plate_fee_variance_q(), registration_date__isnull=False)
+    # 牌險差異只看已確認領牌的單；確認前的試算會隨預計日變動（T-172 A′）。
+    return (rows.filter(plate_fee_variance_q(), registration_confirmed_q())
         .exclude(status__in=CANCELLED_STATUSES)
         .exclude(registration_fee_variance_confirmed_calculated_total=F("registration_calculated_total"),
                  registration_fee_variance_confirmed_actual_total=F("plate_insurance_fee")))
@@ -59,6 +60,9 @@ def filter_order_analysis(rows, params, *, business_default=False):
                 raise SuspiciousOperation("日期格式不正確，請使用 YYYY-MM-DD。")
             dates[key] = value
             rows = rows.filter(**{f"{field}__{lookup}": value})
+            if field == "registration_date":
+                # 依領牌日篩選只算已確認領牌；預計日不算（T-172 A′）。
+                rows = rows.filter(registration_confirmed_q())
     if len(dates) == 2 and dates["date_from"] > dates["date_to"]:
         raise SuspiciousOperation("開始日期不能晚於結束日期。")
     if (business_default or params.get("business_only") == "1") and params.get("include_cancelled") != "1" and params.get("risk") != "refund":

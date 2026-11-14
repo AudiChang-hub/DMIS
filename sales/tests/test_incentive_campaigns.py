@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.models import (
     DealerRewardCampaign,
@@ -84,7 +85,9 @@ class CampaignFixtureMixin:
         initialize_company(order, self.admin)
         order.save()
         if registration_date:
-            SalesOrder.objects.filter(pk=order.pk).update(registration_date=registration_date)
+            # 有領牌日的測試單代表已確認領牌（T-172 A′：未確認的日期只是預計日，獎勵依訂單成立日）。
+            SalesOrder.objects.filter(pk=order.pk).update(registration_date=registration_date,
+                                                          registration_completed_at=timezone.now())
             order.refresh_from_db()
         return order
 
@@ -320,7 +323,10 @@ class IncentiveCampaignApplyTests(CampaignFixtureMixin, TestCase):
         self.assertEqual(apply_order_incentive_rule(order).promotion_subsidy, Decimal("2000"))
 
     def test_pending_orders_refresh_after_campaign_change(self):
-        order = self.make_order(self.fun, source_type=SalesOrder.SourceType.PLATFORM, registration_date=date(2026, 11, 15))
+        # 尚未確認領牌的單依訂單成立日預先觸發（T-176），活動異動時跟著重算。
+        order = self.make_order(self.fun, source_type=SalesOrder.SourceType.PLATFORM)
+        SalesOrder.objects.filter(pk=order.pk).update(established_on=date(2026, 11, 15))
+        order.refresh_from_db()
         apply_order_incentive_rule(order)
         with self.captureOnCommitCallbacks(execute=True):
             item = self.bonus.items.get()
@@ -545,8 +551,18 @@ class IncentiveBackfillTests(CampaignFixtureMixin, TestCase):
         SalesOrder.objects.filter(pk=cancelled.pk).update(status=SalesOrder.Status.CANCELLED)
         outside = self.make_order(self.sui, source=self.dealer, source_type=SalesOrder.SourceType.DEALER,
                                   registration_date=date(2026, 12, 1))
+        # 尚未確認領牌、只填預計日的單依訂單成立日判斷（T-176）：成立日在期間外就不列，預計日落在期間內也不算。
+        planned = self.make_order(self.sui, source=self.dealer, source_type=SalesOrder.SourceType.DEALER)
+        SalesOrder.objects.filter(pk=planned.pk).update(registration_date=date(2026, 11, 6), established_on=date(2026, 10, 20))
         listed = {row["order"].pk for row in self.client.get(self.url).context["rows"]}
-        self.assertFalse(listed & {imported.pk, cancelled.pk, outside.pk})
+        self.assertFalse(listed & {imported.pk, cancelled.pk, outside.pk, planned.pk})
+
+    def test_unconfirmed_order_is_listed_by_established_date(self):
+        early = self.make_order(self.sui, source=self.dealer, source_type=SalesOrder.SourceType.DEALER)
+        SalesOrder.objects.filter(pk=early.pk).update(established_on=date(2026, 11, 8), registration_date=date(2026, 12, 3))
+        rows = {row["order"].pk: row for row in self.client.get(self.url).context["rows"]}
+        self.assertIn(early.pk, rows, "未確認領牌依訂單成立日 11/08 列入，預計日 12/03 不算")
+        self.assertEqual(rows[early.pk]["after"]["sales_bonus"], Decimal("800"))
 
     def test_overwrite_needs_both_operate_permissions(self):
         from sales.access.models import ScreenAccessGrant, UserAccessState
@@ -613,6 +629,10 @@ class RegistrationFlowTests(CampaignFixtureMixin, TestCase):
                                     HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content[:300])
         order.refresh_from_db()
+        if not order.is_registration_complete:
+            # 按「確認完成」（T-172 A′）：存檔不會自動完成。
+            self.client.post(reverse("registration_complete", args=[order.pk]))
+            order.refresh_from_db()
 
     def test_dealer_order_gets_rewards_on_registration_and_date_change_reapplies(self):
         order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
@@ -639,7 +659,12 @@ class RegistrationFlowTests(CampaignFixtureMixin, TestCase):
         self.assertContains(page, "車行獎勵")
         self.assertContains(page, "給 甲車行")
         self.assertContains(page, "SUZUKI 常態：實銷 $2,000／促銷 $0／分期 $0")
-        self.assertNotContains(page, "11 月油車加碼")
+        self.assertNotContains(page, "11 月油車加碼：實銷")
+        # 改到 12 月後撤銷的活動留在處理紀錄（T-176）。
+        self.assertTrue(order.events.filter(event_type="incentive_campaign_revoked",
+                                            description__contains="11 月油車加碼").exists())
+        self.assertTrue(order.events.filter(event_type="dealer_reward_revoked",
+                                            description__contains="四家車行 SUZUKI 油車送機油").exists())
 
     def test_dealer_scope_and_non_dealer_orders(self):
         other = self.order_with_vehicle(source=self.dealer_b, source_type=SalesOrder.SourceType.DEALER)
@@ -670,7 +695,8 @@ class RegistrationFlowTests(CampaignFixtureMixin, TestCase):
 
     def test_pending_order_follows_campaign_until_registration(self):
         order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
-        SalesOrder.objects.filter(pk=order.pk).update(registration_date=date(2026, 11, 20))
+        # 尚未確認領牌：依訂單成立日預先觸發（T-176）。
+        SalesOrder.objects.filter(pk=order.pk).update(established_on=date(2026, 11, 20))
         order.refresh_from_db()
         apply_order_dealer_rewards(order)
         self.assertEqual(order.dealer_reward_lines.count(), 2)

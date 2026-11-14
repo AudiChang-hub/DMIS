@@ -1,4 +1,5 @@
 """T-142：報表中心篩選選了就自動套用，畫面列出目前篩選且每項可單獨移除。"""
+from django.utils import timezone
 import json
 from datetime import date
 from pathlib import Path
@@ -28,7 +29,8 @@ class ReportActiveFilterTests(TestCase):
         for model, source, month in [(cls.suzuki, cls.a, 9), (cls.suzuki, cls.b, 10), (cls.sym, cls.a, 10)]:
             color = VehicleColor.objects.create(vehicle_model=model, name=f"白{month}{source.pk}")
             SalesOrder.objects.create(source_type="dealer", source=source, order_date=date(2026, month, 2),
-                registration_date=date(2026, month, 3), owner_type="company", owner_name="合成車主", owner_id_number="83739807",
+                registration_date=date(2026, month, 3), registration_completed_at=timezone.now(),  # 已確認領牌（T-172 A′）
+                owner_type="company", owner_name="合成車主", owner_id_number="83739807",
                 vehicle_model=model, color=color, vehicle_price=10000, actual_balance=10000,
                 calculated_balance=10000, payment_type="cash", status="completed")
         cls.config = {**initial_config(), "audience": "team", "include_records": True}

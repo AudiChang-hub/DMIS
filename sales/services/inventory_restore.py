@@ -15,7 +15,7 @@ from sales.access.services import is_root
 from sales.services.audit_note import optional_note, with_note
 from sales.models import SalesOrder, VehicleInventory, VehicleInventoryHistory, VehicleTransferSignoff
 from sales.services.inventory_history import STATUS_LABELS, status_change
-from sales.services.order_deletion import DELETION_REVIEW_LABEL, is_order_delivered
+from sales.services.order_deletion import DELETION_REVIEW_LABEL, is_order_delivered, is_order_registered
 
 Status = VehicleInventory.Status
 RESTORABLE_STATUSES = (Status.INACTIVE, Status.SOLD, Status.RESERVED, Status.DELIVERED, Status.TRANSFERRED_OUT)
@@ -66,8 +66,9 @@ def registration_trace(vehicle, review_order=None):
     if vehicle.registered_plate_number:
         return {"plate": vehicle.registered_plate_number, "registered_on": vehicle.registered_on, "source": "車輛已登記為領牌車"}
     order = review_order or deletion_review_order(vehicle)
-    if order and (order.final_plate_number or order.registration_completed_at):
-        return {"plate": order.final_plate_number, "registered_on": order.registration_date,
+    # 按過「確認完成」才算已領牌；事先填的車牌與預計日不算（T-172 A′）。
+    if order and is_order_registered(order):
+        return {"plate": order.final_plate_number, "registered_on": order.confirmed_registration_date,
                 "source": f"刪除的訂單 {order.number} 已領牌"}
     return None
 

@@ -34,6 +34,8 @@
 .payout-orphans__list li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--amber-border); }
 .payout-orphans__list li > div { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: baseline; }
 .payout-orphans__list small { flex-basis: 100%; color: var(--amber-ink); }
+/* 資格撤銷・待追回（T-176）：已追回／不追回兩個按鈕並排，不跟著說明換行。 */
+.payout-orphans__list li > .payout-orphans__actions { flex: none; flex-wrap: nowrap; align-items: center; gap: var(--space-2); }
 
 /* 車行分組 */
 .payout-dealer { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); overflow: clip; }
@@ -154,6 +156,6 @@
   .payout-item, .payout-check, .payout-check__box, .payout-check__box::after, .payout-note input { transition: none; }
 }
 @media print {
-  .payout-filters, .payout-dealer__batch, .payout-note, .payout-item__toggle form, .payout-orphans form { display: none !important; }
+  .payout-filters, .payout-dealer__batch, .payout-note, .payout-item__toggle form, .payout-orphans form, .payout-orphans__actions { display: none !important; }
   .payout-summary { background: none; color: inherit; border: 1px solid var(--line); }
 }

@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from sales.models import IncentiveCampaign, OrderIncentiveApplication, OrderOperationsProfile, VehicleModel
+from sales.models import IncentiveCampaign, OrderEvent, OrderIncentiveApplication, OrderOperationsProfile, VehicleModel
 from sales.services.campaign_conditions import active_on, vehicle_matches
 
 
@@ -92,7 +92,17 @@ def incentive_totals(vehicle_model, source_type, registration_date, dealer_id=No
     return rows, totals, bool(rows), promotion_applies, regular
 
 
+def basis_label(order):
+    """獎勵活動依據的日期名稱（T-176）。"""
+    return "實際領牌日" if order.registration_completed_at and order.registration_date else "訂單成立日"
+
+
 def apply_order_incentive_rule(order, actor_name="", *, lock=False):
+    """依 `order.reward_basis_date` 套用原廠獎勵活動（T-176，使用者 2026-11-14 比照車行獎勵）。
+
+    確認領牌前依訂單成立日預先觸發（預估），填的預計領牌日不影響；按「確認完成」後依實際領牌日判斷，
+    原本有、現在不符合的活動撤銷並寫 OrderEvent。人工改過的金額照舊保留，撤銷時另外提示。
+    """
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
     if profile.incentive_locked_at:
         return profile
@@ -101,8 +111,12 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
 
     vehicle_model = order.vehicle_model if order.vehicle_model_id else None
     dealer = order_reward_dealer(order)
+    basis_date = order.reward_basis_date
+    previous = {
+        application.campaign_id: application.campaign_name for application in profile.incentive_applications.all()
+    }
     rows, totals, matched, promotion_applies, regular = incentive_totals(
-        vehicle_model, order.source_type, order.registration_date, dealer.pk if dealer else None,
+        vehicle_model, order.source_type, basis_date, dealer.pk if dealer else None,
     )
     protected_fields = set(profile.manual_financial_fields or [])
     released = set()
@@ -137,7 +151,7 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
 
     # 舊欄位保留給回切舊版：常態活動由車型版本轉換而來時指回該版本。
     profile.incentive_rule = regular.legacy_rule if regular else None
-    profile.incentive_registration_date = order.registration_date if matched else None
+    profile.incentive_registration_date = basis_date if matched else None
     update_fields = [
         *INCENTIVE_FIELDS,
         "insurance_commission",
@@ -154,7 +168,18 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         profile.incentive_locked_by = actor_name
         update_fields.extend(["incentive_locked_at", "incentive_locked_by"])
     profile.save(update_fields=update_fields)
-    replace_incentive_applications(profile, rows, order.registration_date)
+    replace_incentive_applications(profile, rows, basis_date)
+    revoked = [name for campaign_id, name in previous.items() if campaign_id not in {campaign.pk for campaign, _a in rows}]
+    if revoked:
+        manual = sorted(set(profile.manual_financial_fields or []) & set(INCENTIVE_FIELDS))
+        note = "；獎勵欄位有人工輸入的金額，未自動改，請確認" if manual else ""
+        OrderEvent.objects.create(
+            order=order,
+            event_type="incentive_campaign_revoked",
+            description=f"原廠獎勵活動資格撤銷：{'、'.join(revoked)}（依{basis_label(order)} "
+                        f"{basis_date:%Y/%m/%d} 不符合活動條件或期間）{note}",
+            actor_name=actor_name or "系統",
+        )
     return profile
 
 

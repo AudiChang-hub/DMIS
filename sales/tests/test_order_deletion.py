@@ -146,12 +146,19 @@ class OrderDeletionTests(TestCase):
         self.assertFalse(deletion_blockers(self.order))
 
     def test_registration_delivery_refund_and_editor_blockers(self):
-        for fields in [{"registration_date": timezone.localdate()}, {"status": SalesOrder.Status.COMPLETED},
-                       {"status": SalesOrder.Status.CANCEL_REFUND_PENDING}, {"final_plate_number": "QA-123"}]:
+        # 已確認領牌才算已領牌；只填預計日或事先填的車牌不擋刪單（T-172 A′）。
+        confirmed = {"registration_completed_at": timezone.now()}
+        for fields in [{"registration_date": timezone.localdate(), **confirmed}, {"status": SalesOrder.Status.COMPLETED},
+                       {"status": SalesOrder.Status.CANCEL_REFUND_PENDING}, {"final_plate_number": "QA-123", **confirmed}]:
             order = SalesOrder.objects.get(pk=self.order.pk)
             for key, value in fields.items():
                 setattr(order, key, value)
             self.assertTrue(deletion_blockers(order))
+        for fields in [{"registration_date": timezone.localdate()}, {"final_plate_number": "QA-123"}]:
+            order = SalesOrder.objects.get(pk=self.order.pk)
+            for key, value in fields.items():
+                setattr(order, key, value)
+            self.assertFalse(deletion_blockers(order), fields)
         SalesOrder.objects.filter(pk=self.order.pk).update(editing_session="other", editing_at=timezone.now())
         with self.assertRaises(ValidationError):
             self.change()
@@ -258,7 +265,8 @@ class OrderDeletionTests(TestCase):
         self.assertEqual(self.client.get(reverse("order_detail", args=[self.order.pk])).status_code, 404)
 
     def test_admin_registered_order_confirmation_form_executes_force_delete(self):
-        SalesOrder.objects.filter(pk=self.order.pk).update(status="delivery_pending", final_plate_number="QA-123")
+        SalesOrder.objects.filter(pk=self.order.pk).update(status="delivery_pending", final_plate_number="QA-123",
+                                                           registration_completed_at=timezone.now())
         self.order.refresh_from_db()
         url = reverse("order_delete", args=[self.order.pk])
         page = self.client.get(url)

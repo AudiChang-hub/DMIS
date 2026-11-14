@@ -136,7 +136,9 @@ def record_cells(order, columns):
     values = {
         "established_on": order.established_on.strftime("%Y/%m/%d") if order.established_on else "待補領牌日",
         "number": order.number,
-        "registration_date": order.registration_date.strftime("%Y/%m/%d") if order.registration_date else "日期未填寫",
+        # 未按「確認完成」的是預計日，標「預計」（T-172 A′）。
+        "registration_date": ((order.registration_date.strftime("%Y/%m/%d") if order.registration_completed_at
+                               else f'預計 {order.registration_date:%Y/%m/%d}') if order.registration_date else "日期未填寫"),
         "source": order.source.name if order.source else "本店／未指定",
         "legacy_source_name": str((mapped.get("dealer_name_raw") if legacy else order.source.name if order.source else '') or '').strip() or '馭盛',
         "model_number": mapped.get("model_number") if legacy else order.vehicle_model.model_number or order.vehicle_model.name,

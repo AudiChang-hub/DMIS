@@ -49,8 +49,11 @@ def is_order_delivered(order):
 
 
 def is_order_registered(order):
-    # 只看車牌與領牌完成；Excel 匯入沒車牌的單把預計領牌日存在 registration_date，不能當成已領牌。
-    return bool(order.registration_completed_at or order.final_plate_number)
+    # 按過「確認完成」才算已領牌（T-172 A′）：確認前的日期是預計日、車牌可以事先填，都不算。
+    # Excel 匯入的單沿用舊判斷：有車牌就算（匯入時沒帶領牌日的單沒有完成時間）。
+    if order.registration_completed_at:
+        return True
+    return bool(order.final_plate_number and is_imported_order(order))
 
 
 def is_imported_order(order):
@@ -72,7 +75,7 @@ def deletion_blockers(order):
     blockers = permanent_deletion_blockers(order)
     if order.allocated_vehicle_id:
         blockers.append("仍綁定庫存車輛，請先完成取消／解除配車流程。")
-    if order.registration_completed_at or order.registration_date or order.final_plate_number:
+    if is_order_registered(order):
         blockers.append("已有領牌資料，請先確認並更正領牌紀錄；刪除不會撤銷領牌。")
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         blockers.append("仍有退款待辦，請先完成退款。")

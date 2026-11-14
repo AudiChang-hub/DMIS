@@ -183,6 +183,16 @@ class GiftDistributionEvent(models.Model):
         ordering = ["-created_at", "-pk"]
 
 
+def registration_confirmed_q(prefix=""):
+    """領牌已確認：按過「確認完成」（使用者 2026-11-14 T-172 A′）。
+
+    領牌日只有一個欄位；確認前填的是預計日，不算實際領牌日。凡是依領牌日統計、分月、判斷「已領牌」的地方
+    都要加這個條件（例如 `SalesOrder.objects.filter(registration_confirmed_q(), registration_date__gte=...)`）。
+    跨關聯查詢時傳前綴，例如 `registration_confirmed_q("order__")`。
+    """
+    return Q(**{f"{prefix}registration_completed_at__isnull": False, f"{prefix}registration_date__isnull": False})
+
+
 def normalize_vehicle_identifier(value):
     """建立比對鍵；畫面仍保留使用者輸入的原始號碼。"""
     return re.sub(r"[\s-]+", "", value or "").upper() or None
@@ -4089,7 +4099,27 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def registration_display(self):
-        return self.registration_date.strftime('%Y/%m/%d') if self.registration_date else ('—' if self.is_cancelled_sale else '未領牌')
+        # 尚未按「確認完成」的日期只是預計日（T-172 A′），加「預計」字樣，避免被當成實際領牌日。
+        if not self.registration_date:
+            return '—' if self.is_cancelled_sale else '未領牌'
+        text = self.registration_date.strftime('%Y/%m/%d')
+        return text if self.registration_completed_at else f'預計 {text}'
+
+    @property
+    def confirmed_registration_date(self):
+        """實際領牌日：按過「確認完成」才算；確認前填的是預計日，回傳 None（T-172 A′）。"""
+        return self.registration_date if self.registration_completed_at else None
+
+    @property
+    def is_registration_date_planned(self):
+        return bool(self.registration_date and not self.registration_completed_at)
+
+    @property
+    def reward_basis_date(self):
+        """獎勵活動的判斷日期（T-176）：確認領牌後依實際領牌日；確認前依訂單成立日預先觸發，預計日不影響。"""
+        if self.registration_completed_at and self.registration_date:
+            return self.registration_date
+        return self.established_on or self.order_date
 
     @property
     def established_display(self):
@@ -4288,7 +4318,7 @@ class SalesOrder(TimeStampedModel):
         if not self.allocated_vehicle_id:
             missing.append("完成配車")
         if not self.registration_date:
-            missing.append("實際領牌日期")
+            missing.append("領牌日期")
         if not self.final_plate_number:
             missing.append("車牌號碼")
         uploaded = set(

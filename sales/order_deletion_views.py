@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from sales.models import SalesOrder
 from sales.services.audit_note import NOTE_HELP, NOTE_LABEL
-from sales.services.order_deletion import change_deletion, deletion_blockers, is_order_delivered, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
+from sales.services.order_deletion import change_deletion, deletion_blockers, is_order_delivered, is_order_registered, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
 from sales.services.order_intake import scoped_orders
 from sales.services.order_origin import attach_order_origin
@@ -53,7 +53,7 @@ def order_delete(request, pk, *, restore=False):
     if not restore:
         if order.allocated_vehicle_id:
             impacts.append("解除本單配車：未領牌的車放回可銷售庫存；已領牌的車停用並標「刪單待確認」，由 admin 在車輛頁判斷是否改回現有庫存。")
-        if order.registration_date or order.registration_completed_at or order.final_plate_number:
+        if is_order_registered(order):
             impacts.append("領牌資料作歷史留存，退出有效訂單統計；不撤銷實際領牌。")
         if order.payment_records.exists() or order.deposit_amount:
             impacts.append("退出有效收款待辦及營運統計，保留收款證據；不自動標記退款。")
@@ -115,7 +115,7 @@ def _review_impacts(order):
         impacts.append(("danger", "已交車・不可刪除"))
     if order.allocated_vehicle_id:
         impacts.append(("warn", "已配車"))
-    if order.registration_completed_at or order.registration_date or order.final_plate_number:
+    if is_order_registered(order):
         impacts.append(("warn", "已有領牌資料"))
     if order.payment_records.all():
         impacts.append(("warn", "有收款紀錄"))

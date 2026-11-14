@@ -1,12 +1,11 @@
 """T-167 營運總表駕駛艙（使用者 2026-11-13 選 A 案）。"""
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.db import connection
 from django.test import TestCase
-from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -23,6 +22,8 @@ from sales.models import (
 )
 from sales.services import operations_cockpit
 from sales.services.dashboard_metrics import _last_year, build_dashboard_metrics
+from sales.services.payment_summary import payment_summary
+from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk
 
 
 def make_vehicle(model, color, status, number, received_on=None):
@@ -251,10 +252,66 @@ class CockpitTests(TestCase):
         self.make_order(today)
         self.assertEqual(operations_cockpit.load("month", today)["pulse"]["count"]["value"], 1)
 
-    def test_query_count_stays_bounded(self):
+    def test_cache_key_changes_with_release_version(self):
+        # T-170：部署新版後不可沿用舊版算的結果（原本最多要等 10 分鐘）。
+        today = timezone.localdate()
+        first = operations_cockpit.load("month", today)
+        self.assertEqual(operations_cockpit.load("month", today)["generated_at"], first["generated_at"])
+        with patch.object(operations_cockpit, "CURRENT_VERSION", "9.9.9"):
+            self.assertNotEqual(operations_cockpit.load("month", today)["generated_at"], first["generated_at"])
+
+    # ── 效能（T-170）：查詢次數固定，不隨訂單張數增加；結果和原本逐項查詢相同 ──
+
+    BUILD_QUERIES = 33
+
+    def test_query_count_is_fixed_regardless_of_order_volume(self):
         today = timezone.localdate()
         for offset in range(6):
             self.make_order(today - timedelta(days=offset * 20))
-        with CaptureQueriesContext(connection) as queries:
+        with self.assertNumQueries(self.BUILD_QUERIES):
             operations_cockpit.build("month", today)
-        self.assertLess(len(queries), 60)
+        for offset in range(12):
+            order = self.make_order(today - timedelta(days=offset * 31), established=today - timedelta(days=offset * 31))
+            PaymentRecord.objects.create(order=order, expected_amount=500, received_amount=100, confirmed=False)
+        with self.assertNumQueries(self.BUILD_QUERIES):
+            operations_cockpit.build("month", today)
+
+    def test_merged_loading_matches_original_per_risk_queries(self):
+        today = date(2026, 9, 12)
+        self.make_order(date(2026, 9, 1))
+        owing = self.make_order(date(2026, 8, 20))
+        PaymentRecord.objects.create(order=owing, expected_amount=500, received_amount=100, confirmed=True)
+        lender = self.make_order(date(2025, 9, 3), payment_type="installment")
+        PaymentRecord.objects.create(order=lender, receipt_kind="lender", expected_amount=500, received_amount=0)
+        overpaid = self.make_order(status="delivery_pending", cash_receivable_v2=True)
+        PaymentRecord.objects.create(order=overpaid, expected_amount=0, received_amount=999999, confirmed=True)
+        self.make_order(date(2024, 1, 5))                       # 24 個月外：不進走勢，但仍要判斷未結清
+        unconfirmed = self.make_order(status="allocation_pending")
+        PaymentRecord.objects.create(order=unconfirmed, expected_amount=500, received_amount=100, confirmed=False)
+        for status in ("cancelled", "cancel_refund_pending"):
+            cancelled = self.make_order(date(2026, 9, 2), status=status)
+            PaymentRecord.objects.create(order=cancelled, expected_amount=500, received_amount=0)
+
+        metrics = build_dashboard_metrics(today)
+        everything = SalesOrder.objects.all()
+        for key in ("outstanding", "unconfirmed", "refund", "overpaid", "stale_allocation"):
+            original = filter_payment_risk(everything, key)
+            self.assertEqual(set(metrics["risk_orders"][key].values_list("pk", flat=True)),
+                             set(original.values_list("pk", flat=True)), key)
+            self.assertEqual(metrics["risk"][key], original.count(), key)
+        self.assertGreater(metrics["risk"]["outstanding"], 2)
+        self.assertEqual(metrics["risk"]["overpaid"], 1)
+        # 「錢」用的單與 payment_summary 和逐張重查相同。
+        reloaded = filter_payment_risk(everything, "outstanding").select_related("legacy_snapshot").prefetch_related(
+            "payment_records", "accessories", "other_fees")
+        self.assertEqual({order.pk: summary for order, summary in metrics["outstanding_summaries"]},
+                         {order.pk: payment_summary(order) for order in reloaded})
+        # 24 個月成交來源和原本的日期區間查詢相同，營運資料與車型都已帶好、不再逐張查。
+        original_source = SalesOrder.objects.filter(registration_date__range=(date(2024, 10, 1), today)).exclude(
+            status__in=CANCELLED_STATUSES)
+        trend_orders = {order.pk: order for row in metrics["trend"] + metrics["trend_last_year"] for order in row["orders"]}
+        self.assertEqual(set(trend_orders), set(original_source.values_list("pk", flat=True)))
+        with self.assertNumQueries(0):
+            for order in trend_orders.values():
+                getattr(order, "operations", None)
+                order.vehicle_model.name

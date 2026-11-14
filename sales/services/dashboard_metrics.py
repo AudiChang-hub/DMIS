@@ -1,7 +1,7 @@
 from calendar import monthrange
 from datetime import datetime, time, timedelta
 
-from django.db.models import Count
+from django.db.models import Count, prefetch_related_objects
 from django.utils import timezone
 
 from sales.models import (
@@ -10,6 +10,7 @@ from sales.models import (
     VehicleInventory,
 )
 from sales.services.business_days import build_dealer_reminders
+from sales.services.payment_summary import payment_summary
 from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk, summarize_sales
 
 
@@ -83,8 +84,16 @@ def build_dashboard_metrics(today=None):
     # 往前多取 12 個月當去年同期對照（T-167）；既有 12 個月走勢的口徑不變。
     last_year_today = _last_year(today)
     last_year_starts = [start.replace(year=start.year - 1) for start in starts]
-    source = list(SalesOrder.objects.filter(registration_date__range=(last_year_starts[0], today))
-                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations', 'vehicle_model', 'legacy_snapshot').prefetch_related('payment_records'))
+    # T-170 效能：未取消的單只載入一次，同時供「未結清／溢收」判斷與 24 個月成交彙總使用；
+    # 收款紀錄要用 prefetch（OrderOperationsProfile.total_received 讀預載快取，否則逐張查）；配件、其他費用
+    # payment_summary 用不到，不預載。營運資料與車型只補抓 24 個月內那幾張（不對全部單 join）。
+    # 結果和原本逐項查詢相同（test_operations_cockpit 有對照）。
+    open_orders = list(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot')
+                       .prefetch_related('payment_records'))
+    source = [order for order in open_orders
+              if order.registration_date and last_year_starts[0] <= order.registration_date <= today]
+    prefetch_related_objects(source, 'operations', 'vehicle_model')
+    summaries = {order.pk: payment_summary(order) for order in open_orders}
     current = _sales_snapshot(month_start, today, source)
     previous = _sales_snapshot(previous_start, comparison_end, source)
     trend_last_year = []
@@ -118,8 +127,23 @@ def build_dashboard_metrics(today=None):
         charts.append({'label': label, 'unit': unit, 'segments': segments, 'points': points,
                        'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
     all_orders = SalesOrder.objects.all()
-    risk_orders = {key: filter_payment_risk(all_orders, key) for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid', 'stale_allocation')}
-    risk = {key: rows.count() for key, rows in risk_orders.items()}
+    # 未結清與溢收：條件和 filter_payment_risk 同一套，只是用上面已算好的 payment_summary，不再各自重載全部訂單。
+    outstanding = [order for order in open_orders
+                   if (summary := summaries[order.pk])['customer_due'] > 0 or summary['lender_due'] > 0
+                   or not summary['legacy_settled']]
+    outstanding_ids = [order.pk for order in outstanding]
+    overpaid_ids = [order.pk for order in open_orders if order.cash_receivable_v2
+                    and ((summary := summaries[order.pk])['customer_overpaid'] > 0 or summary['lender_overpaid'] > 0)]
+    open_queryset = all_orders.exclude(status__in=CANCELLED_STATUSES)
+    risk_orders = {
+        'outstanding': open_queryset.filter(pk__in=outstanding_ids),
+        'unconfirmed': filter_payment_risk(all_orders, 'unconfirmed'),
+        'refund': filter_payment_risk(all_orders, 'refund'),
+        'overpaid': open_queryset.filter(pk__in=overpaid_ids),
+        'stale_allocation': filter_payment_risk(all_orders, 'stale_allocation'),
+    }
+    precounted = {'outstanding': len(outstanding_ids), 'overpaid': len(overpaid_ids)}
+    risk = {key: precounted[key] if key in precounted else rows.count() for key, rows in risk_orders.items()}
 
     active = SalesOrder.objects.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED]
@@ -146,6 +170,8 @@ def build_dashboard_metrics(today=None):
         'charts': charts,
         'risk': risk,
         'risk_orders': risk_orders,
+        # 未結清的單與其 payment_summary（已載入的物件，營運總表「錢」直接用，不再重查）。
+        'outstanding_summaries': [(order, summaries[order.pk]) for order in outstanding],
         'new_orders': all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES).count(),
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",

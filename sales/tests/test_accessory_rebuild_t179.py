@@ -204,3 +204,21 @@ class RebuildAccessoryCatalogCommandTests(TestCase):
         with self.assertRaisesMessage(CommandError, "備份和目前的配件主檔不一致"):
             self.run_command("--apply", stdin=backup)
         self.assertEqual(AccessoryProduct.objects.count(), 2)
+
+    def test_recycle_bin_orders_get_audit_and_fingerprint_check(self):
+        # 2.10.1：回收區（已刪除）的訂單也有連主檔的明細；備份要含它的簽署指紋，套用後也要寫 OrderChange。
+        import json
+        from django.utils import timezone
+        from sales.models import OrderChange, SalesOrder
+        deleted = self.order(owner_name="回收區車主")
+        AccessoryLine.objects.create(order=deleted, accessory_product=self.old, name="踩發桿", amount=Decimal("2100"))
+        SalesOrder.all_objects.filter(pk=deleted.pk).update(deleted_at=timezone.now())
+        backup = self.run_command("--export")
+        self.assertIn(deleted.pk, {row["id"] for row in json.loads(backup)["orders"]})
+        self.assertIn("斷開主檔連結的明細 3 列、2 張訂單", self.run_command())
+        self.run_command("--apply", stdin=backup)
+        self.assertTrue(OrderChange.objects.filter(order_id=deleted.pk, reason__startswith="配件主檔重建（T-179）").exists())
+        self.assertIsNone(AccessoryLine.objects.get(order_id=deleted.pk).accessory_product_id)
+        self.run_command("--restore", stdin=backup)
+        self.assertEqual(AccessoryLine.objects.get(order_id=deleted.pk).accessory_product_id, self.old.pk)
+        self.assertEqual(OrderChange.objects.filter(order_id=deleted.pk, reason__contains="回復").count(), 1)

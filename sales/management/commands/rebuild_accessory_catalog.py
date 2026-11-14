@@ -88,6 +88,7 @@ CATALOG = [
     ("SUI 精品配件", "SUI 前風鏡", 3200, 0),
 ]
 SIGNED_FILES = ("signed_contract", "privacy_consent", "tax_consent")
+# 訂單一律用 all_objects：回收區（已刪除）的訂單也可能有連主檔的明細，備份、OrderChange 與指紋核對都要涵蓋（2.10.1）。
 
 
 def planned_products():
@@ -116,7 +117,7 @@ def _line_snapshot(line):
 
 def snapshot():
     lines = list(AccessoryLine.objects.filter(accessory_product__isnull=False).order_by("pk"))
-    orders = SalesOrder.objects.filter(pk__in={line.order_id for line in lines}).order_by("pk")
+    orders = SalesOrder.all_objects.filter(pk__in={line.order_id for line in lines}).order_by("pk")
     return {
         "task": "T-179 rebuild_accessory_catalog",
         "categories": [{"id": c.pk, "name": c.name, "sort_order": c.sort_order, "active": c.active}
@@ -209,7 +210,7 @@ class Command(BaseCommand):
             for line in backup["lines"]:
                 by_order.setdefault(line["order_id"], []).append(line)
             AccessoryLine.objects.filter(pk__in=[line["id"] for line in backup["lines"]]).update(accessory_product=None)
-            for order in SalesOrder.objects.filter(pk__in=by_order).order_by("pk"):
+            for order in SalesOrder.all_objects.filter(pk__in=by_order).order_by("pk"):
                 OrderChange.objects.create(
                     order=order, actor_name=ACTOR_NAME,
                     reason="配件主檔重建（T-179）：本列改為歷史紀錄，名稱、類型、數量、售價、工資都不變",
@@ -251,7 +252,7 @@ class Command(BaseCommand):
             if _line_snapshot(line) != expected:
                 raise CommandError(f"明細 #{row['id']}「{row['name']}」和備份不同，整筆不做。")
         for row in backup["orders"]:
-            order = SalesOrder.objects.get(pk=row["id"])
+            order = SalesOrder.all_objects.get(pk=row["id"])
             if _fingerprints(order) != row["fingerprints"]:
                 raise CommandError(f"訂單 {row['number']} 的簽署內容指紋改變了，整筆不做。")
             if {field: getattr(order, field).name or "" for field in SIGNED_FILES} != row["files"]:
@@ -291,7 +292,7 @@ class Command(BaseCommand):
             for row in backup["lines"]:
                 AccessoryLine.objects.filter(pk=row["id"], accessory_product__isnull=True).update(accessory_product_id=row["accessory_product_id"])
                 by_order.setdefault(row["order_id"], []).append(row)
-            for order in SalesOrder.objects.filter(pk__in=by_order).order_by("pk"):
+            for order in SalesOrder.all_objects.filter(pk__in=by_order).order_by("pk"):
                 OrderChange.objects.create(order=order, actor_name=ACTOR_NAME, reason="配件主檔重建（T-179）回復：明細改連回原配件",
                                            changes={f"配件明細 #{row['id']}「{row['name']}」對應主檔": {
                                                "before": "歷史紀錄（不連主檔）", "after": f"#{row['accessory_product_id']}"} for row in by_order[order.pk]})

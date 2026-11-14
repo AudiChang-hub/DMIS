@@ -2083,7 +2083,9 @@ class AccessoryLineForm(forms.ModelForm):
             return data
         # 自行填寫的名稱要歸到固定 7 類之一（使用者 2026-11-13 T-153）：在「全部類別」選了也要再選類別，
         # 不能存成未分類。只檢查新增或改了名稱的列，既有自填列原樣保留不擋。
+        # 贈送不會加進清單（使用者 2026-11-14 T-177 選 B），不必選類別。
         if (self.data.get(self.add_prefix("accessory_product")) == "other" and not data.get("accessory_category")
+                and data.get("line_type") != AccessoryLine.LineType.GIFT
                 and (not self.instance.pk or custom_name != self.instance.name)):
             self.add_error("accessory_category", "自行填寫名稱要先選類別，名稱會存進這個類別。")
         if not product and custom_name:

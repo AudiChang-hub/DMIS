@@ -4183,6 +4183,22 @@ def _vehicle_rate_data():
     }
 
 
+def _learned_accessory_payload(names):
+    """訂單頁自動儲存新加進主檔的配件（T-177）：名稱、類別（分組名稱同 AccessoryLineForm._grouped_product_choices）、售價與工資，
+    另附類別順序，讓畫面把新分組插在正確位置。沒有新名稱時回傳空字典。"""
+    if not names:
+        return {}
+    products = AccessoryProduct.objects.filter(name__in=names, active=True).select_related("category").order_by("name")
+    return {
+        "accessory_products_added": [{
+            "id": product.pk, "name": product.name,
+            "category": product.category.name if product.category_id else "未分類",
+            "sale_price": str(product.sale_price), "labor_fee": str(product.labor_fee),
+        } for product in products],
+        "accessory_category_order": [*AccessoryCategory.objects.order_by("sort_order", "name").values_list("name", flat=True), "未分類"],
+    }
+
+
 def _accessory_product_data():
     return {
         str(product.pk): {
@@ -6340,7 +6356,7 @@ def order_edit(request, pk):
             formset.save()
             fee_formset.save()
             from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories
-            learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset))
+            learned_accessories = learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset))
             order._prefetched_objects_cache = {}
             order.calculated_balance = order.calculate_balance()
             order.actual_balance = (
@@ -6382,8 +6398,10 @@ def order_edit(request, pk):
                 # 改了車型／車色（含 T-122 換車）：頁首車輛資料與配車候選清單都要跟著換，整頁重新載入。
                 # 未配車時也一樣，否則畫面仍顯示舊車色、配車清單仍是舊車色庫存（UAT 2026-11-07 T-129）。
                 vehicle_changed = (previous_vehicle_model_id, previous_color_id) != (order.vehicle_model_id, order.color_id)
-                return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset),
-                                             extra={"reload": True} if vehicle_changed or form.unallocate_requested else None)
+                extra = {"reload": True} if vehicle_changed or form.unallocate_requested else {}
+                # 新加進主檔的配件名稱交給畫面放進名稱選單，下一列不必重新整理就選得到（T-177）。
+                extra.update(_learned_accessory_payload(learned_accessories))
+                return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset), extra=extra or None)
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
             if completed_correction:
                 messages.info(request, "完成後修正已保存，交付狀態不變；如有調整金額，請至訂單作業確認應收差額。")

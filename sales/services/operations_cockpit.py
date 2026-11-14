@@ -3,7 +3,8 @@
 - 只彙總既有服務的結果，不新增金額或狀態規則；顯示門檻見 BUSINESS_RULES「營運總表顯示門檻」。
 - 比較基準：上月同期與去年同期並列、份量相同；走勢是近 12 個月今年 vs 去年。
 - 先算出全部指標（純資料，可快取），再依檢視者權限遮蔽；權限見 `for_viewer`。
-- 快取鍵含日期、期間與資料指紋（各表筆數＋最後更新時間），資料一改就重算；`refresh=True` 略過快取。
+- 快取鍵含版號、日期、期間與資料指紋（各表筆數＋最後更新時間）：部署新版或資料一改就重算；
+  不在指紋內的異動（例如只改車型、車行資料）最晚 CACHE_SECONDS 後反映。`refresh=True` 略過快取。
 """
 from collections import Counter, OrderedDict
 from datetime import date, timedelta
@@ -15,6 +16,7 @@ from django.db.models import Count, Max
 from django.urls import reverse
 from django.utils import timezone
 
+from config.release_notes import CURRENT_VERSION
 from sales.models import (
     DealerVolumeBonusRule,
     IncentiveCampaign,
@@ -94,7 +96,8 @@ def _fingerprint():
 def load(period="month", today=None, refresh=False):
     period = period if period in PERIODS else "month"
     today = today or timezone.localdate()
-    key = f"ops-cockpit:v{CACHE_VERSION}:{today.isoformat()}:{period}:{_fingerprint()}"
+    # 版號放進鍵：部署新版後不沿用舊版算的結果（T-170）。
+    key = f"ops-cockpit:{CURRENT_VERSION}:v{CACHE_VERSION}:{today.isoformat()}:{period}:{_fingerprint()}"
     data = None if refresh else cache.get(key)
     if data is None:
         data = build(period, today)
@@ -261,13 +264,9 @@ def _age_days(today, value):
 
 def _money(metrics, today):
     from sales.services.dealer_credit import ON_ACCOUNT_STATUSES, on_account_orders
-    from sales.services.payment_summary import payment_summary
 
-    outstanding = metrics["risk_orders"]["outstanding"].select_related("legacy_snapshot").prefetch_related(
-        "payment_records", "accessories", "other_fees")
     outstanding_total, unsettled, before_delivery, awaiting_payout = ZERO, [], 0, 0
-    for order in outstanding:
-        summary = payment_summary(order)
+    for order, summary in metrics["outstanding_summaries"]:
         outstanding_total += max(summary["customer_due"], ZERO) + max(summary["lender_due"], ZERO)
         # 交車後未結清：和全部訂單的「款項未結清」紅標同一口徑（order_list_unsettled）。
         if order.status in DELIVERED and summary["customer_due"] > 0:

@@ -8020,6 +8020,14 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .accessory-bulk-savebar { margin: var(--space-3); }
 .accessory-bulk-savebar .form-savebar__hint strong { display: block; color: var(--ink); font-size: var(--text-base); }
 .accessory-bulk-savebar .button.primary:disabled { opacity: .55; cursor: not-allowed; }
+/* 配件與工資三頁的區塊間距（使用者 2026-11-14「頁籤跟表格之間太擠」，2.10.1）：只用這三頁的專用 class，不動共用元件。
+   新增／編輯配件：表單用設計系統的卡片（form-section static-section），兩張卡片之間留 --stack-gap。
+   管理類別：新增表單與類別清單之間留 --stack-gap；寬螢幕左右並排。
+   配件清單：頁籤列內距加大，選中的頁籤與橫向捲軸不貼邊；頁籤與表格之間照全站 --stack-gap（同原廠獎勵與補助）。 */
+.accessory-category-layout { display: grid; gap: var(--stack-gap); align-items: start; }
+.accessory-category-layout > .form-section { margin-bottom: 0; }
+@media (min-width: 1100px) { .accessory-category-layout { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); } }
+.inventory-scope-tabs.accessory-tabs { padding: var(--space-2) var(--space-2) var(--space-3); }
 /* 配件編輯的類別可複選（T-179）：整列寬、勾選框排成格線。 */
 .accessory-category-choices { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
 .accessory-category-choices legend { margin-bottom: var(--space-2); padding: 0; font-weight: 700; }

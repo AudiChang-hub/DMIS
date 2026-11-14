@@ -13,7 +13,7 @@
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}" id="order-status-pill" data-inplace-region>{{ order.display_status }}</span>
       {# 存檔狀態只放這一個地方（使用者 2026-11-07 T-130）：已儲存時間／儲存中…；失敗才在頁面上方顯示紅色提示列。 #}
-      <span class="save-chip" data-save-chip data-state="idle" role="status" aria-live="polite"><span class="save-chip__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path class="save-chip__check" d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span data-save-chip-text>自動儲存</span></span></div>
+      <span class="save-chip" data-save-chip data-state="idle" role="status" aria-live="polite"><span class="save-chip__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path class="save-chip__check" d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span data-save-chip-text>自動儲存</span></span>{% include "sales/_order_hero_note.html" %}</div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
     <p class="order-origin-line" id="order-origin" data-inplace-region>{% order_origin_badge order detail=True %}</p>
     {# 頁首資料列（使用者 2026-10-21 T-42）：電話 → 車型 → 車色 → 車牌號碼 → 引擎號碼／車身號碼；證號、生日、Email、地址在「新車主資料」。配車前車牌與引擎／車身合成一格「配車後顯示」。 #}
@@ -1088,6 +1088,7 @@
 <script src="{% static 'js/lock-confirm.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-compact-bar.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-hero-note.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}

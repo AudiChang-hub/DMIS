@@ -327,5 +327,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         # 匯入單第一次存檔後，訂單編號下方的來源標記即時改為「Excel 匯入已修改」（services/order_origin.py）。
         'origin_html': {variant: render_to_string('sales/_order_origin.html', {'origin': origin, 'detail': variant == 'detail'})
                         for origin in (current_order_origin(order),) for variant in ('compact', 'detail')},
+        # 頁首便條（T-175）：訂單頁改了備註，頁首跟著換新（order-hero-note.js）。
+        'hero_note_html': render_to_string('sales/_order_hero_note.html', {'order': order}),
         **(extra or {}),
     })

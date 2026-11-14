@@ -213,6 +213,28 @@ def order_owner_declaration_pdf(request, pk):
 
 @login_required
 @require_POST
+def form_print_envelope_pdf(request):
+    """直接列印信封（T-173，使用者 11/13 選 A）：21×17 cm PDF 在新分頁開啟，用瀏覽器列印；Word 檔下載保留。
+
+    瀏覽器會用印表機目前的紙張，印表機要先設好 21×17 cm 自訂紙張、列印選「實際大小」才不會縮放或印偏。
+    """
+    found, error = _picked_orders(request, ("envelope",))
+    if error:
+        return error
+    orders = [order for order, _form in found]
+    # 電車信封印出已存的車控密碼，和 Word 檔一樣每張訂單留處理紀錄。
+    actor = request.user.get_full_name() or request.user.get_username()
+    for order in orders:
+        if form_print.has_control_password(order):
+            OrderEvent.objects.create(order=order, event_type="secret_viewed", description="套表列印直接列印電車信封（含車控密碼）", actor_name=actor)
+    return _file_response(
+        preview_service.build_envelope_print_pdf(orders), content_type="application/pdf",
+        ascii_name="envelopes.pdf", quoted_name=quote("信封.pdf"), inline=True,
+    )
+
+
+@login_required
+@require_POST
 def form_print_envelopes(request):
     """信封 Word 檔：沿用原稿 21×17 cm 自訂紙張，用 Word 列印才不會被瀏覽器縮放。"""
     found, error = _picked_orders(request, ("envelope",))

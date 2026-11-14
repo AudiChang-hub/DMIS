@@ -95,6 +95,7 @@ register("work", "positioned_template_order_print", "export")
 register("work", "form_print")
 register("work", "form_print_pdf", "export")
 register("work", "form_print_envelopes", "export")
+register("work", "form_print_envelope_pdf", "export")  # T-173：直接列印信封（21×17 PDF）
 register("work", "form_print_preview", "export")
 register("work", "order_owner_declaration_pdf", "export")
 register("operations", "operations_report")

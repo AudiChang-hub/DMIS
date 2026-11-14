@@ -97,7 +97,7 @@
 
   <aside class="form-print__tray" id="form-print-tray" aria-labelledby="form-print-tray-title">
     <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form
-          data-preview-url="{% url 'form_print_preview' %}" data-pdf-url="{% url 'form_print_pdf' %}" data-envelope-url="{% url 'form_print_envelopes' %}">
+          data-preview-url="{% url 'form_print_preview' %}" data-pdf-url="{% url 'form_print_pdf' %}" data-envelope-url="{% url 'form_print_envelopes' %}" data-envelope-pdf-url="{% url 'form_print_envelope_pdf' %}">
       {% csrf_token %}
       <div class="form-print__tray-head">
         <h2 id="form-print-tray-title">列印清單</h2>
@@ -123,9 +123,11 @@
       </button>
       <div class="form-actions form-print__actions">
         <button class="button ghost" type="button" data-clear disabled>清空</button>
+        <button class="button secondary" type="submit" formaction="{% url 'form_print_envelope_pdf' %}" formtarget="_blank" data-submit-envelope-pdf disabled>直接列印信封</button>
         <button class="button primary" type="submit" formaction="{% url 'form_print_envelopes' %}" formtarget="_self" data-submit-envelope disabled>下載信封 Word 檔</button>
         <button class="button primary" type="submit" data-submit disabled>產生 A4 PDF</button>
       </div>
+      <p class="form-print__hint form-print__hint--envelope"><strong>直接列印信封</strong>會在新分頁開啟 21×17 公分的 PDF。列印前，印表機要先設好「21×17 公分」自訂紙張；Chrome 列印時紙張選這個尺寸、縮放選「實際大小」，否則會被縮放或印偏。第一次請先試印一張確認位置，印不準就改用 Word 檔。</p>
       <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。按「預覽」可先在這個畫面看過每一頁。</p>
     </form>
   </aside>
@@ -185,6 +187,7 @@
   <footer class="print-preview__foot">
     <p class="print-preview__fine">A4 頁面就是列印用的同一份 PDF；信封依 Word 原稿的紙張、邊界與位置排版，字形以 Word 為準。</p>
     <div class="print-preview__actions">
+      <button class="button ghost" type="button" data-preview-envelope-pdf hidden>直接列印信封</button>
       <button class="button ghost" type="button" data-preview-envelope hidden>下載信封 Word 檔</button>
       <button class="button primary" type="button" data-preview-print hidden>開啟 A4 PDF 列印</button>
     </div>

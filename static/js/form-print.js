@@ -101,6 +101,12 @@
     const envelopeButton = trayForm.querySelector("[data-submit-envelope]");
     envelopeButton.disabled = envelopes === 0;
     envelopeButton.textContent = envelopes ? `下載信封 Word 檔（${envelopes} 張）` : "下載信封 Word 檔";
+    // 直接列印信封（T-173）：同一批信封出 21×17 cm PDF，在新分頁用瀏覽器列印。
+    const envelopePdfButton = trayForm.querySelector("[data-submit-envelope-pdf]");
+    if (envelopePdfButton) {
+      envelopePdfButton.disabled = envelopes === 0;
+      envelopePdfButton.textContent = envelopes ? `直接列印信封（${envelopes} 張）` : "直接列印信封";
+    }
     trayForm.querySelector("[data-submit]").disabled = a4 === 0;
     trayForm.querySelector("[data-submit]").textContent = a4 ? `產生 A4 PDF（${a4} 頁）` : "產生 A4 PDF";
     trayForm.querySelector("[data-clear]").disabled = total === 0;
@@ -128,6 +134,7 @@
     const zoom = dialog.querySelector("[data-preview-zoom]");
     const printButton = dialog.querySelector("[data-preview-print]");
     const envelopeButton = dialog.querySelector("[data-preview-envelope]");
+    const envelopePdfButton = dialog.querySelector("[data-preview-envelope-pdf]");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const FIELD = /^(?:note|address)_(\d+)$/;
     let request = null;
@@ -304,6 +311,10 @@
       label(envelopeButton, "下載", `信封 Word 檔（${lastCounts.envelope} 張）`);
       envelopeButton.classList.toggle("primary", !lastCounts.a4);
       envelopeButton.classList.toggle("ghost", Boolean(lastCounts.a4));
+      if (envelopePdfButton) {
+        envelopePdfButton.hidden = !lastCounts.envelope;
+        label(envelopePdfButton, "直接列印", `信封（${lastCounts.envelope} 張）`);
+      }
       setZoom(false);
       if (!dialog.open) dialog.showModal();
       document.documentElement.classList.add("has-print-preview");
@@ -324,6 +335,7 @@
 
     printButton.addEventListener("click", () => submit(trayForm.dataset.pdfUrl, "_blank"));
     envelopeButton.addEventListener("click", () => submit(trayForm.dataset.envelopeUrl, "_self"));
+    envelopePdfButton?.addEventListener("click", () => submit(trayForm.dataset.envelopePdfUrl, "_blank"));
     const setZoom = (zoomed) => {
       dialog.classList.toggle("is-zoomed", zoomed);
       zoom.setAttribute("aria-pressed", String(zoomed));

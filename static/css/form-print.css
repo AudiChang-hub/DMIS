@@ -163,6 +163,8 @@
   .form-print__actions [data-clear] { order: 1; }
 }
 .form-print__hint { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.7; }
+.form-print__hint--envelope { padding: var(--space-2) var(--space-3); color: var(--ink-soft); background: color-mix(in srgb, var(--amber-soft) 70%, var(--surface)); border-radius: var(--radius-sm); }
+.form-print__hint--envelope strong { color: var(--ink); }
 
 .form-print__dock { display: none; }
 

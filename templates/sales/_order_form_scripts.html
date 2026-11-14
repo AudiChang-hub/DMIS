@@ -1135,6 +1135,44 @@
     if (match) { category.value = match.value; filterAccessoryProducts(row); }
   }
 
+  // 訂單頁自動儲存把加購的新名稱加進主檔後（T-177）：名稱選單、預帶售價與「新增配件」的空白列都是載入頁面時產生的，
+  // 照伺服器回傳的新名稱補進去，下一列不必重新整理就選得到。剛存的那一列維持「自行填寫名稱」，不改連主檔（10-15 規則）。
+  function placeLearnedAccessory(groups, item, order) {
+    if (groups.some(group => Array.from(group.children).some(option => option.value === String(item.id)))) return;
+    let group = groups.find(candidate => candidate.label === item.category);
+    if (!group) {
+      const rank = label => { const index = order.indexOf(label); return index < 0 ? order.length : index; };
+      group = document.createElement('optgroup');
+      group.label = item.category;
+      const at = groups.findIndex(candidate => rank(candidate.label) > rank(item.category));
+      groups.splice(at < 0 ? groups.length : at, 0, group);
+    }
+    const next = Array.from(group.children).find(option => option.textContent.trim() > item.name);
+    group.insertBefore(new Option(item.name, String(item.id)), next || null);
+  }
+
+  function addLearnedAccessories(items, order) {
+    items.forEach(item => {
+      accessoryProductData[item.id] = {name: item.name, sale_price: item.sale_price, labor_fee: item.labor_fee};
+    });
+    const template = byId("empty-accessory")?.content.querySelector('[name$="-accessory_product"]');
+    if (template) {
+      const groups = Array.from(template.querySelectorAll('optgroup'));
+      items.forEach(item => placeLearnedAccessory(groups, item, order));
+      const other = template.querySelector('option[value="other"]');
+      groups.forEach(group => template.insertBefore(group, other));
+    }
+    document.querySelectorAll("#accessory-forms [data-accessory-row]").forEach(row => {
+      if (!row.accessoryGroups) return;
+      items.forEach(item => placeLearnedAccessory(row.accessoryGroups, item, order));
+      filterAccessoryProducts(row);
+    });
+  }
+  orderForm.addEventListener('workspace-saved', event => {
+    const items = event.detail?.accessory_products_added;
+    if (items?.length) addLearnedAccessories(items, event.detail.accessory_category_order || []);
+  });
+
   function bindAccessoryRow(row) {
     const productInput = row.querySelector('[name$="-accessory_product"]');
     const categoryInput = row.querySelector('[name$="-accessory_category"]');

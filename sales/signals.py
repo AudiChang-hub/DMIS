@@ -12,7 +12,9 @@ def remove_intake_attachment_file(sender, instance, **kwargs):
         transaction.on_commit(lambda: storage.delete(name))
 
 from .models import (
+    AccessoryCategory,
     AccessoryLine,
+    AccessoryProduct,
     OrderChange,
     OrderEvent,
     OrderOperationsProfile,
@@ -54,6 +56,27 @@ ORDER_CHILD_MODELS = (
     OrderOperationsProfile,
     PaymentRecord,
 )
+
+
+@receiver(m2m_changed, sender=AccessoryProduct.categories.through)
+def sync_accessory_primary_category(sender, instance, action, reverse, pk_set, **kwargs):
+    """配件類別改用多對多（T-179）：舊的單一類別外鍵同步寫入排序最前的類別，部署期間與退回舊版時仍讀得到。"""
+    if action not in {"post_add", "post_remove", "post_clear"}:
+        return
+    if not reverse:
+        instance.sync_primary_category()
+        return
+    # 從類別那一端改（category.category_products.add/remove）：受影響的配件逐一同步；clear 時 pk_set 為空，改查外鍵仍指向這個類別的配件。
+    ids = pk_set or set(AccessoryProduct.objects.filter(category=instance).values_list("pk", flat=True))
+    for product in AccessoryProduct.objects.filter(pk__in=ids):
+        product.sync_primary_category()
+
+
+@receiver(post_delete, sender=AccessoryCategory)
+def resync_primary_category_after_category_delete(sender, instance, **kwargs):
+    # 刪類別時多對多列直接連帶刪除、外鍵設為空，不會觸發 m2m_changed；還有其他類別的配件補回外鍵。
+    for product in AccessoryProduct.objects.filter(category__isnull=True, categories__isnull=False).distinct():
+        product.sync_primary_category()
 
 
 @receiver(m2m_changed, sender=DealerVolumeBonusRule.vehicle_models.through)

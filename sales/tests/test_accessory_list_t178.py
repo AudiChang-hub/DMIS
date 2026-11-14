@@ -20,11 +20,19 @@ class AccessoryListT178Tests(TestCase):
         self.client.force_login(self.user)
         self.helmet = AccessoryCategory.objects.get(name="安全帽")
         self.holder = AccessoryCategory.objects.get(name="手機架")
-        self.light = AccessoryProduct.objects.create(name="輕便安全帽", category=self.helmet, sale_price=Decimal("800"))
-        self.full = AccessoryProduct.objects.create(name="全罩安全帽", category=self.helmet, sale_price=Decimal("2400"), active=False)
-        self.five = AccessoryProduct.objects.create(name="五匹手機架", category=self.holder, sale_price=Decimal("1200"), labor_fee=Decimal("200"))
+        # T-179 起類別存在多對多 categories（舊的 category 外鍵由訊號同步）。
+        self.light = self.product("輕便安全帽", self.helmet, sale_price=Decimal("800"))
+        self.full = self.product("全罩安全帽", self.helmet, sale_price=Decimal("2400"), active=False)
+        self.five = self.product("五匹手機架", self.holder, sale_price=Decimal("1200"), labor_fee=Decimal("200"))
         self.loose = AccessoryProduct.objects.create(name="風鏡", sale_price=Decimal("300"), cost=Decimal("120"))
         self.url = reverse("accessory_product_list")
+
+    @staticmethod
+    def product(name, *categories, **fields):
+        product = AccessoryProduct.objects.create(name=name, **fields)
+        product.categories.set(categories)
+        product.refresh_from_db()
+        return product
 
     # ---- 頁籤 ----
     def tab_counts(self, response):
@@ -84,7 +92,8 @@ class AccessoryListT178Tests(TestCase):
     # ---- 批次修改 ----
     def row_data(self, product, **changes):
         data = {
-            "name": product.name, "category": product.category_id or "", "sale_price": str(product.sale_price),
+            "name": product.name, "categories": [str(pk) for pk in product.categories.values_list("pk", flat=True)],
+            "sale_price": str(product.sale_price),
             "labor_fee": str(product.labor_fee), "cost": "" if product.cost is None else str(product.cost),
             "active": "on" if product.active else "", "version": product.updated_at.isoformat(),
         }
@@ -116,7 +125,7 @@ class AccessoryListT178Tests(TestCase):
                                             amount=Decimal("1200"), labor_fee=Decimal("200"))
         response = self.post_rows(
             self.row_data(self.five, sale_price="1500", labor_fee="300"),
-            self.row_data(self.loose, category=str(self.helmet.pk), name="防風鏡"),
+            self.row_data(self.loose, categories=[str(self.helmet.pk)], name="防風鏡"),
             self.row_data(self.full, active="on"),
             return_query=f"category={self.helmet.pk}&active=yes",
         )
@@ -125,7 +134,8 @@ class AccessoryListT178Tests(TestCase):
         self.loose.refresh_from_db()
         self.full.refresh_from_db()
         self.assertEqual((self.five.sale_price, self.five.labor_fee), (Decimal("1500"), Decimal("300")))
-        self.assertEqual((self.loose.name, self.loose.category, self.loose.cost), ("防風鏡", self.helmet, Decimal("120")))
+        self.assertEqual((self.loose.name, list(self.loose.categories.all()), self.loose.cost), ("防風鏡", [self.helmet], Decimal("120")))
+        self.assertEqual(self.loose.category, self.helmet)  # 舊外鍵同步（T-179）
         self.assertTrue(self.full.active)
         # 舊訂單的配件售價與工資是快照，不跟著改。
         line.refresh_from_db()

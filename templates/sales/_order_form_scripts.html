@@ -1137,18 +1137,21 @@
 
   // 訂單頁自動儲存把加購的新名稱加進主檔後（T-177）：名稱選單、預帶售價與「新增配件」的空白列都是載入頁面時產生的，
   // 照伺服器回傳的新名稱補進去，下一列不必重新整理就選得到。剛存的那一列維持「自行填寫名稱」，不改連主檔（10-15 規則）。
+  // 一個配件可屬於多個類別（T-179）：放進每一個所屬分組，同一個值在各組各出現一次。
   function placeLearnedAccessory(groups, item, order) {
-    if (groups.some(group => Array.from(group.children).some(option => option.value === String(item.id)))) return;
-    let group = groups.find(candidate => candidate.label === item.category);
-    if (!group) {
-      const rank = label => { const index = order.indexOf(label); return index < 0 ? order.length : index; };
-      group = document.createElement('optgroup');
-      group.label = item.category;
-      const at = groups.findIndex(candidate => rank(candidate.label) > rank(item.category));
-      groups.splice(at < 0 ? groups.length : at, 0, group);
-    }
-    const next = Array.from(group.children).find(option => option.textContent.trim() > item.name);
-    group.insertBefore(new Option(item.name, String(item.id)), next || null);
+    (item.categories || ['未分類']).forEach(label => {
+      let group = groups.find(candidate => candidate.label === label);
+      if (group && Array.from(group.children).some(option => option.value === String(item.id))) return;
+      if (!group) {
+        const rank = name => { const index = order.indexOf(name); return index < 0 ? order.length : index; };
+        group = document.createElement('optgroup');
+        group.label = label;
+        const at = groups.findIndex(candidate => rank(candidate.label) > rank(label));
+        groups.splice(at < 0 ? groups.length : at, 0, group);
+      }
+      const next = Array.from(group.children).find(option => option.textContent.trim() > item.name);
+      group.insertBefore(new Option(item.name, String(item.id)), next || null);
+    });
   }
 
   function addLearnedAccessories(items, order) {

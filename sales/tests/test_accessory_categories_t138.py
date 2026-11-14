@@ -25,6 +25,9 @@ class AccessoryCategoryTests(TestCase):
         self.holder = AccessoryCategory.objects.get(name="手機架")
         self.light = AccessoryProduct.objects.create(name="輕便安全帽", category=self.helmet, sale_price=Decimal("800"))
         self.five = AccessoryProduct.objects.create(name="五匹手機架", category=self.holder, sale_price=Decimal("1200"))
+        # T-179 起類別存在多對多 categories。
+        self.light.categories.add(self.helmet)
+        self.five.categories.add(self.holder)
         self.loose = AccessoryProduct.objects.create(name="風鏡", sale_price=Decimal("300"))
 
     def line_form(self, instance=None, allow_manual=False, **data):
@@ -95,12 +98,13 @@ class AccessoryCategoryTests(TestCase):
         self.assertNotContains(page, "五匹手機架")
         self.assertContains(self.client.get(reverse("accessory_product_list"), {"category": "none"}), "風鏡")
         response = self.client.post(reverse("accessory_product_edit", args=[self.loose.pk]), {
-            "name": "風鏡", "category": self.helmet.pk, "sale_price": "300", "labor_fee": "0", "cost": "",
+            "name": "風鏡", "categories": [self.helmet.pk], "sale_price": "300", "labor_fee": "0", "cost": "",
             "active": "on", "note": ""})
         self.assertRedirects(response, reverse("accessory_product_list"), fetch_redirect_response=False)
         self.assertEqual(AccessoryProduct.objects.get(pk=self.loose.pk).category, self.helmet)
 
-        dupe = AccessoryProduct.objects.create(name="輕便型安全帽", category=self.helmet, sale_price=Decimal("700"))
+        dupe = AccessoryProduct.objects.create(name="輕便型安全帽", sale_price=Decimal("700"))
+        dupe.categories.add(self.helmet)
         line = AccessoryLine.objects.create(order=self.order, accessory_product=dupe, name="輕便型安全帽", amount=Decimal("700"))
         self.assertContains(self.client.get(reverse("accessory_product_edit", args=[dupe.pk])), "合併到其他配件")
         response = self.client.post(reverse("accessory_product_merge", args=[dupe.pk]), {"target": self.light.pk})
@@ -111,22 +115,37 @@ class AccessoryCategoryTests(TestCase):
         self.assertFalse(dupe.active)
         self.assertIn("已合併到「輕便安全帽」", dupe.note)
 
-    def test_category_page_is_locked_to_fixed_categories(self):
-        # 使用者 2026-11-13 T-153：類別固定 7 類，頁面只列出、可點進去管理名稱，不能新增、改名、停用或刪除。
+    def test_category_page_manages_categories(self):
+        # 使用者 2026-11-14 T-179：類別由使用者自行新增、改名、排序、停用；只能刪沒有配件的類別（取代 T-153 的固定 7 類）。
+        from django.contrib.admin.models import ADDITION, CHANGE, DELETION, LogEntry
         self.client.force_login(self.user)
         page = self.client.get(reverse("accessory_category_list"))
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, f'{reverse("accessory_product_list")}?category={self.helmet.pk}')
-        self.assertNotContains(page, 'name="action" value="delete"')
+        self.assertContains(page, "新增類別")
         # 依排序列出（改名後的「行車紀錄器」id 較大，仍排第 3）。
         html = page.content.decode()
         names = ["安全帽", "手機架", "行車紀錄器", "保桿", "改裝部品", "原廠配件", "其他"]
         positions = [html.index(f"<strong>{name}</strong>") for name in names]
         self.assertEqual(positions, sorted(positions))
-        self.assertNotContains(page, "新增類別")
-        before = list(AccessoryCategory.objects.values_list("pk", "name", "active"))
-        self.assertEqual(self.client.post(reverse("accessory_category_list"), {"name": "後貨架", "sort_order": "30", "active": "on"}).status_code, 405)
-        self.assertEqual(self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": self.helmet.pk}).status_code, 405)
-        toggle = self.client.post(reverse("master_record_set_active", args=["accessory-category", self.helmet.pk]), {"active": "0"})
-        self.assertEqual(toggle.status_code, 404)
-        self.assertEqual(list(AccessoryCategory.objects.values_list("pk", "name", "active")), before)
+        # 新增、改名
+        response = self.client.post(reverse("accessory_category_list"), {"name": "SUI 精品配件", "sort_order": "5", "active": "on"})
+        self.assertRedirects(response, reverse("accessory_category_list"), fetch_redirect_response=False)
+        created = AccessoryCategory.objects.get(name="SUI 精品配件")
+        self.assertEqual((created.sort_order, created.active), (5, True))
+        response = self.client.post(f'{reverse("accessory_category_list")}?edit={created.pk}', {"name": "SUI 精品", "sort_order": "5", "active": "on"})
+        self.assertRedirects(response, reverse("accessory_category_list"), fetch_redirect_response=False)
+        self.assertTrue(AccessoryCategory.objects.filter(pk=created.pk, name="SUI 精品").exists())
+        # 同名不能新增
+        self.assertEqual(self.client.post(reverse("accessory_category_list"), {"name": "安全帽", "sort_order": "1", "active": "on"}).status_code, 400)
+        # 停用（快速切換）
+        toggle = self.client.post(reverse("master_record_set_active", args=["accessory-category", created.pk]), {"active": "0"})
+        self.assertIn(toggle.status_code, {200, 302})
+        self.assertFalse(AccessoryCategory.objects.get(pk=created.pk).active)
+        # 有配件的不能刪，沒配件的可以刪
+        self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": self.helmet.pk})
+        self.assertTrue(AccessoryCategory.objects.filter(pk=self.helmet.pk).exists())
+        self.client.post(reverse("accessory_category_list"), {"action": "delete", "category_id": created.pk})
+        self.assertFalse(AccessoryCategory.objects.filter(pk=created.pk).exists())
+        flags = list(LogEntry.objects.filter(object_id=str(created.pk)).order_by("pk").values_list("action_flag", flat=True))
+        self.assertEqual(flags, [ADDITION, CHANGE, DELETION])

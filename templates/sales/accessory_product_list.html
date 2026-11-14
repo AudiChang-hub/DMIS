@@ -54,12 +54,13 @@
       <label class="accessory-bulk-pickall"><input type="checkbox" data-pick-all> 全選這頁</label>
       <strong class="accessory-bulk-picked" data-picked-count aria-live="polite">尚未勾選</strong>
       <div class="accessory-bulk-tools__actions">
-        <select data-bulk-category aria-label="把勾選的配件改成這個類別">
-          <option value="" disabled selected>改成哪個類別…</option>
+        {# 一個配件可屬於多個類別（T-179）：勾選的配件加入或移出某個類別，不影響它的其他類別。 #}
+        <select data-bulk-category aria-label="要加入或移出的類別">
+          <option value="" disabled selected>選擇類別…</option>
           {% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}
-          <option value="">未分類</option>
         </select>
-        <button class="button secondary small" type="button" data-bulk-apply-category disabled>改類別</button>
+        <button class="button secondary small" type="button" data-bulk-category-action="add" disabled>加入類別</button>
+        <button class="button ghost small" type="button" data-bulk-category-action="remove" disabled>移出類別</button>
         <button class="button ghost small" type="button" data-bulk-active="1" disabled>設為啟用</button>
         <button class="button ghost small" type="button" data-bulk-active="0" disabled>設為停用</button>
       </div>
@@ -79,10 +80,13 @@
               {% if row.bound and form.errors %}<span class="accessory-bulk-errors" role="alert">{% for error in form.non_field_errors %}{{ error }} {% endfor %}{% for field in form %}{% for error in field.errors %}{{ field.label }}：{{ error }} {% endfor %}{% endfor %}</span>{% endif %}
             </td>
             <td data-label="類別">
-              <select name="p{{ item.pk }}-category" data-original="{{ item.category_id|default_if_none:'' }}" aria-label="{{ item.name }} 的類別"{% if form.category.errors %} aria-invalid="true"{% endif %}>
-                <option value="">未分類</option>
-                {% with current=form.category.value|default_if_none:''|stringformat:'s' %}{% for category in categories %}<option value="{{ category.pk }}"{% if current == category.pk|stringformat:'s' %} selected{% endif %}>{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}{% endwith %}
-              </select>
+              <details class="accessory-bulk-cats"{% if form.categories.errors %} open{% endif %}>
+                <summary aria-label="{{ item.name }} 的類別"><span data-cats-summary>{% for choice in row.category_choices %}{% if choice.checked %}{{ choice.name }} {% endif %}{% endfor %}</span></summary>
+                <fieldset class="accessory-bulk-cats__panel"{% if form.categories.errors %} aria-invalid="true"{% endif %}>
+                  <legend class="visually-hidden">{{ item.name }} 的類別（可複選）</legend>
+                  {% for choice in row.category_choices %}<label><input type="checkbox" name="p{{ item.pk }}-categories" value="{{ choice.pk }}"{% if choice.checked %} checked{% endif %} data-original="{{ choice.original|yesno:'1,0' }}" data-category-name="{{ choice.name }}"><span>{{ choice.name }}{% if not choice.active %}（已停用）{% endif %}</span></label>{% endfor %}
+                </fieldset>
+              </details>
             </td>
             <td data-label="售價"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-sale_price" value="{{ form.sale_price.value|default_if_none:'' }}" data-original="{{ item.sale_price }}" required aria-label="{{ item.name }} 的售價"{% if form.sale_price.errors %} aria-invalid="true"{% endif %}></td>
             <td data-label="工資"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-labor_fee" value="{{ form.labor_fee.value|default_if_none:'' }}" data-original="{{ item.labor_fee }}" required aria-label="{{ item.name }} 的工資"{% if form.labor_fee.errors %} aria-invalid="true"{% endif %}></td>
@@ -107,7 +111,7 @@
         {% for row in rows %}{% with item=row.product %}
         <tr>
           <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
-          <td data-label="類別">{{ item.category.name|default:"未分類" }}</td>
+          <td data-label="類別">{% for category in item.categories.all %}{{ category.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分類{% endfor %}</td>
           <td data-label="售價">${{ item.sale_price|floatformat:0 }}</td>
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>

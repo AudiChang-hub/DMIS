@@ -66,6 +66,7 @@ from .services.document_signing import (
 from .services.dealer_workbook_sync import next_dealer_code
 from .services.excel_export import sanitize_excel_row
 from .forms import (
+    AccessoryCategoryForm,
     AccessoryProductForm,
     AccessoryProductMergeForm,
     AdminPasswordResetForm,
@@ -2229,6 +2230,7 @@ def sales_source_set_holiday_gift(request, pk):
 
 ACTIVE_TOGGLE_RESOURCES = {
     "accessory-product": (AccessoryProduct, "配件"),
+    "accessory-category": (AccessoryCategory, "配件類別"),
     "dealer-reward-catalog-item": (DealerRewardCatalogItem, "車行獎勵品項"),
     "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
@@ -4184,15 +4186,15 @@ def _vehicle_rate_data():
 
 
 def _learned_accessory_payload(names):
-    """訂單頁自動儲存新加進主檔的配件（T-177）：名稱、類別（分組名稱同 AccessoryLineForm._grouped_product_choices）、售價與工資，
-    另附類別順序，讓畫面把新分組插在正確位置。沒有新名稱時回傳空字典。"""
+    """訂單頁自動儲存新加進主檔的配件（T-177）：名稱、所屬類別（分組名稱同 AccessoryLineForm._grouped_product_choices，
+    T-179 起可多個）、售價與工資，另附類別順序，讓畫面把新分組插在正確位置。沒有新名稱時回傳空字典。"""
     if not names:
         return {}
-    products = AccessoryProduct.objects.filter(name__in=names, active=True).select_related("category").order_by("name")
+    products = AccessoryProduct.objects.filter(name__in=names, active=True).prefetch_related("categories").order_by("name")
     return {
         "accessory_products_added": [{
             "id": product.pk, "name": product.name,
-            "category": product.category.name if product.category_id else "未分類",
+            "categories": [category.name for category in product.sorted_categories()] or ["未分類"],
             "sale_price": str(product.sale_price), "labor_fee": str(product.labor_fee),
         } for product in products],
         "accessory_category_order": [*AccessoryCategory.objects.order_by("sort_order", "name").values_list("name", flat=True), "未分類"],
@@ -6353,10 +6355,13 @@ def order_edit(request, pk):
             ))
             if installment_after != installment_before or (not completed_correction and not order.installment_plan_snapshot):
                 apply_order_installment_snapshot(order)
+            from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories, learnable_custom_names
+            # 存檔前記下這次新增或改名的自填列；舊列是歷史紀錄，不再加回主檔（T-179）。
+            learnable_names = learnable_custom_names(formset)
             formset.save()
             fee_formset.save()
-            from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories
-            learned_accessories = learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset))
+            learned_accessories = learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset),
+                                                           names=learnable_names)
             order._prefetched_objects_cache = {}
             order.calculated_balance = order.calculate_balance()
             order.actual_balance = (
@@ -9371,13 +9376,45 @@ def accessory_product_merge(request, pk):
 
 
 @login_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def accessory_category_list(request):
-    """配件類別：固定 7 類（使用者 2026-11-13 T-153），只列出、不能新增、改名、停用或刪除；
-    類別底下的配件名稱到「配件與工資」管理。"""
+    """配件類別（使用者 2026-11-14 T-179 恢復 T-138 的管理）：新增、改名、排序、停用；只能刪沒有配件的類別。
+    送出需要「配件與工資」的操作權限；新增、修改、刪除寫進 Django admin LogEntry。"""
+    from django.contrib.admin.models import ADDITION, CHANGE, DELETION
+    editing = get_object_or_404(AccessoryCategory, pk=request.GET["edit"]) if request.GET.get("edit", "").isdigit() else None
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        with transaction.atomic():
+            category = get_object_or_404(AccessoryCategory.objects.select_for_update(), pk=request.POST.get("category_id"))
+            if category.category_products.exists():
+                messages.error(request, f"無法刪除「{category.name}」：還有配件在這個類別。可以改成停用，或先把配件移出這個類別。")
+            else:
+                _log_accessory_category(request, category, DELETION, f"刪除配件類別（沒有配件）：排序 {category.sort_order}")
+                label = category.name
+                category.delete()
+                messages.success(request, f"已刪除配件類別：{label}。")
+        return redirect("accessory_category_list")
+    form = AccessoryCategoryForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        created = form.instance.pk is None
+        changed = list(form.changed_data)
+        category = form.save()
+        _log_accessory_category(request, category, ADDITION if created else CHANGE,
+                                "新增配件類別" if created else "修改配件類別：" + "、".join(form.fields[name].label for name in changed))
+        messages.success(request, f"已{'新增' if created else '儲存'}配件類別：{category.name}。")
+        return redirect("accessory_category_list")
     # 分組查詢不會套用模型預設排序，要明確指定，否則改名後的類別會照 id 排。
-    categories = AccessoryCategory.objects.annotate(product_count=Count("products")).order_by("sort_order", "name")
-    return render(request, "sales/accessory_category_list.html", {"categories": categories})
+    categories = AccessoryCategory.objects.annotate(product_count=Count("category_products", distinct=True)).order_by("sort_order", "name")
+    return render(request, "sales/accessory_category_list.html", {"form": form, "categories": categories, "editing": editing},
+                  status=400 if request.method == "POST" else 200)
+
+
+def _log_accessory_category(request, category, flag, message):
+    from django.contrib.admin.models import LogEntry
+    from django.contrib.contenttypes.models import ContentType
+    LogEntry.objects.create(
+        user_id=request.user.pk, content_type=ContentType.objects.get_for_model(AccessoryCategory),
+        object_id=str(category.pk), object_repr=category.name[:200], action_flag=flag, change_message=message,
+    )
 
 
 @login_required

@@ -30,6 +30,7 @@
 - runtime 只有 Django，不用舊 Odoo／Metabase 指令啟動服務。業務寫入走有驗證、交易與稽核的服務；Django admin 只做唯讀查詢。
 - 不提交真實個資、附件、secret、資料庫、log、備份；不讀與任務無關的客戶資料。部署出問題不用破壞性 Git 或重啟資料庫處理。
 - 應用變更依 [發布規範](docs/RELEASE_POLICY.md) 升版、測試、commit／push、部署並在正式站驗證流程，沒驗證到的部分要明說；runtime 或部署行為改變時同步更新對應 specs，小改動不另建 spec。AI 規則與純文件修改不升版、不部署。
+- 樣式依設計系統 2.0，全域「避免預設樣式」除外。
 
 ## Context 維護
 

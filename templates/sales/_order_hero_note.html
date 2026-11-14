@@ -1,0 +1,3 @@
+{% comment %}頁首便條（使用者 2026-11-13 回饋第 7 頁，T-175）：建立訂單「訂金」步驟填的備註（SalesOrder.note），
+以便條紙放在姓名、狀態、自動儲存右側。沒有備註時不顯示；超過三行截斷，由 order-hero-note.js 判斷是否出現「展開全文」。
+訂單頁改了備註，自動儲存回應的 hero_note_html 會原地換新。{% endcomment %}<aside class="order-hero-note" id="order-hero-note" data-order-hero-note data-inplace-region aria-label="訂單備註"{% if not order.note %} hidden{% endif %}>{% if order.note %}<span class="order-hero-note__label" aria-hidden="true">備註</span><p class="order-hero-note__text" id="order-hero-note-text" data-hero-note-text>{{ order.note }}</p><button type="button" class="order-hero-note__toggle" data-hero-note-toggle aria-controls="order-hero-note-text" aria-expanded="false" hidden>展開全文</button>{% endif %}</aside>

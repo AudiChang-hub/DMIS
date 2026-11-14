@@ -8035,18 +8035,21 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .accessory-bulk-cats__panel { display: grid; margin: var(--space-2) 0 0; padding: var(--space-2) 0 0; gap: var(--space-2); border: 0; border-top: 1px solid var(--line-soft); }
 .accessory-bulk-cats__panel label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
 .accessory-bulk-table .accessory-bulk-cats__panel input.is-changed { outline: 2px solid var(--amber); outline-offset: 1px; }
-.accessory-panel .row-action-buttons form { display: contents; }
+.accessory-panel .row-action-buttons form, .accessory-category-panel .row-action-buttons form { display: contents; }
 /* 外框 overflow: hidden 會讓底部儲存列無法黏住畫面；clip 一樣裁圓角但不形成捲動容器。 */
 .inventory-list-panel.accessory-panel { overflow: clip; }
 @media (prefers-reduced-motion: reduce) { .inventory-scope-tabs.accessory-tabs { scroll-behavior: auto; } }
 @media (max-width: 860px) {
   .accessory-bulk-tools__actions { width: 100%; margin-left: 0; }
   .accessory-bulk-tools__actions select { flex: 1 1 100%; min-width: 0; }
-  .accessory-bulk-tools__actions .button { flex: 1 1 0; }
+  /* 加入／移出類別、設為啟用／停用四顆按鈕（T-179）兩顆一排，字不斷行。 */
+  .accessory-bulk-tools__actions .button { flex: 1 1 calc(50% - var(--space-2)); white-space: nowrap; }
   .accessory-bulk-table td.accessory-bulk-pick { width: auto; text-align: left; }
   .accessory-bulk-table :is(input[type="text"], input.accessory-bulk-money, select) { width: 100%; max-width: none; min-width: 0; }
   .accessory-bulk-table td { grid-column: 1 / -1; }
   .accessory-bulk-cats { max-width: none; }
   .accessory-bulk-savebar { margin: var(--space-2); }
   .accessory-panel .inventory-table td:is([data-label="配件名稱"], [data-label="狀態"]) { grid-column: 1 / -1; }
+  /* 管理類別（T-179）：類別名稱、狀態與操作各占整列，名稱不被擠成兩三個字一行。 */
+  .accessory-category-panel .inventory-table td { grid-column: 1 / -1; }
 }

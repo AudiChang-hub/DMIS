@@ -3009,6 +3009,19 @@ class AccessoryProductForm(forms.ModelForm):
         apply_mobile_keyboard_attrs(self)
 
 
+class AccessoryProductBulkForm(AccessoryProductForm):
+    """配件清單上直接修改（T-178）：沿用單筆表單的驗證（名稱不重複、金額格式），不含內部備註。
+    金額照實帶出目前值（0 也顯示），避免沒動到的欄位因為空白而被當成修改。"""
+
+    class Meta(AccessoryProductForm.Meta):
+        fields = ["name", "category", "sale_price", "labor_fee", "cost", "active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ("sale_price", "labor_fee", "cost"):
+            self.initial[field_name] = getattr(self.instance, field_name)
+
+
 class AccessoryProductMergeForm(forms.Form):
     """把重複或打錯的配件併到另一項（T-138）：訂單上的配件名稱與金額不變，只改掛到保留的那一項，原項目停用。"""
 

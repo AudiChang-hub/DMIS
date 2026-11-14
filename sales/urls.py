@@ -6,6 +6,7 @@ from . import views, announcement_views, favorite_views, intake_views, catalog_v
 from . import order_deletion_views
 from . import catalog_photo_views
 from . import draft_cleanup_views
+from . import accessory_views
 from . import import_review_views
 from . import historical_delivery_views
 from . import transfer_signoff_views
@@ -647,7 +648,7 @@ urlpatterns = [
     ),
     path(
         "data/accessories/",
-        views.accessory_product_list,
+        accessory_views.accessory_product_list,
         name="accessory_product_list",
     ),
     path(
@@ -659,6 +660,11 @@ urlpatterns = [
         "data/accessories/<int:pk>/edit/",
         views.accessory_product_edit,
         name="accessory_product_edit",
+    ),
+    path(
+        "data/accessories/<int:pk>/delete/",
+        accessory_views.accessory_product_delete,
+        name="accessory_product_delete",
     ),
     path(
         "data/accessories/<int:pk>/merge/",

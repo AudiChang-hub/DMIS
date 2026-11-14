@@ -1,8 +1,9 @@
 """欣鈴申請退稅同意書（T-158，使用者 2026-11-13）：SUZUKI 油車且有汰舊，和訂購單、個資同意書一起印；
 套表列印也能預覽、批次列印。預覽與列印要能核對補助撥款帳戶，所以帶入帳戶的請求一律 POST 並記查看紀錄。"""
 import re
-from datetime import date
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from io import BytesIO
+from unittest import mock
 
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -21,6 +22,14 @@ ACCOUNT = "測試銀行 012-3456789"
 
 def pdf_pages(response):
     return [page.extract_text() or "" for page in PdfReader(BytesIO(b"".join(response.streaming_content))).pages]
+
+
+PRINT_TIME = re.compile(r"列印時間：\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
+
+
+def without_print_time(pages):
+    """訂購單印出當下的「列印時間」（到分鐘）；兩次列印跨分鐘時會不同，比對內容前先遮掉（T-169）。"""
+    return [PRINT_TIME.sub("列印時間：—", text) for text in pages]
 
 
 def picker_forms(html):
@@ -154,7 +163,20 @@ class TaxConsentOrderPrintTests(TaxConsentBase):
                 self.assertEqual(checked, expected_defaults[name])
                 via_post = pdf_pages(self.print_documents(order, checked, method="post"))
                 via_get = pdf_pages(self.print_documents(order, checked))
-                self.assertEqual(via_post, via_get)
+                self.assertEqual(without_print_time(via_post), without_print_time(via_get))
+
+    def test_post_and_get_compare_equal_across_a_minute_boundary(self):
+        """T-169：兩次列印剛好跨分鐘（22:23:59 → 22:24:00），訂購單「列印時間」不同，比對不能因此失敗。"""
+        order = self.make_order()
+        parts = ["contract_store", "contract_customer", "privacy"]
+        clock = {"now": datetime(2026, 11, 13, 14, 23, 59, tzinfo=dt_timezone.utc)}  # 台北 22:23:59
+        with mock.patch("django.utils.timezone.now", side_effect=lambda: clock["now"]):
+            via_post = pdf_pages(self.print_documents(order, parts, method="post"))
+            clock["now"] += timedelta(seconds=1)
+            via_get = pdf_pages(self.print_documents(order, parts))
+        self.assertIn("列印時間：2026-11-13 22:23", via_post[0])
+        self.assertIn("列印時間：2026-11-13 22:24", via_get[0])
+        self.assertEqual(without_print_time(via_post), without_print_time(via_get))
 
 
 class TaxConsentOrderPreviewTests(TaxConsentBase):

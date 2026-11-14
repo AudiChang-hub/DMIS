@@ -438,5 +438,32 @@
     save();
   });
 
+  // 表格比畫面寬時，上方的橫向捲軸與表格同步左右捲動（T-173）；不需要捲動時收起。
+  const hscroll = root.querySelector("[data-hscroll]");
+  const tableWrap = root.querySelector("[data-hscroll-target]");
+  if (hscroll && tableWrap) {
+    const track = hscroll.firstElementChild;
+    const fit = () => {
+      // 手機改成卡片排列時不需要這條捲軸。
+      const cards = tableWrap.firstElementChild && getComputedStyle(tableWrap.firstElementChild).display !== "table";
+      track.style.width = `${tableWrap.scrollWidth}px`;
+      hscroll.hidden = cards || tableWrap.scrollWidth <= tableWrap.clientWidth + 1;
+      hscroll.scrollLeft = tableWrap.scrollLeft;
+    };
+    const follow = (from, to) => () => {
+      if (to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
+    };
+    hscroll.addEventListener("scroll", follow(hscroll, tableWrap), { passive: true });
+    tableWrap.addEventListener("scroll", follow(tableWrap, hscroll), { passive: true });
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(fit);
+      observer.observe(tableWrap);
+      if (tableWrap.firstElementChild) observer.observe(tableWrap.firstElementChild);
+    } else {
+      window.addEventListener("resize", fit);
+    }
+    fit();
+  }
+
   render();
 })();

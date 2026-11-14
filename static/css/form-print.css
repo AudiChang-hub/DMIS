@@ -23,6 +23,17 @@
 .paper--ev_delivery, .paper--tax_consent { width: 18px; height: 25px; }
 .paper--ev_delivery i:first-child { width: 35%; margin-left: auto; background: var(--ink-soft); }
 
+/* 表格比畫面寬時，表格上方多一條橫向捲軸，捲動時黏在頁首下方，不必捲到表格最底下才能左右拉（T-173）。 */
+.form-print__hscroll {
+  position: sticky; z-index: 3; top: var(--app-header-height, 72px); height: 18px; overflow-x: auto; overflow-y: hidden;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  scrollbar-color: var(--line-strong) transparent;
+}
+.form-print__hscroll[hidden] { display: none; }
+.form-print__hscroll > div { height: 1px; }
+.form-print__hscroll::-webkit-scrollbar { height: 14px; }
+.form-print__hscroll::-webkit-scrollbar-thumb { background: var(--line-strong); border: 3px solid var(--surface); border-radius: var(--radius-pill); }
+.form-print__hscroll::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .form-print__cell { display: grid; justify-items: start; }
 .form-print__na { color: var(--muted); font-size: var(--text-2xs); line-height: 1.5; }
 .form-print__table th, .form-print__table td { vertical-align: top; }

@@ -3738,7 +3738,7 @@ class OrderFlowTests(TestCase):
 
         missing = order.missing_registration_requirements()
         # 2026-11-11 T-145 起領牌文件全部選填：只看領牌日與車牌（取代 10-22 T-95 的行照、登記書）。
-        self.assertEqual(missing, ["實際領牌日期", "車牌號碼"])
+        self.assertEqual(missing, ["領牌日期", "車牌號碼"])
 
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])
@@ -3908,7 +3908,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(form["registration_date"].value(), date(2026, 7, 29))
 
     def test_registration_save_completes_when_documents_already_uploaded(self):
-        # 先傳文件、後填資料：日期與車牌填好就自動完成領牌（使用者 2026-11-11 T-147，取代 T-130 確認卡）。
+        # 先傳文件、後填資料：存檔不自動完成，按「確認完成」才完成（使用者 2026-11-14 T-172 A′）。
         order = self.make_order()
         order.allocate(self.vehicle)
         self.client.force_login(self.user)
@@ -3926,6 +3926,11 @@ class OrderFlowTests(TestCase):
             "registration_date": "2026-07-29", "final_plate_number": "abc-1234",
         })
         self.assertRedirects(response, order_step_url(order.pk, "registration"))
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
+        page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
+        self.assertIn("data-lock-confirm=\"確認領牌完成\"", page)
+        self.client.post(reverse("registration_complete", args=[order.pk]))
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
         self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
@@ -3952,8 +3957,9 @@ class OrderFlowTests(TestCase):
                 "final_plate_number": "abc-1234",
             },
         )
-        # 領牌日與車牌填好就自動完成（T-147）。
+        # 存檔後按「確認完成」才完成（T-172 A′）。
         self.assertRedirects(response, order_step_url(order.pk, "registration"))
+        self.client.post(reverse("registration_complete", args=[order.pk]))
         order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
 
@@ -5431,7 +5437,8 @@ class OrderOperationsTests(TestCase):
         profile.save()
         self.order.status = SalesOrder.Status.COMPLETED
         self.order.registration_date = timezone.localdate()
-        self.order.save(update_fields=["status", "registration_date", "updated_at"])
+        self.order.registration_completed_at = timezone.now()  # 已確認領牌才算月份（T-172 A′）
+        self.order.save(update_fields=["status", "registration_date", "registration_completed_at", "updated_at"])
 
         response = self.client.get(reverse("operations_report"))
 
@@ -5520,12 +5527,14 @@ class OrderOperationsTests(TestCase):
             "expected_disbursement_amount": 74000,
         }
         self.order.registration_date = date(2026, 7, 31)
+        self.order.registration_completed_at = timezone.now()  # 已確認領牌：獎勵依實際領牌日（T-176）
         self.order.save(
             update_fields=[
                 "payment_type",
                 "installment_periods",
                 "installment_plan_snapshot",
                 "registration_date",
+                "registration_completed_at",
                 "updated_at",
             ]
         )
@@ -6218,7 +6227,8 @@ class OrderOperationsTests(TestCase):
         from sales.tests.profit_helpers import unlock_profit
         unlock_profit(self, self.user)
         self.order.registration_date = timezone.localdate()
-        self.order.save(update_fields=["registration_date", "updated_at"])
+        self.order.registration_completed_at = timezone.now()  # 已確認領牌才列入（T-172 A′）
+        self.order.save(update_fields=["registration_date", "registration_completed_at", "updated_at"])
         profile = self.order.operations
         profile.vehicle_cost = Decimal("60000")
         profile.save()

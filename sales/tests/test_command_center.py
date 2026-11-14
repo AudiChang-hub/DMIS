@@ -1,3 +1,4 @@
+from django.utils import timezone
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -26,7 +27,8 @@ class CommandCenterTests(TestCase):
     def make_order(self, day=None, status='completed', price=80000, profit=20000, established=None):
         order = SalesOrder.objects.create(owner_name='戰情合成測試', owner_phone='0912345678',
             owner_address='合成地址', owner_id_number='A123456789', vehicle_model=self.model, color=self.color,
-            registration_date=day, established_on=established or day, status=status, vehicle_price=price)
+            registration_date=day, established_on=established or day, status=status, vehicle_price=price,
+            registration_completed_at=timezone.now() if day else None)  # 有領牌日＝已確認領牌（T-172 A′）
         OrderOperationsProfile.objects.filter(order=order).update(actual_disbursement=price,
             vehicle_cost=price-profit, legacy_finance_reconciliation={})
         return SalesOrder.objects.select_related('operations', 'vehicle_model', 'source').get(pk=order.pk)
@@ -125,6 +127,8 @@ class CommandCenterTests(TestCase):
         self.assertEqual(order.source_display, staff.name)
         order.registration_date = date(2026,9,1)
         order.status = 'cancelled'
+        self.assertEqual(order.registration_display, '預計 2026/09/01', '未按確認完成的是預計日（T-172 A′）')
+        order.registration_completed_at = timezone.now()
         self.assertEqual(order.registration_display, '2026/09/01')
 
     def test_cancelled_profit_sort_is_empty_not_hidden(self):

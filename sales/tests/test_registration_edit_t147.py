@@ -1,7 +1,8 @@
-"""T-147（使用者 2026-11-11）：領牌日與車牌填好就自動完成、之後任何人都能改，改日期重算系統值、人工值保留。
+"""T-147（使用者 2026-11-11）：領牌完成後任何人都能改，改日期重算系統值、人工值保留。
 
-取代 T-130／T-145 的鎖定確認卡（「不用鎖定的跳卡了，這樣會徒增困擾」）。
-- 填好日期與車牌存檔即完成領牌，帶入規費、成本、獎勵、傭金，訂單轉待交車；文件選填。
+2026-11-14 T-172 A′：存檔不再自動完成，按「確認完成」才完成（見 test_registration_confirm_t172）；
+完成後仍是所有人都能改（第 2 題選 (2)），本檔其餘行為不變。
+- 按「確認完成」完成領牌，帶入規費、成本、獎勵、傭金，訂單轉待交車；文件選填。
 - 任何人、任何狀態（含已交車、已完成）都能改；改日期依新日期重算，人工值保留；只改車牌不重算。
 - 每次修改都寫 OrderChange（改前、改後）。
 """
@@ -74,14 +75,21 @@ class RegistrationEditTests(TestCase):
         return OrderOperationsProfile.objects.get(order=self.order)
 
     def complete(self, registration_date="2026-10-29", plate="ABC-1234"):
-        return self.autosave(registration_date=registration_date, final_plate_number=plate)
+        """填好日期與車牌（自動儲存），再按「確認完成」（T-172 A′）。回傳自動儲存的回應。"""
+        payload = self.autosave(registration_date=registration_date, final_plate_number=plate)
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
+        self.order.refresh_from_db()
+        return payload
 
-    def test_date_and_plate_autosave_completes_without_card(self):
-        payload = self.complete()
-        self.assertTrue(self.order.is_registration_complete, "日期與車牌填好就自動完成，不跳卡")
+    def test_date_and_plate_autosave_waits_for_confirm_then_completes(self):
+        payload = self.autosave(registration_date="2026-10-29", final_plate_number="ABC-1234")
+        self.assertFalse(self.order.is_registration_complete, "存檔不自動完成，要按確認完成（T-172 A′）")
+        self.assertFalse(payload["reload"])
+        self.assertIn('data-lock-confirm="確認領牌完成"', payload["registration_html"])
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.is_registration_complete)
         self.assertEqual(self.order.status, SalesOrder.Status.DELIVERY_PENDING)
-        self.assertTrue(payload["reload"], "完成時整頁原地重新載入，停回原步驟")
-        self.assertNotIn("data-lock", payload["registration_html"])
         profile = self.profile()
         self.assertEqual(profile.vehicle_cost, Decimal("60000"))
         self.assertIsNotNone(profile.vehicle_cost_locked_at)
@@ -89,13 +97,12 @@ class RegistrationEditTests(TestCase):
         self.assertFalse(self.order.registration_documents.exists(), "文件選填")
         page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
         self.assertNotIn("data-lock-auto", page)
-        self.assertNotIn('data-lock-confirm="確認領牌完成"', page)
+        self.assertNotIn('data-lock-confirm="確認領牌完成"', page, "確認後不再顯示確認按鈕")
 
-    def test_date_only_does_not_complete(self):
-        response = self.client.post(self.save_url, {"registration_date": "2026-10-29", "final_plate_number": ""},
-                                    HTTP_X_ORDER_WORKSPACE="1")
-        self.assertNotEqual(response.status_code, 200)
-        self.order.refresh_from_db()
+    def test_date_only_saves_as_planned_and_does_not_complete(self):
+        payload = self.autosave(registration_date="2026-10-29", final_plate_number="")
+        self.assertTrue(payload["ok"], "日期與車牌可以分別事先填（T-172 A′）")
+        self.assertEqual(self.order.registration_date, date(2026, 10, 29))
         self.assertFalse(self.order.is_registration_complete)
 
     def test_non_admin_can_edit_on_delivered_order(self):
@@ -159,12 +166,13 @@ class RegistrationEditTests(TestCase):
         self.assertEqual(change.changes["車牌號碼"], {"before": "ABC-1234", "after": "ABD-5678"})
         first = OrderChange.objects.filter(order=self.order, changes__has_key="車牌號碼").order_by("pk").first()
         self.assertEqual(first.changes["車牌號碼"], {"before": "未填", "after": "ABC-1234"})
+        self.assertEqual(first.changes["預計領牌日期"], {"before": "未填", "after": "2026/10/29"}, "確認前改的是預計日")
 
     def test_completion_waits_for_cost_rule_then_button_finishes(self):
         VehicleSettlementCostRule.objects.all().delete()
         payload = self.complete()
         self.assertFalse(self.order.is_registration_complete, "找不到成本規則時不完成")
-        self.assertIn("完成領牌", payload["registration_html"])
+        self.assertIn("找不到成本規則，請先補建", payload["registration_html"])
         VehicleSettlementCostRule.objects.create(vehicle_model=self.model, amount=Decimal("60000"), effective_from=date(2026, 1, 1))
         response = self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.assertEqual(response["Location"], order_step_url(self.order.pk, "registration"))

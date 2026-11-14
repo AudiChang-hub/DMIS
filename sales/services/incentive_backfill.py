@@ -11,9 +11,10 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
-from sales.models import OrderChange, OrderOperationsProfile, SalesOrder
+from sales.models import OrderChange, OrderOperationsProfile, SalesOrder, registration_confirmed_q
 from sales.services.campaign_conditions import matching_models
 from sales.services.dealer_reward_campaign import order_reward_dealer
 from sales.services.incentive_rule import INCENTIVE_FIELDS, incentive_totals, replace_incentive_applications
@@ -30,7 +31,10 @@ def _amounts(profile):
 
 
 def candidate_orders(campaign):
-    """領牌日在期間內、車型符合、系統建立且未取消的訂單（不含 Excel 匯入單）。"""
+    """判斷日在期間內、車型符合、系統建立且未取消的訂單（不含 Excel 匯入單）。
+
+    判斷日＝已確認領牌的單用實際領牌日，尚未確認的單用訂單成立日（T-176；預計領牌日不算）。
+    """
     model_ids = set(matching_models(
         campaign.brands, campaign.energy_types, list(campaign.vehicle_models.values_list("pk", flat=True)),
     ).values_list("pk", flat=True))
@@ -39,13 +43,15 @@ def candidate_orders(campaign):
         return SalesOrder.objects.none()
     return (
         SalesOrder.objects.filter(
-            registration_date__gte=campaign.effective_from, registration_date__lte=end,
+            (registration_confirmed_q() & Q(registration_date__gte=campaign.effective_from, registration_date__lte=end))
+            | (Q(registration_completed_at__isnull=True)
+               & Q(established_on__gte=campaign.effective_from, established_on__lte=end)),
             vehicle_model_id__in=model_ids, legacy_snapshot__isnull=True,
             source_type__in=campaign.source_types,
         )
         .exclude(status=SalesOrder.Status.CANCELLED)
         .select_related("vehicle_model", "source", "commission_recipient", "operations")
-        .order_by("registration_date", "pk")
+        .order_by("registration_date", "established_on", "pk")
     )
 
 
@@ -58,7 +64,7 @@ def scan(campaign):
         profile = getattr(order, "operations", None)
         current = _amounts(profile)
         _rows, after, _matched, _promo, _regular = incentive_totals(
-            order.vehicle_model, order.source_type, order.registration_date, dealer.pk if dealer else None,
+            order.vehicle_model, order.source_type, order.reward_basis_date, dealer.pk if dealer else None,
         )
         manual = sorted(set(profile.manual_financial_fields or []) & set(INCENTIVE_FIELDS)) if profile else []
         locked = bool(profile and profile.incentive_locked_at)
@@ -97,18 +103,18 @@ def apply(campaign, selections, actor_name):
             raise ValidationError(f"訂單 {order.pk} 的金額在掃描後被改過，未寫入任何訂單，請重新掃描。")
         dealer = order_reward_dealer(order)
         rows, totals, matched, _promo, regular = incentive_totals(
-            order.vehicle_model, order.source_type, order.registration_date, dealer.pk if dealer else None,
+            order.vehicle_model, order.source_type, order.reward_basis_date, dealer.pk if dealer else None,
         )
         manual_before = list(profile.manual_financial_fields or [])
         for field in INCENTIVE_FIELDS:
             setattr(profile, field, totals[field])
         profile.manual_financial_fields = sorted(set(manual_before) - set(INCENTIVE_FIELDS))
         profile.incentive_rule = regular.legacy_rule if regular else None
-        profile.incentive_registration_date = order.registration_date if matched else None
+        profile.incentive_registration_date = order.reward_basis_date if matched else None
         profile.save(update_fields=[
             *INCENTIVE_FIELDS, "manual_financial_fields", "incentive_rule", "incentive_registration_date", "updated_at",
         ])
-        replace_incentive_applications(profile, rows, order.registration_date)
+        replace_incentive_applications(profile, rows, order.reward_basis_date)
         changes = {
             FIELD_LABELS[field]: {"before": str(int(before[field])), "after": str(int(totals[field]))}
             for field in INCENTIVE_FIELDS if before[field] != totals[field]

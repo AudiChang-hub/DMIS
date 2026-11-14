@@ -132,7 +132,8 @@ def build_order_overview(order, *, include_finance=True):
             _row("指定號碼與志願序", order.watched_numbers_display, wide=True),
             _row("領牌偏好備註", order.plate_preference_note, wide=True),
             _row("車牌號碼", order.final_plate_number, mono=True),
-            _row("實際領牌日期", _date(order.registration_date), mono=True),
+            # 未按「確認完成」的是預計日（T-172 A′）。
+            _row("實際領牌日期" if order.registration_completed_at else "預計領牌日期", _date(order.registration_date), mono=True),
             _row("強制險期間", _display(order, "compulsory_insurance_period")),
             _row("費率級距", registration_rate_label(order.registration_rate_class, getattr(model, "displacement_cc", None))
                  if order.registration_rate_class else ""),

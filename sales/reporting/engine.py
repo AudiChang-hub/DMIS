@@ -6,10 +6,10 @@ from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 
 from django.core.exceptions import ValidationError
-from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, When
+from django.db.models import Avg, Case, Count, DateField, F, IntegerField, Q, Sum, Value, When
 from django.db.models.functions import TruncMonth, TruncYear
 
-from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
+from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily, registration_confirmed_q
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
@@ -304,8 +304,11 @@ def base_query(config, filters, card=None):
                     continue
                 queryset = queryset.filter(**{SCOPE_LOOKUPS[key] + "__in": values})
     basis = config["date_basis"]
-    if basis == "registration_date" and not config.get("include_undated", False):
-        queryset = queryset.filter(registration_date__isnull=False)
+    # 領牌日只算按過「確認完成」的；確認前填的是預計日，視同尚未領牌（T-172 A′）。
+    if basis == "registration_date" and (
+        not config.get("include_undated", False) or filters.get("start") or filters.get("end") or filters.get("months")
+    ):
+        queryset = queryset.filter(registration_confirmed_q())
     for key, lookup in (("start", f"{basis}__gte"), ("end", f"{basis}__lte")):
         if filters.get(key):
             queryset = queryset.filter(**{lookup: filters[key]})
@@ -364,10 +367,17 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
         "energy": "vehicle_model__energy_type", "source": "source_id",
         "family": "vehicle_model__family_id", "source_type": "source_type", "color": "color__name", "day": basis,
     }
+    date_field = basis
+    if basis == "registration_date":
+        # 包含尚未領牌的單時，預計日不分到月份或日期，和未填一樣歸「未領牌」（T-172 A′）。
+        date_field = Case(When(registration_confirmed_q(), then=F("registration_date")), default=Value(None),
+                          output_field=DateField())
     if dimension == "month":
-        expression = TruncMonth(basis)
+        expression = TruncMonth(date_field)
     elif dimension == "year":
-        expression = TruncYear(basis)
+        expression = TruncYear(date_field)
+    elif dimension == "day" and basis == "registration_date":
+        expression = date_field
     elif dimension == "recipient":
         expression = Case(
             When(commission_recipient__isnull=False, then=F("commission_recipient_id")),

@@ -19,7 +19,8 @@ def change_order_commission_recipient(
     initial_order = SalesOrder.objects.select_related("vehicle_model").get(pk=order_id)
     target_id = recipient_id or initial_order.source_id
     locked_rule_ids = []
-    if initial_order.registration_date:
+    # 確認前的領牌日是預計日，沒有獎金歸屬期間（T-172 A′）。
+    if initial_order.confirmed_registration_date:
         locked_rule_ids = list(matching_bonus_rules(initial_order, target_id).select_for_update(of=("self",))
                                .order_by("pk").values_list("pk", flat=True))
     order = SalesOrder.objects.select_for_update(of=("self",)).select_related(
@@ -53,8 +54,8 @@ def change_order_commission_recipient(
     normalized_id = recipient.pk if recipient else None
     if normalized_id == order.commission_recipient_id:
         return False
-    # 未領牌沒有獎金歸屬期間；不可用空日期查詢，也不可代入今天或訂單日。
-    if order.registration_date and DealerVolumeBonusSettlement.objects.filter(
+    # 未領牌沒有獎金歸屬期間；不可用空日期查詢，也不可代入今天或訂單日；預計日不算（T-172 A′）。
+    if order.confirmed_registration_date and DealerVolumeBonusSettlement.objects.filter(
         rule_id__in=locked_rule_ids, dealer_id=target_id,
         period__starts_on__lte=order.registration_date,
         period__ends_on__gte=order.registration_date,

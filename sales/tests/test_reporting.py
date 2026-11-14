@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.models import ReportDefinition, ReportRevision, SalesOrder, SalesSource, VehicleColor, VehicleModel
 from sales.reporting.engine import calculate, card_result, drill_query, formula_tree, validate_config
@@ -1391,7 +1392,7 @@ class ReportingTests(TestCase):
         cls.color = VehicleColor.objects.create(vehicle_model=cls.model, name="白")
         for price, source, recipient in [(10000, cls.a, None), (20000, cls.b, cls.a), (30000, cls.b, None)]:
             SalesOrder.objects.create(source_type="dealer", source=source, commission_recipient=recipient,
-                order_date=date(2026, 8, 15), registration_date=date(2026, 9, 1),
+                order_date=date(2026, 8, 15), registration_date=date(2026, 9, 1), registration_completed_at=timezone.now(),  # 已確認領牌（T-172 A′）
                 owner_type="company", owner_name="不可洩漏的車主", owner_id_number="83739807",
                 owner_phone="0912345678", owner_address="測試地址", vehicle_model=cls.model, color=cls.color,
                 vehicle_price=price, actual_balance=price, calculated_balance=price, payment_type="cash", status="completed")

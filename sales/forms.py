@@ -4659,9 +4659,11 @@ class RegistrationStageForm(forms.ModelForm):
         self._previous_actual_balance = self.instance.actual_balance
         self.previous_registration_date = self.instance.registration_date
         self.previous_plate_number = self.instance.final_plate_number
-        self.fields["registration_date"].required = True
-        self.fields["final_plate_number"].required = True
-        # 領牌完成後任何人仍可修改日期與車牌（使用者 2026-11-11 T-147，取代完成即鎖定）。
+        # 確認前日期與車牌可以分別事先填（使用者 2026-11-14 T-172 A′）；按「確認完成」時才要求兩者都有。
+        # 確認後任何人仍可修改，但不能清空（T-147，2026-11-14 第 2 題選 (2)）。
+        confirmed = bool(self.instance.registration_completed_at)
+        self.fields["registration_date"].required = confirmed
+        self.fields["final_plate_number"].required = confirmed
         # 已結算台數獎金的訂單維持訂單驗證原本的阻擋（台數獎金流程另由 T-148 重新設計）。
         self.fields["final_plate_number"].widget.attrs.update(
             {
@@ -4675,7 +4677,10 @@ class RegistrationStageForm(forms.ModelForm):
         self.fields["registration_date"].widget.attrs["class"] = "form-control"
         # 領牌日不預設今天，請填實際領牌日；規費（公路養管、牌照稅）依這一天計算（使用者 2026-11-07 T-127 p6 選 B，
         # 取代 2026-10-14「預設今天」：預設值會在補登舊單時把今天當領牌日，規費算錯又隨領牌完成鎖定）。
-        self.fields["registration_date"].help_text = "請填監理站實際領牌日；規費依這一天計算。"
+        self.fields["registration_date"].help_text = (
+            "實際領牌日；規費依這一天計算。" if confirmed
+            else "可先填預計日；按「確認完成」後才算實際領牌日，規費依這一天試算。"
+        )
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()

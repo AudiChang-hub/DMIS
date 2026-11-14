@@ -1,22 +1,26 @@
-{% load site_copy %}<div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}" id="registration-completion" data-inplace-region data-registration-completion>
+{% load lock_confirm_tags %}<div class="registration-completion {% if order.is_registration_complete or not registration_missing %}is-ready{% else %}has-missing{% endif %}" id="registration-completion" data-inplace-region data-registration-completion>
   <div>
     {% if order.is_registration_complete %}
-      <strong>領牌已完成</strong>
+      <strong>領牌已確認完成</strong>
       <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}；領牌日期與車牌仍可修改，改日期會依新日期重算系統帶入的金額。</p>
     {% elif registration_missing %}
-      <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
-      <p>{{ registration_missing|join:"、" }}；填好領牌日期與車牌就自動完成領牌。</p>
+      <strong>尚有 {{ registration_missing|length }} 項未填</strong>
+      <p>{{ registration_missing|join:"、" }}；日期與車牌可以先填預計值，實際領牌後再按「確認完成」。</p>
     {% else %}
-      <strong>領牌日期與車牌已填齊</strong>
-      <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
+      <strong>領牌日期與車牌已填，尚未確認</strong>
+      <p>目前的日期只算預計日，不列入報表；實際領牌後按「確認完成」，才算實際領牌日並鎖定成本、獎勵與傭金。</p>
     {% endif %}
   </div>
-  {# 領牌日與車牌填好存檔即自動完成（使用者 2026-11-11 T-147，不再跳鎖定確認卡）。 #}
-  {# 只有當時找不到成本規則而沒完成時顯示按鈕：補建規則後按下完成；原地送出、重新載入回到同一步驟與位置。 #}
-  {% if not order.is_registration_complete and not registration_missing %}
+  {# 「確認完成」（使用者 2026-11-14 T-172 A′）：存檔不會自動完成；按下先跳確認卡，列出資料庫裡實際存下的值、 #}
+  {# 牌險規費明細（稅金＋強制險）與獎勵會撤銷的活動（T-176）。原地送出、重新載入回到同一步驟與位置。 #}
+  {% if not order.is_registration_complete %}
   <form method="post" action="{% url 'registration_complete' order.pk %}" data-inplace-form data-inplace-success="reload">
     {% csrf_token %}
-    <button class="button primary" type="submit">完成領牌</button>
+    {% if not registration_missing %}{% registration_lock_rows order as lock_rows %}
+    <dl data-lock-values hidden>{% for row in lock_rows %}<div{% if row.missing %} data-missing{% endif %}><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div>{% endfor %}</dl>{% endif %}
+    <button class="button primary" type="submit"{% if registration_missing %} disabled aria-disabled="true"{% endif %}
+      data-lock-confirm="確認領牌完成" data-lock-confirm-label="確認完成並鎖定"
+      data-lock-lead="確認後這個日期才算實際領牌日，並依這一天鎖定成本、原廠獎勵、車行獎勵與傭金；之後仍可修改日期與車牌，改日期會重新計算。">確認完成</button>
   </form>
   {% endif %}
 </div>

@@ -6974,7 +6974,8 @@ def unallocate_vehicle(request, pk):
 
 
 def _save_registration_form(request, form):
-    """儲存已驗證的領牌資料並連動重算、自動完成領牌（T-147）；回傳 ([(訊息等級, 文字)], 本次是否完成領牌)。"""
+    """儲存已驗證的領牌資料並連動重算（T-147）；存檔不完成領牌，要按「確認完成」（T-172 A′）。
+    回傳 ([(訊息等級, 文字)], 本次是否完成領牌＝一律 False)。"""
     before_date, before_plate = form.previous_registration_date, form.previous_plate_number
     order = form.save()
     actor = _editing_name(request.user)
@@ -6982,7 +6983,8 @@ def _save_registration_form(request, form):
     OrderEvent.objects.create(
         order=order,
         event_type="registration_data_updated",
-        description=f"已更新領牌資料：{order.registration_date}／{order.final_plate_number}",
+        description=f"已更新領牌資料：{'實際' if order.registration_completed_at else '預計'}領牌日 "
+                    f"{order.registration_date or '未填'}／車牌 {order.final_plate_number or '未填'}",
         actor_name=actor,
     )
     if result["notes"]:
@@ -6992,7 +6994,9 @@ def _save_registration_form(request, form):
         return [("success", f"領牌資料已保存，車輛結算成本 ${cost_profile.vehicle_cost:,.0f}。")], False
     if cost_profile and resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
         return [("success", f"領牌資料已保存；車輛成本為人工輸入的 ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。")], False
-    return [("warning", "領牌資料已保存，但目前找不到適用的車輛結算成本規則；請先至車型資料的成本規則補建，否則無法完成領牌。")], False
+    if not order.registration_date:
+        return [("success", "領牌資料已保存。")], False
+    return [("warning", "領牌資料已保存，但目前找不到適用的車輛結算成本規則；請先至車型資料的成本規則補建，否則無法確認完成。")], False
 
 
 @login_required
@@ -7014,8 +7018,8 @@ def registration_save(request, pk):
             return order_workspace.save_error("領牌資料未保存。", forms=(form,))
         notes, completed = _save_registration_form(request, form)
         order.refresh_from_db()
-        # 回傳完整同步資料：領牌日會帶入成本、獎勵與傭金，收支區塊的版本號要跟著更新。
-        # 這次自動完成領牌時訂單狀態、步驟與交車區塊都變了：整頁原地重新載入，停回原步驟與位置（同 T-129 換車）。
+        # 回傳完整同步資料：領牌日會帶入預估成本與傭金，收支區塊的版本號要跟著更新；
+        # 確認區塊（含確認卡要列的值）一起換掉，按「確認完成」時列的就是剛存下的值（T-172 A′）。
         return order_workspace.saved(request, order, extra={
             "message": notes[0][1] if notes else "領牌資料已保存。",
             "reload": completed,
@@ -7231,8 +7235,8 @@ def registration_complete(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
-    # 領牌日與車牌填好時存檔就自動完成（T-147）；這個按鈕只在當時找不到成本規則、補建後手動完成時用。
-    # 原地送出後重新載入回到原位置；沒有 JavaScript 時也回到領牌步驟。
+    # 「確認完成」（使用者 2026-11-14 T-172 A′）：按下才算實際領牌日，鎖定成本、獎勵與傭金。
+    # 畫面先跳確認卡列出日期、車牌、規費明細與獎勵變化；原地送出後重新載入回到原位置；沒有 JavaScript 時也回到領牌步驟。
     step_url = order_step_url(pk, "registration")
     if order.is_registration_complete:
         messages.info(request, "此訂單已完成領牌。")

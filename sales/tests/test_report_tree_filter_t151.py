@@ -1,4 +1,5 @@
 """T-151：大數據分析群組的樹狀勾選篩選（總計 → 品牌 → 能源別 → 車型）。"""
+from django.utils import timezone
 from datetime import date
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -38,7 +39,8 @@ class TreeFilterTests(TestCase):
         for index, (model, month) in enumerate(rows):
             color = VehicleColor.objects.create(vehicle_model=model, name=f"色{index}")
             SalesOrder.objects.create(source_type="store", order_date=date(2026, month, 2),
-                registration_date=date(2026, month, 3), owner_type="company", owner_name="合成車主",
+                registration_date=date(2026, month, 3), registration_completed_at=timezone.now(),  # 已確認領牌（T-172 A′）
+                owner_type="company", owner_name="合成車主",
                 owner_id_number="83739807", vehicle_model=model, color=color, vehicle_price=10000,
                 actual_balance=10000, calculated_balance=10000, payment_type="cash", status="completed")
         base = {**initial_config(), "audience": "team", "navigation_group": "analysis",

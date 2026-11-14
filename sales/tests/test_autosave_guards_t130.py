@@ -96,12 +96,12 @@ class LockConfirmRegistrationTests(TestCase):
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete, "文件傳齊不可自動完成領牌（7D8EEE）")
         self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="registration_completed").exists())
-        # 文件選填、上傳不跳卡（T-145）；領牌確認卡已拿掉（T-147），只剩補完成用的按鈕。
+        # 文件選填、上傳不跳卡（T-145）；按「確認完成」才跳確認卡並完成（T-172 A′，不自動跳出）。
         self.assertNotIn("confirm=", response["Location"])
         page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
         self.assertNotIn("data-lock-auto", page)
-        self.assertNotIn('data-lock-confirm="確認領牌完成"', page)
-        self.assertIn(">完成領牌</button>", page)
+        self.assertIn('data-lock-confirm="確認領牌完成"', page)
+        self.assertIn(">確認完成</button>", page)
         self.client.post(reverse("registration_complete", args=[self.order.pk]))
         self.order.refresh_from_db()
         self.assertTrue(self.order.is_registration_complete)
@@ -114,7 +114,7 @@ class LockConfirmRegistrationTests(TestCase):
         self.order.refresh_from_db()
         self.assertFalse(self.order.is_registration_complete)
 
-    def test_autosave_that_completes_data_finishes_registration(self):
+    def test_autosave_with_complete_data_waits_for_confirm(self):
         self.order.final_plate_number = ""
         self.order.save(update_fields=["final_plate_number", "updated_at"])
         self.upload(Doc.NEW_LICENSE)
@@ -122,9 +122,12 @@ class LockConfirmRegistrationTests(TestCase):
         url = reverse("registration_save", args=[self.order.pk])
         data = {"registration_date": "2026-10-29", "final_plate_number": "abc-1234"}
         first = self.client.post(url, data, HTTP_X_ORDER_WORKSPACE="1").json()
-        self.assertTrue(first["reload"])
+        self.assertFalse(first["reload"])
         self.order.refresh_from_db()
-        self.assertTrue(self.order.is_registration_complete, "日期與車牌填好就自動完成（T-147）")
+        self.assertFalse(self.order.is_registration_complete, "存檔不自動完成，按確認完成才完成（T-172 A′）")
+        self.client.post(reverse("registration_complete", args=[self.order.pk]))
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.is_registration_complete)
         again = self.client.post(url, {**data, "final_plate_number": "abc-1235"}, HTTP_X_ORDER_WORKSPACE="1").json()
         self.assertFalse(again["reload"])
         self.order.refresh_from_db()

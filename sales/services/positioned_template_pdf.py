@@ -93,7 +93,8 @@ def order_print_values(order, today=None):
         "vehicle_identifier": vehicle.identifier if vehicle else "",
         "manufactured_year_month": vehicle.manufactured_year_month if vehicle else "",
         "plate_number": order.final_plate_number,
-        "registration_date": _date(order.registration_date),
+        # 「實際領牌日期」只印按過「確認完成」的日期；確認前是預計日，留白（T-172 A′）。
+        "registration_date": _date(order.confirmed_registration_date),
         "vehicle_price": _money(order.vehicle_price),
         "plate_insurance_fee": _money(order.plate_insurance_fee),
         "plate_selection_fee": _money(order.plate_selection_fee),

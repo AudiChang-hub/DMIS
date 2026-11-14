@@ -7,6 +7,7 @@ from django.utils import timezone
 from sales.models import (
     OrderDraft,
     SalesOrder,
+    registration_confirmed_q,
     VehicleInventory,
 )
 from sales.services.business_days import build_dealer_reminders
@@ -56,7 +57,9 @@ def _percent_change(current, previous):
 
 def _sales_snapshot(start, end, source=None):
     orders = list(
+        # 只算按過「確認完成」的領牌日；確認前填的是預計日（T-172 A′）。
         SalesOrder.objects.filter(
+            registration_confirmed_q(),
             registration_date__gte=start,
             registration_date__lte=end,
         )
@@ -91,7 +94,7 @@ def build_dashboard_metrics(today=None):
     open_orders = list(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot')
                        .prefetch_related('payment_records'))
     source = [order for order in open_orders
-              if order.registration_date and last_year_starts[0] <= order.registration_date <= today]
+              if order.confirmed_registration_date and last_year_starts[0] <= order.registration_date <= today]
     prefetch_related_objects(source, 'operations', 'vehicle_model')
     summaries = {order.pk: payment_summary(order) for order in open_orders}
     current = _sales_snapshot(month_start, today, source)

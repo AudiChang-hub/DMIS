@@ -3,7 +3,10 @@
 - 應付項目每次即時計算，不另存應付帳；`DealerPayoutEntry` 只記勾選、給付當下快照與備註。
 - 一個應付項目一列：車行 × 訂單 × 項目（傭金、每個實物品項）；台數獎金每期 × 每家車行 × 每條規則一列。
 - 只列領牌日 `PAYOUT_START_DATE`（含）以後、已完成領牌的車行單；取消、例外結案（含退車）、刪除的單不列。
+  例外：車行實物獎勵依訂單成立日預先觸發（T-176，使用者 2026-11-14），尚未確認領牌的單也列、也能勾已給付，
+  判斷日改看訂單成立日。
 - 已給付後金額變了：不自動取消，標「金額有變」，由使用者「確認差額」。來源消失：列在「來源已不存在」。
+  實物獎勵因領牌日不符被撤銷資格（訂單仍有效）時標「資格撤銷・待追回」，由使用者按「已追回」或「不追回」結案。
 - 不影響車行結算、掛帳、淨利與收支帳本。
 
 來源：傭金 `OrderOperationsProfile`、實物 T-149 `OrderDealerRewardLine`、台數獎金 T-148 `OrderVolumeBonus`。
@@ -51,6 +54,7 @@ class PayoutItem:
     period_label: str = ""
     details: list = field(default_factory=list)
     reward_name: str = ""
+    pre_triggered: bool = False
     entry: DealerPayoutEntry | None = None
 
     @property
@@ -224,20 +228,24 @@ def _reward_key(line):
 def reward_items():
     """車行實物獎勵（T-149 `OrderDealerRewardLine`）：每張單 × 活動 × 品項一列，記數量與單位、不記金額。
 
-    依實際領牌日套用、領牌完成後固定；收款車行由明細記錄（含指定給車行的本店單）。一律「另付」。
+    確認領牌前依訂單成立日預先觸發、確認後依實際領牌日（T-176）；確認後固定。尚未確認的單也列、也能勾，
+    標「依訂單日・待領牌確認」。收款車行由明細記錄（含指定給車行的本店單）。一律「另付」。
     """
-    from sales.models import OrderDealerRewardLine
+    from django.db.models import Q
 
+    from sales.models import OrderDealerRewardLine, registration_confirmed_q
+
+    confirmed = registration_confirmed_q("order__") & Q(order__registration_date__gte=PAYOUT_START_DATE)
+    pre_triggered = Q(order__registration_completed_at__isnull=True, order__established_on__gte=PAYOUT_START_DATE)
     lines = (
         OrderDealerRewardLine.objects.filter(
-            order__registration_date__gte=PAYOUT_START_DATE,
-            order__registration_completed_at__isnull=False,
+            confirmed | pre_triggered,
             order__deleted_at__isnull=True,
             quantity__gt=0,
         )
         .exclude(order__status__in=EXCLUDED_STATUSES)
         .select_related("order", "order__vehicle_model", "order__color", "dealer")
-        .order_by("order__registration_date", "order_id", "campaign_id", "id")
+        .order_by("order__registration_date", "order__established_on", "order_id", "campaign_id", "id")
     )
     items = OrderedDict()
     for line in lines:
@@ -245,6 +253,7 @@ def reward_items():
         if key in items:  # 同一活動重複列同一品項時合併數量
             items[key].quantity += line.quantity
             continue
+        early = not line.order.registration_completed_at
         items[key] = PayoutItem(
             source_key=key,
             kind=DealerPayoutEntry.Kind.REWARD,
@@ -253,9 +262,10 @@ def reward_items():
             quantity=line.quantity,
             unit=line.unit,
             order=line.order,
-            day=line.order.registration_date,
-            period_label=line.campaign_name,
+            day=line.order.reward_basis_date,
+            period_label=f"{line.campaign_name}・依訂單日，待領牌確認" if early else line.campaign_name,
             reward_name=line.name,
+            pre_triggered=early,
         )
     return list(items.values())
 
@@ -320,13 +330,23 @@ def collect_items(*, include_estimate=False):
 
 
 def orphan_entries(items):
-    """已給付但來源已不存在（退車、刪單、離開台數群組、規則刪除），且尚未確認處理。"""
+    """已給付但來源已不存在（退車、刪單、離開台數群組、規則刪除），且尚未確認處理。
+
+    實物獎勵的訂單仍有效時，是領牌日不符被撤銷活動資格（T-176）：標 `revoked`，畫面列「資格撤銷・待追回」。
+    """
     keys = {item.source_key for item in items}
-    return [
+    entries = [
         entry for entry in DealerPayoutEntry.objects.filter(paid=True, resolved_at__isnull=True)
         .select_related("dealer", "order").order_by("dealer__name", "pk")
         if entry.source_key not in keys
     ]
+    for entry in entries:
+        order = entry.order
+        entry.revoked = bool(
+            entry.kind == DealerPayoutEntry.Kind.REWARD and order is not None and order.deleted_at is None
+            and order.status not in EXCLUDED_STATUSES
+        )
+    return entries
 
 
 def current_item(source_key):
@@ -526,8 +546,14 @@ def save_note(source_key, note, actor_name):
     return True
 
 
+RESOLVE_OUTCOMES = {"recovered": "已追回", "waived": "不追回"}
+
+
 @transaction.atomic
-def resolve_orphan(entry_id, actor_name):
+def resolve_orphan(entry_id, actor_name, outcome=""):
+    """來源消失確認處理；資格撤銷的實物獎勵用 outcome 記「已追回」或「不追回」（T-176，寫在處理事件）。"""
+    if outcome and outcome not in RESOLVE_OUTCOMES:
+        raise ValidationError("請選擇已追回或不追回。")
     entry = DealerPayoutEntry.objects.select_for_update(of=("self",)).filter(pk=entry_id).first()
     if entry is None or not entry.paid or entry.resolved_at:
         raise ValidationError("這筆已處理或不存在，請重新整理。")
@@ -536,4 +562,4 @@ def resolve_orphan(entry_id, actor_name):
     entry.resolved_at = timezone.now()
     entry.resolved_by = actor_name
     entry.save(update_fields=["resolved_at", "resolved_by", "updated_at"])
-    _event(entry, DealerPayoutEvent.Action.RESOLVE, actor_name)
+    _event(entry, DealerPayoutEvent.Action.RESOLVE, actor_name, note_after=RESOLVE_OUTCOMES.get(outcome, ""))

@@ -25,6 +25,7 @@ from sales.models import (
     OrderVolumeBonus,
     PaymentRecord,
     SalesOrder,
+    registration_confirmed_q,
     SalesSource,
     VehicleInventory,
     VehicleModel,
@@ -216,7 +217,8 @@ def _trend(metrics):
 
 
 def _orders_between(source, start, end):
-    return [order for order in source if start <= order.registration_date <= end and not order.is_cancelled_sale]
+    return [order for order in source if order.confirmed_registration_date and start <= order.registration_date <= end
+            and not order.is_cancelled_sale]
 
 
 def _mix(windows, source, trend_start, today):
@@ -364,7 +366,7 @@ def _stock(today):
                             "alert": low >= STOCK_AGE_ALERT_DAYS})
     since = today - timedelta(days=VELOCITY_DAYS)
     sold = Counter(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
-                   .filter(registration_date__gt=since, registration_date__lte=today)
+                   .filter(registration_confirmed_q(), registration_date__gt=since, registration_date__lte=today)
                    .values_list("vehicle_model_id", flat=True))
     stock = Counter(vehicle.vehicle_model_id for vehicle in live)
     names = dict(VehicleModel.objects.filter(pk__in=set(stock) | set(sold)).values_list("pk", "name"))

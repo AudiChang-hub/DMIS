@@ -36,12 +36,16 @@ class OrderAutosaveTests(TestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertIn("financial_revision", payload)
-        self.assertIn("領牌已完成", payload["registration_html"])
+        self.assertIn("尚未確認", payload["registration_html"])
         order.refresh_from_db()
         self.assertEqual(order.final_plate_number, "ABC-1234")
-        # 日期與車牌填好就自動完成（使用者 2026-11-11 T-147，取代 10-15「由人員按確認領牌完成」）。
+        # 存檔不自動完成；按「確認完成」才完成（使用者 2026-11-14 T-172 A′，取代 11-11 T-147 填好即完成）。
+        self.assertFalse(order.is_registration_complete)
+        self.client.post(reverse("registration_complete", args=[order.pk]))
+        order.refresh_from_db()
         self.assertTrue(order.is_registration_complete)
 
+        # 確認後仍可修改，但不能清空日期。
         response = self.workspace_post(reverse("registration_save", args=[order.pk]),
                                        {"registration_date": "", "final_plate_number": "abc-1234"})
         self.assertEqual(response.status_code, 400)

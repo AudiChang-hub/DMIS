@@ -75,8 +75,10 @@ class RegistrationDateKeptTests(TestCase):
                                                RegistrationDocument.DocumentType.REGISTRATION_APPLICATION)):
             self.client.post(reverse("registration_document_upload", args=[order.pk]), {
                 "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"doc-{index}.pdf")})
-        # 日期與車牌填好就自動完成（T-147）；文件上傳不影響，完成時保留選的日期與依日期算的規費。
+        # 文件上傳不影響；按「確認完成」時保留選的日期與依日期算的規費（T-172 A′）。
         order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete, "上傳文件不完成領牌")
+        self.client.post(reverse("registration_complete", args=[order.pk]))
         order.refresh_from_db()
         profile = OrderOperationsProfile.objects.get(order=order)
         self.assertTrue(order.is_registration_complete)
@@ -124,7 +126,8 @@ class ManualTaxOverrideTests(TestCase):
         self.assertEqual((profile.registration_tax_expense, profile.registration_tax_income), (999, 999))
         self.assertIn("registration_tax_expense", profile.manual_financial_fields)
         self.assertFalse(OrderChange.objects.filter(order=order, reason__startswith="領牌日變更").exists())
-        self.assertTrue(OrderChange.objects.filter(order=order, changes__has_key="實際領牌日期").exists())
+        # 尚未按「確認完成」，記的是預計領牌日期（T-172 A′）。
+        self.assertTrue(OrderChange.objects.filter(order=order, changes__has_key="預計領牌日期").exists())
 
     def test_same_date_keeps_manual_tax(self):
         order = self.gas_order()

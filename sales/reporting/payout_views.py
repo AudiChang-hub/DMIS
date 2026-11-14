@@ -133,8 +133,10 @@ def dealer_payout_update(request):
             payouts.confirm_difference(keys[0], actor)
             messages.success(request, "已確認差額，改以目前金額記為已給付。")
         elif action == "resolve" and request.POST.get("entry", "").isdigit():
-            payouts.resolve_orphan(int(request.POST["entry"]), actor)
-            messages.success(request, "已確認處理，這筆不再列在「來源已不存在」。")
+            outcome = request.POST.get("outcome", "")
+            payouts.resolve_orphan(int(request.POST["entry"]), actor, outcome)
+            label = payouts.RESOLVE_OUTCOMES.get(outcome)
+            messages.success(request, f"已記為「{label}」並結案。" if label else "已確認處理，這筆不再列在「來源已不存在」。")
         else:
             messages.error(request, "無法辨識要執行的動作，請重新整理後再試。")
     except ValidationError as exc:

@@ -1,7 +1,10 @@
-"""領牌資料存檔後的連動（使用者 2026-11-11 T-147，取代 T-130／T-145 的鎖定確認卡）。
+"""領牌資料存檔後的連動（T-147；2026-11-14 T-172 A′ 改成按「確認完成」才完成）。
 
-- 領牌日與車牌都填好就自動完成領牌，帶入規費、成本、獎勵、傭金，訂單轉待交車；文件選填。
-- 完成後任何人、任何訂單狀態都能再改領牌日與車牌，不再有「改不了」的鎖。
+- 領牌日與車牌可以事先分別填寫、自動儲存；確認前的日期只是預計日（不進報表、不觸發獎勵撤銷），
+  依預計日試算規費、預估成本與傭金；獎勵依訂單成立日預先觸發（T-176）。
+- 實際領牌後按「確認完成」（`finish_registration`）才算實際領牌日：依這一天重判獎勵資格、鎖定成本、獎勵、
+  傭金，訂單轉待交車；文件選填。
+- 確認後任何人、任何訂單狀態都能再改領牌日與車牌（使用者 2026-11-14 第 2 題選 (2)，沿用 T-147）。
 - 改領牌日：系統算出的規費、牌照稅、領牌稅金收支，以及成本、獎勵、傭金依新日期重算；人工改過的值保留。
 - 只改車牌：不重算任何金額。
 - 已結算台數獎金的訂單維持訂單驗證原本的阻擋，不另做跨期處理（台數獎金流程由 T-148 重新設計）。
@@ -31,7 +34,9 @@ def record_registration_change(order, *, actor_name, before_date, before_plate):
     plate_changed = (order.final_plate_number or "") != (before_plate or "")
     changes = {}
     if date_changed:
-        changes["實際領牌日期"] = {"before": _date_text(before_date), "after": _date_text(order.registration_date)}
+        # 確認前改的是預計日（T-172 A′）。
+        label = "實際領牌日期" if order.registration_completed_at else "預計領牌日期"
+        changes[label] = {"before": _date_text(before_date), "after": _date_text(order.registration_date)}
     if plate_changed:
         changes["車牌號碼"] = {"before": before_plate or "未填", "after": order.final_plate_number or "未填"}
     if changes:
@@ -50,15 +55,15 @@ def finish_registration(order, actor_name):
         return False, " ".join(exc.messages)
     apply_order_settlement_cost(order, actor_name, lock=True)
     apply_order_incentive_rule(order, actor_name, lock=True)
-    apply_order_dealer_rewards(order, force=True)
+    apply_order_dealer_rewards(order, force=True, actor_name=actor_name)
     apply_order_dealer_commission(order, lock=True)
     OrderEvent.objects.create(
         order=order,
         event_type="registration_completed",
-        description=f"領牌完成：{order.registration_date}／{order.final_plate_number}",
+        description=f"確認領牌完成：實際領牌日 {order.registration_date}／{order.final_plate_number}",
         actor_name=actor_name,
     )
-    return True, "領牌階段已完成，訂單進入待交付。"
+    return True, "已確認領牌完成，實際領牌日已鎖定，訂單進入待交付。"
 
 
 def _resync_registration_tax(order):
@@ -88,13 +93,15 @@ def _recalculate_after_date_change(order, actor_name):
     if "vehicle_cost_locked_at" in unlock:
         apply_order_settlement_cost(order, actor_name, lock=True)
     apply_order_incentive_rule(order, actor_name, lock=True)
-    apply_order_dealer_rewards(order, force=True)
+    apply_order_dealer_rewards(order, force=True, actor_name=actor_name)
     apply_order_dealer_commission(order, lock=True)
 
 
 @transaction.atomic
 def apply_registration_edit(order, *, actor_name, before_date, before_plate):
-    """領牌資料存檔後呼叫（訂單已存入新值）。回傳 {"completed": 本次自動完成領牌, "notes": [(等級, 訊息)]}。"""
+    """領牌資料存檔後呼叫（訂單已存入新值）。回傳 {"completed": False, "notes": [(等級, 訊息)]}。
+
+    存檔不會完成領牌（T-172 A′）；`completed` 保留給呼叫端相容，一律 False。"""
     notes = []
     date_changed, _plate_changed = record_registration_change(
         order, actor_name=actor_name, before_date=before_date, before_plate=before_plate,
@@ -107,13 +114,9 @@ def apply_registration_edit(order, *, actor_name, before_date, before_plate):
         if date_changed and order.registration_date:
             _recalculate_after_date_change(order, actor_name)
         return {"completed": False, "notes": notes}
-    # 尚未完成：依領牌日帶入（預估）成本、獎勵、傭金，資料齊全就自動完成。
+    # 尚未確認：依預計日帶入預估成本與傭金；獎勵依訂單成立日（預計日不影響，T-176）。不自動完成。
     apply_order_settlement_cost(order, actor_name)
     apply_order_incentive_rule(order, actor_name)
-    apply_order_dealer_rewards(order)
+    apply_order_dealer_rewards(order, actor_name=actor_name)
     apply_order_dealer_commission(order)
-    completed = False
-    if not order.missing_registration_requirements():
-        completed, message = finish_registration(order, actor_name)
-        notes.append(("success" if completed else "warning", message))
-    return {"completed": completed, "notes": notes}
+    return {"completed": False, "notes": notes}

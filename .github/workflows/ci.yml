@@ -328,6 +328,7 @@ jobs:
           python manage.py test --noinput --parallel auto --tag migration
           sales.tests.test_old_owner_markers sales.tests.test_audit_log_draft_deletion_migration
           sales.tests.test_transaction_type_only sales.tests.test_volume_bonus_conditions
+          sales.tests.test_accessory_categories_migration_t179
 
   django-image:
     name: Django 正式映像檢查

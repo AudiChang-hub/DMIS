@@ -13,7 +13,13 @@
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <div class="operation-grid">
     {% include "sales/_field.html" with field=form.name %}
-    {% include "sales/_field.html" with field=form.category %}
+    {# 類別可複選（T-179）：同一項配件出現在每個勾選的類別。 #}
+    <fieldset class="field accessory-category-choices{% if form.categories.errors %} has-error{% endif %}" data-field-container aria-describedby="{{ form.categories.auto_id }}_help">
+      <legend>{{ form.categories.label }}（可複選）</legend>
+      <div class="accessory-category-choices__grid">{% for choice in form.categories %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% empty %}<span class="muted">還沒有類別，請先到「管理類別」新增。</span>{% endfor %}</div>
+      <small class="help-text" id="{{ form.categories.auto_id }}_help">{{ form.categories.help_text }}都不勾就是未分類。</small>
+      {% for error in form.categories.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+    </fieldset>
     {% include "sales/_field.html" with field=form.sale_price %}
     {% include "sales/_field.html" with field=form.labor_fee %}
     {% include "sales/_field.html" with field=form.cost %}

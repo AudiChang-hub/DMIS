@@ -52,7 +52,7 @@ class OrderPageLearnedAccessoryTests(TestCase):
         payload = self.save(self.order(), {"custom_name": "後照鏡座", "accessory_category": str(category.pk), "amount": "650"})
         product = AccessoryProduct.objects.get(name="後照鏡座")
         self.assertEqual(payload["accessory_products_added"], [{
-            "id": product.pk, "name": "後照鏡座", "category": "原廠配件", "sale_price": "650", "labor_fee": "0",
+            "id": product.pk, "name": "後照鏡座", "categories": ["原廠配件"], "sale_price": "650", "labor_fee": "0",
         }])
         self.assertIn("原廠配件", payload["accessory_category_order"])
 

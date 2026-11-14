@@ -4,6 +4,7 @@
 - 售價與工資是訂單當時的快照，這裡修改只影響之後新選的配件，已建立的訂單不變。
 - 訂單配件對主檔是 PROTECT：有訂單用過的配件不能刪，改用停用或合併（T-138）。
 - 刪除與批次修改寫進 Django 內建的異動紀錄（admin LogEntry），不另建資料表。
+- 一個配件可屬於多個類別（T-179）：各類別頁籤都列出它、筆數各算一次；「全部」是不重複的筆數。
 """
 from urllib.parse import urlencode
 
@@ -13,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, ProtectedError, Q
+from django.db.models import Count, Prefetch, ProtectedError, Q
 from django.http import QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,7 +24,11 @@ from .forms import AccessoryProductBulkForm
 from .models import AccessoryCategory, AccessoryProduct
 
 LIST_PARAMS = ("q", "active", "category", "page")
-BULK_FIELDS = ("name", "category", "sale_price", "labor_fee", "cost", "active")
+BULK_FIELDS = ("name", "categories", "sale_price", "labor_fee", "cost", "active")
+
+
+def _sorted_categories():
+    return Prefetch("categories", queryset=AccessoryCategory.objects.order_by("sort_order", "name"))
 
 
 def _filters(params):
@@ -44,9 +49,9 @@ def _list_url(selected, **overrides):
 
 def _category_tabs(selected, base):
     """頁籤：全部＋每個類別（停用的類別有配件才列），未分類有配件才列；筆數套用目前的搜尋與狀態篩選。"""
-    counts = {row["category_id"]: row["n"] for row in base.order_by().values("category_id").annotate(n=Count("id"))}
+    counts = {row["categories"]: row["n"] for row in base.order_by().values("categories").annotate(n=Count("id", distinct=True))}
     edit = "1" if selected.get("edit") else ""
-    tabs = [{"key": "", "label": "全部", "count": sum(counts.values())}]
+    tabs = [{"key": "", "label": "全部", "count": base.count()}]
     for category in AccessoryCategory.objects.order_by("sort_order", "name"):
         count = counts.get(category.pk, 0)
         key = str(category.pk)
@@ -73,10 +78,10 @@ def _list_context(selected, bound_forms=None):
     tabs = _category_tabs(selected, base)
     products = base
     if selected["category"] == "none":
-        products = products.filter(category__isnull=True)
+        products = products.filter(categories__isnull=True)
     elif selected["category"].isdigit():
-        products = products.filter(category_id=int(selected["category"]))
-    products = products.select_related("category").annotate(usage_count=Count("order_lines", distinct=True)).order_by("name")
+        products = products.filter(categories=int(selected["category"]))
+    products = products.prefetch_related(_sorted_categories()).annotate(usage_count=Count("order_lines", distinct=True)).order_by("name")
     page = Paginator(products, 100).get_page(selected["page"])
     bound_forms = bound_forms or {}
     rows = []
@@ -88,6 +93,18 @@ def _list_context(selected, bound_forms=None):
             "bound": form is not None,
             "version": product.updated_at.isoformat(),
         })
+    categories = list(AccessoryCategory.objects.filter(
+        Q(active=True) | Q(pk__in={category.pk for row in rows for category in row["product"].categories.all()})
+    ).order_by("sort_order", "name"))
+    for row in rows:
+        # 批次修改的類別勾選（T-179 可複選）：目前勾選（送出失敗時帶回輸入）與原本的類別。
+        original = {category.pk for category in row["product"].categories.all()}
+        checked = {int(value) for value in (row["form"]["categories"].value() or []) if str(value).isdigit()}
+        row["category_choices"] = [
+            {"pk": category.pk, "name": category.name, "active": category.active,
+             "checked": category.pk in checked, "original": category.pk in original}
+            for category in categories
+        ]
     current_tab = next(tab for tab in tabs if tab["active"])
     return {
         "rows": rows,
@@ -95,9 +112,7 @@ def _list_context(selected, bound_forms=None):
         "tabs": tabs,
         "current_tab": current_tab,
         "selected": selected,
-        "categories": AccessoryCategory.objects.filter(
-            Q(active=True) | Q(pk__in={row["product"].category_id for row in rows if row["product"].category_id})
-        ).order_by("sort_order", "name"),
+        "categories": categories,
         "clear_url": _list_url({"category": selected["category"]}, edit=selected.get("edit", "")),
         "edit_url": _list_url(selected, edit="1"),
         "view_url": _list_url(selected),
@@ -105,9 +120,13 @@ def _list_context(selected, bound_forms=None):
     }
 
 
+def _category_names(product):
+    return "、".join(category.name for category in product.sorted_categories()) or "未分類"
+
+
 def _display(field, value):
-    if field == "category":
-        return value.name if value else "未分類"
+    if field == "categories":
+        return value or "未分類"
     if field == "active":
         return "啟用中" if value else "已停用"
     if field == "cost" and value is None:
@@ -132,13 +151,13 @@ def _bulk_update(request, selected):
         messages.info(request, "沒有修改任何配件。")
         return redirect(_list_url(selected))
     with transaction.atomic():
-        products = {product.pk: product for product in AccessoryProduct.objects.select_for_update().select_related("category").filter(pk__in=ids)}
+        products = {product.pk: product for product in AccessoryProduct.objects.select_for_update().filter(pk__in=ids)}
         forms, changed, before, names = {}, [], {}, {}
         for pk in ids:
             product = products.get(pk)
             if product is None:
                 continue  # 別人已刪除；這一列略過
-            before[pk] = {field: getattr(product, field) for field in BULK_FIELDS}
+            before[pk] = {field: _category_names(product) if field == "categories" else getattr(product, field) for field in BULK_FIELDS}
             form = AccessoryProductBulkForm(request.POST, instance=product, prefix=f"p{pk}")
             forms[pk] = form
             if not form.is_valid():
@@ -176,9 +195,10 @@ def _save_changes(request, changed, before):
     for form in changed:
         product = form.save()
         old = before[product.pk]
+        after = {field: _category_names(product) if field == "categories" else getattr(product, field) for field in BULK_FIELDS}
         diffs = [
-            f"{AccessoryProduct._meta.get_field(field).verbose_name}：{_display(field, old[field])} → {_display(field, getattr(product, field))}"
-            for field in BULK_FIELDS if old[field] != getattr(product, field)
+            f"{AccessoryProduct._meta.get_field(field).verbose_name}：{_display(field, old[field])} → {_display(field, after[field])}"
+            for field in BULK_FIELDS if old[field] != after[field]
         ]
         _log(request, product, CHANGE, "配件清單批次修改：" + "；".join(diffs))
 
@@ -206,7 +226,7 @@ def accessory_product_delete(request, pk):
         messages.error(request, f"「{product.name}」已有 {used} 筆訂單配件用過，不能刪除；可以改成停用，或到編輯頁合併到其他配件。")
         return redirect(back)
     name = product.name
-    _log(request, product, DELETION, f"刪除配件（沒有訂單用過）：類別 {_display('category', product.category)}；售價 {product.sale_price}；工資 {product.labor_fee}")
+    _log(request, product, DELETION, f"刪除配件（沒有訂單用過）：類別 {_category_names(product)}；售價 {product.sale_price}；工資 {product.labor_fee}")
     try:
         with transaction.atomic():
             product.delete()

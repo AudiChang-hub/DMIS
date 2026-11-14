@@ -2027,7 +2027,8 @@ class AccessoryLineForm(forms.ModelForm):
         self.fields["accessory_product"].choices = [("", self.fields["accessory_product"].empty_label),
                                                     *self._grouped_product_choices(),
                                                     ("other", "自行填寫名稱")]
-        current_category = self.instance.accessory_product.category_id if self.instance.accessory_product_id else None
+        # 已選配件的預設類別：所屬類別裡排序最前的那一個（T-179 起可屬於多個類別）。
+        current_category = next(iter(c.pk for c in self.instance.accessory_product.sorted_categories()), None) if self.instance.accessory_product_id else None
         self.fields["accessory_category"].queryset = AccessoryCategory.objects.filter(
             Q(active=True) | Q(pk=current_category)
         )
@@ -2056,16 +2057,16 @@ class AccessoryLineForm(forms.ModelForm):
             self.fields["labor_fee"].initial = None
 
     def _grouped_product_choices(self):
-        """配件名稱依類別分組（optgroup），沒有類別的放最後「未分類」；畫面上選了類別就只顯示那一組。"""
-        products = sorted(
-            self.fields["accessory_product"].queryset.select_related("category"),
-            key=lambda item: (item.category_id is None, getattr(item.category, "sort_order", 0),
-                              getattr(item.category, "name", ""), item.name),
-        )
+        """配件名稱依類別分組（optgroup），沒有類別的放最後「未分類」；畫面上選了類別就只顯示那一組。
+        屬於多個類別的配件（T-179）放進每一個所屬分組，同一個值在各組各出現一次。"""
         groups = {}
-        for product in products:
-            groups.setdefault(product.category.name if product.category_id else "未分類", []).append((product.pk, product.name))
-        return list(groups.items())
+        for product in self.fields["accessory_product"].queryset.prefetch_related("categories"):
+            categories = product.sorted_categories()
+            for category in categories:
+                groups.setdefault((0, category.sort_order, category.name), []).append((product.pk, product.name))
+            if not categories:
+                groups.setdefault((1, 0, "未分類"), []).append((product.pk, product.name))
+        return [(key[2], sorted(items, key=lambda item: item[1])) for key, items in sorted(groups.items())]
 
     def clean(self):
         data = super().clean()
@@ -2992,17 +2993,20 @@ class VehiclePriceVersionForm(forms.ModelForm):
 class AccessoryProductForm(forms.ModelForm):
     class Meta:
         model = AccessoryProduct
-        fields = ["name", "category", "sale_price", "labor_fee", "cost", "active", "note"]
+        fields = ["name", "categories", "sale_price", "labor_fee", "cost", "active", "note"]
+        widgets = {"categories": forms.CheckboxSelectMultiple}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # 類別可隨時改（T-138）；停用的類別只保留目前這一項已選的。
-        self.fields["category"].queryset = AccessoryCategory.objects.filter(
-            Q(active=True) | Q(pk=self.instance.category_id)
-        )
-        self.fields["category"].empty_label = "未分類"
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+        # 類別可隨時改、可複選（T-138、T-179）；停用的類別只保留這一項已選的。都不勾就是未分類。
+        current = list(self.instance.categories.values_list("pk", flat=True)) if self.instance.pk else []
+        self.fields["categories"].queryset = AccessoryCategory.objects.filter(
+            Q(active=True) | Q(pk__in=current)
+        ).order_by("sort_order", "name")
+        self.fields["categories"].help_text = "可複選：同一項配件會出現在每個勾選的類別，改名稱、售價、工資或停用只要改一次。"
+        for name, field in self.fields.items():
+            if name != "categories":
+                field.widget.attrs.setdefault("class", "form-control")
         for field_name in ("sale_price", "labor_fee", "cost"):
             if not self.is_bound and self.initial.get(field_name) in (None, 0):
                 self.initial[field_name] = ""
@@ -3014,12 +3018,28 @@ class AccessoryProductBulkForm(AccessoryProductForm):
     金額照實帶出目前值（0 也顯示），避免沒動到的欄位因為空白而被當成修改。"""
 
     class Meta(AccessoryProductForm.Meta):
-        fields = ["name", "category", "sale_price", "labor_fee", "cost", "active"]
+        fields = ["name", "categories", "sale_price", "labor_fee", "cost", "active"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name in ("sale_price", "labor_fee", "cost"):
             self.initial[field_name] = getattr(self.instance, field_name)
+
+
+class AccessoryCategoryForm(forms.ModelForm):
+    """配件類別（T-138；使用者 2026-11-14 T-179 恢復自行管理）：名稱、排序（數字小的排前面）、啟用。"""
+
+    class Meta:
+        model = AccessoryCategory
+        fields = ["name", "sort_order", "active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["sort_order"].help_text = "數字小的排前面。"
+        for name, field in self.fields.items():
+            if name != "active":
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
 
 
 class AccessoryProductMergeForm(forms.Form):

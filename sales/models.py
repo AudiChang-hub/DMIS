@@ -1071,9 +1071,15 @@ class AccessoryCategory(TimeStampedModel):
 
 class AccessoryProduct(TimeStampedModel):
     name = models.CharField("配件名稱", max_length=160, unique=True)
+    # 舊的單一類別（T-138）。T-179 起改用 categories，這一欄由 sync_primary_category 同步寫入排序最前的類別，
+    # 部署期間與退回舊版時仍讀得到；下一版移除（先擴充、後收斂）。新程式不要再直接讀寫這一欄。
     category = models.ForeignKey(
         AccessoryCategory, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="products", verbose_name="類別",
+        related_name="products", verbose_name="類別（舊）",
+    )
+    # 一個配件可屬於多個類別（使用者 2026-11-14 T-179）：改名、售價、工資、停用只改一次，每個類別看到的都跟著變。
+    categories = models.ManyToManyField(
+        AccessoryCategory, blank=True, related_name="category_products", verbose_name="類別",
     )
     sale_price = models.DecimalField(
         "配件售價", max_digits=12, decimal_places=0, default=0
@@ -1096,6 +1102,17 @@ class AccessoryProduct(TimeStampedModel):
         ordering = ["name"]
         verbose_name = "配件主檔"
         verbose_name_plural = "配件主檔"
+
+    def sorted_categories(self):
+        """所屬類別依排序；有 prefetch 時不另查資料庫。"""
+        return sorted(self.categories.all(), key=lambda item: (item.sort_order, item.name))
+
+    def sync_primary_category(self):
+        """舊的單一類別欄位跟著多對多：寫入排序最前的類別，沒有類別就清空（T-179，下一版移除）。"""
+        first = self.categories.order_by("sort_order", "name").values_list("pk", flat=True).first()
+        if self.category_id != first:
+            type(self).objects.filter(pk=self.pk).update(category_id=first)
+            self.category_id = first
 
     def __str__(self):
         return self.name

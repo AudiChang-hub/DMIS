@@ -1,4 +1,5 @@
-/* 配件與工資批次修改（T-178）：直接在清單上改，有改到的列才送出；勾選多筆可一次改類別或啟用狀態。
+/* 配件與工資批次修改（T-178）：直接在清單上改，有改到的列才送出；勾選多筆可一次加入／移出類別或改啟用狀態。
+   一個配件可屬於多個類別（T-179）：每列的類別是一組勾選框，摘要顯示目前勾選的類別。
    伺服器沿用單筆表單驗證，任一筆有錯就都不存，畫面會把輸入值帶回來。 */
 (() => {
   const form = document.querySelector("[data-accessory-bulk]");
@@ -8,7 +9,7 @@
   const pickedCount = form.querySelector("[data-picked-count]");
   const dirtyCount = form.querySelector("[data-dirty-count]");
   const categorySelect = form.querySelector("[data-bulk-category]");
-  const applyCategory = form.querySelector("[data-bulk-apply-category]");
+  const categoryActions = [...form.querySelectorAll("[data-bulk-category-action]")];
   const activeButtons = [...form.querySelectorAll("[data-bulk-active]")];
   const saveButton = form.querySelector("[data-bulk-save]");
   let submitting = false;
@@ -24,9 +25,17 @@
   const isDirty = row => fields(row).some(control => !same(control));
   const picked = () => rows.filter(row => row.querySelector("[data-pick]").checked);
 
+  function summarize(row) {
+    const summary = row.querySelector("[data-cats-summary]");
+    if (!summary) return;
+    const names = [...row.querySelectorAll('input[name$="-categories"]:checked')].map(box => box.dataset.categoryName);
+    summary.textContent = names.length ? names.join("、") : "未分類";
+  }
+
   function refresh() {
     let dirty = 0;
     for (const row of rows) {
+      summarize(row);
       const changed = isDirty(row);
       row.classList.toggle("is-dirty", changed);
       for (const control of fields(row)) control.classList.toggle("is-changed", !same(control));
@@ -37,7 +46,7 @@
     const count = picked().length;
     pickedCount.textContent = count ? `已勾選 ${count} 項` : "尚未勾選";
     for (const row of rows) row.classList.toggle("is-picked", row.querySelector("[data-pick]").checked);
-    applyCategory.disabled = count === 0 || categorySelect.selectedIndex <= 0;
+    for (const button of categoryActions) button.disabled = count === 0 || categorySelect.selectedIndex <= 0;
     for (const button of activeButtons) button.disabled = count === 0;
     if (pickAll) {
       pickAll.checked = count > 0 && count === rows.length;
@@ -52,10 +61,16 @@
     for (const row of rows) row.querySelector("[data-pick]").checked = pickAll.checked;
     refresh();
   });
-  applyCategory.addEventListener("click", () => {
-    for (const row of picked()) row.querySelector('select[name$="-category"]').value = categorySelect.value;
-    refresh();
-  });
+  for (const button of categoryActions) {
+    button.addEventListener("click", () => {
+      const add = button.dataset.bulkCategoryAction === "add";
+      for (const row of picked()) {
+        const box = row.querySelector(`input[name$="-categories"][value="${categorySelect.value}"]`);
+        if (box) box.checked = add;
+      }
+      refresh();
+    });
+  }
   for (const button of activeButtons) {
     button.addEventListener("click", () => {
       for (const row of picked()) row.querySelector('input[type="checkbox"][name$="-active"]').checked = button.dataset.bulkActive === "1";

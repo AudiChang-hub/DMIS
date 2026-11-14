@@ -8020,6 +8020,21 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .accessory-bulk-savebar { margin: var(--space-3); }
 .accessory-bulk-savebar .form-savebar__hint strong { display: block; color: var(--ink); font-size: var(--text-base); }
 .accessory-bulk-savebar .button.primary:disabled { opacity: .55; cursor: not-allowed; }
+/* 配件編輯的類別可複選（T-179）：整列寬、勾選框排成格線。 */
+.accessory-category-choices { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
+.accessory-category-choices legend { margin-bottom: var(--space-2); padding: 0; font-weight: 700; }
+.accessory-category-choices__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--space-2) var(--space-4); }
+.accessory-category-choices__grid label { display: inline-flex; min-height: 40px; align-items: center; gap: var(--space-2); cursor: pointer; }
+.accessory-category-choices__grid input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--forest); }
+/* 批次修改的類別可複選（T-179）：摘要像欄位，展開後在格子內列出勾選框，不浮出表格外。 */
+.accessory-bulk-cats { min-width: 180px; max-width: 260px; }
+.accessory-bulk-cats > summary { min-height: 40px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-mid); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
+.accessory-bulk-cats > summary:hover { border-color: var(--line-strong); }
+.accessory-bulk-cats > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.accessory-bulk-cats:has(input.is-changed) > summary { border-color: var(--amber); background: var(--amber-soft); }
+.accessory-bulk-cats__panel { display: grid; margin: var(--space-2) 0 0; padding: var(--space-2) 0 0; gap: var(--space-2); border: 0; border-top: 1px solid var(--line-soft); }
+.accessory-bulk-cats__panel label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
+.accessory-bulk-table .accessory-bulk-cats__panel input.is-changed { outline: 2px solid var(--amber); outline-offset: 1px; }
 .accessory-panel .row-action-buttons form { display: contents; }
 /* 外框 overflow: hidden 會讓底部儲存列無法黏住畫面；clip 一樣裁圓角但不形成捲動容器。 */
 .inventory-list-panel.accessory-panel { overflow: clip; }
@@ -8031,6 +8046,7 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   .accessory-bulk-table td.accessory-bulk-pick { width: auto; text-align: left; }
   .accessory-bulk-table :is(input[type="text"], input.accessory-bulk-money, select) { width: 100%; max-width: none; min-width: 0; }
   .accessory-bulk-table td { grid-column: 1 / -1; }
+  .accessory-bulk-cats { max-width: none; }
   .accessory-bulk-savebar { margin: var(--space-2); }
   .accessory-panel .inventory-table td:is([data-label="配件名稱"], [data-label="狀態"]) { grid-column: 1 / -1; }
 }

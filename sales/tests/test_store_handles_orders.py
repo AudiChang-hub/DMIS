@@ -101,8 +101,9 @@ class StoreHandlesOrdersTests(TestCase):
             self.assertNotIn("value=", field)
             self.assertIn('placeholder="沒有收訂金請留空"', field)
 
-    def test_only_store_orders_show_signing_step(self):
-        # 1.73.2：只有本店訂單需要客人簽訂購單與個資同意書；車行、網路平台略過且不顯示。
+    def test_only_store_orders_ask_for_signatures(self):
+        # 1.73.2：只有本店訂單需要客人簽訂購單與個資同意書。
+        # T-174（使用者 2026-11-13）：車行、網路平台也有「列印與簽署文件」這一步，但只列印、不請客人簽名。
         from sales.services.order_next_actions import build_order_next_actions
         from sales.services.order_steps import build_order_steps
         self.client.force_login(self.root)
@@ -112,18 +113,34 @@ class StoreHandlesOrdersTests(TestCase):
         self.assertTrue(store.needs_customer_signatures)
         self.assertFalse(dealer.needs_customer_signatures)
         store_steps = [step["key"] for step in build_order_steps(store)["step_list"]]
-        dealer_steps = build_order_steps(dealer)["step_list"]
-        self.assertIn("documents", store_steps)
-        self.assertNotIn("documents", [step["key"] for step in dealer_steps])
+        dealer_context = build_order_steps(dealer, requested="documents")
+        dealer_steps = dealer_context["step_list"]
+        self.assertEqual(store_steps, [step["key"] for step in dealer_steps])
         self.assertEqual([step["number"] for step in dealer_steps], list(range(1, len(dealer_steps) + 1)))
+        documents = dealer_context["steps"]["documents"]
+        self.assertEqual((documents["number"], documents["state"], documents["state_label"]), (3, "optional", "選用"))
+        self.assertEqual(documents["summary"], "不需客人簽名・可列印個資同意書")
+        self.assertEqual(dealer_context["open_step"], "documents")
+        # 不簽名就不提醒補簽，也不影響目前步驟。
         actions = build_order_next_actions(dealer)
         self.assertNotIn("documents", [action.key for action in [actions.primary, *actions.secondary] if action])
+        self.assertNotEqual(build_order_steps(dealer, next_actions=actions)["current_step"], "documents")
         page = self.client.get(reverse("order_detail", args=[dealer.pk]), {"created": "1"}).content.decode()
-        self.assertNotIn('id="panel-documents"', page)
+        panel = page[page.index('id="panel-documents"'):]
+        panel = panel[:panel.index('id="panel-allocation"')]
+        self.assertIn('id="print-documents"', panel)
+        self.assertIn('name="part" value="privacy" checked', panel)
+        self.assertNotIn('value="contract_store"', panel)
+        self.assertNotIn('value="contract_customer"', panel)
+        self.assertNotIn("在行動裝置上簽名", page)
+        self.assertNotIn(reverse("order_sign", args=[dealer.pk]), page)
+        self.assertNotIn('id="signed-documents"', page)
         self.assertNotIn("簽署與列印文件", page)
         self.assertNotIn('id="print-contract-dialog"', page)
         store_page = self.client.get(reverse("order_detail", args=[store.pk]), {"created": "1"}).content.decode()
         self.assertIn('id="panel-documents"', store_page)
+        self.assertIn('id="signed-documents"', store_page)
+        self.assertNotIn('id="print-documents"', store_page)
         self.assertIn('id="print-contract-dialog"', store_page)
         done = self.client.get(reverse("order_submitted", args=[dealer.pk])).content.decode()
         self.assertNotIn("這次要怎麼簽", done)

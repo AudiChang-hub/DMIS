@@ -138,6 +138,20 @@ class TaxConsentOrderPrintTests(TaxConsentBase):
         self.assertNotIn("tax_consent", form)
         self.assertNotIn("退稅同意書", form)
 
+    def test_dealer_and_platform_orders_print_consents_without_signing(self):
+        """T-174：車行、網路平台的訂單不請客人簽名，但可以列印個資同意書與（符合條件時）退稅同意書。"""
+        order = self.eligible_order()
+        for source_type in (SalesOrder.SourceType.DEALER, SalesOrder.SourceType.PLATFORM):
+            with self.subTest(source_type=source_type):
+                SalesOrder.objects.filter(pk=order.pk).update(source_type=source_type)
+                html = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"}).content.decode()
+                form = picker_forms(html)[0]
+                self.assertEqual(re.findall(r'name="part" value="(\w+)" checked', form), ["privacy", "tax_consent"])
+                self.assertNotIn("在行動裝置上簽名", html)
+                pages = pdf_pages(self.print_documents(order, ["privacy", "tax_consent"], method="post"))
+                self.assertEqual(len(pages), 2)
+                self.assertIn("退稅", pages[1])
+
     def test_existing_parts_on_all_three_pages_print_the_same_as_before(self):
         """勾選面板改用 POST：訂單頁、訂單已成立頁、簽署完成頁的既有勾選與預設值不變，送出結果和 GET 相同。"""
         order = self.make_order()

@@ -49,6 +49,12 @@ def _document_summary(order, document):
     ]
 
 
+def _print_only_summary(order):
+    """車行、網路平台的訂單不請客人簽名，只列印同意書（T-174）。"""
+    from sales.services.tax_consent_pdf import needs_tax_consent
+    return "不需客人簽名・可列印個資同意書" + ("、退稅同意書" if needs_tax_consent(order) else "")
+
+
 def _money(value):
     return f"{(value or ZERO):,.0f}"
 
@@ -82,9 +88,11 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         "documents": dict(
             number=3, title="列印與簽署文件",
             # 簽署改為選用（使用者 2026-10-22 T-95）：沒簽不列為待辦，摘要照常顯示簽署狀態。
-            state="done" if order.has_signed_contract and order.has_privacy_consent else "optional",
-            summary="訂購單" + _document_summary(order, "contract")
-                    + "・個資同意書" + _document_summary(order, "privacy"),
+            state="done" if order.needs_customer_signatures and order.has_signed_contract
+                  and order.has_privacy_consent else "optional",
+            summary=("訂購單" + _document_summary(order, "contract")
+                     + "・個資同意書" + _document_summary(order, "privacy"))
+                    if order.needs_customer_signatures else _print_only_summary(order),
         ),
         "allocation": dict(
             number=4, title="配車",
@@ -131,12 +139,10 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             number=None, title="處理紀錄", state="reference", summary="處理經過與訂單變更紀錄",
         ),
     }
-    # 車行、網路平台的訂單不需要客人簽署文件：拿掉這一步，後面的步驟往前遞補編號。
-    step_order = tuple(key for key in STEP_ORDER if key != "documents" or order.needs_customer_signatures)
+    # 車行、網路平台的訂單也有這一步，但只列印、不請客人簽名（使用者 2026-11-13 T-174）。
+    step_order = STEP_ORDER
     for number, key in enumerate(step_order, 1):
         steps[key]["number"] = number
-    if requested == "documents" and not order.needs_customer_signatures:
-        requested = None
     current = None
     if next_actions and next_actions.primary:
         current = ACTION_STEP.get(next_actions.primary.key)

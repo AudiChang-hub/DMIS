@@ -149,10 +149,24 @@
 {% include "sales/_order_step_deposit.html" %}
 {% include "sales/_order_step_fees.html" %}
 </div></section>{% endwith %}
-{% if not editing_order and order.needs_customer_signatures %}
+{% if not editing_order %}
 {% with step=steps.documents %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-documents" data-step-key="documents" role="tabpanel" aria-labelledby="tab-documents" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
+{% if not order.needs_customer_signatures %}{# T-174：車行、網路平台的訂單不請客人簽名，只列印同意書。 #}
+{% if_access 'order_documents_print' order.pk %}<section class="section-block signed-documents-panel" id="print-documents">
+  <div class="section-title signed-documents-panel__title">
+    <div>
+      <p class="eyebrow">列印文件</p>
+      <h2>列印同意書</h2>
+      <small>{{ order.get_source_type_display }}的訂單不請客人簽名，需要時印出交給客人或留存。</small>
+    </div>
+  </div>
+  <div class="section-body signing-tools">
+    {% include "sales/_order_print_picker.html" with print_only=True %}
+  </div>
+</section>{% endif_access %}
+{% else %}
 <section class="section-block signed-documents-panel" id="signed-documents">
   <div class="section-title signed-documents-panel__title">
     <div>
@@ -198,6 +212,7 @@
     </article>
   </div>
 </section>
+{% endif %}
 {% if positioned_templates %}
 <section class="section-block positioned-print-panel">
   <div class="section-title"><div><h2>其他制式套表</h2><small>{% site_text 'order_detail.da82613529cc' %}</small></div></div>

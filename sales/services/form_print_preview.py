@@ -157,12 +157,24 @@ def _envelope_values(order):
 
 def build_envelope_preview_pdf(orders):
     """信封預覽：每張訂單一頁 21×17 cm，內容取自下載 Word 檔用的同一段文件。"""
+    return _envelope_pdf(orders, _envelope_values, "信封預覽")
+
+
+def build_envelope_print_pdf(orders):
+    """直接列印信封（T-173，使用者 11/13 選 A）：和預覽同一份 21×17 cm 排版，帶入車控密碼。
+
+    呼叫端（POST）要記處理紀錄；印表機要先設好 21×17 cm 自訂紙張、列印選「實際大小」才不會縮放或印偏。
+    """
+    return _envelope_pdf(orders, lambda order: form_print.form_values(order, reveal_secrets=True), "信封")
+
+
+def _envelope_pdf(orders, values_for, title):
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=(PAGE_W_TW * TWIP_MM * mm, PAGE_H_TW * TWIP_MM * mm))
-    pdf.setTitle("信封預覽")
+    pdf.setTitle(title)
     height = PAGE_H_TW * TWIP_MM * mm
     for order in orders:
-        body = form_print._envelope_body(order, _envelope_values(order))
+        body = form_print._envelope_body(order, values_for(order))
         top, bottom = form_print._ENVELOPE_MARGINS[order.is_electric_vehicle]
         body += f'<w:sectPr><w:pgMar w:top="{top}" w:bottom="{bottom}"/></w:sectPr>'
         for x_mm, baseline_mm, runs in envelope_layout(body):

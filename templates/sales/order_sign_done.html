@@ -11,6 +11,7 @@
   <ul class="signing-result">
     <li>車輛訂購單：{% if contract_state == "electronic" %}已電子簽署{% elif contract_state == "paper" %}紙本已上傳{% else %}尚未簽署{% endif %}</li>
     <li>個資同意書：{% if privacy_state == "electronic" %}已電子簽署{% elif privacy_state == "paper" %}紙本已上傳{% else %}尚未簽署{% endif %}</li>
+    {% if tax_consent_state %}<li>欣鈴退稅同意書：{% if tax_consent_state == "electronic" %}已電子簽署{% elif tax_consent_state == "paper" %}紙本已上傳{% else %}尚未簽署{% endif %}</li>{% endif %}
   </ul>
   <div class="sign-choice">
     <p class="sign-choice__title">客人需要紙本副本嗎？</p>

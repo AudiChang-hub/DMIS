@@ -74,6 +74,8 @@ def collect_order_file_groups(order, request):
               delete_url=_allowed(policy, "order_file_delete", [order.pk, "signed_contract"])),
         media("個資同意書", "order", order.pk, "privacy_consent", order.privacy_consent,
               delete_url=_allowed(policy, "order_file_delete", [order.pk, "privacy_consent"])),
+        media("退稅同意書", "order", order.pk, "tax_consent", order.tax_consent,
+              delete_url=_allowed(policy, "order_file_delete", [order.pk, "tax_consent"])),
     ])
     group("車主證件", [
         media("證件正面", "order", order.pk, "id_front", order.id_front,
@@ -260,6 +262,8 @@ def document_slots(order, request, registration_rows=(), subsidy_rows=()):
     if order.needs_customer_signatures:
         slots.append(_signing_slot(order, policy, "contract", "訂購合約", "signed_contract", "contract_upload"))
         slots.append(_signing_slot(order, policy, "privacy", "個資同意書", "privacy_consent", "privacy_consent_upload"))
+    if order.needs_customer_signatures and order.needs_tax_consent:
+        slots.append(_signing_slot(order, policy, "tax_consent", "退稅同意書", "tax_consent", "tax_consent_upload"))
 
     # 傳錯的檔案隨時可替換或刪除（使用者 2026-11-06 T-121）；與訂單頁領牌文件列、上傳與刪除檢查一致。
     if not order.allocated_vehicle_id:
@@ -330,6 +334,8 @@ def classify_route(target):
         return "contract_upload", "signed_contract", "", "訂購合約"
     if target == "privacy":
         return "privacy_consent_upload", "privacy_consent", "", "個資同意書"
+    if target == "tax_consent":
+        return "tax_consent_upload", "tax_consent", "", "退稅同意書"
     prefix, _, document_type = target.partition(":")
     if prefix == "registration" and document_type in set(RegistrationDocument.active_fixed_document_types()):
         label = dict(RegistrationDocument.DocumentType.choices)[document_type]

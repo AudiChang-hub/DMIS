@@ -22,6 +22,8 @@ DOCUMENTS = {
     # copies：檔案依序由幾聯組成；配件多時一聯可能跨多頁，各聯頁數相同。
     "contract": {"label": "車輛訂購單", "field": "signed_contract", "copies": 2},
     "privacy": {"label": "個人資料使用同意書", "field": "privacy_consent", "copies": 1},
+    # T-174：只對 SUZUKI 油車＋汰舊出現（applicable_documents）；不列入步驟完成判斷。
+    "tax_consent": {"label": "欣鈴申請退稅同意書", "field": "tax_consent", "copies": 1},
 }
 PRINT_PARTS = {
     "contract_store": ("contract", 0, "訂購單・店家留存聯"),
@@ -75,8 +77,27 @@ def privacy_terms(order):
     }
 
 
+def tax_consent_terms(order):
+    model = order.vehicle_model if order.vehicle_model_id else None
+    return {
+        "owner_name": order.owner_name,
+        "owner_id_number": order.owner_id_number,
+        "company": _company_name(order),
+        "model_number": (model.model_number or model.name) if model else "",
+        "order_date": _plain(order.order_date),
+    }
+
+
+TERMS = {"contract": contract_terms, "privacy": privacy_terms, "tax_consent": tax_consent_terms}
+
+
+def applicable_documents(order):
+    """這張訂單可以簽的文件；退稅同意書只給 SUZUKI 油車＋汰舊（T-158 條件）。"""
+    return [key for key in DOCUMENTS if key != "tax_consent" or order.needs_tax_consent]
+
+
 def current_fingerprint(order, document):
-    terms = contract_terms(order) if document == "contract" else privacy_terms(order)
+    terms = TERMS[document](order)
     payload = json.dumps(terms, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -85,7 +106,8 @@ def document_state(order, document):
     field = DOCUMENTS[document]["field"]
     if getattr(order, f"{field}_is_electronic"):
         return "electronic"
-    if order.has_signed_contract if document == "contract" else order.has_privacy_consent:
+    if getattr(order, {"contract": "has_signed_contract", "privacy": "has_privacy_consent",
+                       "tax_consent": "has_tax_consent"}[document]):
         return "paper"
     return "missing"
 
@@ -127,6 +149,11 @@ def decode_signature(data_url):
 def build_document_pdf(order, document, signature=None):
     from sales.services.order_contract_pdf import build_order_contract_pdf
     from sales.services.privacy_consent_pdf import build_privacy_consent_pdf
+    from sales.services.tax_consent_pdf import build_tax_consent_pdf
+    if document == "tax_consent":
+        # 電子簽署版的銀行／郵局帳號留白：簽署頁預覽不顯示完整帳號（GET 不留查看紀錄），
+        # 客人簽的內容要和看到的一樣；帳號以附上的存摺影本為準。
+        return build_tax_consent_pdf(order, signature=signature)
     builder = build_order_contract_pdf if document == "contract" else build_privacy_consent_pdf
     return builder(order, signature=signature)
 

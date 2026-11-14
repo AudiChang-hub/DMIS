@@ -235,3 +235,126 @@ class DocumentSigningTests(TestCase):
         self.assertIn('value="contract_store" checked>', dialog)
         self.assertIn('value="privacy" checked>', dialog)
         self.assertNotIn("選擇副本聯別", dialog)
+
+
+class TaxConsentSigningTests(TestCase):
+    """T-174（使用者 2026-11-13 選 A）：欣鈴退稅同意書比照個資同意書，可電子簽署或上傳紙本；
+    只對 SUZUKI 油車＋汰舊出現，步驟完成判斷仍只看訂購單與個資同意書。"""
+
+    setUp = flow.OrderFlowTests.setUp
+    make_order = flow.OrderFlowTests.make_order
+    sign = DocumentSigningTests.sign
+
+    def eligible(self):
+        self.model.brand = "SUZUKI"
+        self.model.save()
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(is_trade_in_subsidy=True)
+        return SalesOrder.objects.get(pk=order.pk)
+
+    def sign_tax(self, order, documents=("tax_consent",)):
+        order = SalesOrder.objects.get(pk=order.pk)
+        return self.sign(order, documents, fingerprint_tax_consent=order.document_fingerprint("tax_consent"))
+
+    def test_sign_page_offers_tax_consent_only_when_applicable(self):
+        self.client.force_login(self.user)
+        plain = self.make_order()
+        page = self.client.get(reverse("order_sign", args=[plain.pk]))
+        self.assertNotContains(page, 'value="tax_consent"')
+        self.assertNotContains(page, "欣鈴申請退稅同意書")
+        order = self.eligible()
+        page = self.client.get(reverse("order_sign", args=[order.pk]))
+        self.assertContains(page, 'value="tax_consent" checked')
+        self.assertContains(page, 'name="fingerprint_tax_consent"')
+        self.assertContains(page, "data:image/png;base64,", count=3)
+        self.assertContains(page, "銀行／郵局帳號欄留白")
+        # 不適用的訂單即使送出 tax_consent 也不會簽。
+        self.sign(plain, ("privacy", "tax_consent"))
+        plain.refresh_from_db()
+        self.assertFalse(plain.tax_consent)
+        self.assertTrue(plain.privacy_consent_is_electronic)
+
+    def test_signing_stores_tax_consent_without_account_and_keeps_step_rules(self):
+        from sales.models import OrderOperationsProfile
+        from sales.services.order_next_actions import build_order_next_actions
+        from sales.services.order_steps import build_order_steps
+        order = self.eligible()
+        OrderOperationsProfile.objects.update_or_create(
+            order=order, defaults={"bank_name": "測試銀行", "remittance_account": "012-3456789"},
+        )
+        self.client.force_login(self.user)
+        response = self.sign_tax(order)
+        self.assertRedirects(response, reverse("order_sign_done", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertTrue(order.tax_consent_is_electronic)
+        self.assertEqual(order.tax_consent_fingerprint, order.document_fingerprint("tax_consent"))
+        with order.tax_consent.open("rb") as handle:
+            signed = handle.read()
+        text = pdf_text(signed)
+        self.assertIn("申請退稅同意書", text)
+        self.assertIn("簽署人 王小明", text)
+        self.assertNotIn("012-3456789", text)
+        self.assertEqual(order.events.filter(event_type="tax_consent_esigned").count(), 1)
+        self.assertFalse(order.events.filter(event_type="payout_account_viewed").exists())
+        done = self.client.get(reverse("order_sign_done", args=[order.pk]))
+        self.assertContains(done, "欣鈴退稅同意書：已電子簽署")
+        # 只簽退稅同意書：步驟 3 仍是選用，補簽提醒照舊列訂購單與個資同意書。
+        steps = build_order_steps(order)["steps"]
+        self.assertEqual(steps["documents"]["state"], "optional")
+        self.assertIn("退稅同意書已電子簽署", steps["documents"]["summary"])
+        actions = build_order_next_actions(order)
+        archive = next(action for action in [actions.primary, *actions.secondary] if action and action.key == "documents")
+        self.assertNotIn("退稅", archive.description)
+        # 簽好訂購單與個資同意書即完成，不等退稅同意書。
+        other = self.eligible()
+        self.sign(other)
+        other = SalesOrder.objects.get(pk=other.pk)
+        self.assertFalse(other.tax_consent)
+        self.assertEqual(build_order_steps(other)["steps"]["documents"]["state"], "done")
+
+    def test_print_uses_signed_tax_consent(self):
+        order = self.eligible()
+        self.client.force_login(self.user)
+        self.sign_tax(order)
+        response = self.client.post(reverse("order_documents_print", args=[order.pk]), {"part": ["tax_consent"]})
+        self.assertEqual(response.status_code, 200)
+        text = pdf_text(b"".join(response.streaming_content))
+        self.assertIn("簽署人 王小明", text)
+        self.assertFalse(order.events.filter(event_type="payout_account_viewed").exists())
+
+    def test_paper_upload_view_and_delete(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        order = self.eligible()
+        self.client.force_login(self.user)
+        detail = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"})
+        self.assertContains(detail, reverse("tax_consent_upload", args=[order.pk]))
+        self.assertContains(detail, "尚未簽署")
+        upload = SimpleUploadedFile("tax.pdf", b"%PDF-1.4 tax consent", content_type="application/pdf")
+        self.client.post(reverse("tax_consent_upload", args=[order.pk]), {"tax_consent": upload})
+        order.refresh_from_db()
+        self.assertTrue(order.has_tax_consent)
+        self.assertEqual(order.tax_consent_method, SignatureMethod.PAPER)
+        self.assertIsNotNone(order.tax_consent_uploaded_at)
+        self.assertEqual(order.signed_document_status, "1／3 已簽署")
+        self.assertEqual(self.client.get(reverse("protected_media", args=["order", order.pk, "tax_consent"])).status_code, 200)
+        detail = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"})
+        self.assertContains(detail, "1／3 已簽署")
+        self.assertContains(detail, reverse("order_file_delete", args=[order.pk, "tax_consent"]))
+        self.client.post(reverse("order_file_delete", args=[order.pk, "tax_consent"]))
+        order.refresh_from_db()
+        self.assertFalse(order.tax_consent)
+        self.assertEqual((order.tax_consent_method, order.tax_consent_fingerprint, order.tax_consent_uploaded_at), ("", "", None))
+        self.assertTrue(order.events.filter(event_type="tax_consent_deleted").exists())
+
+    def test_orders_without_tax_consent_are_unchanged(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+        upload = self.client.post(reverse("tax_consent_upload", args=[order.pk]), {})
+        self.assertEqual(upload.status_code, 404)
+        detail = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"})
+        self.assertNotContains(detail, reverse("tax_consent_upload", args=[order.pk]))
+        self.assertContains(detail, "尚未簽署")
+        self.assertEqual(order.signed_document_status, "尚未簽署")
+        self.sign(order, ("privacy",))
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertEqual(order.signed_document_status, "1／2 已簽署")

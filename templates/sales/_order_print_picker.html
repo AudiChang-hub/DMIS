@@ -8,9 +8,9 @@
     {% if order|needs_tax_consent %}<label><input type="checkbox" name="part" value="tax_consent"{% if not copy_only %} checked{% endif %}> 欣鈴退稅同意書</label>{% endif %}
   </fieldset>
   {% if print_only %}<p class="muted">印出空白文件，交給客人填寫或留存。</p>{% else %}<p class="muted">已電子簽署的文件會印出含簽名的版本；尚未簽署的文件印空白供紙本簽名。</p>{% endif %}
-  {% if order|needs_tax_consent %}<p class="muted">退稅同意書預覽與列印時帶入補助撥款帳戶，並記入訂單處理紀錄。</p>{% endif %}
+  {% if order|needs_tax_consent and not order.tax_consent_is_electronic %}<p class="muted">退稅同意書預覽與列印時帶入補助撥款帳戶，並記入訂單處理紀錄。</p>{% endif %}
   <div class="form-actions">
-    {% if order|needs_tax_consent %}{% if_access 'order_tax_consent_preview' order.pk %}<button type="submit" class="button secondary" formaction="{% url 'order_tax_consent_preview' order.pk %}">預覽退稅同意書</button>{% endif_access %}{% endif %}
+    {% if order|needs_tax_consent and not order.tax_consent_is_electronic %}{% if_access 'order_tax_consent_preview' order.pk %}<button type="submit" class="button secondary" formaction="{% url 'order_tax_consent_preview' order.pk %}">預覽退稅同意書</button>{% endif_access %}{% endif %}
     <button type="submit" class="button primary">列印勾選的文件</button>
   </div>
 </form>

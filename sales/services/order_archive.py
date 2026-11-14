@@ -74,6 +74,7 @@ def order_files(order):
 
     add("車輛訂購單", order.signed_contract)
     add("個資同意書", order.privacy_consent)
+    add("退稅同意書", order.tax_consent)
     add("車主證件正面", order.id_front)
     add("車主證件反面", order.id_back)
     add("退款證明", order.refund_proof)

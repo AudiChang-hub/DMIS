@@ -1,5 +1,5 @@
 {% load screen_access %}<div class="sign-choice">
-  <p class="sign-choice__title">{% if order.signed_contract_is_electronic or order.privacy_consent_is_electronic %}簽署與列印{% else %}這次要怎麼簽？{% endif %}</p>
+  <p class="sign-choice__title">{% if order.has_any_electronic_signature %}簽署與列印{% else %}這次要怎麼簽？{% endif %}</p>
   <div class="sign-choice__options">
     {% if_access 'order_sign' order.pk %}<article class="sign-choice__option">
       <h3>在行動裝置上簽名</h3>
@@ -14,7 +14,7 @@
         {% include "sales/_order_print_picker.html" %}
       </details>
     </article>
-    {% if order.signed_contract_is_electronic or order.privacy_consent_is_electronic %}<article class="sign-choice__option">
+    {% if order.has_any_electronic_signature %}<article class="sign-choice__option">
       <h3>列印含簽名的副本</h3>
       <p class="muted">已在行動裝置簽好的文件，可印出含簽名的副本給客人。</p>
       <details class="sign-choice__print">

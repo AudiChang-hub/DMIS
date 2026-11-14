@@ -4506,6 +4506,22 @@ class PrivacyConsentForm(forms.ModelForm):
         return validate_document_upload(self.cleaned_data.get("privacy_consent"))
 
 
+class TaxConsentForm(forms.ModelForm):
+    """欣鈴退稅同意書紙本上傳（T-174），比照個資同意書。"""
+
+    class Meta:
+        model = SalesOrder
+        fields = ["tax_consent"]
+        widgets = {
+            "tax_consent": forms.ClearableFileInput(
+                attrs={"accept": "image/*,application/pdf", "capture": "environment"}
+            )
+        }
+
+    def clean_tax_consent(self):
+        return validate_document_upload(self.cleaned_data.get("tax_consent"))
+
+
 def allocation_queue(order):
     """同車型車色的待配車訂單，依接單時間（未接單者依建立時間）先來先配。"""
     from django.db.models.functions import Coalesce

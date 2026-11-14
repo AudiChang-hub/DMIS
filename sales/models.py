@@ -3944,6 +3944,19 @@ class SalesOrder(TimeStampedModel):
     privacy_consent_fingerprint = models.CharField(
         "個資同意書簽署時內容指紋", max_length=64, blank=True, editable=False
     )
+    # T-174（使用者 2026-11-13 選 A）：欣鈴退稅同意書比照個資同意書，可電子簽署或上傳紙本；只對 SUZUKI 油車＋汰舊出現。
+    tax_consent = models.FileField(
+        "已簽署退稅同意書", upload_to="orders/tax-consents/%Y/%m/", blank=True, db_default=""
+    )
+    tax_consent_uploaded_at = models.DateTimeField(
+        "退稅同意書上傳時間", blank=True, null=True
+    )
+    tax_consent_method = models.CharField(
+        "退稅同意書簽署方式", max_length=20, choices=SignatureMethod.choices, blank=True, db_default=""
+    )
+    tax_consent_fingerprint = models.CharField(
+        "退稅同意書簽署時內容指紋", max_length=64, blank=True, editable=False, db_default=""
+    )
     revision = models.PositiveIntegerField("資料版本", default=1)
     editing_session = models.CharField("編輯工作階段", max_length=40, blank=True)
     editing_by = models.CharField("目前編輯人員", max_length=150, blank=True)
@@ -4019,6 +4032,32 @@ class SalesOrder(TimeStampedModel):
     @property
     def privacy_consent_is_electronic(self):
         return self.has_privacy_consent and self.privacy_consent_method == SignatureMethod.ELECTRONIC
+
+    @property
+    def has_tax_consent(self):
+        return bool(self.tax_consent)
+
+    @property
+    def tax_consent_is_electronic(self):
+        return self.has_tax_consent and self.tax_consent_method == SignatureMethod.ELECTRONIC
+
+    @property
+    def needs_tax_consent(self):
+        """欣鈴退稅同意書只給 SUZUKI 油車＋汰舊（T-158）；簽署、列印都照這個條件。"""
+        from .services.tax_consent_pdf import needs_tax_consent
+        return needs_tax_consent(self)
+
+    @property
+    def signed_document_status(self):
+        """簽署步驟右上角的「x／n 已簽署」；n 含符合條件時的退稅同意書（T-174）。"""
+        from .services.document_signing import applicable_documents, document_state
+        keys = applicable_documents(self)
+        signed = sum(document_state(self, key) != "missing" for key in keys)
+        return f"{signed}／{len(keys)} 已簽署" if signed else "尚未簽署"
+
+    @property
+    def has_any_electronic_signature(self):
+        return self.signed_contract_is_electronic or self.privacy_consent_is_electronic or self.tax_consent_is_electronic
 
     @property
     def is_editable(self):
@@ -4728,6 +4767,8 @@ class SalesOrder(TimeStampedModel):
             self.signed_contract_uploaded_at = timezone.now()
         if self.privacy_consent and not self.privacy_consent_uploaded_at:
             self.privacy_consent_uploaded_at = timezone.now()
+        if self.tax_consent and not self.tax_consent_uploaded_at:
+            self.tax_consent_uploaded_at = timezone.now()
         if self.pk:
             self.calculated_balance = self.calculate_balance()
         if not self.deposit_amount and self.deposit_date:

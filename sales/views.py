@@ -54,6 +54,7 @@ from .services.order_attachments import (
 from .services.document_signing import (
     DOCUMENTS as SIGNING_DOCUMENTS,
     PRINT_PARTS,
+    applicable_documents,
     build_document_pdf,
     build_selected_pdf,
     decode_signature,
@@ -100,6 +101,7 @@ from .forms import (
     OrderEditForm,
     OrderCommissionAttributionForm,
     PrivacyConsentForm,
+    TaxConsentForm,
     PaymentRecordFormSet,
     PositionedPrintFieldFormSet,
     PositionedPrintTemplateForm,
@@ -5586,6 +5588,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "commission_block_reason": commission_block_reason,
             "contract_form": SignedContractForm(instance=order),
             "privacy_consent_form": PrivacyConsentForm(instance=order),
+            "tax_consent_form": TaxConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
             "reallocation_form": ReallocationForm(order),
             # 訂單表單也在同頁（含隱藏的領牌日），領牌表單改用 reg_ 前綴避免欄位 id 重複。
@@ -6528,7 +6531,11 @@ def order_documents_print(request, pk):
         messages.error(request, "請至少勾選一份要列印的文件。")
         return redirect(_order_detail_section_url(pk, "signed-documents"))
     pdf = build_selected_pdf(order, parts) if parts else None
-    if with_tax_consent:
+    if with_tax_consent and order.tax_consent_is_electronic:
+        # T-174：已電子簽署就印含簽名的檔案（帳號欄依簽署時留白），不另帶入帳戶。
+        with order.tax_consent.open("rb") as handle:
+            pdf = append_tax_consent(pdf, order, consent=handle.read())
+    elif with_tax_consent:
         # 只有 POST 才帶入補助撥款帳戶並留查看紀錄；GET 只讀（T-114），帳號留白手寫。
         account = payout_account_text(order) if request.method == "POST" else ""
         pdf = append_tax_consent(pdf, order, account=account)
@@ -6583,7 +6590,8 @@ def _signing_client_ip(request):
 
 def _signing_documents_context(order):
     documents = []
-    for key, meta in SIGNING_DOCUMENTS.items():
+    for key in applicable_documents(order):
+        meta = SIGNING_DOCUMENTS[key]
         state = document_state(order, key)
         pdf = build_document_pdf(order, key)
         documents.append({
@@ -6623,7 +6631,7 @@ def order_sign(request, pk):
     selected = None
     if request.method == "POST":
         signer_name = request.POST.get("signer_name", "").strip()[:160]
-        selected = [key for key in SIGNING_DOCUMENTS if key in request.POST.getlist("documents")]
+        selected = [key for key in applicable_documents(order) if key in request.POST.getlist("documents")]
         if not selected:
             errors.append("請至少勾選一份要簽署的文件。")
         if not signer_name:
@@ -6677,6 +6685,7 @@ def order_sign_done(request, pk):
         "order": order,
         "contract_state": document_state(order, "contract"),
         "privacy_state": document_state(order, "privacy"),
+        "tax_consent_state": document_state(order, "tax_consent") if order.needs_tax_consent else None,
     })
 
 
@@ -6813,6 +6822,45 @@ def privacy_consent_upload(request, pk):
         ok=False,
         message="個資同意書上傳失敗："
         + (_form_error_text(form) or "請重新選擇檔案。"),
+        status=400,
+    )
+
+
+@login_required
+@transaction.atomic
+def tax_consent_upload(request, pk):
+    """欣鈴退稅同意書紙本上傳（T-174），比照個資同意書；只有 SUZUKI 油車＋汰舊的訂單可上傳。"""
+    order = get_object_or_404(SalesOrder.objects.select_related("vehicle_model"), pk=pk)
+    signed_documents_url = _order_detail_section_url(pk, "signed-documents")
+    if request.method != "POST":
+        return redirect(signed_documents_url)
+    if not order.needs_tax_consent:
+        raise Http404
+    previous_file = getattr(order.tax_consent, "name", "")
+    form = TaxConsentForm(request.POST, request.FILES, instance=order)
+    form_is_valid = form.is_valid()
+    if "tax_consent" not in request.FILES:
+        form.add_error("tax_consent", "請先選擇要上傳的同意書檔案。")
+        form_is_valid = False
+    if form_is_valid:
+        order = form.save(commit=False)
+        order.tax_consent_uploaded_at = timezone.now()
+        record_paper_upload(order, "tax_consent")
+        order.save()
+        _schedule_model_file_cleanup(SalesOrder, "tax_consent", previous_file)
+        OrderEvent.objects.create(
+            order=order,
+            event_type="tax_consent_uploaded",
+            description="已上傳欣鈴退稅同意書附件。",
+            actor_name=request.user.get_username(),
+        )
+        return _document_upload_response(
+            request, order_pk=pk, tab="documents", section="signed-documents",
+            ok=True, message="退稅同意書附件已上傳。",
+        )
+    return _document_upload_response(
+        request, order_pk=pk, tab="documents", section="signed-documents", ok=False,
+        message="退稅同意書上傳失敗：" + (_form_error_text(form) or "請重新選擇檔案。"),
         status=400,
     )
 
@@ -7754,6 +7802,13 @@ def order_attachment_upload(request, pk):
     )
 
 
+# 訂單上的簽署檔欄位：刪除時一併清掉簽署方式、指紋與上傳時間。
+SIGNED_FILE_LABELS = {
+    "signed_contract": "訂購合約簽署檔",
+    "privacy_consent": "個資同意書簽署檔",
+    "tax_consent": "退稅同意書簽署檔",
+}
+
 @login_required
 @transaction.atomic
 def order_file_delete(request, pk, kind, item_pk=None):
@@ -7771,9 +7826,9 @@ def order_file_delete(request, pk, kind, item_pk=None):
         model, label = DeliveryRecord, "交車照片"
     elif kind in {"id_front", "id_back"}:
         owner, model, label = order, SalesOrder, "車主證件正面" if kind == "id_front" else "車主證件反面"
-    elif kind in {"signed_contract", "privacy_consent"}:
+    elif kind in SIGNED_FILE_LABELS:
         # 簽署檔也可刪（使用者 2026-11-06「全部都改成可以刪除修改」）：簽署方式、指紋、上傳時間一起清掉，訂單回到未簽署。
-        owner, model, label = order, SalesOrder, "訂購合約簽署檔" if kind == "signed_contract" else "個資同意書簽署檔"
+        owner, model, label = order, SalesOrder, SIGNED_FILE_LABELS[kind]
     elif kind == "payment_proof" and item_pk:
         owner = get_object_or_404(PaymentRecord, pk=item_pk, order=order)
         model, label = PaymentRecord, f"收款證明（{owner.item_name or '收款'}）"
@@ -7786,7 +7841,7 @@ def order_file_delete(request, pk, kind, item_pk=None):
         return redirect(order_step_url(pk, "attachments"))
     setattr(owner, field_name, "")
     cleared = [field_name, "updated_at"]
-    if kind in {"signed_contract", "privacy_consent"}:
+    if kind in SIGNED_FILE_LABELS:
         for suffix, empty in (("_uploaded_at", None), ("_method", ""), ("_fingerprint", "")):
             setattr(owner, f"{kind}{suffix}", empty)
             cleared.append(f"{kind}{suffix}")
@@ -7941,6 +7996,7 @@ def order_attachment_classify(request, pk, attachment_pk):
     handler = {
         "contract_upload": contract_upload,
         "privacy_consent_upload": privacy_consent_upload,
+        "tax_consent_upload": tax_consent_upload,
         "registration_document_upload": registration_document_upload,
         "subsidy_document_upload": subsidy_document_upload,
     }[route]
@@ -10759,6 +10815,7 @@ def protected_media(request, model_name, pk, field_name):
                 "id_back",
                 "signed_contract",
                 "privacy_consent",
+                "tax_consent",
                 "refund_proof",
             },
         ),

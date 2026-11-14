@@ -91,7 +91,8 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             state="done" if order.needs_customer_signatures and order.has_signed_contract
                   and order.has_privacy_consent else "optional",
             summary=("訂購單" + _document_summary(order, "contract")
-                     + "・個資同意書" + _document_summary(order, "privacy"))
+                     + "・個資同意書" + _document_summary(order, "privacy")
+                     + ("・退稅同意書" + _document_summary(order, "tax_consent") if order.needs_tax_consent else ""))
                     if order.needs_customer_signatures else _print_only_summary(order),
         ),
         "allocation": dict(

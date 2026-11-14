@@ -1,12 +1,14 @@
 """欣鈴申請退稅同意書（T-158，使用者 2026-11-13 簡報第 6 頁）。
 
-SUZUKI 油車且有汰舊的訂單，在「列印與簽署文件」印訂購單、個資同意書時一起印（紙本簽名，不做電子簽署）。
+SUZUKI 油車且有汰舊的訂單，在「列印與簽署文件」印訂購單、個資同意書時一起印；
+T-174（使用者 2026-11-13）起也可在行動裝置上電子簽署，簽名蓋在「買受人」欄。
 版面依使用者提供的 Word 原稿（欣鈴申請退稅同意書(空白)_20260109.doc，A4、微軟正黑體 10pt）重畫，
 座標單位 mm、原點左上、y 為基線；原稿不進 repo。只讀訂單，不寫入任何資料。
 """
 from io import BytesIO
 
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
 from sales.services.form_print import SANS, _company_name, _fit, _Page, _plain_text_mode, _text
@@ -90,7 +92,7 @@ def _blank(page, x1, x2, y, value="", *, bold=False, size=SIZE):
     page.underline(x1, x2, y + 0.9)
 
 
-def draw_tax_consent(pdf, order, *, account=""):
+def draw_tax_consent(pdf, order, *, account="", signature=None):
     page = _Page(pdf, A4[1])
     font = SANS
     model = order.vehicle_model
@@ -156,6 +158,11 @@ def draw_tax_consent(pdf, order, *, account=""):
     page.text(109.3, 231.6, "出賣人:", font, sign)
     page.underline(119.3, 175.5, 232.4)
     page.text(180.0, 231.6, "（簽章）", font, sign)
+    if signature:
+        from sales.services.pdf_signature import draw_signature_image, draw_signature_note
+        # 簽名底部貼齊買受人底線，高度不超過到上一行的距離。
+        draw_signature_image(pdf, signature, 24.5 * mm, page.height - 232.0 * mm, 54 * mm, 10 * mm)
+        draw_signature_note(pdf, signature, font, 12.9 * mm, 8 * mm)
     page.text(12.9, 243.9, "身分證字號：", font, sign)
     _blank(page, 33.5, 89.7, 243.7, _text(order.owner_id_number), size=sign)
 
@@ -168,22 +175,23 @@ def draw_tax_consent(pdf, order, *, account=""):
             page.text(x, y, str(value), font, 12, align="center")
 
 
-def build_tax_consent_pdf(order, *, account=""):
+def build_tax_consent_pdf(order, *, account="", signature=None):
     output = BytesIO()
     pdf = canvas.Canvas(output, pagesize=A4)
     pdf.setTitle(f"{order.number} 申請退稅同意書")
     pdf.setCreator("DMIS")
-    draw_tax_consent(pdf, order, account=account)
+    draw_tax_consent(pdf, order, account=account, signature=signature)
     pdf.showPage()
     pdf.save()
     return output.getvalue()
 
 
-def append_tax_consent(pdf, order, *, account=""):
-    """接在訂購單、個資同意書後面（pdf 為 None 時只有退稅同意書）；回傳合併後的 PDF。"""
+def append_tax_consent(pdf, order, *, account="", consent=None):
+    """接在訂購單、個資同意書後面（pdf 為 None 時只有退稅同意書）；回傳合併後的 PDF。
+    consent 為已電子簽署的檔案內容時直接接上，不重新產生（T-174）。"""
     from pypdf import PdfReader, PdfWriter
 
-    consent = build_tax_consent_pdf(order, account=account)
+    consent = consent or build_tax_consent_pdf(order, account=account)
     if not pdf:
         return consent
     writer = PdfWriter(clone_from=PdfReader(BytesIO(pdf)))

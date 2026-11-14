@@ -395,6 +395,7 @@ class SalesOrderAdmin(ReadOnlyOperationalAdmin):
         "refund_proof",
         "signed_contract",
         "privacy_consent",
+        "tax_consent",
     )
 
     def has_delete_permission(self, request, obj=None):

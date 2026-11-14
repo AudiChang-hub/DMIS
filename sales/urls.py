@@ -415,6 +415,11 @@ urlpatterns = [
         name="privacy_consent_upload",
     ),
     path(
+        "orders/<int:pk>/tax-consent/upload/",
+        views.tax_consent_upload,
+        name="tax_consent_upload",
+    ),
+    path(
         "orders/<int:pk>/allocate/",
         views.allocate_vehicle,
         name="allocate_vehicle",

@@ -174,7 +174,7 @@
       <h2>簽署文件留存</h2>
       <small>{% site_text 'order_detail.c8ba076ab19d' %}</small>
     </div>
-    <span id="signed-documents-status" data-inplace-region>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已簽署{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已簽署{% else %}尚未簽署{% endif %}</span>
+    <span id="signed-documents-status" data-inplace-region>{{ order.signed_document_status }}</span>
   </div>
   <div class="section-body signing-tools">
   {% include "sales/_order_sign_choice.html" %}
@@ -210,6 +210,21 @@
         <button class="button secondary block" type="submit">{% if order.has_privacy_consent %}更換個資同意書附件{% else %}上傳個資同意書附件{% endif %}</button>
       </form>
     </article>
+    {% if order.needs_tax_consent %}<article class="document-archive-card">
+      <div class="document-archive-card__heading">
+        <div><p class="eyebrow">欣鈴退稅同意書</p><h3>貨物稅退還申請</h3></div>
+        {% if order.tax_consent_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_tax_consent %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+      </div>
+      <p>SUZUKI 油車汰舊換購才需要；簽好的同意書留存在這裡，申請退稅時使用。</p>
+      <div class="document-archive-card__actions">
+        {% if not order.tax_consent_is_electronic %}{% if_access 'order_documents_print' order.pk %}<a class="button ghost" href="{% url 'order_documents_print' order.pk %}?part=tax_consent" target="_blank">列印空白同意書</a>{% endif_access %}{% endif %}
+        {% if order.tax_consent %}{% if_access 'protected_media' 'order' order.pk 'tax_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'tax_consent' %}" data-preview-name="{{ order.tax_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% if_access 'order_file_delete' order.pk 'tax_consent' %}<form class="inline-delete-form" method="post" action="{% url 'order_file_delete' order.pk 'tax_consent' %}" data-inplace-form data-confirm="確定刪除退稅同意書簽署檔嗎？刪除後回到未簽署，無法復原。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除簽署檔</button></form>{% endif_access %}{% endif %}
+      </div>
+      {% if_access 'tax_consent_upload' order.pk %}<form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'tax_consent_upload' order.pk %}">
+        {% csrf_token %}{{ tax_consent_form.tax_consent }}
+        <button class="button secondary block" type="submit">{% if order.has_tax_consent %}更換退稅同意書附件{% else %}上傳退稅同意書附件{% endif %}</button>
+      </form>{% endif_access %}
+    </article>{% endif %}
   </div>
 </section>
 {% endif %}

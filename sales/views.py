@@ -9330,41 +9330,6 @@ def dealer_sales_program_list(request):
     )
 
 
-@login_required
-def accessory_product_list(request):
-    keyword = request.GET.get("q", "").strip()
-    active = request.GET.get("active", "")
-    category = request.GET.get("category", "")
-    products = AccessoryProduct.objects.select_related("category").annotate(
-        usage_count=Count("order_lines", distinct=True)
-    )
-    # 依類別篩選（T-138）；none＝未分類。
-    if category == "none":
-        products = products.filter(category__isnull=True)
-    elif category.isdigit():
-        products = products.filter(category_id=int(category))
-    if keyword:
-        products = products.filter(
-            Q(name__icontains=keyword) | Q(note__icontains=keyword)
-        )
-    if active == "yes":
-        products = products.filter(active=True)
-    elif active == "no":
-        products = products.filter(active=False)
-    products = products.order_by("name")
-    page = Paginator(products, 100).get_page(request.GET.get("page"))
-    return render(
-        request,
-        "sales/accessory_product_list.html",
-        {
-            "products": page.object_list,
-            "page_obj": page,
-            "selected": {"q": keyword, "active": active, "category": category},
-            "categories": AccessoryCategory.objects.all(),
-        },
-    )
-
-
 def _accessory_product_form_view(request, instance=None):
     form = AccessoryProductForm(request.POST or None, instance=instance)
     if request.method == "POST" and form.is_valid():

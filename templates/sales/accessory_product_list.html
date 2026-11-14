@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy static %}
 {% load pagination_tags %}
 {% block title %}配件與工資｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -13,21 +13,16 @@
   </div>
   <div class="hero-actions">
     <a class="button secondary" href="{% url 'accessory_category_list' %}">管理類別</a>
+    {% if not screen_read_only %}{% if selected.edit %}<a class="button secondary" href="{{ view_url }}">結束批次修改</a>{% else %}<a class="button secondary" href="{{ edit_url }}">批次修改</a>{% endif %}{% endif %}
     <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
   </div>
 </section>
-<form method="get" class="master-filters">
+<form method="get" class="master-filters accessory-filters">
+  <input type="hidden" name="category" value="{{ selected.category }}">
+  {% if selected.edit %}<input type="hidden" name="edit" value="1">{% endif %}
   <div class="inventory-filter master-search">
     <label for="accessory-q">搜尋</label>
     <input id="accessory-q" type="search" name="q" value="{{ selected.q }}" placeholder="配件名稱或內部備註">
-  </div>
-  <div class="inventory-filter">
-    <label for="accessory-category">類別</label>
-    <select id="accessory-category" name="category">
-      <option value="">全部類別</option>
-      {% for category in categories %}<option value="{{ category.pk }}" {% if selected.category == category.pk|stringformat:'d' %}selected{% endif %}>{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}
-      <option value="none" {% if selected.category == 'none' %}selected{% endif %}>未分類</option>
-    </select>
   </div>
   <div class="inventory-filter">
     <label for="accessory-active">狀態</label>
@@ -38,17 +33,78 @@
     </select>
   </div>
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'accessory_product_list' %}">清除</a>
+    <a class="button ghost" href="{{ clear_url }}">清除</a>
     <button class="button primary" type="submit">套用</button>
   </div>
 </form>
-<section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 項配件</strong></div>
+{# 依類別分頁籤（T-178）：筆數套用目前的搜尋與狀態；切換頁籤保留搜尋、狀態與批次修改模式。 #}
+<nav class="inventory-scope-tabs accessory-tabs" aria-label="配件類別">{% for tab in tabs %}
+  <a class="inventory-scope-tab{% if tab.active %} is-active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>
+    <span><strong>{{ tab.label }}</strong></span>
+    <b>{{ tab.count }}</b>
+  </a>{% endfor %}
+</nav>
+<section class="inventory-list-panel accessory-panel">
+  <div class="inventory-list-summary"><strong>{% if current_tab.key %}{{ current_tab.label }}・{% endif %}共 {{ page_obj.paginator.count }} 項配件</strong>{% if selected.q %}<span>符合「{{ selected.q }}」</span>{% endif %}</div>
+  {% if selected.edit and not screen_read_only %}
+  <form method="post" class="accessory-bulk" data-accessory-bulk>
+    {% csrf_token %}
+    <input type="hidden" name="return_query" value="{{ return_query }}">
+    <div class="accessory-bulk-tools" data-bulk-tools>
+      <label class="accessory-bulk-pickall"><input type="checkbox" data-pick-all> 全選這頁</label>
+      <strong class="accessory-bulk-picked" data-picked-count aria-live="polite">尚未勾選</strong>
+      <div class="accessory-bulk-tools__actions">
+        <select data-bulk-category aria-label="把勾選的配件改成這個類別">
+          <option value="" disabled selected>改成哪個類別…</option>
+          {% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}
+          <option value="">未分類</option>
+        </select>
+        <button class="button secondary small" type="button" data-bulk-apply-category disabled>改類別</button>
+        <button class="button ghost small" type="button" data-bulk-active="1" disabled>設為啟用</button>
+        <button class="button ghost small" type="button" data-bulk-active="0" disabled>設為停用</button>
+      </div>
+    </div>
+    <div class="inventory-table-wrap">
+      <table class="inventory-table accessory-bulk-table">
+        <thead><tr><th class="accessory-bulk-pick"><span class="visually-hidden">勾選</span></th><th>配件名稱</th><th>類別</th><th>售價</th><th>工資</th><th>參考成本</th><th>啟用</th><th>歷史使用</th></tr></thead>
+        <tbody>
+          {% for row in rows %}{% with item=row.product form=row.form %}
+          <tr data-bulk-row{% if row.bound and form.errors %} class="accessory-bulk-row--error"{% endif %}>
+            <td class="accessory-bulk-pick" data-label="勾選"><input type="checkbox" data-pick aria-label="勾選{{ item.name }}"></td>
+            <td data-label="配件名稱">
+              <input type="hidden" name="row" value="{{ item.pk }}">
+              <input type="hidden" name="p{{ item.pk }}-version" value="{{ row.version }}">
+              <input class="form-control" type="text" name="p{{ item.pk }}-name" value="{{ form.name.value|default_if_none:'' }}" data-original="{{ item.name }}" maxlength="160" required aria-label="{{ item.name }} 的配件名稱"{% if form.name.errors %} aria-invalid="true"{% endif %}>
+              {% if item.note %}<span class="accessory-bulk-note">{{ item.note }}</span>{% endif %}
+              {% if row.bound and form.errors %}<span class="accessory-bulk-errors" role="alert">{% for error in form.non_field_errors %}{{ error }} {% endfor %}{% for field in form %}{% for error in field.errors %}{{ field.label }}：{{ error }} {% endfor %}{% endfor %}</span>{% endif %}
+            </td>
+            <td data-label="類別">
+              <select name="p{{ item.pk }}-category" data-original="{{ item.category_id|default_if_none:'' }}" aria-label="{{ item.name }} 的類別"{% if form.category.errors %} aria-invalid="true"{% endif %}>
+                <option value="">未分類</option>
+                {% with current=form.category.value|default_if_none:''|stringformat:'s' %}{% for category in categories %}<option value="{{ category.pk }}"{% if current == category.pk|stringformat:'s' %} selected{% endif %}>{{ category.name }}{% if not category.active %}（已停用）{% endif %}</option>{% endfor %}{% endwith %}
+              </select>
+            </td>
+            <td data-label="售價"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-sale_price" value="{{ form.sale_price.value|default_if_none:'' }}" data-original="{{ item.sale_price }}" required aria-label="{{ item.name }} 的售價"{% if form.sale_price.errors %} aria-invalid="true"{% endif %}></td>
+            <td data-label="工資"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-labor_fee" value="{{ form.labor_fee.value|default_if_none:'' }}" data-original="{{ item.labor_fee }}" required aria-label="{{ item.name }} 的工資"{% if form.labor_fee.errors %} aria-invalid="true"{% endif %}></td>
+            <td data-label="參考成本"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-cost" value="{{ form.cost.value|default_if_none:'' }}" data-original="{{ item.cost|default_if_none:'' }}" placeholder="未維護" aria-label="{{ item.name }} 的參考成本"{% if form.cost.errors %} aria-invalid="true"{% endif %}></td>
+            <td data-label="啟用"><label class="accessory-bulk-active"><input type="checkbox" name="p{{ item.pk }}-active"{% if form.active.value %} checked{% endif %} data-original="{{ item.active|yesno:'1,0' }}"><span>啟用中</span></label></td>
+            <td data-label="歷史使用">{{ item.usage_count }} 筆</td>
+          </tr>
+          {% endwith %}{% empty %}<tr><td colspan="8"><div class="empty-state"><strong>這個類別還沒有配件</strong></div></td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-savebar accessory-bulk-savebar">
+      <span class="form-savebar__hint"><strong data-dirty-count>還沒有修改</strong>售價與工資是訂單當時的快照：這裡修改只影響之後新選的配件，已建立的訂單不變。</span>
+      <div><a class="button ghost" href="{{ view_url }}">取消</a><button class="button primary" type="submit" data-bulk-save>套用修改</button></div>
+    </div>
+  </form>
+  {% else %}
   <div class="inventory-table-wrap">
     <table class="inventory-table">
       <thead><tr><th>配件名稱</th><th>類別</th><th>售價</th><th>工資</th><th>參考成本</th><th>歷史使用</th><th>狀態</th><th></th></tr></thead>
       <tbody>
-        {% for item in products %}
+        {% for row in rows %}{% with item=row.product %}
         <tr>
           <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類別">{{ item.category.name|default:"未分類" }}</td>
@@ -57,12 +113,22 @@
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
           <td data-label="歷史使用">{{ item.usage_count }} 筆</td>
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-product" pk=item.pk is_active=item.active item_name=item.name %}</td>
-          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a></td>
+          <td class="inventory-row-action"><div class="row-action-buttons">
+            <a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a>
+            {% if not screen_read_only %}{% if item.usage_count %}
+            {# 有訂單用過的配件不能刪（訂單配件對主檔是 PROTECT）：說明改用停用或合併，確定後前往編輯頁合併。 #}
+            <form method="get" action="{% url 'accessory_product_edit' item.pk %}"><button class="button danger-outline small" type="submit" data-confirm="「{{ item.name }}」已有 {{ item.usage_count }} 筆訂單用過，不能刪除。&#10;&#10;不想再出現在訂單選單，可以把它改成停用；重複或打錯字的，可以到編輯頁「合併到其他配件」。&#10;&#10;要前往編輯頁嗎？">刪除</button></form>
+            {% else %}
+            <form method="post" action="{% url 'accessory_product_delete' item.pk %}">{% csrf_token %}<input type="hidden" name="return_query" value="{{ return_query }}"><button class="button danger-outline small" type="submit" data-confirm="確定刪除「{{ item.name }}」嗎？刪除後無法復原。&#10;&#10;這一項沒有訂單用過。注意：之後若在訂單的加購列自行填寫同名配件，存檔時會再自動加回清單。">刪除</button></form>
+            {% endif %}{% endif %}
+          </div></td>
         </tr>
-        {% empty %}<tr><td colspan="8"><div class="empty-state"><strong>尚未建立配件</strong></div></td></tr>{% endfor %}
+        {% endwith %}{% empty %}<tr><td colspan="8"><div class="empty-state"><strong>{% if selected.q or selected.active %}沒有符合條件的配件{% elif current_tab.key %}這個類別還沒有配件{% else %}尚未建立配件{% endif %}</strong></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
+  {% endif %}
   {% pagination page_obj aria_label="配件與工資分頁" %}
 </section>
 {% endblock %}
+{% block scripts %}{% if selected.edit and not screen_read_only %}<script src="{% static 'js/accessory-bulk-edit.js' %}?v={{ app_version }}" defer></script>{% endif %}{% endblock %}

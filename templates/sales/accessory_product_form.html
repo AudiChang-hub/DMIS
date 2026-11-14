@@ -8,7 +8,7 @@
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">配件主檔</p><h1>{% if editing_product %}編輯配件{% else %}新增配件{% endif %}</h1><p class="muted">{% site_text 'accessory_product_form.6ccffe67463d' %}</p></div>
 </section>
-<form method="post" class="master-form-card">
+<form method="post" class="master-form-card form-section static-section accessory-form-card">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <div class="operation-grid">
@@ -30,7 +30,7 @@
 </form>
 {% if merge_form %}
 {# 合併重複或打錯的配件（T-138）：訂單上的名稱與金額不變，只改掛到保留的那一項，這一項停用。 #}
-<form method="post" action="{% url 'accessory_product_merge' editing_product.pk %}" class="master-form-card accessory-merge" data-confirm="確定把「{{ editing_product.name }}」併入選擇的配件嗎？這一項會停用。">
+<form method="post" action="{% url 'accessory_product_merge' editing_product.pk %}" class="master-form-card form-section static-section accessory-form-card accessory-merge" data-confirm="確定把「{{ editing_product.name }}」併入選擇的配件嗎？這一項會停用。">
   {% csrf_token %}
   <div class="section-title"><div><h2>合併到其他配件</h2><p>重複或打錯字的配件可以併到要保留的那一項。已用過「{{ editing_product.name }}」的訂單，名稱與金額都不變，只是改歸到保留的那一項；這一項會停用。</p></div></div>
   {% include "sales/_field.html" with field=merge_form.target %}

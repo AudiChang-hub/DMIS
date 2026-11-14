@@ -3004,8 +3004,9 @@ class AccessoryProductForm(forms.ModelForm):
             Q(active=True) | Q(pk__in=current)
         ).order_by("sort_order", "name")
         self.fields["categories"].help_text = "可複選：同一項配件會出現在每個勾選的類別，改名稱、售價、工資或停用只要改一次。"
+        # 核取方塊（類別、啟用）不套 form-control：套了會變成 48px 高的輸入框，勾勾與文字對不齊（2.10.1）。
         for name, field in self.fields.items():
-            if name != "categories":
+            if name not in {"categories", "active"}:
                 field.widget.attrs.setdefault("class", "form-control")
         for field_name in ("sale_price", "labor_fee", "cost"):
             if not self.is_bound and self.initial.get(field_name) in (None, 0):

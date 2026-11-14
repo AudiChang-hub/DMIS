@@ -8029,11 +8029,25 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 @media (min-width: 1100px) { .accessory-category-layout { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); } }
 .inventory-scope-tabs.accessory-tabs { padding: var(--space-2) var(--space-2) var(--space-3); }
 /* 配件編輯的類別可複選（T-179）：整列寬、勾選框排成格線。 */
+/* 2.10.1（使用者：核取方塊沒對齊、選項攤太開）：選項改成自動換行的小卡，方框與文字垂直置中、勾選的那張加框色。
+   共用的 .field label:not(.checkbox-label) 會把 label 設成 baseline 對齊與粗體標題字，這裡用本頁專用選擇器蓋掉，不動共用規則。 */
 .accessory-category-choices { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
-.accessory-category-choices legend { margin-bottom: var(--space-2); padding: 0; font-weight: 700; }
-.accessory-category-choices__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--space-2) var(--space-4); }
-.accessory-category-choices__grid label { display: inline-flex; min-height: 40px; align-items: center; gap: var(--space-2); cursor: pointer; }
-.accessory-category-choices__grid input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--forest); }
+.accessory-category-choices legend { margin-bottom: var(--space-2); padding: 0; color: var(--field-label); font-size: var(--text-sm); font-weight: 800; letter-spacing: .01em; }
+.accessory-category-choices .accessory-category-choices__grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.accessory-category-choices .accessory-category-choices__grid label {
+  display: inline-flex; min-height: 44px; margin: 0; padding: 0 var(--space-4) 0 var(--space-3); align-items: center; gap: var(--space-2);
+  color: var(--ink); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0;
+  background: var(--surface); border: 1px solid var(--line-mid); border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+}
+.accessory-category-choices .accessory-category-choices__grid label:hover { border-color: var(--line-strong); }
+.accessory-category-choices .accessory-category-choices__grid label:has(input:checked) { border-color: var(--forest); background: color-mix(in srgb, var(--forest) 8%, var(--surface)); }
+.accessory-category-choices .accessory-category-choices__grid label:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.accessory-category-choices .accessory-category-choices__grid input[type="checkbox"] { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--forest); }
+/* 「啟用中」與同一列的輸入框對齊：貼齊格子底部，高度同輸入框。 */
+.accessory-form-card .field:has(> .checkbox-label) { display: flex; align-self: end; align-items: center; min-height: 50px; }
+.accessory-form-card .field:has(> .checkbox-label) > .checkbox-label { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .accessory-category-choices .accessory-category-choices__grid label { transition: none; } }
 /* 批次修改的類別可複選（T-179）：摘要像欄位，展開後在格子內列出勾選框，不浮出表格外。 */
 .accessory-bulk-cats { min-width: 180px; max-width: 260px; }
 .accessory-bulk-cats > summary { min-height: 40px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-mid); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }

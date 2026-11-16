@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load static help_tags %}
+
+{% block title %}從這裡開始｜使用說明{% endblock %}
+{% block page_class %}page-shell--wide help-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+
+{% block content %}
+{% url 'user_guide' as help_home_url %}{% include "sales/_page_back.html" with fallback_url=help_home_url label="使用說明" current_label="從這裡開始" %}
+<div class="help-stack">
+  <section class="hero-row compact-hero help-hero">
+    <div>
+      <p class="eyebrow">從這裡開始</p>
+      <h1>跟著王小明，走完一張單</h1>
+      <p class="muted">第一次用這套系統？照順序做這 {{ stops|length }} 站，就是一張訂單從頭到尾的樣子。每站都有截圖與範例數字，按「去這個畫面」會直接打開那一頁。</p>
+      <div class="help-meta-row"><span>第一次全程約 40–50 分鐘</span><span>範例全是合成資料</span></div>
+    </div>
+    {% with first=stops.0 %}{% if first.article %}<div class="hero-actions"><a class="button primary" href="{% url 'help_article' first.article.slug %}">從第 1 站開始</a></div>{% endif %}{% endwith %}
+  </section>
+
+  <div class="callout callout--info" role="note">
+    <span class="callout__icon" aria-hidden="true">i</span>
+    <div><p><b>錢什麼時候收？</b>訂金在第 1 站建立訂單時收；剩下的尾款在第 4 站交車時一起收。中間任何時候都能在訂單左側「收入與支出」查看。</p></div>
+  </div>
+
+  <ol class="help-route">
+    {% for item in stops %}
+    <li class="help-stop">
+      <div class="help-stop__text"><span class="help-stop__n" aria-hidden="true">{{ item.number }}</span><div>
+        <h2><span class="visually-hidden">第 {{ item.number }} 站：</span>{% if item.article %}{{ item.article.title }}{% else %}（你的帳號沒有這一站的權限）{% endif %}</h2>
+        <p>{{ item.stop.summary|help_markup }}</p>
+        <p class="help-eg">範例：{{ item.stop.example|help_markup }}</p>
+        <div class="help-stop__links">
+          {% if item.article %}<a class="button secondary small" href="{% url 'help_article' item.article.slug %}">看步驟（{{ item.article.steps|length }} 步）</a>{% endif %}
+          {% if item.open_url %}<a class="help-go" href="{{ item.open_url }}">去這個畫面 →</a>{% endif %}
+        </div>
+        <small>{{ item.stop.minutes }}{% if item.stop.open_hint %}・{{ item.stop.open_hint }}{% endif %}</small>
+      </div></div>
+      <img src="{% help_screen item.stop.figure %}" alt="{{ item.stop.figure.alt }}" loading="lazy" decoding="async">
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endblock %}

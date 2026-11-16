@@ -29,7 +29,7 @@ class ProductExperienceTests(TestCase):
         )
 
         self.client.force_login(self.user)
-        response = self.client.get(reverse("user_guide"))
+        response = self.client.get(reverse("user_guide_legacy"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "現在想做什麼？從任務開始找")
         self.assertContains(response, 'data-guide-search')

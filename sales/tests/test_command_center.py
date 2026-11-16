@@ -173,7 +173,7 @@ class CommandCenterTests(TestCase):
         self.assertContains(response, '提前姓名排序順位')
         self.assertContains(response, '全部清除')
         self.assertNotContains(response, '重新排序請先清除')
-        self.assertContains(self.client.get(reverse('user_guide')), '訂單列表與排序')
+        self.assertContains(self.client.get(reverse('user_guide_legacy')), '訂單列表與排序')
 
     def test_dashboard_grant_does_not_grant_financial_drilldown(self):
         from sales.access.models import ScreenAccessGrant, UserAccessState

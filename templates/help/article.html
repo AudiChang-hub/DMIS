@@ -1,0 +1,82 @@
+{% extends "base.html" %}{% load static help_tags %}
+
+{% block title %}{{ article.title }}｜使用說明{% endblock %}
+{% block page_class %}page-shell--wide help-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+
+{% block content %}
+{% url 'user_guide' as help_home_url %}{% include "sales/_page_back.html" with fallback_url=help_home_url label="使用說明" current_label=article.title %}
+<div class="help-stack">
+  <section class="hero-row compact-hero help-hero">
+    <div>
+      <p class="eyebrow">{% if start_number %}從這裡開始 第 {{ start_number }} 站{% else %}{{ group.title }}{% endif %}</p>
+      <h1>{{ article.title }}</h1>
+      <p class="help-when"><strong>什麼時候用</strong><span>{{ article.when }}</span></p>
+      <div class="help-meta-row">{% if article.minutes %}<span>{{ article.minutes }}</span>{% endif %}<span>{{ article.steps|length }} 個步驟</span></div>
+    </div>
+    <div class="hero-actions"><button class="button ghost" type="button" data-help-print>列印這篇</button>{% if open_url %}<a class="button primary" href="{{ open_url }}">{{ article.open_label }}</a>{% endif %}</div>
+  </section>
+
+  <div class="help-article">
+    <nav class="help-sibs" aria-label="{{ group.title }}的其他文章">
+      <h2>{{ group.title }}</h2>
+      <ul>{% for item in siblings %}<li><a href="{% url 'help_article' item.slug %}"{% if item.slug == article.slug %} aria-current="page"{% endif %}>{{ item.title }}</a></li>{% endfor %}</ul>
+      <h2>這篇</h2>
+      <ul class="help-sibs__toc"><li><a href="#help-example">範例</a></li><li><a href="#help-steps">怎麼做</a></li>{% if article.faqs %}<li><a href="#help-faq">常見問題</a></li>{% endif %}{% if article.rules %}<li><a href="#help-rules">規則細節</a></li>{% endif %}</ul>
+    </nav>
+
+    <article class="help-body">
+      <section class="help-card help-example" id="help-example" aria-labelledby="help-example-title">
+        <h2 id="help-example-title">這篇的範例</h2>
+        <p class="help-before">{{ article.example.story|help_markup }}</p>
+        {% if article.example.facts %}<dl class="help-facts">{% for label, value in article.example.facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+        {% if article.example.results %}<div class="help-calc"><span>系統會算出</span>{% for result, formula in article.example.results %}<b>{{ result }}</b><span>＝ {{ formula }}</span>{% endfor %}</div>{% endif %}
+      </section>
+
+      <section class="help-card" aria-labelledby="help-steps">
+        <h2 id="help-steps">怎麼做</h2>
+        {% if article.before %}<p class="help-before">開始前：{{ article.before|help_markup }}</p>{% endif %}
+        <ol class="help-steps">
+          {% for step in article.steps %}
+          <li><div>
+            <p>{{ step.text|help_markup }}</p>
+            {% if step.example %}<p class="help-eg">範例：{{ step.example|help_markup }}</p>{% endif %}
+            {% if step.figure %}<figure><img src="{% help_screen step.figure %}" alt="{{ step.figure.alt }}" loading="lazy" decoding="async">{% if step.figure.caption %}<figcaption>{{ step.figure.caption }}</figcaption>{% endif %}</figure>{% endif %}
+            {% if step.note %}<small>{{ step.note|help_markup }}</small>{% endif %}
+          </div></li>
+          {% endfor %}
+        </ol>
+        {% if article.done %}
+        <div class="callout callout--success help-done">
+          <span class="callout__icon" aria-hidden="true">✓</span>
+          <div><p>{{ article.done|help_markup }}{% if next_article %} 下一步：<a href="{% url 'help_article' next_article.slug %}">{{ next_article.title }}</a>。{% endif %}</p></div>
+        </div>
+        {% endif %}
+      </section>
+
+      {% if article.faqs %}
+      <section class="help-card help-faq" aria-labelledby="help-faq">
+        <h2 id="help-faq">常見問題</h2>
+        {% for faq in article.faqs %}<details{% if forloop.first %} open{% endif %}><summary>{{ faq.question }}{% if faq.flag %}<span class="help-flag">{{ faq.flag }}</span>{% endif %}</summary><p>{{ faq.answer|help_markup }}</p></details>{% endfor %}
+      </section>
+      {% endif %}
+
+      {% if article.rules %}
+      <details class="help-card help-rules">
+        <summary id="help-rules"><span class="help-rules__head"><b>規則細節</b><span>需要時再看</span></span></summary>
+        <ul>{% for rule in article.rules %}<li>{{ rule|help_markup }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+    </article>
+
+    <aside class="help-aside" aria-label="這篇的相關資訊">
+      {% if related %}<section><h2>相關</h2><ul>{% for item in related %}<li><a href="{% url 'help_article' item.slug %}">{{ item.title }}</a></li>{% endfor %}</ul></section>{% endif %}
+      <p class="help-meta">截圖依 {{ article.verified }} 畫面、用合成資料自動產生，不含真實客戶。內容有誤請告訴 admin。</p>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/help.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

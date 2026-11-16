@@ -165,7 +165,7 @@ class ProfitPrivacyTests(TestCase):
         self.assertNotContains(response, "車行帳號管理重整")
         self.assertEqual(self.client.get(reverse("data_maintenance")).status_code, 403)
         self.assertEqual(self.client.get(reverse("catalog")).status_code, 403)
-        guide = self.client.get(reverse("user_guide"))
+        guide = self.client.get(reverse("user_guide_legacy"))
         self.assertContains(guide, "訂單進度與查詢")
         self.assertNotContains(guide, "開通車行帳號")
         self.assertNotContains(guide, "建立新同仁帳號")

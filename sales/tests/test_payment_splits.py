@@ -166,7 +166,7 @@ class PaymentSplitTests(TestCase):
         # 線上使用說明與使用手冊第 1 步一致（1.85.4）。
         from pathlib import Path
         self.client.force_login(self.root)
-        guide = self.client.get(reverse("user_guide"))
+        guide = self.client.get(reverse("user_guide_legacy"))
         self.assertContains(guide, 'id="multi-payment-current"')
         self.assertContains(guide, 'href="#multi-payment-current"')
         manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")

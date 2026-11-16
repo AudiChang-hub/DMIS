@@ -171,6 +171,7 @@ ROOT_ONLY.add("announcement_action")
 ROOT_ONLY.add("site_copy_manage")
 ROOT_ONLY.add("allocation_rule_settings")  # 優先配車月數（admin 隨時調整）
 PERSONAL.update({"announcement_detail", "announcement_image", "announcement_attachment", "release_history"})
+PERSONAL.update({"user_guide_legacy", "help_start", "help_article"})  # T-197 新版使用說明；各篇另依 articles.access 過濾
 ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image"})
 ROOT_ONLY.update({"catalog_photo_board", "catalog_photo_save", "catalog_photo_thumb"})  # 車色圖片總覽，權限同選車圖片頁

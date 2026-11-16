@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views
 from . import order_deletion_views
+from .help import views as help_views
 from . import catalog_photo_views
 from . import draft_cleanup_views
 from . import accessory_views
@@ -141,7 +142,11 @@ urlpatterns = [
         name="legacy_odoo_vehicle_models",
     ),
     path("", views.dashboard, name="dashboard"),
-    path("help/", views.user_guide, name="user_guide"),
+    # T-197 新版使用說明；還沒改寫的主題暫留舊版（help/legacy/），?topic= 會自動轉到對應的新文章或舊版段落。
+    path("help/", help_views.help_home, name="user_guide"),
+    path("help/legacy/", views.user_guide, name="user_guide_legacy"),
+    path("help/start/", help_views.help_start, name="help_start"),
+    path("help/<slug:slug>/", help_views.help_article, name="help_article"),
     path(
         "orders/<int:pk>/registration-fee-variance/confirm/",
         views.registration_fee_variance_confirm,

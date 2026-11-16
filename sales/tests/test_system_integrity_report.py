@@ -64,7 +64,7 @@ class SystemIntegrityReportTests(TestCase):
             f'{reverse("user_guide")}?topic=system-integrity',
         )
 
-        guide = self.client.get(reverse("user_guide"))
+        guide = self.client.get(reverse("user_guide_legacy"))
         self.assertContains(guide, 'id="system-integrity"')
 
     def test_report_does_not_render_known_secret_or_customer_markers(self):
@@ -91,5 +91,5 @@ class IntegrityHelpButtonsTests(TestCase):
         ScreenAccessGrant.objects.create(user=user, screen_key="integrity", view=True)
         self.client.force_login(user)
         self.assertEqual(self.client.get(reverse("system_integrity_report")).status_code, 200)
-        guide = self.client.get(reverse("user_guide"))
+        guide = self.client.get(reverse("user_guide_legacy"))
         self.assertContains(guide, f'href="{reverse("system_integrity_report")}"')

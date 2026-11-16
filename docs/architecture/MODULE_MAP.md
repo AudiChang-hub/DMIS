@@ -14,6 +14,7 @@
 | 訂單修正／刪除 | 在 `sales/` 搜尋 `completed_order`、`deletion`；不先載入整個 models | `test_completed_order_corrections.py`、`test_order_deletion.py` |
 | 畫面授權／帳號與訂單範圍 | `sales/access/`、`sales/permission_workspace.py`；搜尋 `screen_access` | `test_screen_access.py`、`test_catalog_accounts.py`、`test_customer_order_access.py` |
 | 報表／機種分類 | 在 `sales/` 搜尋 `report_classification`、`reporting` | `test_reporting.py`、`test_report_classification.py` |
+| 使用說明（T-197 新版，文章單一來源） | `sales/help/articles.py`（內容）、`schema.py`（格式）、`views.py`、`templates/help/`；截圖 `static/help/screens/` 由 `tools/help_screens/run.py` 依合成資料（`seed_help_demo`）重拍 | `test_help_articles_t197.py` |
 | 發布版號 | `config/release_notes.py`、`scripts/check_release.py` | [發布政策](../RELEASE_POLICY.md) |
 | 部署 | `scripts/deploy_django.sh`、`docker-compose.django*.yml` | [維運文件](../reference/OPERATIONS.md) |
 

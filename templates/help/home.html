@@ -1,0 +1,97 @@
+{% extends "base.html" %}{% load static help_tags site_copy %}
+
+{% block title %}使用說明｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide help-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+
+{% block content %}
+{% site_navigation %}
+<div class="help-stack" id="help-home" data-help-home data-help-article-url="{% url 'help_article' 'SLUG' %}">
+  <section class="hero-row compact-hero help-hero">
+    <div>
+      <p class="eyebrow">使用說明</p>
+      <h1>你要完成什麼事？</h1>
+      <p class="muted">一篇只講一件事：什麼時候用、3～7 個有截圖的步驟、一個完整範例、常見問題。<span class="help-version">系統版本 {{ release_version }}</span></p>
+    </div>
+    <div class="hero-actions"><a class="button ghost" href="{% url 'dashboard' %}">回到系統</a></div>
+  </section>
+
+  {% if start_visible %}
+  <a class="help-start" href="{% url 'help_start' %}">
+    <span class="help-start__badge">第一次用？</span>
+    <span class="help-start__body"><b>從這裡開始：跟著王小明走完一張單</b><span>建立訂單 → 配車 → 領牌 → 交車收尾款 → 套表列印 → 結案，每站都有截圖和範例數字。</span></span>
+    <span class="help-start__go" aria-hidden="true">→</span>
+  </a>
+  {% endif %}
+
+  {% if context_article %}
+  <div class="callout callout--info help-context" role="note">
+    <span class="callout__icon" aria-hidden="true">?</span>
+    <div><p>你剛才在「{{ context_article.title }}」相關的畫面。這頁怎麼用，直接看這一篇。</p>
+      <a class="button secondary small" href="{% url 'help_article' context_article.slug %}">{{ context_article.title }}怎麼用</a></div>
+  </div>
+  {% endif %}
+
+  <section class="help-search" role="search">
+    <label for="help-q">搜尋說明</label>
+    <div class="help-search__row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="help-q" type="search" placeholder="輸入你想做的事，例如：收訂金、印信封、客人要退訂" autocomplete="off" data-help-search>
+      <kbd aria-hidden="true">/</kbd>
+    </div>
+  </section>
+
+  <section class="help-results" aria-live="polite" data-help-results hidden>
+    <p data-help-results-count></p>
+    <div class="help-results__list" data-help-results-list></div>
+    <div class="empty-state small" data-help-empty hidden><h3>找不到相關說明</h3><p>換個說法試試，例如「收錢」改成「收款」；或看下方的分組。</p></div>
+  </section>
+
+
+  <div class="help-groups" data-help-groups>
+    {% for row in groups %}
+    <section class="help-group" data-help-group>
+      <header><h2>{{ row.group.title }}</h2><span>{{ row.group.hint }}</span></header>
+      <ul>
+        {% for article in row.articles %}
+        <li>
+          <a href="{% url 'help_article' article.slug %}"><strong>{{ article.title }}</strong><small>{{ article.when }}</small><em>{{ article.steps|length }} 步</em></a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% empty %}
+    <div class="empty-state"><h3>目前沒有你可以看的說明</h3><p>你的帳號還沒有開放任何功能，請洽 admin。</p></div>
+    {% endfor %}
+  </div>
+
+  <div class="help-discover">
+    {% if tips %}
+    <section class="help-group">
+      <header><h2>你可能不知道</h2><span>每天換一組</span></header>
+      <ul class="help-tips">
+        {% for item in tips %}<li><b>{{ item.tip.title }}</b><span>{{ item.tip.text }}</span>{% if item.article %}<a href="{% url 'help_article' item.article.slug %}">看〈{{ item.article.title }}〉</a>{% endif %}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    <section class="help-group">
+      <header><h2>這一版的新功能</h2><span>{{ release.version }}・{{ release.date }}</span></header>
+      <ul class="help-tips">
+        <li><b>{{ release.title }}</b><span>完整內容與以前的版本都在版本歷程。</span><a href="{% url 'release_history' %}">查看版本歷程</a></li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="help-group help-group--muted">
+    <header><h2>找不到要的說明？</h2><span>其他功能改寫中</span></header>
+    <ul>
+      <li><a href="{% url 'user_guide_legacy' %}"><strong>舊版完整說明</strong><small>還沒改寫成新格式的功能，例如庫存、資料維護、帳號權限，先看這裡。</small><em>›</em></a></li>
+    </ul>
+  </section>
+</div>
+{{ index|json_script:"help-index" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/help.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

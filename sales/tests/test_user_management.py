@@ -68,7 +68,7 @@ class UserManagementTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'{reverse("user_guide")}?topic=account-management')
 
-        guide = self.client.get(reverse("user_guide"))
+        guide = self.client.get(reverse("user_guide_legacy"))
         self.assertContains(guide, 'id="account-management"')
         self.assertContains(guide, "管理者看不到任何人的既有密碼")
 

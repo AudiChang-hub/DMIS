@@ -183,6 +183,10 @@ def app_version(request):
         topic += "-current"
     elif not permitted(access_policy, LEGACY_HELP_RULES.get(topic, ("root",))):
         topic = "personal-current"
+    # T-197：已改寫成新文章的畫面直接開那一篇；其餘照舊帶 topic（/help/ 會轉到舊版對應段落）。
+    from sales.help import article_for_route
+    help_article = article_for_route(access_policy, route_name)
+    context_help_url = reverse("help_article", args=[help_article.slug]) if help_article else f"{reverse('user_guide')}?topic={topic}"
     ui_theme = DEFAULT_THEME
     mobile_quick_link_context = {
         "mobile_quick_links": [],
@@ -223,7 +227,7 @@ def app_version(request):
         "show_management_tools": bool(is_root(request.user) or access_policy.screen("accounts") or access_policy.screen("integrity")),
         "access_routes": {name: access_policy.route(name) for name in ROUTES},
         "screen_read_only": bool(screen_key and access_policy.configured and not access_policy.root and (not access_policy.screen(screen_key, "operate") or (route_name in {"order_edit", "order_operations"} and not access_policy.screen("order_finance", "operate")))),
-        "context_help_url": f"{reverse('user_guide')}?topic={topic}",
+        "context_help_url": context_help_url,
         "is_data_maintenance_section": route_name in DATA_MAINTENANCE_ROUTES,
         "request_id": getattr(request, "request_id", ""),
         "ui_theme": ui_theme,

@@ -116,6 +116,13 @@
             src_w: width, src_h: height, mode, by_ocr: false};
   }
 
+  // 卡片用哪份參數（T-194）：已存的（使用者調整或辨識帶回）優先，沒有就用自動偵測的結果；
+  // 有照片又兩者都沒有、也沒在偵測中，就要馬上自動偵測，不必等正反面都上傳。
+  function cardState({saved, auto, hasPhoto, pending}) {
+    const params = parse(saved) || parse(auto);
+    return {params, detect: !params && Boolean(hasPhoto) && !pending};
+  }
+
   // 卡片上的標示：自動轉正幾度、手動調整、整張。
   function describe(params) {
     if (!params) return "";
@@ -418,7 +425,7 @@
     dialog.querySelector(`[data-crop-handle="${state.params.turn}"]`).focus({preventScroll: true});
   }
 
-  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels};
+  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, cardState};
   if (typeof window !== "undefined") window.dmisIdCrop = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

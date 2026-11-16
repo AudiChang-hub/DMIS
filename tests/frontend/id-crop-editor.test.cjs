@@ -54,3 +54,15 @@ test('卡片標示與整張圖片的預設方向', () => {
   assert.equal(fullParams({naturalWidth: 600, naturalHeight: 900}).turn, 3);
   assert.equal(fullParams({naturalWidth: 900, naturalHeight: 600}).turn, 0);
 });
+
+// T-194：只上傳一面、或重開沒有裁切參數的草稿時，要馬上自動偵測並顯示卡片，不必等兩面都上傳。
+test('卡片參數：已存的優先，沒有就用自動偵測；有照片又沒參數時要自動偵測', () => {
+  const {cardState} = require('../../static/js/id-crop-editor.js');
+  const saved = JSON.stringify({...full(1), mode: 'manual'});
+  const auto = {...full(0), mode: 'auto'};
+  assert.deepEqual(cardState({saved: '', auto: null, hasPhoto: true, pending: false}), {params: null, detect: true});
+  assert.deepEqual(cardState({saved: '', auto, hasPhoto: true, pending: false}), {params: auto, detect: false});
+  assert.equal(cardState({saved, auto, hasPhoto: true, pending: false}).params.mode, 'manual');
+  assert.deepEqual(cardState({saved: '', auto: null, hasPhoto: false, pending: false}), {params: null, detect: false});
+  assert.deepEqual(cardState({saved: '', auto: null, hasPhoto: true, pending: true}), {params: null, detect: false});
+});

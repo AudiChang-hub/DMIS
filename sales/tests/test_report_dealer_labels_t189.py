@@ -138,7 +138,7 @@ class ReportPageDealerLabelTests(TestCase):
     def test_csv_with_notes_and_records_export_keep_other_columns(self):
         response = self.client.get(reverse("report_export", args=[self.reports["9"].pk, 0]))
         lines = response.content.decode("utf-8-sig").splitlines()
-        self.assertIn("車行,月份,訂單台數,訂單台數", lines)
+        self.assertIn("車行,月份,訂單台數", lines)  # T-192 起不再重複「訂單台數」
         self.assertFalse(any(OLD in line for line in lines))
         records = self.client.get(reverse("report_records_export", args=[self.reports["9"].pk])).content.decode("utf-8-sig")
         self.assertIn("售出車行", records)

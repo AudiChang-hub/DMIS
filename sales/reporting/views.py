@@ -600,13 +600,13 @@ def export(request, pk, index):
             writer.writerow([*[csv_safe(value) for value in row["dimension_cells"]],
                              *[cell["value"] if cell["value"] is not None else cell["display"] for cell in row["metric_cells"]]])
     elif card["chart"] == "stacked":
-        include_count = include_notes or card['metric'] != 'count'
+        include_count = card['metric'] != 'count'  # T-192：指標已是訂單台數時不再重複補一欄
         writer.writerow([result["dimension_label"], result["series_label"], result["metric_label"], *(['訂單台數'] if include_count else [])])
         for row in result["rows"]:
             for segment in row["segments"]:
                 writer.writerow([csv_safe(row["label"]), csv_safe(segment["label"]), segment["display"] if formatted else segment["value"], *([segment['count']] if include_count else [])])
     else:
-        include_count = include_notes or card['metric'] != 'count'
+        include_count = card['metric'] != 'count'  # T-192：指標已是訂單台數時不再重複補一欄
         writer.writerow([result["dimension_label"], result["metric_label"], *(['訂單台數'] if include_count else [])])
         for row in result["rows"]:
             writer.writerow([csv_safe(row["label"]), row["display"] if formatted or row["value"] is None else row["value"], *([row['count']] if include_count else [])])

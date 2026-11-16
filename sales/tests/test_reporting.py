@@ -702,7 +702,7 @@ class ReportingTests(TestCase):
         self.assertIn({"name": "grain_1", "value": "day"}, hidden)
         self.assertIn({"name": "brand", "value": "SUZUKI"}, hidden)
         self.assertNotIn({"name": "grain_0", "value": "year"}, hidden)
-        self.assertContains(self.client.get(reverse("report_export", args=[self.report.pk, 0]), params), "2026,3,3")
+        self.assertContains(self.client.get(reverse("report_export", args=[self.report.pk, 0]), params), "2026,3\r\n")  # T-192：count 指標不再重複台數欄
         detail = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {**params, "group": "2026-01-01"})
         self.assertEqual(detail.context["page_obj"].paginator.count, 3)
         self.report.refresh_from_db()
@@ -1114,8 +1114,8 @@ class ReportingTests(TestCase):
         self.report.published = config
         self.report.save()
         response = self.client.get(reverse("report_export", args=[self.report.pk, 0]))
-        self.assertContains(response, "2026/09,乙車行,2,2")
-        self.assertContains(response, "2026/09,其他系列（合併）,1,1")
+        self.assertContains(response, "2026/09,乙車行,2\r\n")  # T-192
+        self.assertContains(response, "2026/09,其他系列（合併）,1\r\n")  # T-192
         self.assertContains(response, "其餘合併為其他")
 
     def test_source_motor_type_uses_import_model_without_changing_master(self):
@@ -1270,8 +1270,8 @@ class ReportingTests(TestCase):
         result = card_result(config, config["cards"][0], {"grain": "year"})
         exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]), {"grain": "year"})
         self.assertContains(exported, "年份,原銷售車行／通路,訂單台數")
-        self.assertContains(exported, "2026,甲車行,1,1")
-        self.assertContains(exported, "2026,乙車行,2,2")
+        self.assertContains(exported, "2026,甲車行,1\r\n")  # T-192
+        self.assertContains(exported, "2026,乙車行,2\r\n")  # T-192
         segment = result["rows"][0]["segments"][0]
         response = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {
             "grain": "year", "group": segment["key"], "inline": "1"})
@@ -1332,7 +1332,7 @@ class ReportingTests(TestCase):
         exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]))
         self.assertContains(exported, "報表固定範圍")
         self.assertContains(exported, "圖表固定範圍")
-        self.assertContains(exported, "SUZUKI,1,1")
+        self.assertContains(exported, "SUZUKI,1\r\n")  # T-192
         self.assertNotContains(exported, "乙車行")
 
     def test_invalid_fixed_scopes_rejected_and_deleted_option_preserved(self):
@@ -1634,7 +1634,7 @@ class ReportingTests(TestCase):
         self.login(self.user)
         response = self.client.get(reverse("report_export", args=[self.report.pk, 0]), {"brand": "SUZUKI"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn("SUZUKI,3,3", response.content.decode("utf-8-sig"))
+        self.assertIn("SUZUKI,3\r\n", response.content.decode("utf-8-sig"))
         detail = self.client.get(reverse("report_detail", args=[self.report.pk, 0]))
         self.assertContains(detail, "來源訂單")
         self.assertNotContains(detail, "不可洩漏的車主")

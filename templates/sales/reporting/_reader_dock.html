@@ -1,0 +1,12 @@
+{% load static %}{# 報表中心報表頁左側收合（T-181）：「報表頁面」「車型篩選」兩條窄標籤固定在最左側，可各自展開；桌面展開時把報表往右推，手機改成從左側滑出。報表設計器不用這個版面。 #}
+<div class="report-side-dock" data-report-side-dock>
+  <div class="report-side-rails">
+    <button type="button" class="report-side-rail" aria-expanded="false" aria-controls="report-pages-panel" title="展開報表頁面" data-side-rail="pages" data-side-label="報表頁面"><span class="report-side-rail__icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" focusable="false"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="report-side-rail__title">報表頁面</span></button>
+    {% if tree_filter %}<button type="button" class="report-side-rail" aria-expanded="false" aria-controls="report-tree-panel" title="展開車型篩選" data-side-rail="tree" data-side-label="車型篩選"><span class="report-side-rail__icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" focusable="false"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="report-side-rail__title">車型篩選</span><span class="report-side-rail__badge" aria-hidden="true" data-report-tree-rail-badge{% if tree_filter.state == 'checked' %} data-state="all"{% endif %}><span class="report-side-rail__main" data-report-tree-rail-main>{% if tree_filter.state == 'checked' %}全部{% endif %}</span><span class="report-side-rail__sub" data-report-tree-rail-sub>{% if tree_filter.state == 'checked' %}{{ tree_filter.leaves|length }} 款{% endif %}</span></span><span class="sr-only">，<span data-report-tree-rail-count></span></span></button>{% endif %}
+  </div>
+  <div class="report-side-panel" id="report-pages-panel" data-side-panel="pages">{% include 'sales/reporting/_reader_nav.html' with docked=True %}</div>
+  {% if tree_filter %}<div class="report-side-panel report-side-panel--tree" id="report-tree-panel" data-side-panel="tree">{% include 'sales/reporting/tree_filter.html' with side_dock=True %}</div>{% endif %}
+  <div class="report-side-backdrop" data-side-backdrop hidden></div>
+  {# 不加 defer：在報表內容繪製前套用上次的開合狀態，避免版面跳動。 #}
+  <script src="{% static 'js/report-side-dock.js' %}?v={{ app_version }}"></script>
+</div>

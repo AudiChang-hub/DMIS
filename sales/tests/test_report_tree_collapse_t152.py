@@ -1,10 +1,15 @@
-"""T-152：大數據分析的車型篩選在寬螢幕可向右收合，放大報表區。"""
+"""T-152：大數據分析的車型篩選在寬螢幕可向右收合，放大報表區。
+
+T-181 起報表中心報表頁改用左側收合（test_report_side_dock_t181）；右側收合只留在報表設計器預覽，
+這裡改用設計器預覽同一份 tree_filter.html（不帶 side_dock）驗證。
+"""
 import re
 from datetime import date
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
 
@@ -32,8 +37,13 @@ class TreeCollapseTests(TestCase):
     def setUp(self):
         self.client.force_login(self.admin)
 
+    def designer_panel(self):
+        """報表設計器預覽的車型篩選面板（display.html 在 designer_frame 時原樣引入 tree_filter.html）。"""
+        tree = self.client.get(reverse("report_display", args=[self.analysis.pk])).context["tree_filter"]
+        return render_to_string("sales/reporting/tree_filter.html", {"tree_filter": tree})
+
     def test_panel_has_keyboard_collapse_button_and_rail(self):
-        html = self.client.get(reverse("report_display", args=[self.analysis.pk])).content.decode()
+        html = self.designer_panel()
         collapse = re.search(r'<button[^>]*data-report-tree-collapse[^>]*>', html).group(0)
         rail = re.search(r'<button[^>]*data-report-tree-rail[^>]*>', html).group(0)
         for button, expanded in ((collapse, "true"), (rail, "false")):
@@ -46,7 +56,7 @@ class TreeCollapseTests(TestCase):
 
     def test_rail_badge_is_visual_only_and_does_not_wrap(self):
         """T-159：窄邊數量改成徽章（視覺用、報讀走完整文字），徽章不換行、窄邊寬度維持 56px。"""
-        html = self.client.get(reverse("report_display", args=[self.analysis.pk])).content.decode()
+        html = self.designer_panel()
         self.assertRegex(html, r'class="report-tree-filter__rail-badge" aria-hidden="true" data-report-tree-rail-badge')
         self.assertIn('<span class="sr-only"><span data-report-tree-rail-count></span>，展開</span>', html)
         css = (ROOT / "static/css/reporting.css").read_text(encoding="utf-8")

@@ -241,3 +241,64 @@
 .report-heading-actions{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
 .report-heading-actions [data-report-edit-link]::before{content:"";width:14px;height:14px;margin-right:var(--space-2);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.6 13.4 2 14l.6-3.6z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L5.6 13.4 2 14l.6-3.6z'/%3E%3C/svg%3E") center/contain no-repeat}
 @media print{.report-heading-actions [data-report-edit-link]{display:none!important}}
+/* 報表中心報表頁左側收合（T-181）：「報表頁面」「車型篩選」兩條窄標籤固定在最左側，一上一下；面板由左往右依序展開並把報表往右推。
+   只作用在 .has-side-dock（報表中心報表頁）；報表設計器預覽仍用上面的右側面板（T-151／T-152）。選擇器多加 .report-reader-shell .report-workspace，蓋過 report-overview.css 在 1100px 以下的單欄規則。 */
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock { grid-template-columns: auto minmax(0, 1fr); gap: var(--stack-gap); }
+/* 捲到頁底時 sticky 會被格線底邊推上去、鑽到頁首下：把頁底留白（.report-workspace 90px＋.page-shell 80px）併進報表欄，再用負邊距抵掉，頁面高度與外觀不變。 */
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock { --dock-tail: 170px; margin-bottom: calc(-1 * var(--dock-tail)); }
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock > .report-reader-main { padding-bottom: var(--dock-tail); }
+.report-side-dock { --dock-top: calc(var(--app-header-height, 72px) + var(--space-4)); --dock-h: calc(100dvh - var(--dock-top) - var(--space-4)); position: sticky; top: var(--dock-top); align-self: start; display: flex; align-items: flex-start; min-width: 0; }
+.report-side-rails { display: flex; flex: none; flex-direction: column; gap: var(--space-3); width: 56px; }
+.report-side-rail { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-2) 0 var(--space-3); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-soft); color: var(--ink); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
+.report-side-rail:hover { background: var(--surface-soft); border-color: var(--line-mid); }
+.report-side-rail:focus-visible, .report-side-panel__close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.report-side-rail[aria-expanded="true"] { background: var(--surface-tint); border-color: color-mix(in srgb, var(--forest) 40%, var(--line-soft)); }
+.report-side-rail__icon { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: var(--surface); color: var(--muted); transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
+.report-side-rail__icon svg { transition: transform var(--dur-2) var(--ease-out); }
+.report-side-rail:hover .report-side-rail__icon, .report-side-rail[aria-expanded="true"] .report-side-rail__icon { color: var(--action-text); border-color: var(--forest); }
+.report-side-rail[aria-expanded="true"] .report-side-rail__icon svg { transform: rotate(180deg); }
+.report-side-rail__title { writing-mode: vertical-rl; text-orientation: upright; font-family: var(--font-display); font-weight: 750; font-size: var(--text-sm-plus); line-height: 1; letter-spacing: .28em; color: var(--ink); }
+.report-side-rail[aria-expanded="true"] .report-side-rail__title { color: var(--action-text); }
+.report-side-rail__badge { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; padding-top: var(--space-2); border-top: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.report-side-rail__badge:not([data-state]) { display: none; }
+.report-side-rail__main { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; color: var(--action-text); }
+.report-side-rail__badge[data-state="all"] .report-side-rail__main { font-size: var(--text-sm); letter-spacing: .04em; }
+.report-side-rail__badge[data-state="none"] .report-side-rail__main { color: var(--amber-ink); }
+.report-side-rail__sub { font-size: var(--text-2xs); font-weight: 650; line-height: 1.2; color: var(--muted); }
+/* 面板：收合時寬度 0、不可聚焦；展開時寬度與左側間距一起長出來，內容固定寬度不跟著重排。 */
+.report-side-panel { --side-panel-w: 248px; flex: none; width: 0; margin-inline-start: 0; overflow: clip; overflow-clip-margin: var(--space-2); visibility: hidden; transition: width var(--dur-3) var(--ease-out), margin-inline-start var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3); }
+.report-side-panel--tree { --side-panel-w: 296px; }
+.report-side-panel.is-open { width: var(--side-panel-w); margin-inline-start: var(--space-3); visibility: visible; transition-delay: 0s; }
+.report-side-dock.is-instant .report-side-panel, .report-side-dock.is-instant .report-side-rail__icon svg { transition: none; }
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-side-panel > .report-page-nav, .report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-side-panel > .report-tree-filter { position: static; top: auto; display: flex; flex-direction: column; width: var(--side-panel-w); max-height: var(--dock-h); padding: var(--space-3); overflow: hidden; }
+.report-side-panel__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 36px; padding: var(--space-1) var(--space-2) 0; }
+.report-reader-shell .report-page-nav .report-side-panel__title { margin: 0; font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.report-side-panel__close { display: grid; place-items: center; flex: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: var(--surface); color: var(--muted); cursor: pointer; transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out); }
+.report-side-panel__close:hover { color: var(--action-text); border-color: var(--forest); background: var(--surface-tint); }
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-page-nav nav { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; overscroll-behavior: contain; margin-top: var(--space-3); padding-top: var(--space-1); border-top: 1px solid var(--line-soft); }
+.report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-page-nav nav > h2:first-child { margin-top: var(--space-3); }
+.report-side-panel .report-tree-filter__body { max-height: none; }
+.report-side-backdrop { display: none; }
+@media (max-width: 1100px) {
+  .report-side-panel { --side-panel-w: 224px; }
+  .report-side-panel--tree { --side-panel-w: 272px; }
+}
+/* 手機：窄標籤縮窄留在左側；面板改成從左側滑出、蓋在報表上（頁首下方；.report-workspace 是獨立堆疊層，蓋不過頁首），點遮罩或按 Esc 收回。
+   面板延伸到底部導覽列後方，捲動區留出導覽列高度（同 .side-nav__panel 的 --mobile-nav-height）。 */
+@media (max-width: 800px) {
+  .report-side-rails { width: 44px; gap: var(--space-2); }
+  .report-side-rail { gap: var(--space-2); padding: var(--space-2) 0; }
+  .report-side-rail__icon { width: 28px; height: 28px; }
+  .report-side-rail__title { font-size: var(--text-sm); letter-spacing: .2em; }
+  .report-side-rail__badge { width: 36px; }
+  .report-side-dock.is-overlay-open { z-index: 160; }
+  .report-side-panel, .report-side-panel--tree { --side-panel-w: min(340px, calc(100vw - var(--space-7))); position: fixed; inset: var(--app-header-height, 62px) auto 0 0; z-index: 2; width: var(--side-panel-w); margin: 0; overflow: visible; transform: translateX(-100%); transition: transform var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3); }
+  .report-side-panel.is-open { width: var(--side-panel-w); margin: 0; transform: none; }
+  .report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-side-panel > .report-page-nav, .report-reader-shell .report-workspace .report-reader-layout.has-side-dock .report-side-panel > .report-tree-filter { height: 100%; max-height: none; padding: var(--space-3) var(--space-3) calc(var(--space-3) + var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom)); border-width: 0 1px 0 0; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; box-shadow: 0 12px 48px color-mix(in srgb, var(--shadow-ink) 28%, transparent); }
+  .report-side-backdrop { display: block; position: fixed; inset: var(--app-header-height, 62px) 0 0 0; z-index: 1; background: color-mix(in srgb, var(--shadow-ink) 42%, transparent); animation: report-side-fade var(--dur-2) var(--ease-out); }
+  .report-side-backdrop[hidden] { display: none; }
+  html.report-side-locked { overflow: hidden; }
+}
+@keyframes report-side-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .report-side-rail, .report-side-rail__icon, .report-side-rail__icon svg, .report-side-panel, .report-side-panel__close { transition: none; } .report-side-backdrop { animation: none; } }
+@media print { .report-side-dock { display: none !important; } }

@@ -45,8 +45,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   const items = [...tree.querySelectorAll('[role="treeitem"]')];
   const inputs = [...tree.querySelectorAll('[data-tree-input]')];
   const status = root.querySelector('[data-report-tree-status]');
-  const railCount = root.querySelector('[data-report-tree-rail-count]');
-  const railBadge = root.querySelector('[data-report-tree-rail-badge]');
+  // 報表中心報表頁（T-181）：窄標籤在左側 dock，開合由 report-side-dock.js 處理；這裡只更新數量。
+  const docked = root.closest('[data-report-side-dock]');
+  const railScope = docked || root;
+  const railCount = railScope.querySelector('[data-report-tree-rail-count]');
+  const railBadge = railScope.querySelector('[data-report-tree-rail-badge]');
   const railButton = root.querySelector('[data-report-tree-rail]');
   const parentOf = item => item.parentElement.closest('[role="treeitem"]');
   const leavesOf = item => [...item.querySelectorAll('[data-tree-input]')];
@@ -129,6 +132,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
     items.forEach(item => setExpanded(item, all || Number(item.getAttribute('aria-level')) === 1));
   }));
 
+  // 以下兩種收合只用在報表設計器預覽（右側面板）；報表中心報表頁改用左側 dock。
+  if (!docked) {
   // 窄螢幕：放在報表內容上方，預設收合成一列，點「展開」才顯示樹。
   const drawer = root.querySelector('[data-report-tree-drawer]');
   const drawerText = root.querySelector('[data-report-tree-drawer-text]');
@@ -171,6 +176,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   layout?.classList.add('is-tree-instant');
   setCollapsed(reportTreeReadCollapsed(storage()), {save: false, animate: false});
   requestAnimationFrame(() => requestAnimationFrame(() => layout?.classList.remove('is-tree-instant')));
+  }
 
   // 原地更新後（含移除標籤、上一頁）：勾選與台數以伺服器結果為準，展開狀態與焦點保留。
   document.addEventListener('report-filters-synced', event => {

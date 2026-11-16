@@ -470,7 +470,7 @@ def display(request, pk):
                   "reader_overview": report.published.get('reader_layout', 'standard') != 'standard',
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
-                  "kpis": reader_kpis(items), "publication_key": publication_key(report), "focus_items": focus_items,
+                  "kpis": reader_kpis(items, report.published.get("fixed_filters")), "publication_key": publication_key(report), "focus_items": focus_items,
                   "active_filters": active_filters, "clear_filters_query": clear_filters_query, "tree_filter": tree, "per_model": per_model,
                   "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),
                   "designer_frame": hasattr(request, "_designer_report"),

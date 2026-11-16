@@ -38,7 +38,19 @@ def _page_wide(result):
     return not card.get("fixed_filters") and not card.get("vehicle_model")
 
 
-def reader_kpis(results):
+# T-188：車行／平台名稱維度依報表固定的銷售來源命名，不顯示「原報表車行／平台名稱」。
+SCOPED_DEALER_LABELS = {("車行",): "車行", ("網路平台",): "平台"}
+
+
+def _peak_label(result, fixed_filters):
+    if result["card"]["dimension"] == "legacy_dealer":
+        scoped = SCOPED_DEALER_LABELS.get(tuple(sorted((fixed_filters or {}).get("legacy_source") or ())))
+        if scoped:
+            return scoped
+    return str(result.get("dimension_label") or "分類").split("（")[0]
+
+
+def reader_kpis(results, fixed_filters=None):
     eligible = [result for result in results if _page_wide(result)]
     if not eligible:
         return []
@@ -82,6 +94,6 @@ def reader_kpis(results):
             if named:
                 peak = max(named, key=lambda row: _number(row["value"]))
                 share = f" · 占 {peak['percentage']:.1f}%" if peak.get("percentage") is not None else ""
-                short = str(result.get("dimension_label") or "分類").split("（")[0]
+                short = _peak_label(result, fixed_filters)
                 tiles.append({"label": f"最多的{short}", "value": peak["label"], "unit": "", "sub": f"{peak['display']} {_unit(result)}{share}".strip(), "text": True})
     return tiles[:MAX_TILES]

@@ -28,12 +28,23 @@ class HeroNoteTests(TestCase):
     def page(self, order):
         return self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
 
+    def viewer_page(self, order):
+        # T-196 起可以改訂單內容的人看到可編輯便條；唯讀便條（T-175 原樣）用只能查看訂單的帳號檢查。
+        from django.contrib.auth import get_user_model
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+        viewer, created = get_user_model().objects.get_or_create(username="hero-note-viewer")
+        if created:
+            UserAccessState.objects.create(user=viewer, configured=True)
+            ScreenAccessGrant.objects.create(user=viewer, screen_key="orders", view=True)
+        self.client.force_login(viewer)
+        return self.page(order)
+
     def test_wizard_note_is_the_order_note(self):
         self.assertIn("note", STEP_FIELDS["deposit"])
 
     def test_note_shows_as_sticky_note_next_to_title(self):
         order = self.order(note="客人週六下午來牽車\n記得裝手機架")
-        header = hero(self.page(order))
+        header = hero(self.viewer_page(order))
         title = header.split('class="title-with-status"', 1)[1].split("</div>", 1)[0]
         self.assertIn("data-order-hero-note", title)
         self.assertLess(title.index("data-save-chip"), title.index("data-order-hero-note"))
@@ -44,7 +55,7 @@ class HeroNoteTests(TestCase):
         self.assertIn("展開全文", note)
 
     def test_no_note_renders_no_empty_sticky(self):
-        header = hero(self.page(self.order(note="")))
+        header = hero(self.viewer_page(self.order(note="")))
         note = header.split("data-order-hero-note", 1)[1].split("</aside>", 1)[0]
         self.assertIn(" hidden", note.split(">", 1)[0])
         self.assertNotIn("data-hero-note-text", note)

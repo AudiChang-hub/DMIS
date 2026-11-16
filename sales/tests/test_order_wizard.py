@@ -214,7 +214,9 @@ class OrderWizardTests(TestCase):
         self.assertIn("data-intake-financed hidden", panel)
         self.assertIn("由分期公司支付，不算在上面的合計", panel)
         self.assertNotIn("UAT U-04", panel)  # 樣板註解不可露到畫面
-        self.assertIn('installment ? "分期外應收（牌險另計）" : "合計（牌險另計）"', page)
+        # T-195：分期單留空＝不收牌險（本店吸收），不再寫「分期外應收（牌險另計）」。
+        self.assertIn("const platePending = typedPlate == null && !installment;", page)
+        self.assertNotIn("分期外應收（牌險另計）", page)
         self.assertIn('values.opening = amountOf("id_installment_opening_fee") || 0;', page)
         self.assertIn("values.financed = financed;", page.split("values.sum =", 1)[1])
         self.assertEqual(self.post("deposit", draft=self.draft(), **lines).status_code, 302)

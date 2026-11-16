@@ -887,6 +887,19 @@ class SalesOrderForm(forms.ModelForm):
                 data["plate_insurance_fee"] = self.instance.plate_insurance_fee
         else:
             plate_auto = data.get("plate_insurance_fee") is None
+        # 分期單（本店、車行都算）留空＝不向客人收，牌險由本店吸收：支出照列、收入 0（T-195，使用者 2026-11-16）；
+        # 客人或車行確實要付時由人員填正數。既有照試算的分期單存檔時維持原狀，不悄悄改成 0。
+        if (
+            plate_auto
+            and data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT
+            and not (
+                self.instance.pk
+                and self.instance.plate_insurance_auto
+                and self.instance.payment_type == SalesOrder.PaymentType.INSTALLMENT
+            )
+        ):
+            plate_auto = False
+            data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = Decimal("0")
         if data.get("plate_insurance_fee") is not None and data["plate_insurance_fee"] < 0:
             self.add_error("plate_insurance_fee", "牌險費不可小於零。")
         preserve_completed_registration = bool(

@@ -217,6 +217,33 @@ def _caption(order, values, label):
     return {"number": order.number, "name": values["owner_name"] or "（未填車主）", "label": label}
 
 
+def id_card_hotspots(job):
+    """身分證影本頁上的點擊區（T-190）：位置換成 A4 百分比，附原圖網址與目前的裁切參數給調整視窗。"""
+    import json
+
+    from django.urls import reverse
+
+    order = job.order
+    hotspots = []
+    for slot in getattr(job, "id_slots", []):
+        if not slot["has_photo"] or slot["crop"] is None:
+            continue
+        hotspots.append({
+            "order": order.pk,
+            "side": slot["side"],
+            "label": f"{form_print.id_copy_document_label(order)}{slot['label']}",
+            "left": round(slot["x"] / 210 * 100, 3),
+            "top": round(slot["y"] / 297 * 100, 3),
+            "width": round(slot["w"] / 210 * 100, 3),
+            "height": round(slot["h"] / 297 * 100, 3),
+            "src": reverse("protected_media", args=["order", order.pk, slot["field"]]),
+            "crop": json.dumps(slot["crop"], ensure_ascii=False),
+            "saved": slot["saved"],
+            "document_type": "resident_certificate" if form_print.id_copy_document_label(order) == "居留證" else "national_id",
+        })
+    return hotspots
+
+
 def build_preview(jobs, *, group_by_form=True):
     """jobs：form_print.PrintJob（含信封）。依實際輸出的順序回傳 A4 與信封兩區的頁面。"""
     a4_jobs = form_print.ordered_jobs([job for job in jobs if job.form != "envelope"], group_by_form=group_by_form)
@@ -227,6 +254,8 @@ def build_preview(jobs, *, group_by_form=True):
         for page, job in zip(pages, a4_jobs):
             page.update(_caption(job.order, form_print.form_values(job.order), form_print.FORM_BY_KEY[job.form].label))
             page["paper"] = "A4"
+            if job.form == "id_copy":
+                page["id_cards"] = id_card_hotspots(job)
         sections.append({"key": "a4", "title": "A4 PDF", "unit": "頁", "total": len(a4_jobs), "pages": pages})
     if envelope_orders:
         pages = render_pages(build_envelope_preview_pdf(envelope_orders[:MAX_PAGES]))

@@ -18,6 +18,11 @@
       </figcaption>
       <div class="print-preview__sheet">
         <img src="{{ page.src }}" width="{{ page.width }}" height="{{ page.height }}" alt="{{ page.label }}：{{ page.name }}（{{ page.number }}）的列印內容" decoding="async">
+        {% for card in page.id_cards %}{# T-190：點證件開調整視窗，調整後只重畫這一頁並存回訂單。 #}
+        <button type="button" class="print-preview__id-card" data-id-copy-card data-order="{{ card.order }}" data-side="{{ card.side }}" data-src="{{ card.src }}" data-crop="{{ card.crop }}" data-saved="{{ card.saved|yesno:'1,0' }}" data-document-type="{{ card.document_type }}" data-label="{{ card.label }}" style="left: {{ card.left }}%; top: {{ card.top }}%; width: {{ card.width }}%; height: {{ card.height }}%" aria-label="調整{{ page.name }}的{{ card.label }}裁切與旋轉">
+          <span>{% if not card.saved %}自動偵測・{% endif %}點一下調整裁切／旋轉</span>
+        </button>
+        {% endfor %}
       </div>
       {% if page.masked %}<p class="print-preview__note">車控密碼在預覽不顯示，下載 Word 檔時才帶入。</p>{% endif %}
     </figure>

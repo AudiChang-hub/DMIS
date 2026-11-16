@@ -1,11 +1,13 @@
 """套表列印：一次勾選多張訂單、每張各自要印的套表；信封出 Word 檔，聲明書與簽收單出 A4 PDF。"""
+import json
 from io import BytesIO
 from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import FileResponse
+from django.db import transaction
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -28,7 +30,8 @@ def _orders(user):
     )
 
 
-UNAVAILABLE = {"ev_delivery": "限 eReady、eMOVING", "tax_consent": "限 SUZUKI 油車有汰舊"}
+UNAVAILABLE = {"ev_delivery": "限 eReady、eMOVING", "tax_consent": "限 SUZUKI 油車有汰舊",
+               "id_copy": "限自然人、需有證件照片"}
 
 
 def _applies(order, form):
@@ -36,6 +39,8 @@ def _applies(order, form):
         return form_print.ev_delivery_applies(order)
     if form == "tax_consent":
         return needs_tax_consent(order)
+    if form == "id_copy":
+        return form_print.id_copy_applies(order)
     return True
 
 
@@ -49,6 +54,46 @@ def log_payout_account_views(request, jobs, action):
         logged.add(job.order.pk)
         OrderEvent.objects.create(order=job.order, event_type="payout_account_viewed",
                                   description=f"套表列印{action}退稅同意書（含補助撥款帳戶）", actor_name=actor)
+
+
+def log_id_copy_prints(request, jobs):
+    """列印身分證影本（T-190）：每張訂單記一筆處理紀錄，比照證件浮水印文件。預覽不記。"""
+    actor = request.user.get_full_name() or request.user.get_username()
+    for order in {job.order.pk: job.order for job in jobs if job.form == "id_copy"}.values():
+        label = form_print.id_copy_document_label(order)
+        OrderEvent.objects.create(order=order, event_type="identity_copy_printed",
+                                  description=f"套表列印{label}影本（實際尺寸）", actor_name=actor)
+
+
+@login_required
+@require_POST
+def form_print_id_crop(request, pk):
+    """套表預覽點證件調整裁切（T-190 2.13.0）：存回訂單的裁切參數，訂單頁與之後列印都用這份。"""
+    from sales.services import id_card_crop
+
+    side = request.POST.get("side", "")
+    field = {"front": "id_front", "back": "id_back"}.get(side)
+    if not field:
+        return JsonResponse({"ok": False, "error": "請指定正面或反面。"}, status=400)
+    with transaction.atomic():
+        order = get_object_or_404(_orders(request.user).select_for_update(of=("self",)), pk=pk)
+        file_field = getattr(order, field)
+        size = id_card_crop.oriented_size(file_field) if file_field else None
+        params = id_card_crop.clean_params(request.POST.get("crop", ""), size) if size else None
+        if params is None:
+            return JsonResponse({"ok": False, "error": "裁切範圍無效或照片已更換，請重新整理後再調整。"}, status=400)
+        crop_field = id_card_crop.CROP_FIELDS[field]
+        if getattr(order, crop_field) != params:
+            setattr(order, crop_field, params)
+            # 訂單頁若還開著，下一次自動儲存會因版本不同停下，不會用舊參數蓋回去。
+            order.revision += 1
+            order.save(update_fields=[crop_field, "revision", "updated_at"])
+            OrderEvent.objects.create(
+                order=order, event_type="id_crop_adjusted",
+                description=f"套表列印預覽調整車主證件{'正面' if side == 'front' else '反面'}的裁切／旋轉（原始照片保留）。",
+                actor_name=request.user.get_full_name() or request.user.get_username(),
+            )
+    return JsonResponse({"ok": True, "crop": params})
 
 
 def _row(order):
@@ -167,12 +212,13 @@ def _file_response(content, *, content_type, ascii_name, quoted_name, inline):
 @login_required
 @require_POST
 def form_print_pdf(request):
-    found, error = _picked_orders(request, ("tax_declaration", "receipt", "ev_delivery", "tax_consent"))
+    found, error = _picked_orders(request, ("tax_declaration", "receipt", "ev_delivery", "tax_consent", "id_copy"))
     if error:
         return error
     jobs = _print_jobs(request, found)
     pdf = form_print.build_forms_pdf(jobs, group_by_form=request.POST.get("group") != "order")
     log_payout_account_views(request, jobs, "列印")
+    log_id_copy_prints(request, jobs)
     return _file_response(
         pdf, content_type="application/pdf", ascii_name="forms.pdf",
         quoted_name=quote("套表列印.pdf"), inline=True,

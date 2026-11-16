@@ -53,6 +53,8 @@ FORMS = (
     FormSpec("ev_delivery", "電車交車確認表", "A4", "eReady、eMOVING 交車時使用"),
     # T-158：SUZUKI 油車有汰舊時的欣鈴申請退稅同意書；預覽與列印都帶入補助撥款帳戶（呼叫端記查看紀錄）。
     FormSpec("tax_consent", "欣鈴退稅同意書", "A4", "SUZUKI 油車有汰舊時使用"),
+    # T-190（2.13.0）：證件正反面依實際尺寸 85.6 × 54 mm 並排；居留證也適用，不加浮水印。
+    FormSpec("id_copy", "身分證影本（實際尺寸）", "A4", "正反面依 85.6 × 54 mm 原尺寸列印"),
 )
 FORM_KEYS = tuple(form.key for form in FORMS)
 FORM_BY_KEY = {form.key: form for form in FORMS}
@@ -677,6 +679,101 @@ def _draw_ev_delivery(pdf, order, values):
     pdf.setFillColor(Color(0, 0, 0))
 
 
+# ── 身分證影本（實際尺寸）──────────────────────────────────────────────
+# 每張訂單一頁，正反面並排在上方；照片依訂單的裁切參數透視校正（沒有參數就當場自動偵測，不寫回訂單）。
+# 座標單位 mm、原點左上；預覽頁的點擊區（form_print_preview）用同一組座標換算百分比。
+ID_CARD_W, ID_CARD_H = 85.6, 54.0
+ID_CARD_RADIUS = 3.18
+ID_CARD_GAP = 6.0
+ID_CARD_TOP = 24.0
+ID_CARD_LEFT = (210 - ID_CARD_W * 2 - ID_CARD_GAP) / 2
+ID_SIDES = (("id_front", "front", "正面"), ("id_back", "back", "反面"))
+
+
+def id_copy_applies(order):
+    from sales.models import SalesOrder
+
+    return order.owner_type in {SalesOrder.OwnerType.LOCAL, SalesOrder.OwnerType.FOREIGN} and bool(order.id_front or order.id_back)
+
+
+def id_copy_document_label(order):
+    from sales.models import SalesOrder
+
+    return "居留證" if order.owner_type == SalesOrder.OwnerType.FOREIGN else "身分證"
+
+
+def id_copy_slots(order):
+    """正反面各一格：位置（mm）、裁切參數（saved＝訂單已存的，否則為當場自動偵測）、卡片圖；讀不到照片時 card 為 None。"""
+    from sales.models import SalesOrder
+    from sales.services import id_card_crop
+
+    slots = []
+    for index, (field, side, label) in enumerate(ID_SIDES):
+        slot = {
+            "field": field, "side": side, "label": label, "card": None, "crop": None, "saved": False,
+            "x": ID_CARD_LEFT + index * (ID_CARD_W + ID_CARD_GAP), "y": ID_CARD_TOP, "w": ID_CARD_W, "h": ID_CARD_H,
+            "has_photo": bool(getattr(order, field)),
+        }
+        file_field = getattr(order, field)
+        if file_field:
+            try:
+                with file_field.open("rb") as handle:
+                    image = id_card_crop.open_oriented(handle.read())
+                params = id_card_crop.clean_params(getattr(order, f"{field}_crop"), image.size)
+                slot["saved"] = params is not None
+                if params is None:
+                    card_side = side if order.owner_type == SalesOrder.OwnerType.LOCAL else None
+                    params = id_card_crop.auto_params(image, card_side)
+                slot["crop"] = params
+                slot["card"] = id_card_crop.apply_crop(image, params)
+            except Exception:  # noqa: BLE001  照片缺檔或損壞：該格印提示，不擋其他頁。
+                slot["card"] = None
+        slots.append(slot)
+    return slots
+
+
+def _draw_id_copy(pdf, job):
+    order = job.order
+    def from_top(value):
+        return A4[1] - value * mm
+
+    label = id_copy_document_label(order)
+    values = form_values(order)
+    pdf.setFillColor(Color(0.15, 0.15, 0.15))
+    pdf.setFont(SANS, 10.5)
+    pdf.drawString(ID_CARD_LEFT * mm, from_top(14), f"{label}影本　車主：{values['owner_name'] or '（未填）'}　訂單 {order.number}")
+    slots = id_copy_slots(order)
+    job.id_slots = slots  # 預覽用同一份位置與裁切參數畫點擊區，不必再偵測一次。
+    for slot in slots:
+        x, top, width, height = slot["x"] * mm, from_top(slot["y"] + slot["h"]), slot["w"] * mm, slot["h"] * mm
+        radius = ID_CARD_RADIUS * mm
+        if slot["card"] is not None:
+            buffer = BytesIO()
+            slot["card"].save(buffer, format="JPEG", quality=92)
+            buffer.seek(0)
+            pdf.saveState()
+            path = pdf.beginPath()
+            path.roundRect(x, top, width, height, radius)
+            pdf.clipPath(path, stroke=0, fill=0)
+            pdf.drawImage(ImageReader(buffer), x, top, width=width, height=height)
+            pdf.restoreState()
+            pdf.setDash()
+        else:
+            pdf.setDash(2, 2)
+            pdf.setFillColor(Color(0.45, 0.45, 0.45))
+            pdf.setFont(SANS, 9)
+            message = f"照片無法讀取，請重新上傳{slot['label']}" if slot["has_photo"] else f"未上傳{label}{slot['label']}"
+            pdf.drawCentredString(x + width / 2, top + height / 2, message)
+        # 裁切線：細淺灰圓角框，剪下後即為證件大小。
+        pdf.setStrokeColor(Color(0.72, 0.72, 0.72))
+        pdf.setLineWidth(0.3)
+        pdf.roundRect(x, top, width, height, radius, stroke=1, fill=0)
+        pdf.setDash()
+        pdf.setFillColor(Color(0.4, 0.4, 0.4))
+        pdf.setFont(SANS, 8)
+        pdf.drawString(x, top - 4.5 * mm, f"{slot['label']}　85.6 × 54 mm")
+
+
 @dataclass
 class PrintJob:
     order: object
@@ -716,6 +813,8 @@ def build_forms_pdf(jobs, *, group_by_form=True, today=None):
         elif job.form == "tax_consent":
             from sales.services.tax_consent_pdf import draw_tax_consent, payout_account_text
             draw_tax_consent(pdf, job.order, account=payout_account_text(job.order))
+        elif job.form == "id_copy":
+            _draw_id_copy(pdf, job)
         else:
             raise ValueError(f"PDF 不含這種套表：{job.form}")
         pdf.showPage()

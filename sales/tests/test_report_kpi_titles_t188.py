@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.models import ReportDefinition, SalesOrder, SalesSource, VehicleColor, VehicleModel
+from sales.reporting.engine import display_dimension
 from sales.reporting.kpis import reader_kpis
 from sales.reporting.source_templates import dealer_counts, dealer_sales, electric_platform_sales
 
@@ -19,17 +20,21 @@ def result(dimension, label="原報表車行／平台名稱（比對用）"):
 
 
 class PeakLabelTests(SimpleTestCase):
-    def peak(self, results, fixed_filters):
-        return [tile["label"] for tile in reader_kpis(results, fixed_filters) if tile["label"].startswith("最多的")]
+    # T-191：KPI 不再自帶特例，名稱來自圖卡結果的 dimension_label（engine.display_dimension）。
+    def peak(self, dimension, fixed_filters):
+        label = display_dimension(dimension, {"fixed_filters": fixed_filters})
+        return [tile["label"] for tile in reader_kpis([result(dimension, label)]) if tile["label"].startswith("最多的")]
 
     def test_dealer_label_follows_fixed_sales_source(self):
-        self.assertEqual(self.peak([result("legacy_dealer")], {"legacy_source": ["車行"]}), ["最多的車行"])
-        self.assertEqual(self.peak([result("legacy_dealer")], {"legacy_source": ["網路平台"]}), ["最多的平台"])
+        self.assertEqual(self.peak("legacy_dealer", {"legacy_source": ["車行"]}), ["最多的車行"])
+        self.assertEqual(self.peak("legacy_dealer", {"legacy_source": ["網路平台"]}), ["最多的平台"])
 
     def test_other_pages_and_dimensions_keep_the_dimension_label(self):
-        self.assertEqual(self.peak([result("legacy_dealer")], {}), ["最多的原報表車行／平台名稱"])
-        self.assertEqual(self.peak([result("legacy_dealer")], {"legacy_source": ["車行", "網路平台"]}), ["最多的原報表車行／平台名稱"])
-        self.assertEqual(self.peak([result("brand", "品牌")], {"legacy_source": ["車行"]}), ["最多的品牌"])
+        # T-189 起不限來源顯示中性名稱「車行／平台」。
+        self.assertEqual(self.peak("legacy_dealer", {}), ["最多的車行／平台"])
+        self.assertEqual(self.peak("legacy_dealer", {"legacy_source": ["車行", "網路平台"]}), ["最多的車行／平台"])
+        self.assertEqual(self.peak("brand", {"legacy_source": ["車行"]}), ["最多的品牌"])
+        self.assertEqual(self.peak("legacy_sales_source", {}), ["最多的銷售來源"])
 
 
 class ReportPageKpiTitleTests(TestCase):

@@ -94,8 +94,9 @@ class ReportSourceFilterTests(TestCase):
         self.assertNotIn(f'value="{self.platform.pk}"', dealer)
         self.assertNotIn(f'value="{self.staff.pk}"', html)
         self.assertEqual(len(re.findall(r'data-multi-split', html)), 2)
-        # 原報表名稱維持在進階區，不拆分。
-        self.assertIn('原報表車行／平台名稱', html)
+        # 車行／平台名稱篩選維持在進階區，不拆分；T-191 起欄名與圖卡一致。
+        self.assertIn('<label for="id_legacy_dealer">車行／平台</label>', html)
+        self.assertNotIn('原報表車行／平台名稱', html)
 
     def test_pickers_share_one_parameter_and_union_their_selections(self):
         dealer, platform = str(self.dealer.pk), str(self.platform.pk)

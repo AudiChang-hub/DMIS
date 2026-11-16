@@ -336,7 +336,8 @@ class FilterForm(forms.Form):
     # T-183：來源類型併入銷售來源；舊網址的 source_type 在 __init__ 換算，不再提供勾選。
     source = forms.MultipleChoiceField(label="車行／平台", required=False)
     legacy_source = forms.MultipleChoiceField(label="銷售來源", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
-    legacy_dealer = forms.MultipleChoiceField(label="原報表車行／平台名稱", required=False)
+    # T-191：進階篩選固定叫「車行／平台」，不依固定條件改名，避免和上方「車行」「平台」選單同名。
+    legacy_dealer = forms.MultipleChoiceField(label="車行／平台", required=False)
     legacy_energy = forms.MultipleChoiceField(label="油車／電車", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
 
     def __init__(self, *args, **kwargs):

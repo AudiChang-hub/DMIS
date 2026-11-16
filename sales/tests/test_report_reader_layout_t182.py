@@ -89,6 +89,13 @@ class PaletteTests(SimpleTestCase):
         for legacy in ("#737373", "#7ac36a", "#f15a60"):
             self.assertNotIn(legacy, js)
 
+    def test_cards_follow_their_own_height_not_the_row(self):
+        # T-187：同列卡片不再被撐成等高，長條圖下方不留空白；卡片底部緊接內容。
+        css = (ROOT / "static/css/reporting.css").read_text(encoding="utf-8")
+        grid = re.search(r"\.report-reader-main \.report-exploration \.report-grid \{([^}]*)\}", css).group(1)
+        self.assertIn("align-items: start", grid)
+        self.assertNotIn("stretch", grid)
+
 
 class ReaderPageTests(TestCase):
     @classmethod

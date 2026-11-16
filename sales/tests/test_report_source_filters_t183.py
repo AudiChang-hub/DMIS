@@ -129,3 +129,18 @@ class ReportSourceFilterTests(TestCase):
         old = ReportForm(initial={**self.config, "fixed_filters": {"source_type": ["dealer"]}})
         self.assertIn("fixed_source_type", old.fields)
         self.assertEqual(old.initial["fixed_source_type"], ["dealer"])
+
+    def test_records_and_csv_header_is_sales_source(self):
+        # T-186：明細表頭與 CSV 欄名改為「銷售來源」，內容沿用同一套分類。
+        from sales.reporting.records import record_context
+        config = {**self.config, "records_columns": ["registration_date", "legacy_sales_source"]}
+        context = record_context(config, {})
+        self.assertIn("銷售來源", context["records_headers"])
+        self.assertNotIn("原報表來源類型", context["records_headers"])
+        report = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("report_records_export", args=[report.pk]), {"revision": publication_key(report)})
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8-sig")
+        self.assertIn("銷售來源", text)
+        self.assertNotIn("原報表來源類型", text)

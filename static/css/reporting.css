@@ -349,8 +349,8 @@
 .report-reader-shell .report-reader-main > .report-selection-controls:has([data-report-retry]:not([hidden])) [data-report-update-status] { color: var(--red-ink); font-weight: 600; }
 .report-reader-shell .report-reader-main > .report-context { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 
-/* 12 欄主從網格：主圖 8 欄＋占比 4 欄，同列等高；1100px 以下單欄。 */
-.report-reader-shell .report-reader-main .report-exploration .report-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--report-gap); align-items: stretch; }
+/* 12 欄主從網格：主圖 8 欄＋占比 4 欄；卡片高度跟著自己的內容（T-187，不再被同列撐高）；1100px 以下單欄。 */
+.report-reader-shell .report-reader-main .report-exploration .report-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--report-gap); align-items: start; }
 .report-reader-shell .report-reader-main .report-grid > * { grid-column: span 6; }
 .report-reader-shell .report-reader-main .report-grid > :is(.report-chart--wide, .report-per-model-note, .report-chart:only-child) { grid-column: 1 / -1; }
 .report-reader-shell .report-reader-main .report-grid > .report-chart:not([data-chart="donut"], .report-chart--wide):has(+ .report-chart[data-chart="donut"]:not(.report-chart--wide)) { grid-column: span 8; }

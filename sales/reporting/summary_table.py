@@ -7,7 +7,7 @@ from .reader_layouts import display_header
 
 
 def summary_result(config, card, filters):
-    from .engine import (AGGREGATES, DIMENSIONS, METRICS, MAX_GROUPS, base_query,
+    from .engine import (AGGREGATES, METRICS, MAX_GROUPS, base_query, display_dimension,
                          dimension_query, dimension_labels, dimension_label, encode_key,
                          format_value, scope_labels)
 
@@ -65,13 +65,13 @@ def summary_result(config, card, filters):
             note += " 範圍內有訂單缺少收支資料，受影響群組與總額暫不顯示。"
     return {"card": card, "rows": values, "total": total["display"], "raw_total": total["value"],
             "count": totals["count"], "truncated": truncated, "summary_table": True,
-            "table_dimension_labels": [DIMENSIONS[key] for key in dimensions],
+            "table_dimension_labels": [display_dimension(key, config, card) for key in dimensions],
             "table_metric_labels": [METRICS[key] for key in metrics],
             "table_header_labels": [display_header(config, label) for label in
-                                    [*(DIMENSIONS[key] for key in dimensions), *(METRICS[key] for key in metrics)]],
+                                    [*(display_dimension(key, config, card) for key in dimensions), *(METRICS[key] for key in metrics)]],
             "table_total_cells": [cell(totals, metric) for metric in metrics],
             "table_colspan": len(dimensions) + len(metrics),
-            "dimension_label": "／".join(DIMENSIONS[key] for key in dimensions),
+            "dimension_label": "／".join(display_dimension(key, config, card) for key in dimensions),
             "metric_label": METRICS[card["metric"]], "financial_note": note,
             "compatibility_note": "按原銷售車行彙總；實際台數／傭金歸屬請看來源明細，本表不取代 DMIS 結算。" if 'legacy_dealer' in dimensions and financial else ("原報表分類只供比對，不修改 DMIS 主檔或財務歸屬。" if any(key.startswith("legacy_") for key in dimensions) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})), "series_truncated": False}

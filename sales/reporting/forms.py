@@ -14,7 +14,8 @@ from .tree_filter import TREE_FIELDS, tree_chips
 LEGACY_SCOPES = {"model_presence", *MODEL_TEXT_SCOPES}
 COMMON_DIMENSIONS = ("month", "year", "day", "brand", "family", "model", "color", "energy", "legacy_energy",
                      "legacy_motor_type", "source_type", "source", "recipient")
-DESIGNER_DIMENSION_LABELS = {"legacy_motor_type": "車種類別（白牌、綠牌、速克達…）"}
+# T-189：設計器不知道最後的固定條件，車行／平台名稱一律顯示中性名稱。
+DESIGNER_DIMENSION_LABELS = {"legacy_motor_type": "車種類別（白牌、綠牌、速克達…）", "legacy_dealer": "車行／平台"}
 
 
 def designer_dimension_choices():

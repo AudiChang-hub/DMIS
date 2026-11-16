@@ -11,7 +11,8 @@ READER_LAYOUTS = {
 }
 
 # 台數統計頁畫面表頭用短欄名；CSV 匯出仍用原欄名，不改匯出格式。
-COUNT_OVERVIEW_HEADERS = {"原報表車行／平台名稱（比對用）": "車行", "DMIS 已分配台數獎金": "台數獎金",
+# 車行／平台名稱由 engine.display_dimension 依固定條件命名（T-189），畫面與 CSV 一致，不在這裡縮短。
+COUNT_OVERVIEW_HEADERS = {"DMIS 已分配台數獎金": "台數獎金",
                           "DMIS 車行傭金支出": "傭金"}
 
 

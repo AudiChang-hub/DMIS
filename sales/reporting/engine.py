@@ -28,6 +28,22 @@ DIMENSIONS = {
     "legacy_dealer": "原報表車行／平台名稱（比對用）",
 }
 DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
+
+# T-189：車行／平台名稱維度依報表＋圖卡固定的銷售來源顯示「車行」「平台」或「車行／平台」；鍵值與篩選參數不變。
+SCOPED_DEALER_LABELS = {frozenset({"車行"}): "車行", frozenset({"網路平台"}): "平台"}
+NEUTRAL_DEALER_LABEL = "車行／平台"
+
+
+def display_dimension(dimension, config=None, card=None):
+    """畫面與圖表 CSV 共用的維度名稱；只有 legacy_dealer 依固定條件改名。"""
+    if dimension != "legacy_dealer":
+        return DIMENSIONS.get(dimension, "")
+    fixed = None
+    for scope in ((config or {}).get("fixed_filters") or {}, (card or {}).get("fixed_filters") or {}):
+        if scope.get("legacy_source"):
+            values = set(scope["legacy_source"])
+            fixed = values if fixed is None else fixed & values
+    return SCOPED_DEALER_LABELS.get(frozenset(fixed or ()), NEUTRAL_DEALER_LABEL)
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
 METRICS["dealer_bonus"] = "DMIS 已分配台數獎金"
@@ -603,11 +619,11 @@ def card_result(config, card, filters):
                                    if {"legacy_motor_type", "legacy_sales_source", "legacy_model", "legacy_energy", "legacy_dealer"}.intersection((dimension, card.get("series"))) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
-            "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),
+            "series_legend": series_legend, "series_label": display_dimension(card.get("series"), config, card),
             "classification_colors": (card.get('series') or card['dimension']) == 'legacy_motor_type',
             "series_truncated": series_truncated, "other_series_keys": other_series_keys,
             "raw_total": str(total) if total is not None else None,
-            "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": DIMENSIONS[dimension]}
+            "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": display_dimension(dimension, config, card)}
 
 
 def drill_query(config, card, filters, key):

@@ -53,7 +53,8 @@ class CountOverviewHeaderTests(TestCase):
     def test_csv_exports_keep_original_column_names(self):
         self.publish("gasoline-count")
         chart = self.client.get(reverse("report_export", args=[self.report.pk, 0])).content.decode("utf-8-sig")
-        self.assertIn(",".join(["原報表車行／平台名稱（比對用）", "訂單台數", "DMIS 已分配台數獎金", "DMIS 車行傭金支出"]), chart)
+        # T-189 起車行欄名畫面與 CSV 一致為「車行」；獎金、傭金欄名仍保留原名。
+        self.assertIn(",".join(["車行", "訂單台數", "DMIS 已分配台數獎金", "DMIS 車行傭金支出"]), chart)
         records = self.client.get(reverse("report_records_export", args=[self.report.pk])).content.decode("utf-8-sig")
         self.assertIn("售出車行", records)
         self.assertIn("DMIS 已分配台數獎金,DMIS 車行傭金支出", records)
@@ -66,7 +67,9 @@ class CountOverviewHeaderTests(TestCase):
         self.login()
         html = self.client.get(reverse("report_display", args=[self.report.pk])).content.decode()
         summary = thead(html, "report-summary-table")
-        for label in LONG:
+        # T-189：車行欄依固定條件顯示「車行」，其餘欄名不縮短。
+        self.assertIn("車行", summary.split("|"))
+        for label in LONG[1:]:
             self.assertIn(label, summary)
         self.assertIn("DMIS 車行傭金支出", thead(html, "report-detail-table"))
 

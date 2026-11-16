@@ -120,3 +120,10 @@ class ReaderPageTests(TestCase):
         footer = re.search(r'<footer class="report-card-foot">.*?</footer>', html, re.S).group(0)
         self.assertIn("共 3 張訂單", footer)
         self.assertIn("data-report-open-detail", footer)
+
+
+class DesignerFrameTests(SimpleTestCase):
+    def test_card_footer_leaves_room_for_resize_handle_and_tag_sits_outside_title(self):
+        css = (ROOT / "static/css/report-designer-frame.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"body\[data-designer-mode=edit\][^{]*\.report-card-foot\{padding-right:calc\(var\(--space-5\) \+ 40px\)\}")
+        self.assertRegex(css, r"\.designer-chart-overlay>button:not\(\[data-resize\]\)\{position:absolute;top:calc\(-1 \* var\(--space-4\)\)")

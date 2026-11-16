@@ -9,6 +9,8 @@ html,body{margin:0!important;padding:0!important;min-height:0!important;backgrou
 .designer-chart-overlay [data-resize]{position:absolute;bottom:0;right:0;cursor:nwse-resize}
 /* T-182：圖卡標題改靠左後，「圖表 N」拖曳標籤改貼在卡片上緣外側，不蓋住標題。 */
 .designer-chart-overlay>button:not([data-resize]){position:absolute;top:calc(-1 * var(--space-4));left:var(--space-4);padding:var(--space-1) var(--space-2);font-size:var(--text-sm)}
+/* 卡片底部文字讓出右下角縮放把手的位置，不被蓋住。 */
+body[data-designer-mode=edit] .report-reader-main .report-chart>.report-card-foot{padding-right:calc(var(--space-5) + 40px)}
 .designer-chart-overlay:focus-visible{outline:3px solid var(--focus-ring)}
 body[data-designer-mode=edit] .report-chart{position:relative}
 body[data-designer-mode=preview] .designer-chart-overlay{display:none}

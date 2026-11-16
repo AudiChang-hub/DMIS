@@ -6,11 +6,12 @@ from django.forms import formset_factory
 from sales.models import SalesOrder, SalesSource, VehicleModel
 from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, MODEL_TEXT_SCOPES, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
-from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES
+from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES, source_type_to_classifications
 from .tree_filter import TREE_FIELDS, tree_chips
 
 # T-164：沿用原 Excel 報表的比對條件與分類，只在設計器分組與改顯示名稱，鍵值與讀者頁不變。
-LEGACY_SCOPES = {"legacy_source", "model_presence", *MODEL_TEXT_SCOPES}
+# 銷售來源（T-183）已是主要來源條件，不再收在原 Excel 比對區。
+LEGACY_SCOPES = {"model_presence", *MODEL_TEXT_SCOPES}
 COMMON_DIMENSIONS = ("month", "year", "day", "brand", "family", "model", "color", "energy", "legacy_energy",
                      "legacy_motor_type", "source_type", "source", "recipient")
 DESIGNER_DIMENSION_LABELS = {"legacy_motor_type": "車種類別（白牌、綠牌、速克達…）"}
@@ -43,6 +44,9 @@ class ScopeForm(forms.Form):
         scope = self.initial.get("fixed_filters", {})
         validate_scope(scope)
         for key, label in SCOPE_LABELS.items():
+            if key == "source_type" and not scope.get(key):
+                # T-183：來源類型併入銷售來源；只有舊設定已用到時才顯示，避免重新儲存變成不限。
+                continue
             if key in MODEL_TEXT_SCOPES:
                 self.fields["fixed_" + key] = forms.CharField(label=label, required=False, max_length=20200,
                     widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}), help_text=("區分大小寫；任何一項完整符合即排除。" if key == "model_exclude"
@@ -60,14 +64,14 @@ class ScopeForm(forms.Form):
         return [field for field in self.visible_fields() if not field.name.startswith("fixed_")]
 
     def scope_fields(self):
-        return [self["fixed_" + key] for key in SCOPE_LABELS]
+        return [self["fixed_" + key] for key in SCOPE_LABELS if "fixed_" + key in self.fields]
 
     # T-164 設計器分組顯示：常用條件在前，原 Excel 報表比對條件收進「進階」；不影響驗證與儲存格式。
     def common_scope_fields(self):
-        return [self["fixed_" + key] for key in SCOPE_LABELS if key not in LEGACY_SCOPES]
+        return [field for field in self.scope_fields() if field.name.removeprefix("fixed_") not in LEGACY_SCOPES]
 
     def legacy_scope_fields(self):
-        return [self["fixed_" + key] for key in SCOPE_LABELS if key in LEGACY_SCOPES]
+        return [field for field in self.scope_fields() if field.name.removeprefix("fixed_") in LEGACY_SCOPES]
 
     def legacy_scope_used(self):
         return any(field.value() for field in self.legacy_scope_fields())
@@ -328,9 +332,9 @@ class FilterForm(forms.Form):
     months = forms.MultipleChoiceField(label="月份（可複選）", required=False)
     brand = forms.MultipleChoiceField(label="品牌", required=False)
     energy = forms.MultipleChoiceField(label="能源別", required=False, choices=VehicleModel.EnergyType.choices)
-    source_type = forms.MultipleChoiceField(label="來源類型", required=False, choices=SalesOrder.SourceType.choices)
+    # T-183：來源類型併入銷售來源；舊網址的 source_type 在 __init__ 換算，不再提供勾選。
     source = forms.MultipleChoiceField(label="車行／平台", required=False)
-    legacy_source = forms.MultipleChoiceField(label="原報表銷售來源（五分類）", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
+    legacy_source = forms.MultipleChoiceField(label="銷售來源", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
     legacy_dealer = forms.MultipleChoiceField(label="原報表車行／平台名稱", required=False)
     legacy_energy = forms.MultipleChoiceField(label="油車／電車", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
 
@@ -349,11 +353,9 @@ class FilterForm(forms.Form):
             self.fields["empty_model"] = forms.BooleanField(required=False, widget=forms.HiddenInput)
         if layout in ("sales_overview", "electric_overview", "gasoline_overview"):
             self.COMMON_FIELDS = ("legacy_source", "months")
-            self.fields["legacy_source"].label = "銷售來源"
             self.fields["months"].label = "領牌年月"
         if layout in ('platform_overview', 'dealer_overview', 'count_overview'):
             self.COMMON_FIELDS = ('legacy_dealer', 'months')
-            self.fields['legacy_dealer'].label = '平台名稱' if layout == 'platform_overview' else '車行名稱（原銷售）'
             self.fields['months'].label = '領牌年月'
         if layout == 'analysis_overview':
             self.COMMON_FIELDS = ('months',)
@@ -368,14 +370,17 @@ class FilterForm(forms.Form):
             self.data = self.data.copy()
             for key in ("months", "brand", "energy", "source_type", "source", "legacy_source", "legacy_dealer", "model"):
                 self.data.setlist(key, [value for value in self.data.getlist(key) if value])
+            self._convert_source_type()
         if "brand" in self.fields:
             self.fields["brand"].choices = [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()]
-        self.fields["source"].choices = [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")]
+        sources = list(SalesSource.objects.order_by("name", "pk").values_list("pk", "name", "source_type"))
+        self.fields["source"].choices = [(str(pk), name) for pk, name, _ in sources]
         from .engine import base_query
         from .source_compatibility import source_dealer_query
         choice_config = config or {'date_basis': self.date_basis, 'include_undated': True}
-        self.fields['legacy_dealer'].choices = [(name, name) for name in source_dealer_query(base_query(choice_config, {}))
-            .order_by('report_dealer_label').values_list('report_dealer_label', flat=True).distinct()]
+        dealer_pairs = list(source_dealer_query(base_query(choice_config, {})).order_by('report_dealer_label')
+            .values_list('report_dealer_label', 'source_type').distinct())
+        self.fields['legacy_dealer'].choices = [(name, name) for name in dict.fromkeys(name for name, _ in dealer_pairs)]
         self.fields["months"].choices = [(month.strftime("%Y-%m"), month.strftime("%Y 年 %m 月"))
             for month in SalesOrder.objects.dates(self.date_basis, "month", order="DESC")]
         # 固定能源範圍仍由 engine 套用；移除讀者控制項與舊網址殘留限制。
@@ -383,6 +388,54 @@ class FilterForm(forms.Form):
         if layout != 'standard':
             self.fields.pop('source')
             self.fields['legacy_dealer'].label = '車行／平台'
+            self._split_legacy_dealer(dealer_pairs)
+        else:
+            self._split_source(sources)
+
+    def _convert_source_type(self):
+        """舊網址的來源類型（T-183）換算成銷售來源；與已選的銷售來源取交集，結果與原條件相同。"""
+        types = [value for value in self.data.getlist("source_type") if value in SalesOrder.SourceType.values]
+        self.data.setlist("source_type", [])
+        if not types:
+            return
+        mapped = source_type_to_classifications(types)
+        current = self.data.getlist("legacy_source")
+        selected = [label for label in mapped if label in current] if current else mapped
+        self.data.setlist("legacy_source", selected)
+        if not selected:
+            self.data["empty_legacy_source"] = "1"
+
+    def _attach_split(self, name, groups):
+        """車行／平台拆成兩個選擇器（T-184）：同一個網址參數，兩邊都選取聯集；沒有選項的一邊不顯示。"""
+        groups = [(label, suffix, choices) for label, suffix, choices in groups if choices]
+        listed = {value for _, _, choices in groups for value, _ in choices}
+        selected = set(self.data.getlist(name) if hasattr(self.data, "getlist") else self.data.get(name) or [])
+        # 已選但不屬於任一邊的舊值（例如本店來源）放進第一個選擇器，避免下次送出時默默遺失。
+        extra = [(value, text) for value, text in self.fields[name].choices if value in selected and value not in listed]
+        if groups and extra:
+            label, suffix, choices = groups[0]
+            groups[0] = (label, suffix, [*choices, *extra])
+        if groups:
+            self[name].split_groups = [{"label": label, "id": f"id_{name}_{suffix}", "choices": choices}
+                                      for label, suffix, choices in groups]
+
+    def _split_source(self, sources):
+        self._attach_split("source", [
+            ("車行", "dealer", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.DEALER]),
+            ("平台", "platform", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.PLATFORM]),
+        ])
+
+    def _split_legacy_dealer(self, pairs):
+        kinds = {}
+        for label, source_type in pairs:
+            kinds.setdefault(label, set()).add(source_type)
+        # 同一標籤橫跨多種來源時，平台優先、其次車行；只出現在本店單的標籤用「銷售來源」篩。
+        group = {label: "platform" if "platform" in types else "dealer" if "dealer" in types else "store" for label, types in kinds.items()}
+        choices = self.fields["legacy_dealer"].choices
+        self._attach_split("legacy_dealer", [
+            ("車行", "dealer", [(value, text) for value, text in choices if group.get(value) == "dealer"]),
+            ("平台", "platform", [(value, text) for value, text in choices if group.get(value) == "platform"]),
+        ])
 
     def clean(self):
         data = super().clean()

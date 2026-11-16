@@ -22,7 +22,7 @@ DIMENSIONS = {
     "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行",
     "year": "年份", "day": "日期", "family": "機種", "source_type": "來源類型", "color": "車色",
     "legacy_motor_type": "舊報表車種分類（比對用）",
-    "legacy_sales_source": "舊報表銷售來源（比對用）",
+    "legacy_sales_source": "銷售來源",
     "legacy_model": "原型號文字（比對用）",
     "legacy_energy": "油車／電車分類",
     "legacy_dealer": "原報表車行／平台名稱（比對用）",
@@ -62,7 +62,8 @@ def dimension_color(dimension, raw, index):
 
 SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
                  "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id", "legacy_source": "report_legacy_source"}
-SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型", "legacy_source": "原報表銷售來源（五分類）"}
+# 設計器依此順序列條件；銷售來源（T-183）取代來源類型的位置，來源類型只為舊設定保留。
+SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "legacy_source": "銷售來源", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型"}
 SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
 SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
 SCOPE_LOOKUPS["legacy_energy"] = "report_legacy_energy"

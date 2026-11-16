@@ -216,3 +216,17 @@ test('T-142 連續操作只排最後一次，且可指定較長等待', () => {
   timers.queue.forEach(item => item.fn?.());
   assert.deepEqual(runs, ['c']);
 });
+
+const {reportMultiSummary} = require('../../static/js/report-interactions.js');
+test('T-184 複選摘要：拆開的車行／平台一邊沒勾、另一邊有勾時顯示「未選取」', () => {
+  // 總覽頁：全勾＝全部、部分＝已選、整組都沒勾＝無資料。
+  assert.equal(reportMultiSummary(true, 5, 5, true), '全部');
+  assert.equal(reportMultiSummary(true, 2, 5, true), '已選 2 項');
+  assert.equal(reportMultiSummary(true, 0, 5, true), '未選取');
+  assert.equal(reportMultiSummary(true, 0, 5, false), '未選取（無資料）');
+  // 標準版型：沒勾＝不限；另一邊有勾時這邊是被排除。
+  assert.equal(reportMultiSummary(false, 3, 5, true), '已選 3 項');
+  assert.equal(reportMultiSummary(false, 5, 5, true), '已選 5 項');
+  assert.equal(reportMultiSummary(false, 0, 5, true), '未選取');
+  assert.equal(reportMultiSummary(false, 0, 5, false), '不限（可複選）');
+});

@@ -901,6 +901,7 @@ class ReportingTests(TestCase):
         self.model.model_number = "UC125DA"
         self.model.save(update_fields=["model_number"])
         SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
+        SalesOrder.objects.filter(source=self.a).update(source_type="platform")
         SalesSource.objects.filter(pk=self.b.pk).update(name="一般車行")
         config = validate_config(gasoline_platform_sales())
         card = config["cards"][0]
@@ -949,7 +950,8 @@ class ReportingTests(TestCase):
 
     def test_original_source_filter_intersects_fixed_scope_and_records(self):
         from sales.reporting.records import record_context
-        SalesSource.objects.filter(pk=self.a.pk).update(name="文傑")
+        SalesSource.objects.filter(pk=self.a.pk).update(name="文傑", source_type="store")
+        SalesOrder.objects.filter(source=self.a).update(source_type="store")
         config = {**self.config, "fixed_filters": {"legacy_source": ["店內員工"]}}
         self.assertEqual(validate_config(config), config)
         self.assertEqual(card_result(config, config["cards"][0], {})["count"], 1)
@@ -1024,6 +1026,7 @@ class ReportingTests(TestCase):
         self.model.model_number = "EV060L"
         self.model.energy_type = "electric"
         self.model.save(update_fields=["model_number", "energy_type"])
+        SalesOrder.objects.filter(source__in=(self.a, self.b)).update(source_type="platform")
         SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
         SalesSource.objects.filter(pk=self.b.pk).update(name="momo")
         result = card_result(config, config["cards"][0], {})
@@ -1063,14 +1066,17 @@ class ReportingTests(TestCase):
         for url in (reverse("report_display", args=[self.report.pk]), reverse("report_records_export", args=[self.report.pk])):
             self.assertEqual(self.client.get(url, {"records_page": 2, "revision": revision}).status_code, 409)
 
-    def test_source_sales_classification_preserves_five_categories_and_regex_plus(self):
+    def test_sales_source_classification_follows_source_type_then_store_names(self):
+        # T-183：先看訂單來源類型；本店單再依名單細分，名單外歸馭盛，不再落到車行。
         card = {**self.config["cards"][0], "dimension": "legacy_sales_source"}
-        for name, label in (("中古車", "馭盛"), ("假展場", "馭盛"), ("Yahoo", "網路平台"),
-                            ("文傑", "店內員工"), ("峻生", "店內員工"), ("展場", "展場"),
-                            ("Yahoo+假展場", "車行"), ("Yahoo假展場", "網路平台"),
-                            ("Yahoo假展場\n", "車行"), ("其他", "車行")):
-            with self.subTest(name=name):
-                SalesSource.objects.filter(pk=self.a.pk).update(name=name)
+        for source_type, name, label in (("store", "中古車", "馭盛"), ("store", "假展場", "馭盛"), ("store", "Yahoo", "馭盛"),
+                                         ("store", "文傑", "店內員工"), ("store", "峻生", "店內員工"), ("store", "展場", "展場"),
+                                         ("store", "朋友推薦", "馭盛"), ("platform", "小樹購員購", "網路平台"),
+                                         ("platform", "MOMO", "網路平台"), ("platform", "Yahoo+假展場", "網路平台"),
+                                         ("dealer", "文傑", "車行"), ("dealer", "Yahoo", "車行")):
+            with self.subTest(source_type=source_type, name=name):
+                SalesSource.objects.filter(pk=self.a.pk).update(name=name, source_type=source_type)
+                SalesOrder.objects.filter(source=self.a).update(source_type=source_type)
                 result = card_result(self.config, card, {"source": [str(self.a.pk)]})
                 self.assertEqual([(row["label"], row["count"]) for row in result["rows"]], [(label, 1)])
                 self.assertEqual(drill_query(self.config, card, {"source": [str(self.a.pk)]}, result["rows"][0]["key"]).count(), 1)
@@ -1190,7 +1196,12 @@ class ReportingTests(TestCase):
                 self.assertEqual(card_result(present_config, card, {})["count"], expected)
                 self.assertEqual(card_result(missing_config, card, {})["count"], 3 - expected)
         source_card = {**card, "dimension": "legacy_sales_source"}
-        for raw_name, expected in ((None, "馭盛"), ("null", "車行"), ("Yahoo+假展場", "車行"), ("Yahoo", "網路平台")):
+        SalesOrder.objects.filter(pk=order.pk).update(source_type="dealer")
+        result = card_result(self.config, source_card, {})
+        self.assertIn(order.pk, drill_query(self.config, source_card, {}, next(item for item in result["rows"] if item["label"] == "車行")["key"]).values_list("pk", flat=True))
+        # 本店單才看原車行文字細分（匯入原文優先於目前來源名稱）。
+        SalesOrder.objects.filter(pk=order.pk).update(source_type="store")
+        for raw_name, expected in ((None, "馭盛"), ("null", "馭盛"), ("文傑", "店內員工"), ("展場", "展場"), ("Yahoo", "馭盛")):
             row.mapped_data["dealer_name_raw"] = raw_name
             row.save(update_fields=["mapped_data"])
             result = card_result(self.config, source_card, {})

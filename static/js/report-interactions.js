@@ -231,6 +231,14 @@ function reportUpdateError(error) {
 }
 // 篩選選了就自動套用（T-142）：回傳這次變更等多久再查詢，null 表示不觸發。
 // 複選與下拉 300ms 防抖；日期等打完再查（鍵盤逐位輸入年份時 0002、0020 也是合法日期，不能拿去查）。
+// 複選摘要（T-184）：拆成兩個選擇器時，這邊沒勾但另一邊有勾，代表這邊被排除，不是「不限」或「無資料」。
+function reportMultiSummary(sourceStyle, selected, total, groupSelected) {
+  if (selected && (!sourceStyle || selected < total)) return `已選 ${selected} 項`;
+  if (sourceStyle && selected === total) return '全部';
+  if (groupSelected) return '未選取';
+  return sourceStyle ? '未選取（無資料）' : '不限（可複選）';
+}
+
 function reportFilterDelay(field) {
   const data = field?.dataset || {};
   if (!field || 'multiSearch' in data) return null;
@@ -268,7 +276,7 @@ function reportAutoSubmitFilters(form) {
   }, true);
 }
 if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
-if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError});
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError, reportMultiSummary});
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -282,34 +290,41 @@ function initReportVisuals(root) {
     control.dataset.multiReady = "true";
     const inputs = [...control.querySelectorAll('input[type="checkbox"]')];
     const fieldName = inputs[0]?.name;
-    const sourceStyle = control.closest('.report-sales-overview .report-filter-grid') && ['months','legacy_source','legacy_dealer'].includes(fieldName);
     const form = control.closest('form');
+    // 車行／平台拆成兩個選擇器（T-184）：同名參數的勾選視為一組，全選、全部取消、只選此項都以整組判斷。
+    const split = control.hasAttribute('data-multi-split') && form && fieldName;
+    const groupInputs = () => split ? [...form.querySelectorAll('[data-multi-split] input[type="checkbox"]')].filter(input => input.name === fieldName) : inputs;
+    const siblings = () => split ? [...form.querySelectorAll('[data-multi-split]')].filter(other => other.querySelector('input[type="checkbox"]')?.name === fieldName) : [control];
+    const sourceStyle = control.closest('.report-sales-overview .report-filter-grid') && ['months','legacy_source','legacy_dealer'].includes(fieldName);
     const emptyField = sourceStyle && form.elements.namedItem(`empty_${fieldName}`);
     if (sourceStyle) {
       control.syncFromServer = () => {
-        if (!inputs.some(input => input.checked) && !['True','true','1'].includes(emptyField.value)) inputs.forEach(input => { input.checked = true; });
+        const group = groupInputs();
+        if (!group.some(input => input.checked) && !['True','true','1'].includes(emptyField.value)) group.forEach(input => { input.checked = true; });
       };
       control.syncFromServer();
       control.querySelector('[data-multi-clear]').textContent = '全部取消';
       control.querySelector('.report-multi-options > small').textContent = '全部勾選表示不限；全部取消則不顯示資料。可點「只選此項」。';
       form.addEventListener('formdata', event => {
-        const selected = inputs.filter(input => input.checked);
-        if (selected.length === inputs.length) event.formData.delete(fieldName);
+        const group = groupInputs(), selected = group.filter(input => input.checked);
+        if (selected.length === group.length) event.formData.delete(fieldName);
         event.formData.set(`empty_${fieldName}`, selected.length ? '' : '1');
       });
       inputs.forEach(input => {
         const only = document.createElement('button'); only.type = 'button'; only.textContent = '只選此項';
-        only.addEventListener('click', event => { event.preventDefault(); inputs.forEach(other => { other.checked = other === input; }); control.dispatchEvent(new Event('change', {bubbles:true})); });
+        only.addEventListener('click', event => { event.preventDefault(); groupInputs().forEach(other => { other.checked = other === input; }); control.dispatchEvent(new Event('change', {bubbles:true})); });
         input.closest('label').append(only);
       });
     }
     const update = () => {
       const selected = inputs.filter(input => input.checked);
-      control.querySelector("[data-multi-summary]").textContent = sourceStyle ? (selected.length === inputs.length ? '全部' : selected.length ? `已選 ${selected.length} 項` : '未選取（無資料）') : selected.length ? `已選 ${selected.length} 項` : "不限（可複選）";
+      const groupSelected = split && groupInputs().some(input => input.checked);
+      control.querySelector("[data-multi-summary]").textContent = reportMultiSummary(sourceStyle, selected.length, inputs.length, groupSelected);
       const scope = control.closest(".report-card-scope");
       if (scope) updateScope(scope);
     };
-    control.addEventListener("change", update);
+    control.updateSummary = update;
+    control.addEventListener("change", () => { siblings().forEach(other => (other.updateSummary || update)()); });
     control.querySelector("[data-multi-search]").addEventListener("input", event => {
       const query = event.target.value.trim().toLocaleLowerCase();
       control.querySelectorAll("[data-multi-option]").forEach(option => { option.hidden = !option.textContent.toLocaleLowerCase().includes(query); });

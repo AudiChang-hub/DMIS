@@ -98,17 +98,26 @@ def sales_source_query(queryset):
     ))
 
 
+# 報表銷售來源分類（T-183，見 BUSINESS_RULES「報表銷售來源分類」）：先看訂單來源類型，
+# 本店單再依原車行文字細分；名單外的本店單歸「馭盛」，不再落到「車行」。
+STORE_STAFF_NAMES = ("文傑", "峻生")
+STORE_EXHIBITION_NAMES = ("展場",)
+SOURCE_TYPE_CLASSIFICATIONS = {"store": ("馭盛", "店內員工", "展場"), "dealer": ("車行",), "platform": ("網路平台",)}
+
+
 def sales_source_expression():
     return Case(
-        When(report_source_name__in=("", "中古車", "假展場"), then=Value("馭盛")),
-        When(report_source_name__in=("yahoo", "百利市", "momo", "PC", "Friday", "燦坤", "小樹購", "蝦皮", "YAHOO", "Yahoo"), then=Value("網路平台")),
-        # 原式 Yahoo+假展場 中 + 是量詞而非字面加號，不能擅自改為字串包含。
-        # 排除末尾換行以保持 RE2 整段匹配，避免 SQLite/Python 的 $ 尾換行特例。
-        When(Q(report_source_name__regex=r"^Yahoo+假展場$") & ~Q(report_source_name__endswith="\n"), then=Value("網路平台")),
-        When(report_source_name__in=("文傑", "峻生"), then=Value("店內員工")),
-        When(report_source_name="展場", then=Value("展場")),
-        default=Value("車行"), output_field=CharField(),
+        When(source_type="platform", then=Value("網路平台")),
+        When(source_type="dealer", then=Value("車行")),
+        When(report_source_name__in=STORE_STAFF_NAMES, then=Value("店內員工")),
+        When(report_source_name__in=STORE_EXHIBITION_NAMES, then=Value("展場")),
+        default=Value("馭盛"), output_field=CharField(),
     )
+
+
+def source_type_to_classifications(source_types):
+    """舊網址的來源類型換算成銷售來源；分類是來源類型的細分，換算結果與原條件相同。"""
+    return [label for key in source_types for label in SOURCE_TYPE_CLASSIFICATIONS.get(key, ())]
 
 
 def source_dealer_query(queryset):

@@ -796,6 +796,7 @@ urlpatterns = [
         name="vehicle_price_options",
     ),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
+    path("api/id-card-crop/detect/", views.id_card_crop_detect, name="id_card_crop_detect"),
     path(
         "api/id-card-ocr/<uuid:job_id>/",
         views.id_card_ocr_status,

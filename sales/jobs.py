@@ -36,7 +36,8 @@ def delete_id_ocr_job_files(job):
             stored_file.delete(save=False)
 
 
-def run_id_ocr_job(job_id):
+def run_id_ocr_job(job_id, crops=None):
+    """crops：使用者在調整視窗套用的裁切參數 {"front": ..., "back": ...}（T-190）；沒有就自動偵測。"""
     job = IdOcrJob.objects.get(pk=job_id)
     if job.status == IdOcrJob.Status.INVALIDATED:
         return
@@ -51,6 +52,7 @@ def run_id_ocr_job(job_id):
                 front.read(),
                 back.read(),
                 document_type=job.document_type,
+                crops=crops,
             )
     except IdOcrError as exc:
         job.status = IdOcrJob.Status.FAILED

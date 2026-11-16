@@ -239,6 +239,7 @@ from .services.vehicle_model_family import (
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
+from .services import id_card_crop
 from .services.order_change_display import build_order_change_cards
 from .services.order_next_actions import build_order_next_actions
 from .services.order_search import (
@@ -4965,13 +4966,19 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         return None, form, formset, fee_formset
     savepoint = transaction.savepoint()
     order = form.save(commit=False)
+    # 裁切參數（T-190）：照片從草稿搬過來就沿用草稿的參數；表單另外送來的（例如剛調整過）優先。
+    crop_data = {}
     if draft:
         if not form.cleaned_data.get("id_front") and draft.id_front:
             order.id_front = draft.id_front.name
             draft.id_front = ""
+            crop_data["id_front_crop"] = draft.id_front_crop
         if not form.cleaned_data.get("id_back") and draft.id_back:
             order.id_back = draft.id_back.name
             draft.id_back = ""
+            crop_data["id_back_crop"] = draft.id_back_crop
+    crop_data.update({key: post_data[key] for key in id_card_crop.CROP_FIELDS.values() if post_data.get(key)})
+    id_card_crop.apply_posted_crops(order, crop_data, changed=tuple(id_card_crop.CROP_FIELDS))
     mark_accepted(order, request.user)
     order.cash_receivable_v2 = True
     order.submission_key = submission_key
@@ -5300,6 +5307,8 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
         "_draft_revision",
         "_remove_id_front",
         "_remove_id_back",
+        "id_front_crop",
+        "id_back_crop",
         "_field_versions",
         "_remove_intake_attachments",
         "_reception",
@@ -5328,12 +5337,14 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
     if reception:
         draft.data["_reception"] = True
     draft.data.pop("accept_by_me", None)  # 舊草稿可能留著「由我接單」勾選
+    changed_photos = set()
     for field_name in ("id_front", "id_back"):
         if request.POST.get(f"_remove_{field_name}") == "1":
             current = getattr(draft, field_name)
             if current:
                 current.delete(save=False)
             setattr(draft, field_name, "")
+            changed_photos.add(field_name)
         upload = request.FILES.get(field_name)
         if upload:
             _validate_draft_image(upload)
@@ -5341,6 +5352,8 @@ def _store_order_draft(request, draft, reception, uploads, *, is_new):
             if current:
                 current.delete(save=False)
             setattr(draft, field_name, upload)
+            changed_photos.add(field_name)
+    id_card_crop.apply_posted_crops(draft, request.POST, changed=changed_photos)
     draft.data.update(preserved)
     if not is_new:
         draft.revision += 1
@@ -6162,6 +6175,8 @@ def _order_snapshot(order):
         "calculated_balance",
         "old_owner_ocr_name",
         "old_owner_ocr_id_number",
+        "id_front_crop",
+        "id_back_crop",
     }
     snapshot = {}
     for field in order._meta.concrete_fields:
@@ -6326,6 +6341,14 @@ def order_edit(request, pk):
         )
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
+            changed_photos = {
+                field_name for field_name, previous_name in previous_identity_names.items()
+                if getattr(getattr(order, field_name), "name", "") != previous_name
+            }
+            cropped_photos = [
+                field_name for field_name in id_card_crop.apply_posted_crops(order, request.POST, changed=changed_photos)
+                if field_name not in changed_photos and getattr(order, f"{field_name}_crop")
+            ]
             if form.unallocate_requested:
                 # 使用者已在警告視窗確認：同一交易內先取消配車（車輛回到可銷售、留紀錄），再存新車型／車色。
                 order.unallocate(actor_name=_editing_name(request.user), reason="修改車型／車色")
@@ -6397,6 +6420,13 @@ def order_edit(request, pk):
                 description=f"{'完成後修正' if completed_correction else '修改訂單'}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
+            if cropped_photos:
+                OrderEvent.objects.create(
+                    order=order,
+                    event_type="id_crop_adjusted",
+                    description="已調整車主證件" + "、".join("正面" if name == "id_front" else "反面" for name in cropped_photos) + "的裁切／旋轉（原始照片保留）。",
+                    actor_name=_editing_name(request.user),
+                )
             if completed_correction:
                 _record_settlement_gap(order, gap_before, request.user)
             if order_workspace.is_workspace_save(request):
@@ -7868,6 +7898,9 @@ def order_file_delete(request, pk, kind, item_pk=None):
         return redirect(order_step_url(pk, "attachments"))
     setattr(owner, field_name, "")
     cleared = [field_name, "updated_at"]
+    if kind in id_card_crop.CROP_FIELDS:
+        setattr(owner, id_card_crop.CROP_FIELDS[kind], None)
+        cleared.append(id_card_crop.CROP_FIELDS[kind])
     if kind in SIGNED_FILE_LABELS:
         for suffix, empty in (("_uploaded_at", None), ("_method", ""), ("_fingerprint", "")):
             setattr(owner, f"{kind}{suffix}", empty)
@@ -10718,12 +10751,43 @@ def vehicle_price_options(request, reception=False):
     )
 
 
+def _id_photo_source(request):
+    """source＝draft:<uuid> 或 order:<pk>：讀取權限範圍內已存的證件照片（T-190 重新辨識、自動偵測用）。"""
+    from sales.services.order_intake import scoped_drafts, scoped_orders
+
+    kind, _, pk = request.POST.get("source", "").partition(":")
+    if kind == "draft":
+        try:
+            uuid.UUID(pk)
+        except ValueError:
+            return None
+        return scoped_drafts(request.user).filter(pk=pk).first()
+    if kind == "order" and pk.isdigit():
+        return scoped_orders(request.user).filter(pk=int(pk)).first()
+    return None
+
+
+def _stored_photo(source, field_name):
+    file_field = getattr(source, field_name, None) if source else None
+    if not file_field:
+        return None
+    try:
+        with file_field.open("rb") as handle:
+            return ContentFile(handle.read(), name=Path(file_field.name).name)
+    except OSError:
+        return None
+
+
 @login_required
 def id_card_ocr(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
     front = request.FILES.get("front")
     back = request.FILES.get("back")
+    if (not front or not back) and request.POST.get("source"):
+        source = _id_photo_source(request)
+        front = front or _stored_photo(source, "id_front")
+        back = back or _stored_photo(source, "id_back")
     if not front or not back:
         return JsonResponse(
             {"ok": False, "error": "請先拍攝證件正面與反面。"},
@@ -10760,10 +10824,16 @@ def id_card_ocr(request):
         document_type=document_type,
         photo_token=photo_token,
     )
+    crops = {
+        side: request.POST.get(f"{side}_crop", "")[:2000]
+        for side in ("front", "back")
+        if request.POST.get(f"{side}_crop")
+    }
     try:
         queue.enqueue(
             run_id_ocr_job,
             str(job.pk),
+            crops or None,
             job_timeout=45,
             retry=Retry(max=2, interval=[2, 5]),
             result_ttl=300,
@@ -10787,6 +10857,38 @@ def id_card_ocr(request):
         },
         status=202,
     )
+
+
+@login_required
+def id_card_crop_detect(request):
+    """調整視窗的「自動偵測」：上傳的照片（image）或已存的照片（source＋side）→ 裁切參數。只讀不寫。"""
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    side = request.POST.get("side", "")
+    if side not in {"front", "back"}:
+        return JsonResponse({"ok": False, "error": "請指定正面或反面。"}, status=400)
+    upload = request.FILES.get("image")
+    if upload:
+        try:
+            validate_image_upload(upload)
+        except ValidationError as exc:
+            return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
+    else:
+        upload = _stored_photo(_id_photo_source(request), f"id_{side}")
+    if not upload:
+        return JsonResponse({"ok": False, "error": "找不到這張證件照片。"}, status=404)
+    try:
+        upload.seek(0)
+        image = id_card_crop.open_oriented(upload.read())
+        # 居留證版面不同：只轉成橫式，上下由使用者調整。
+        card_side = side if request.POST.get("document_type", "national_id") == "national_id" else None
+        params = id_card_crop.auto_params(image, card_side)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+    except Exception:  # noqa: BLE001  OpenCV 對異常影像的錯誤不外露，改請使用者手動調整。
+        logger.exception("證件自動偵測失敗")
+        return JsonResponse({"ok": False, "error": "自動偵測失敗，請手動拖曳四角。"}, status=400)
+    return JsonResponse({"ok": True, "crop": params})
 
 
 @login_required

@@ -1,4 +1,4 @@
-{% load site_copy %}
+{% load site_copy id_crop_tags %}
   <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
     {# 訂單頁叫「新車主資料」、排在最後，附件改到左側「附件」處理；建單精靈維持「車主與證件」（使用者 2026-10-21）。 #}
     <summary><span class="step-number">6</span><span><strong>{% if order_workspace %}新車主資料{% else %}車主與證件{% endif %}</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
@@ -24,11 +24,18 @@
       <div class="identity-compare span-2">
         <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="identity-upload">
           {% include "sales/_field.html" with field=form.id_front %}
+          {# T-190：卡片是依裁切參數從原圖算出來的（原圖不改）；點一下開調整視窗。 #}
+          <input type="hidden" name="id_front_crop" id="id-front-crop" value="{{ document_source.id_front_crop|crop_json }}" data-id-crop-input="id_front">
+          <button type="button" class="id-card-view" data-id-crop-editor="id_front" aria-label="調整正面照片的裁切與旋轉" hidden>
+            <canvas class="id-card-view__card" data-id-card-canvas aria-hidden="true"></canvas>
+            <span class="id-card-view__badge" data-id-card-badge></span>
+            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span>
+          </button>
           <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="證件正面預覽">
           {% if document_source.id_front %}
           <div class="saved-photo-state" data-saved-photo="id_front">
-            <span><strong>已暫存正面照片</strong><small>可點擊圖片放大核對</small></span>
-            <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
+            <span><strong>已暫存正面照片</strong><small>點卡片可調整裁切／旋轉</small></span>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看原圖</a>
             <button type="button" data-select-file="id_id_front">更換</button>
           </div>
           {% endif %}
@@ -43,11 +50,18 @@
       <div class="identity-compare span-2">
         <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="identity-upload">
           {% include "sales/_field.html" with field=form.id_back %}
+          {# T-190：卡片是依裁切參數從原圖算出來的（原圖不改）；點一下開調整視窗。 #}
+          <input type="hidden" name="id_back_crop" id="id-back-crop" value="{{ document_source.id_back_crop|crop_json }}" data-id-crop-input="id_back">
+          <button type="button" class="id-card-view" data-id-crop-editor="id_back" aria-label="調整反面照片的裁切與旋轉" hidden>
+            <canvas class="id-card-view__card" data-id-card-canvas aria-hidden="true"></canvas>
+            <span class="id-card-view__badge" data-id-card-badge></span>
+            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span>
+          </button>
           <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="證件反面預覽">
           {% if document_source.id_back %}
           <div class="saved-photo-state" data-saved-photo="id_back">
             <span><strong>已暫存反面照片</strong><small>可直接與戶籍地址對照</small></span>
-            <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看原圖</a>
             <button type="button" data-select-file="id_id_back">更換</button>
           </div>
           {% endif %}

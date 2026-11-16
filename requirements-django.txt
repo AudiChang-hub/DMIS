@@ -1,5 +1,8 @@
 Django==5.2.17
 Pillow==13.0.0
+# T-190: ID card corner detection and perspective crop (sales/services/id_card_crop.py); headless build needs no libGL.
+opencv-python-headless==4.13.0.92
+numpy==2.4.4
 psycopg[binary]==3.2.9
 gunicorn==23.0.0
 whitenoise==6.9.0

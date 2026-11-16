@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from google.cloud import vision
 from google.oauth2 import service_account
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from sales.services import id_card_crop
 from sales.services.identity_number import validate_taiwan_id  # noqa: F401  證號檢查只維護一份（UAT U-05）
 
 
@@ -23,6 +25,9 @@ OCR_RETRY = Retry(
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class IdOcrError(Exception):
     """可安全顯示給使用者的 OCR 錯誤。"""
 
@@ -34,6 +39,9 @@ class OcrImageResult:
     text: str
     annotations: tuple
     image: Image.Image
+    # T-190：這張照片的裁切參數（自動偵測或使用者調整）；cropped＝辨識用的是裁切後的卡片。
+    crop: dict | None = None
+    cropped: bool = False
 
 
 def _vision_client():
@@ -207,13 +215,50 @@ def check_detected_sides(detected_front, detected_back, scores_front, scores_bac
     return ""
 
 
+def _crop_params(image, crop, card_side):
+    """使用者給的參數（尺寸相符才算數）優先；否則自動偵測。偵測失敗不影響辨識，回傳 None。"""
+    params = id_card_crop.clean_params(crop, image.size) if crop else None
+    if params:
+        return params
+    try:
+        return id_card_crop.auto_params(image, card_side)
+    except Exception:  # noqa: BLE001  偵測只是輔助，任何錯誤都退回整張辨識。
+        logger.exception("證件四角偵測失敗，改用整張照片辨識")
+        return None
+
+
+def _recognize_card(client, image, params, expected_side, scorer):
+    """在裁切後的卡片上辨識：自動偵測的方向再試 180°，勝出時一併修正上緣；使用者指定的方向不翻轉。"""
+    card = id_card_crop.apply_crop(image, params)
+    best_score, best_result = -1, None
+    for angle in ((0,) if params["mode"] == "manual" else (0, 180)):
+        candidate = card if angle == 0 else card.rotate(180)
+        text, annotations = _detect_text(client, candidate)
+        score = scorer(text)[expected_side]
+        if score > best_score:
+            result_params = params if angle == 0 else id_card_crop.turned(params, params["turn"] + 2, by_ocr=True)
+            best_score = score
+            best_result = OcrImageResult(
+                expected_side, angle, text, annotations, candidate, result_params, True
+            )
+        if score >= 4:
+            break
+    return best_score, best_result
+
+
 def _recognize_side_with_scorer(
-    image_bytes, expected_side, scorer, client=None
+    image_bytes, expected_side, scorer, client=None, *, crop=None, card_side=None
 ):
     if expected_side not in {"front", "back"}:
         raise ValueError("expected_side 必須是 front 或 back")
     image = _load_image(image_bytes)
     client = client or _vision_client()
+    params = _crop_params(image, crop, card_side)
+    if params and params["mode"] != "full":
+        score, result = _recognize_card(client, image, params, expected_side, scorer)
+        # 裁切後通常一次就辨識成功；看不出證件特徵時退回原本的整張四角度流程，不比改版前差。
+        if score >= 2:
+            return result
     best_result = None
     best_score = -1
     for angle in (0, 90, 180, 270):
@@ -223,26 +268,31 @@ def _recognize_side_with_scorer(
         if score > best_score:
             best_score = score
             best_result = OcrImageResult(
-                expected_side, angle, text, annotations, rotated
+                expected_side, angle, text, annotations, rotated, params
             )
         # 強特徵已足以判斷方向，不再做其餘三次外部 OCR。
         if score >= 4:
             return OcrImageResult(
-                expected_side, angle, text, annotations, rotated
+                expected_side, angle, text, annotations, rotated, params
             )
     return best_result
 
 
-def recognize_side(image_bytes, expected_side, client=None):
+def recognize_side(image_bytes, expected_side, client=None, crop=None):
     return _recognize_side_with_scorer(
-        image_bytes, expected_side, _side_scores, client
+        image_bytes, expected_side, _side_scores, client, crop=crop, card_side=expected_side
     )
 
 
-def recognize_resident_certificate_side(image_bytes, expected_side, client=None):
+def recognize_resident_certificate_side(image_bytes, expected_side, client=None, crop=None):
+    # 居留證版面與國民身分證不同：只轉成橫式，上下由 OCR 判斷。
     return _recognize_side_with_scorer(
-        image_bytes, expected_side, _resident_side_scores, client
+        image_bytes, expected_side, _resident_side_scores, client, crop=crop
     )
+
+
+def _crop_result(front, back):
+    return {"front": getattr(front, "crop", None), "back": getattr(back, "crop", None)}
 
 
 def _clean_name_text(text):
@@ -285,13 +335,15 @@ def _recognize_name_region(client, front):
             )
         )
     # 部分照片中 Vision 會把「姓」「名」拆開而找不到完整標籤。
-    # 台灣身分證正面姓名區約位於畫面左中段，作為位置式備援。
+    # 台灣身分證正面姓名區約位於畫面左中段，作為位置式備援；
+    # 裁切後的卡片版面固定，姓名列在標題下方、大頭照左側（T-190）。
+    box = (0.05, 0.14, 0.62, 0.42) if getattr(front, "cropped", False) else (0.16, 0.34, 0.68, 0.64)
     crop_boxes.append(
         (
-            int(width * 0.16),
-            int(height * 0.34),
-            int(width * 0.68),
-            int(height * 0.64),
+            int(width * box[0]),
+            int(height * box[1]),
+            int(width * box[2]),
+            int(height * box[3]),
         )
     )
     candidates = []
@@ -532,10 +584,11 @@ def _extract_resident_name_from_layout(front):
 
 
 
-def recognize_resident_certificate(front_bytes, back_bytes):
+def recognize_resident_certificate(front_bytes, back_bytes, crops=None):
+    crops = crops or {}
     client = _vision_client()
-    front = recognize_resident_certificate_side(front_bytes, "front", client)
-    back = recognize_resident_certificate_side(back_bytes, "back", client)
+    front = recognize_resident_certificate_side(front_bytes, "front", client, crop=crops.get("front"))
+    back = recognize_resident_certificate_side(back_bytes, "back", client, crop=crops.get("back"))
     problem = check_document_photos(front.text, back.text, "resident_certificate") or check_detected_sides(
         detect_resident_certificate_side(front.text), detect_resident_certificate_side(back.text),
         _resident_side_scores(front.text), _resident_side_scores(back.text), "居留證",
@@ -560,17 +613,20 @@ def recognize_resident_certificate(front_bytes, back_bytes):
         "fields": fields,
         "warnings": warnings,
         "rotation": {"front": front.angle, "back": back.angle},
+        "crop": _crop_result(front, back),
     }
 
 
-def recognize_id_card(front_bytes, back_bytes, document_type="national_id"):
+def recognize_id_card(front_bytes, back_bytes, document_type="national_id", crops=None):
+    """crops：{"front": 參數, "back": 參數}，使用者在調整視窗套用的裁切；沒有就自動偵測。"""
     if document_type == "resident_certificate":
-        return recognize_resident_certificate(front_bytes, back_bytes)
+        return recognize_resident_certificate(front_bytes, back_bytes, crops)
     if document_type != "national_id":
         raise IdOcrError("不支援的證件類型。")
+    crops = crops or {}
     client = _vision_client()
-    front = recognize_side(front_bytes, "front", client)
-    back = recognize_side(back_bytes, "back", client)
+    front = recognize_side(front_bytes, "front", client, crop=crops.get("front"))
+    back = recognize_side(back_bytes, "back", client, crop=crops.get("back"))
     problem = check_document_photos(front.text, back.text, "national_id") or check_detected_sides(
         detect_id_side(front.text), detect_id_side(back.text),
         _side_scores(front.text), _side_scores(back.text), "身分證",
@@ -599,4 +655,5 @@ def recognize_id_card(front_bytes, back_bytes, document_type="national_id"):
         "fields": fields,
         "warnings": warnings,
         "rotation": {"front": front.angle, "back": back.angle},
+        "crop": _crop_result(front, back),
     }

@@ -3623,6 +3623,9 @@ class SalesOrder(TimeStampedModel):
     residence_expiry = models.DateField("居留期限", blank=True, null=True)
     id_front = models.ImageField("證件正面", upload_to="orders/id/%Y/%m/", blank=True)
     id_back = models.ImageField("證件反面", upload_to="orders/id/%Y/%m/", blank=True)
+    # T-190：原始照片不動，只存裁切四角與上緣（格式見 services/id_card_crop.py）；NULL＝尚未裁切。
+    id_front_crop = models.JSONField("證件正面裁切", blank=True, null=True)
+    id_back_crop = models.JSONField("證件反面裁切", blank=True, null=True)
     id_verified = models.BooleanField("已人工核對證件", default=False)
     id_verified_at = models.DateTimeField("證件核對時間", blank=True, null=True)
 
@@ -5773,6 +5776,8 @@ class OrderDraft(TimeStampedModel):
     id_back = models.ImageField(
         "證件反面", upload_to="drafts/id/%Y/%m/", blank=True
     )
+    id_front_crop = models.JSONField("證件正面裁切", blank=True, null=True)
+    id_back_crop = models.JSONField("證件反面裁切", blank=True, null=True)
     revision = models.PositiveIntegerField("版本", default=1)
     created_by = models.CharField("建立人員", max_length=150, blank=True)
     updated_by = models.CharField("最後編輯人員", max_length=150, blank=True)

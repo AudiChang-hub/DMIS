@@ -96,7 +96,7 @@ class AccessPolicy:
             return self.screen("order_intake", "operate") and self.screen("orders", "operate")
         if name in {"draft_save", "draft_presence", "draft_delete"}:
             return self.screen("order_intake", "operate")
-        if name in {"id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}:
+        if name in {"id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate", "id_card_crop_detect"}:
             return self.screen("order_intake", "operate") or self.screen("orders", "operate")
         if name == "order_intake_attachment":
             return self.screen("orders") or self.screen("order_intake", "operate")

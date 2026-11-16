@@ -1,6 +1,7 @@
 {% load static site_copy sales_format %}
 
 <script src="{% static 'js/order-installment-picker.js' %}?v={{ app_version }}"></script>
+<script src="{% static 'js/id-crop-editor.js' %}?v={{ app_version }}"></script>
 <script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
@@ -144,6 +145,8 @@
   let applyingRemoteValue = false;
   const photoDirty = {id_front: false, id_back: false};
   const photoVersion = {id_front: 0, id_back: 0};
+  // 證件裁切（T-190）：自動偵測結果留著給調整視窗的「自動偵測」直接用，不必再問伺服器。
+  const autoCrop = {id_front: null, id_back: null};
   // 其他附件（存摺、舊車主證件、分期表、補充檔案）：選檔後只隨草稿上傳一次，存好就不再重送。
   const intakeFileVersion = new Map();
   const heldFileInputs = new Set();
@@ -232,7 +235,7 @@
       processing: {
         className: "ocr-status loading",
         title: "正在辨識證件資料",
-        message: "完成後會通知您回來核對，可繼續填寫其他區塊。",
+        message: "會先自動轉正、裁出卡片再辨識；完成後會通知您回來核對，可繼續填寫其他區塊。",
         button: "",
       },
       review: {
@@ -281,8 +284,8 @@
     }
     const photoCount = Number(hasSelectedPhoto(idFront)) + Number(hasSelectedPhoto(idBack));
     if (photoCount === 2) {
-      // 只剩草稿保存的照片時無法重新送辨識，避免卡住：說明後改由人工核對。
-      setOcrState("manual", {message: "已保存的證件照片需重新選擇才能自動辨識；也可直接人工填寫下方欄位。"});
+      // 只剩已保存的照片時不自動送辨識（避免每次開頁都辨識一次）；需要時按「重新辨識」。
+      setOcrState("manual", {message: "已保存的證件照片可按「重新辨識」再辨識一次；也可直接人工填寫下方欄位。"});
       return;
     }
     setOcrState(photoCount === 0 ? "upload" : "incomplete");
@@ -849,14 +852,20 @@
 
   async function runIdOcr() {
     if (ocrRunning || !["local", "foreign"].includes(ownerType.value)) return;
-    if (!idFront.files.length || !idBack.files.length) return;
+    // 沒有重新選檔的一面改用已保存的照片（T-190：調整裁切後重新辨識）。
+    const source = photoSource();
+    const ready = input => input.files.length || (source && hasSelectedPhoto(input));
+    if (!ready(idFront) || !ready(idBack)) return;
     const requestVersion = ++ocrRequestVersion;
     const photoToken = `${Date.now()}-${photoVersion.id_front}-${photoVersion.id_back}`;
     ocrRunning = true;
     setOcrState("processing");
     const payload = new FormData();
-    payload.append("front", idFront.files[0]);
-    payload.append("back", idBack.files[0]);
+    if (idFront.files.length) payload.append("front", idFront.files[0]);
+    if (idBack.files.length) payload.append("back", idBack.files[0]);
+    if (!idFront.files.length || !idBack.files.length) payload.append("source", source);
+    if (cropInput("id_front").value) payload.append("front_crop", cropInput("id_front").value);
+    if (cropInput("id_back").value) payload.append("back_crop", cropInput("id_back").value);
     payload.append(
       "document_type",
       ownerType.value === "foreign" ? "resident_certificate" : "national_id"
@@ -918,6 +927,7 @@
 
   function applyOcrResult() {
     if (!pendingOcrResult) return;
+    applyOcrCrop(pendingOcrResult.crop || {});
     const fields = pendingOcrResult.fields || {};
     let retainedExistingValue = false;
     const mapping = {
@@ -979,6 +989,120 @@
     } catch (_) {}
   }
 
+  // ---------- 證件裁切（T-190） ----------
+  let idCardResizeTimer = null;
+
+  function cropInput(fieldName) {
+    return byId(`${fieldName.replace("_", "-")}-crop`);
+  }
+
+  function photoSource() {
+    if (editingOrderId) return `order:${editingOrderId}`;
+    return draftId.value ? `draft:${draftId.value}` : "";
+  }
+
+  function documentLabel() {
+    return ownerType.value === "foreign" ? "居留證" : "身分證";
+  }
+
+  // 依裁切參數把照片畫成卡片；參數不屬於這張照片（尺寸不符）或沒有參數時顯示原圖。
+  function renderIdCard(fieldName) {
+    const view = document.querySelector(`[data-id-crop-editor="${fieldName}"]`);
+    const preview = document.querySelector(`[data-photo-preview="${fieldName}"]`);
+    if (!view || !preview) return;
+    const capture = view.closest(".capture-card");
+    const params = window.dmisIdCrop?.parse(cropInput(fieldName).value);
+    const show = ready => {
+      view.hidden = !ready;
+      capture.classList.toggle("has-card-view", ready);
+    };
+    if (!params || preview.hidden || !preview.getAttribute("src")) return show(false);
+    if (!preview.complete || !preview.naturalWidth) {
+      show(false);
+      preview.addEventListener("load", () => renderIdCard(fieldName), {once: true});
+      return;
+    }
+    if (params.src_w !== preview.naturalWidth || params.src_h !== preview.naturalHeight) return show(false);
+    show(true);
+    const canvas = view.querySelector("[data-id-card-canvas]");
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round((view.clientWidth || 320) * ratio));
+    canvas.width = width;
+    canvas.height = Math.round(width * 54 / 85.6);
+    window.dmisIdCrop.renderCard(preview, params, canvas);
+    view.querySelector("[data-id-card-badge]").textContent = window.dmisIdCrop.describe(params);
+  }
+
+  function resetIdCrop(fieldName) {
+    cropInput(fieldName).value = "";
+    autoCrop[fieldName] = null;
+    renderIdCard(fieldName);
+  }
+
+  function setIdCrop(fieldName, params) {
+    const input = cropInput(fieldName);
+    const value = params ? JSON.stringify(params) : "";
+    if (input.value === value) return renderIdCard(fieldName);
+    input.value = value;
+    // 訂單頁靠表單 change 事件自動儲存；建單頁另排草稿儲存。
+    input.dispatchEvent(new Event("change", {bubbles: true}));
+    renderIdCard(fieldName);
+  }
+
+  // 辨識結果帶回的裁切參數：自動偵測的另外留給調整視窗用。
+  function applyOcrCrop(crop) {
+    [["id_front", crop.front], ["id_back", crop.back]].forEach(([fieldName, params]) => {
+      if (!params) return;
+      if (params.mode !== "manual") autoCrop[fieldName] = params;
+      setIdCrop(fieldName, params);
+    });
+  }
+
+  async function detectIdCrop(fieldName) {
+    const input = byId(`id_${fieldName}`);
+    const payload = new FormData();
+    payload.append("side", fieldName === "id_front" ? "front" : "back");
+    payload.append("document_type", ownerType.value === "foreign" ? "resident_certificate" : "national_id");
+    if (input.files.length) payload.append("image", input.files[0]);
+    else payload.append("source", photoSource());
+    const response = await fetch("{% url 'id_card_crop_detect' %}", {
+      method: "POST",
+      busy: false,
+      headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+      body: payload,
+    });
+    const data = await response.json().catch(() => ({ok: false}));
+    if (!response.ok || !data.ok) throw new Error(data.error || "自動偵測失敗，請手動拖曳四角。");
+    autoCrop[fieldName] = data.crop;
+    return data.crop;
+  }
+
+  function openIdCropEditor(fieldName, trigger) {
+    const preview = document.querySelector(`[data-photo-preview="${fieldName}"]`);
+    if (!window.dmisIdCrop || !preview?.getAttribute("src") || !preview.naturalWidth) return;
+    const bothPhotos = hasSelectedPhoto(idFront) && hasSelectedPhoto(idBack);
+    window.dmisIdCrop.open({
+      image: preview,
+      params: cropInput(fieldName).value,
+      autoParams: autoCrop[fieldName],
+      title: `調整${documentLabel()}${fieldName === "id_front" ? "正面" : "反面"}`,
+      canRerun: ["local", "foreign"].includes(ownerType.value) && bothPhotos,
+      returnFocus: trigger,
+      detect: () => detectIdCrop(fieldName),
+      onApply: (params, {rerun}) => {
+        setIdCrop(fieldName, params);
+        scheduleDraft();
+        if (!rerun) return;
+        // 先作廢進行中的辨識，再用新的裁切重新辨識。
+        invalidateCurrentOcr();
+        ocrRequestVersion += 1;
+        ocrRunning = false;
+        pendingOcrResult = null;
+        runIdOcr();
+      },
+    });
+  }
+
   function refreshPhotoButtons() {
     document.querySelectorAll("[data-clear-file]").forEach(button => {
       button.hidden = (
@@ -991,6 +1115,7 @@
   function photoChanged(event) {
     photoVersion[event.target.name] += 1;
     photoDirty[event.target.name] = true;
+    resetIdCrop(event.target.name);
     byId(`remove-${event.target.name.replaceAll("_", "-")}`).value = "0";
     event.target.closest(".capture-card")?.classList.remove("has-saved-photo");
     document.querySelector(`[data-saved-photo="${event.target.name}"]`)?.remove();
@@ -1000,6 +1125,7 @@
     if (preview && event.target.files[0]) {
       preview.src = URL.createObjectURL(event.target.files[0]);
       preview.hidden = false;
+      renderIdCard(event.target.name);
     }
     invalidateCurrentOcr();
     ocrRequestVersion += 1;
@@ -1018,6 +1144,7 @@
       const fieldName = input.name;
       photoVersion[fieldName] += 1;
       photoDirty[fieldName] = false;
+      resetIdCrop(fieldName);
       byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "1";
       button.dataset.existingPhoto = "0";
       button.closest(".capture-card")?.classList.remove("has-saved-photo");
@@ -1044,10 +1171,17 @@
   });
   idFront.addEventListener("change", photoChanged);
   idBack.addEventListener("change", photoChanged);
+  // 點照片或卡片開調整視窗（T-190）；原圖用「查看原圖」另開。
   document.querySelectorAll("[data-photo-preview]").forEach(preview => {
-    preview.addEventListener("click", () => {
-      if (preview.src) window.open(preview.src, "_blank", "noopener");
-    });
+    preview.addEventListener("click", () => openIdCropEditor(preview.dataset.photoPreview, preview));
+  });
+  document.querySelectorAll("[data-id-crop-editor]").forEach(button => {
+    button.addEventListener("click", () => openIdCropEditor(button.dataset.idCropEditor, button));
+  });
+  ["id_front", "id_back"].forEach(renderIdCard);
+  window.addEventListener("resize", () => {
+    clearTimeout(idCardResizeTimer);
+    idCardResizeTimer = setTimeout(() => ["id_front", "id_back"].forEach(renderIdCard), 200);
   });
   ocrButton.addEventListener("click", () => {
     runIdOcr();
@@ -1306,6 +1440,8 @@
       "_draft_revision",
       "_remove_id_front",
       "_remove_id_back",
+      "id_front_crop",
+      "id_back_crop",
       "_field_versions",
     ].includes(input.name);
   }
@@ -1761,6 +1897,7 @@
     if (preview) {
       preview.src = url;
       preview.hidden = false;
+      renderIdCard(fieldName);
     }
     card.classList.add("has-saved-photo");
     clearButton.dataset.existingPhoto = "1";

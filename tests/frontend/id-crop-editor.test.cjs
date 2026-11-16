@@ -66,3 +66,23 @@ test('卡片參數：已存的優先，沒有就用自動偵測；有照片又�
   assert.deepEqual(cardState({saved: '', auto: null, hasPhoto: false, pending: false}), {params: null, detect: false});
   assert.deepEqual(cardState({saved: '', auto: null, hasPhoto: true, pending: true}), {params: null, detect: false});
 });
+
+// T-198：車主類型在本國與居留者之間切換時，手動調整的保留；自動偵測的重算（已存的重算後存回）。
+test('換證件規則時：手動保留、自動已存的重算並存回、只顯示的重算', () => {
+  const {recropPlan} = require('../../static/js/id-crop-editor.js');
+  assert.equal(recropPlan(JSON.stringify({...full(1), mode: 'manual'})), 'keep');
+  assert.equal(recropPlan(JSON.stringify({...full(0), mode: 'auto'})), 'redetect-save');
+  assert.equal(recropPlan(JSON.stringify({...full(0), mode: 'full'})), 'redetect-save');
+  assert.equal(recropPlan(''), 'redetect');
+});
+
+// T-200：沒把握的卡片標「建議確認裁切」；手動調整後不再提醒。
+test('建議確認裁切：needs_review 且非手動才標', () => {
+  const {needsReview, describe: label} = require('../../static/js/id-crop-editor.js');
+  assert.equal(needsReview({...full(0), mode: 'auto', needs_review: true}), true);
+  assert.equal(label({...full(0), mode: 'auto', needs_review: true}), '建議確認裁切');
+  assert.equal(needsReview({...full(0), mode: 'full', needs_review: true}), true);
+  assert.equal(needsReview({...full(0), mode: 'manual', needs_review: true}), false);
+  assert.equal(needsReview({...full(0), mode: 'auto', needs_review: false}), false);
+  assert.equal(label({...full(2), mode: 'auto', needs_review: false}), '已自動轉正 180°');
+});

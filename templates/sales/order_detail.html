@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
-{% load order_origin_tags %}
+{% load order_origin_tags id_crop_tags %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -109,8 +109,9 @@
       <div class="wide"><dt>地址</dt><dd>{{ order.owner_address }}</dd></div>
     </dl>
     <div class="document-links document-card-list">
-      {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank" data-preview-name="{{ order.id_front.name }}">證件正面</a>{% endif_access %}{% endif %}
-      {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank" data-preview-name="{{ order.id_back.name }}">證件反面</a>{% endif_access %}{% endif %}
+      {# 證件顯示裁切後的卡片，原圖另給連結（T-199）；沒把握的標「建議確認裁切」（T-200）。 #}
+      {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}{% id_card_view order 'id_front' as card %}<div class="id-card-link"><a href="{{ card.url }}" target="_blank" data-preview-name="{{ card.name }}" data-preview-label="證件正面">證件正面</a><p class="id-card-links">{% if card.needs_review %}<span class="id-card-review">建議確認裁切</span>{% endif %}<a href="{{ card.original_url }}" target="_blank" rel="noopener">查看原圖</a></p></div>{% endif_access %}{% endif %}
+      {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}{% id_card_view order 'id_back' as card %}<div class="id-card-link"><a href="{{ card.url }}" target="_blank" data-preview-name="{{ card.name }}" data-preview-label="證件反面">證件反面</a><p class="id-card-links">{% if card.needs_review %}<span class="id-card-review">建議確認裁切</span>{% endif %}<a href="{{ card.original_url }}" target="_blank" rel="noopener">查看原圖</a></p></div>{% endif_access %}{% endif %}
     </div>
     {# 浮水印證件與下訂附件不在訂單頁顯示，檔案到左側「附件」查閱（使用者 2026-10-21）。 #}
   </section>

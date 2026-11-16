@@ -704,7 +704,6 @@ def id_copy_document_label(order):
 
 def id_copy_slots(order):
     """正反面各一格：位置（mm）、裁切參數（saved＝訂單已存的，否則為當場自動偵測）、卡片圖；讀不到照片時 card 為 None。"""
-    from sales.models import SalesOrder
     from sales.services import id_card_crop
 
     slots = []
@@ -719,11 +718,11 @@ def id_copy_slots(order):
             try:
                 with file_field.open("rb") as handle:
                     image = id_card_crop.open_oriented(handle.read())
-                params = id_card_crop.clean_params(getattr(order, f"{field}_crop"), image.size)
-                slot["saved"] = params is not None
-                if params is None:
-                    card_side = side if order.owner_type == SalesOrder.OwnerType.LOCAL else None
-                    params = id_card_crop.auto_params(image, card_side)
+                saved = id_card_crop.clean_params(getattr(order, f"{field}_crop"), image.size)
+                slot["saved"] = saved is not None
+                # 和訂單頁附件、開單核對用同一份參數與「建議確認裁切」判斷（T-200）。
+                params, _image = id_card_crop.stored_or_auto_params(
+                    file_field, saved, id_card_crop.card_side_for(order.owner_type, side), image=image)
                 slot["crop"] = params
                 slot["card"] = id_card_crop.apply_crop(image, params)
             except Exception:  # noqa: BLE001  照片缺檔或損壞：該格印提示，不擋其他頁。

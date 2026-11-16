@@ -239,6 +239,7 @@ def id_card_hotspots(job):
             "src": reverse("protected_media", args=["order", order.pk, slot["field"]]),
             "crop": json.dumps(slot["crop"], ensure_ascii=False),
             "saved": slot["saved"],
+            "needs_review": bool(slot["crop"].get("needs_review")),
             "document_type": "resident_certificate" if form_print.id_copy_document_label(order) == "居留證" else "national_id",
         })
     return hotspots

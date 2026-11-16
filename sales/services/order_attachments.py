@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -34,6 +34,9 @@ class OrderFile:
     file: object = field(default=None, compare=False, repr=False)
     delete_url: str | None = None
     locked_note: str = ""
+    # 車主證件（T-199／T-200）：url 是裁切後的卡片，原圖另給連結；needs_review＝建議確認裁切。
+    original_url: str | None = None
+    needs_review: bool = False
 
     @property
     def extension(self):
@@ -77,12 +80,18 @@ def collect_order_file_groups(order, request):
         media("退稅同意書", "order", order.pk, "tax_consent", order.tax_consent,
               delete_url=_allowed(policy, "order_file_delete", [order.pk, "tax_consent"])),
     ])
-    group("車主證件", [
-        media("證件正面", "order", order.pk, "id_front", order.id_front,
-              delete_url=_allowed(policy, "order_file_delete", [order.pk, "id_front"])),
-        media("證件反面", "order", order.pk, "id_back", order.id_back,
-              delete_url=_allowed(policy, "order_file_delete", [order.pk, "id_back"])),
-    ])
+    def id_card(label, field_name):
+        item = media(label, "order", order.pk, field_name, getattr(order, field_name),
+                     delete_url=_allowed(policy, "order_file_delete", [order.pk, field_name]))
+        if not item:
+            return None
+        from sales.services.id_card_crop import card_view
+
+        view = card_view(order, "order", field_name)
+        return replace(item, name=view["name"], url=view["url"], original_url=view["original_url"],
+                       needs_review=view["needs_review"]) if view else item
+
+    group("車主證件", [id_card("證件正面", "id_front"), id_card("證件反面", "id_back")])
     group("下訂附件", [
         (url := _allowed(policy, "order_intake_attachment", [attachment.pk]))
         and OrderFile(
@@ -153,7 +162,8 @@ def zip_entries(order, request):
     ]
     for group in collect_order_file_groups(order, request):
         for item in group["files"]:
-            suffix = Path(item.name).suffix.lower()
+            # 證件項目畫面上是裁切卡片，ZIP 仍放原圖，副檔名跟著原圖（T-199）。
+            suffix = Path(item.file.name if item.original_url else item.name).suffix.lower()
             # 系統儲存檔名沒有意義，改用項目名稱；下訂附件保留原始檔名。
             name = item.name if group["title"] == "下訂附件" else f"{item.label}{suffix}"
             entries.append((group["title"], name, item.file))

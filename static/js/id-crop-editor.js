@@ -123,9 +123,23 @@
     return {params, detect: !params && Boolean(hasPhoto) && !pending};
   }
 
+  // 車主類型換了證件規則（本國↔居留者，T-198）時這一面怎麼處理：使用者手動調整的保留；
+  // 已存的自動偵測參數重算後存回；只顯示、還沒存的自動偵測結果重算。
+  function recropPlan(saved) {
+    const params = parse(saved);
+    if (params?.mode === "manual") return "keep";
+    return params ? "redetect-save" : "redetect";
+  }
+
   // 卡片上的標示：自動轉正幾度、手動調整、整張。
+  // 自動偵測沒把握（T-200）：伺服器判斷並存在參數裡；手動調整或按過「套用」就不再提醒。
+  function needsReview(params) {
+    return Boolean(params?.needs_review) && params.mode !== "manual";
+  }
+
   function describe(params) {
     if (!params) return "";
+    if (needsReview(params)) return "建議確認裁切";
     if (params.mode === "manual") return "已手動調整";
     if (params.mode === "full") return "使用整張圖片";
     if (params.turn === 2) return "已自動轉正 180°";
@@ -391,7 +405,11 @@
   }
 
   function apply(rerun) {
-    const params = {...state.params, src_w: state.image.naturalWidth, src_h: state.image.naturalHeight};
+    // 按「套用」就是使用者確認過這個範圍：改為手動（選了整張圖片的保留 full），提醒消失（T-200）。
+    const params = {
+      ...state.params, src_w: state.image.naturalWidth, src_h: state.image.naturalHeight,
+      mode: state.params.mode === "full" ? "full" : "manual", needs_review: false, by_ocr: false,
+    };
     const callback = state.onApply;
     close();
     callback(params, {rerun});
@@ -425,7 +443,7 @@
     dialog.querySelector(`[data-crop-handle="${state.params.turn}"]`).focus({preventScroll: true});
   }
 
-  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, cardState};
+  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, cardState, recropPlan, needsReview};
   if (typeof window !== "undefined") window.dmisIdCrop = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

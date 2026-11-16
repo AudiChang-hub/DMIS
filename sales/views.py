@@ -10965,4 +10965,32 @@ def protected_media(request, model_name, pk, field_name):
     file_field = getattr(instance, field_name)
     if not file_field:
         raise Http404
+    if request.GET.get("card") == "1" and model_name in {"order", "draft"} and field_name in id_card_crop.CROP_FIELDS:
+        return _id_card_response(instance, model_name, field_name, file_field)
     return _private_file_response(request, file_field)
+
+
+def _id_card_response(instance, model_name, field_name, file_field):
+    """證件裁切後的卡片（T-199）：同一個受保護路徑加 ?card=1，權限檢查與原圖完全相同。
+
+    有存的裁切參數就用存的；沒有就自動偵測（快取，不寫回）。照片讀不到時改回原圖。
+    """
+    owner_type = instance.owner_type if model_name == "order" else (instance.data or {}).get("owner_type", "local")
+    side = "front" if field_name == "id_front" else "back"
+    try:
+        params, image = id_card_crop.stored_or_auto_params(
+            file_field, getattr(instance, id_card_crop.CROP_FIELDS[field_name]),
+            id_card_crop.card_side_for(owner_type, side),
+        )
+        if image is None:
+            with file_field.open("rb") as handle:
+                image = id_card_crop.open_oriented(handle.read())
+        output = BytesIO()
+        id_card_crop.apply_crop(image, params).save(output, format="JPEG", quality=90)
+    except Exception:  # noqa: BLE001  壞檔或格式問題：照舊給原圖，不讓頁面缺圖。
+        logger.exception("證件卡片產生失敗，改回原圖")
+        return _protect_private_response(FileResponse(file_field.open("rb"), as_attachment=False,
+                                                      filename=Path(file_field.name).name))
+    response = HttpResponse(output.getvalue(), content_type="image/jpeg")
+    response["Content-Disposition"] = 'inline; filename="id_card.jpg"'
+    return _protect_private_response(response)

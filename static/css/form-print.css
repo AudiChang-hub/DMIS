@@ -493,3 +493,9 @@ html.has-print-preview { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .print-preview__id-card, .print-preview__id-card > span { transition: none; }
 }
+/* T-200：沒把握的證件在預覽標「建議確認裁切」，放在卡片下方右側（不蓋住卡片內容，也不會印出來）。 */
+.print-preview__id-review {
+  position: absolute; top: calc(100% + 2px); right: 0; padding: 2px var(--space-2);
+  color: var(--amber-ink); background: var(--amber-soft); border: 1px solid var(--amber-border);
+  border-radius: var(--radius-xs); font-size: var(--text-2xs); font-style: normal; font-weight: 800; white-space: nowrap;
+}

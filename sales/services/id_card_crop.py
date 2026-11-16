@@ -13,6 +13,7 @@ DetectTurn、Warp），參數與門檻保持一致，改動處都有註記。原
 import io
 import math
 import warnings
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -20,6 +21,13 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 CROP_WIDTH = 1012  # 85.6 mm @ 300 dpi
+# 「建議確認裁切」的門檻（T-200）：只在明顯沒把握時提醒，正常卡片不標，避免使用者對提醒麻木。
+# 合成證件圖量測：正常卡片比例偏差約 0.04、佔畫面 28%、正面方向分數約 77、反面約 270。
+REVIEW_ASPECT_DEVIATION = 0.18  # 四邊形長寬比與 85.6:54 相差約 20% 以上（強烈透視或抓錯框）
+REVIEW_MIN_AREA = 0.03  # 卡片不到畫面 3%（拍得太遠或抓到卡片上的小色塊）
+REVIEW_MIN_FRONT_SCORE = 12  # 國民身分證正面：大頭照與左側文字區亮度差太小，上下方向沒把握
+REVIEW_MIN_BACK_SCORE = 20  # 國民身分證反面：條碼區與對稱區的水平梯度差太小
+CACHE_VERSION = 1
 CROP_HEIGHT = 638  # 54 mm @ 300 dpi
 CARD_ASPECT = 85.6 / 54.0
 PARAMS_VERSION = 1
@@ -143,6 +151,8 @@ def clean_params(raw, size):
         "src_h": height,
         "mode": mode,
         "by_ocr": bool(raw.get("by_ocr")),
+        # 使用者手動調整（或在視窗按「套用」）過就不再提醒。
+        "needs_review": bool(raw.get("needs_review")) and mode != "manual",
     }
 
 
@@ -156,6 +166,7 @@ def params_from_pixels(corners, turn, size, mode):
         "src_h": height,
         "mode": mode,
         "by_ocr": False,
+        "needs_review": False,
     }
 
 
@@ -172,13 +183,94 @@ def full_image_params(size):
     return params_from_pixels(full_image(*size), auto_turn(full_image(*size)), size, "full")
 
 
+def review_reasons(src, corners, side, found_card, turn_score):
+    """自動偵測沒把握的原因；空的就不提醒。"""
+    if not found_card:
+        return ["找不到卡片邊緣，用整張圖片"]
+    reasons = []
+    width, height = _side_lengths(corners)
+    ratio = max(width, height) / max(1.0, min(width, height))
+    if abs(math.log(ratio / CARD_ASPECT)) > REVIEW_ASPECT_DEVIATION:
+        reasons.append("卡片比例和身分證差很多")
+    if abs(cv2.contourArea(np.asarray(corners, dtype=np.float32))) / float(src.shape[0] * src.shape[1]) < REVIEW_MIN_AREA:
+        reasons.append("卡片在照片裡太小")
+    if turn_score is not None:
+        score, used = turn_score
+        if abs(score) < (REVIEW_MIN_BACK_SCORE if used == "back" else REVIEW_MIN_FRONT_SCORE):
+            reasons.append("看不出上下方向")
+    return reasons
+
+
 def auto_params(image, side=None):
-    """自動偵測：回傳參數；side 為 "front"／"back" 時依國民身分證版面判斷上下，None 只轉成橫式。"""
+    """自動偵測：回傳參數；side 為 "front"／"back" 時依國民身分證版面判斷上下，None 只轉成橫式。
+
+    needs_review：偵測沒把握（見 review_reasons）時為 True，畫面標「建議確認裁切」。
+    """
     src = np.asarray(image)
     corners = detect_card(src)
-    turn = detect_turn(src, corners, side)
+    turn, turn_score = _turn_decision(src, corners, side)
     found_card = not np.allclose(corners, full_image(src.shape[1], src.shape[0]))
-    return params_from_pixels(corners, turn, image.size, "auto" if found_card else "full")
+    params = params_from_pixels(corners, turn, image.size, "auto" if found_card else "full")
+    params["needs_review"] = bool(review_reasons(src, corners, side, found_card, turn_score))
+    return params
+
+
+def card_view(instance, model_name, field_name):
+    """訂單頁附件、訂單明細顯示證件卡片用（T-199／T-200）：卡片網址、原圖網址、是否建議確認裁切。
+
+    卡片網址就是原本受保護的 protected_media 加 ?card=1；c＝裁切參數摘要，參數改了瀏覽器就換一張。
+    """
+    import hashlib
+    import json
+
+    from django.urls import reverse
+
+    file_field = getattr(instance, field_name)
+    if not file_field:
+        return None
+    owner_type = instance.owner_type if model_name == "order" else (instance.data or {}).get("owner_type", "local")
+    side = "front" if field_name == "id_front" else "back"
+    original = reverse("protected_media", args=[model_name, instance.pk, field_name])
+    try:
+        params, _image = stored_or_auto_params(file_field, getattr(instance, CROP_FIELDS[field_name]),
+                                               card_side_for(owner_type, side))
+    except Exception:  # noqa: BLE001  讀不到照片：只給原圖。
+        return {"url": original, "original_url": original, "needs_review": False, "name": Path(file_field.name).name}
+    digest = hashlib.sha256(json.dumps(params, sort_keys=True).encode()).hexdigest()[:10]
+    return {
+        "url": f"{original}?card=1&c={digest}",
+        "original_url": original,
+        "needs_review": bool(params.get("needs_review")),
+        "name": f"{Path(file_field.name).stem}_card.jpg",
+    }
+
+
+def card_side_for(owner_type, side):
+    """國民身分證依版面判斷上下；居留證（外籍）只轉成橫式。"""
+    return side if owner_type == "local" else None
+
+
+def stored_or_auto_params(file_field, saved, side=None, image=None):
+    """畫面與列印用的裁切參數：訂單／草稿存的優先；沒有就自動偵測（結果放快取、不寫回資料庫）。
+
+    回傳 (params, image)；image 只有在需要讀整張照片時才載入，否則為傳入值（可能是 None）。
+    """
+    from django.core.cache import cache
+
+    size = image.size if image is not None else oriented_size(file_field)
+    params = clean_params(saved, size) if size else None
+    if params is not None:
+        return params, image
+    key = f"id-card-crop:v{CACHE_VERSION}:{side or 'any'}:{file_field.name}"
+    cached = cache.get(key)
+    if cached and size and (cached.get("src_w"), cached.get("src_h")) == tuple(size):
+        return cached, image
+    if image is None:
+        with file_field.open("rb") as handle:
+            image = open_oriented(handle.read())
+    params = auto_params(image, side)
+    cache.set(key, params, 60 * 60 * 24 * 7)
+    return params, image
 
 
 def apply_crop(image, params, width=CROP_WIDTH, height=CROP_HEIGHT):
@@ -491,19 +583,25 @@ def back_upright_score(card):
     return float(_region(gradient, 0.04, 0.70, 0.62, 0.93).mean() - _region(gradient, 0.38, 0.07, 0.96, 0.30).mean())
 
 
+def _turn_decision(src, corners, side=None):
+    """回傳 (turn, (分數, 用哪一面的特徵))；居留證或無法判斷時分數為 None。"""
+    turn = auto_turn(corners)
+    if side not in ("front", "back"):
+        return turn, None
+    try:
+        card = warp(src, corners, turn, 320, 202, high_quality=False)
+    except cv2.error:
+        return turn, None
+    # 條碼特徵很強（反面 ≥ 50、正面 ≤ 25）：有條碼就當反面判斷，正反面放錯格也能轉對。
+    back = back_upright_score(card)
+    used = "back" if side == "back" or abs(back) >= 35 else "front"
+    score = back if used == "back" else front_upright_score(card)
+    return ((turn + 2) % 4 if score < 0 else turn), (score, used)
+
+
 def detect_turn(src, corners, side=None):
     """先維持橫式，再依國民身分證固定版面判斷是否上下顛倒。
 
     side：front／back 用國民身分證版面；None（居留證）只轉成橫式，上下交給 OCR 判斷。
     """
-    turn = auto_turn(corners)
-    if side not in ("front", "back"):
-        return turn
-    try:
-        card = warp(src, corners, turn, 320, 202, high_quality=False)
-    except cv2.error:
-        return turn
-    # 條碼特徵很強（反面 ≥ 50、正面 ≤ 25）：有條碼就當反面判斷，正反面放錯格也能轉對。
-    back = back_upright_score(card)
-    score = back if side == "back" or abs(back) >= 35 else front_upright_score(card)
-    return (turn + 2) % 4 if score < 0 else turn
+    return _turn_decision(src, corners, side)[0]

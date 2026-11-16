@@ -1111,10 +1111,10 @@
     "default": "選擇配件與數量，預帶售價與工資。經 admin 授權者可選贈送或註明原因調價；配件總額自動計算。",
     "template": "templates/sales/order_form.html"
   },
-  "order_form.f014372ecb14": {
+  "order_form.72f1c1f87770": {
     "page": "訂單填寫",
-    "default": "照片已安全保存，可繼續填寫",
-    "template": "templates/sales/order_form.html"
+    "default": "點卡片可調整裁切／旋轉",
+    "template": "templates/sales/_order_form_scripts.html"
   },
   "order_list.f73efc30a7cd": {
     "page": "全部訂單",

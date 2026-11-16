@@ -149,6 +149,9 @@
   const autoCrop = {id_front: null, id_back: null};
   // T-194：已送出自動偵測的照片版本，同一張照片只偵測一次；換照片後舊結果作廢。
   const autoCropPending = {id_front: null, id_back: null};
+  // T-198：證件規則（本國身分證／居留證）換了就作廢進行中的偵測；已存的自動參數重算後要存回。
+  let cropRuleVersion = 0;
+  const persistAutoCrop = {id_front: false, id_back: false};
   // 其他附件（存摺、舊車主證件、分期表、補充檔案）：選檔後只隨草稿上傳一次，存好就不再重送。
   const intakeFileVersion = new Map();
   const heldFileInputs = new Set();
@@ -1041,24 +1044,61 @@
     canvas.width = width;
     canvas.height = Math.round(width * 54 / 85.6);
     window.dmisIdCrop.renderCard(preview, params, canvas);
-    view.querySelector("[data-id-card-badge]").textContent = window.dmisIdCrop.describe(params);
+    const badge = view.querySelector("[data-id-card-badge]");
+    badge.textContent = window.dmisIdCrop.describe(params);
+    badge.classList.toggle("is-review", window.dmisIdCrop.needsReview(params));
   }
 
   function resetIdCrop(fieldName) {
     cropInput(fieldName).value = "";
     autoCrop[fieldName] = null;
     autoCropPending[fieldName] = null;
+    persistAutoCrop[fieldName] = false;
     renderIdCard(fieldName);
+  }
+
+  function cropRuleFor(value) {
+    return value === "foreign" ? "resident_certificate" : value === "local" ? "national_id" : "";
+  }
+  let cropRule = cropRuleFor(ownerType.value);
+
+  // 本國↔居留者切換時，自動偵測的卡片用新規則重算；使用者手動調整（mode=manual）的不動。
+  // 中間切到法人（不顯示證件）再切回來，也以上一個有證件的規則比較。
+  function recropOnOwnerTypeChange() {
+    const rule = cropRuleFor(ownerType.value);
+    if (rule && cropRule && rule !== cropRule) {
+      cropRuleVersion += 1;
+      ["id_front", "id_back"].forEach(fieldName => {
+        const plan = window.dmisIdCrop?.recropPlan(cropInput(fieldName).value);
+        if (!plan || plan === "keep") return;
+        autoCrop[fieldName] = null;
+        autoCropPending[fieldName] = null;
+        if (plan === "redetect-save") {
+          persistAutoCrop[fieldName] = true;
+          cropInput(fieldName).value = "";
+        }
+      });
+    }
+    if (rule) cropRule = rule;
+    ["id_front", "id_back"].forEach(renderIdCard);
   }
 
   // 只顯示、不寫入：偵測結果放在 autoCrop，畫面看到卡片；存檔仍只在辨識帶回或使用者按「套用」時。
   async function ensureAutoCrop(fieldName) {
     const version = photoVersion[fieldName];
+    const ruleVersion = cropRuleVersion;
     autoCropPending[fieldName] = version;
     try {
       const crop = await detectIdCrop(fieldName);
-      if (photoVersion[fieldName] !== version) return;
+      if (photoVersion[fieldName] !== version || cropRuleVersion !== ruleVersion) return;
       autoCrop[fieldName] = crop;
+      if (persistAutoCrop[fieldName]) {
+        // 原本已存的是自動參數：用新規則重算的結果存回（訂單頁隨 change 自動儲存，建單頁排草稿儲存）。
+        persistAutoCrop[fieldName] = false;
+        setIdCrop(fieldName, crop);
+        scheduleDraft();
+        return;
+      }
       renderIdCard(fieldName);
     } catch (_) {
       // 偵測失敗就維持顯示原圖，點圖片仍可手動調整；同一張照片不再重試（換照片才重來）。
@@ -1208,6 +1248,7 @@
   document.querySelectorAll("[data-id-crop-editor]").forEach(button => {
     button.addEventListener("click", () => openIdCropEditor(button.dataset.idCropEditor, button));
   });
+  ownerType.addEventListener("change", recropOnOwnerTypeChange);
   ["id_front", "id_back"].forEach(renderIdCard);
   window.addEventListener("resize", () => {
     clearTimeout(idCardResizeTimer);
@@ -1916,7 +1957,7 @@
       state.className = "saved-photo-state";
       state.dataset.savedPhoto = fieldName;
       state.innerHTML = `
-        <span><strong>已暫存${sideLabel}照片</strong><small>{% site_text 'order_form.f014372ecb14' %}</small></span>
+        <span><strong>已暫存${sideLabel}照片</strong><small>{% site_text 'order_form.72f1c1f87770' %}</small></span>
         <a target="_blank">查看原圖</a>
         <button type="button">更換</button>
       `;

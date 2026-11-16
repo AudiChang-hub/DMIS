@@ -21,6 +21,7 @@
         {% for card in page.id_cards %}{# T-190：點證件開調整視窗，調整後只重畫這一頁並存回訂單。 #}
         <button type="button" class="print-preview__id-card" data-id-copy-card data-order="{{ card.order }}" data-side="{{ card.side }}" data-src="{{ card.src }}" data-crop="{{ card.crop }}" data-saved="{{ card.saved|yesno:'1,0' }}" data-document-type="{{ card.document_type }}" data-label="{{ card.label }}" style="left: {{ card.left }}%; top: {{ card.top }}%; width: {{ card.width }}%; height: {{ card.height }}%" aria-label="調整{{ page.name }}的{{ card.label }}裁切與旋轉">
           <span>{% if not card.saved %}自動偵測・{% endif %}點一下調整裁切／旋轉</span>
+          {% if card.needs_review %}<em class="print-preview__id-review">建議確認裁切</em>{% endif %}
         </button>
         {% endfor %}
       </div>

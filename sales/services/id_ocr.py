@@ -2,7 +2,7 @@ import io
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from google.api_core.retry import Retry
@@ -258,7 +258,13 @@ def _recognize_side_with_scorer(
         score, result = _recognize_card(client, image, params, expected_side, scorer)
         # 裁切後通常一次就辨識成功；看不出證件特徵時退回原本的整張四角度流程，不比改版前差。
         if score >= 2:
+            # 裁切後的卡片讀得到強特徵（T-200）：裁切與方向都被辨識確認，不必再提醒。
+            if score >= 4 and result.crop and result.crop.get("needs_review"):
+                result = replace(result, crop={**result.crop, "needs_review": False})
             return result
+    # 裁切圖辨識不佳、退回整張（T-200）：裁切多半有問題，標「建議確認裁切」；手動調整過的不標。
+    if params and params["mode"] != "manual":
+        params = {**params, "needs_review": True}
     best_result = None
     best_score = -1
     for angle in (0, 90, 180, 270):

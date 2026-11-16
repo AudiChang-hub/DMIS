@@ -1,5 +1,5 @@
-/* 套表列印：左側訂單 × 套表勾選表，右側黏住的列印清單；窄螢幕清單移到下方並出現底部捷徑。 */
-.form-print { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); align-items: start; gap: var(--stack-gap); }
+/* 套表列印：最左側是「列印清單」窄條與可收合面板（T-193，同報表左側收合），右邊是訂單 × 套表勾選表；收合後表格吃滿寬度。 */
+.form-print { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--stack-gap); }
 .form-print__finder { min-width: 0; }
 
 .form-print__search { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); padding: var(--inset-pad) var(--card-pad); border-bottom: 1px solid var(--line-soft); }
@@ -98,14 +98,13 @@
 .form-print__pages { padding: var(--inset-pad) var(--card-pad); }
 
 /* 列印清單 */
-.form-print__tray { position: sticky; top: var(--space-4); }
 .form-print__tray form {
-  display: grid; max-height: calc(100vh - var(--space-7)); padding: var(--card-pad); gap: var(--stack-gap-sm); overflow: auto;
+  display: grid; width: var(--tray-w); max-height: var(--tray-h); padding: var(--card-pad); gap: var(--stack-gap-sm); overflow: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft);
 }
-.form-print__tray-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.form-print__tray-head { display: flex; align-items: center; gap: var(--space-3); }
 .form-print__tray-head h2 { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); }
-.form-print__total { margin: 0; color: var(--muted); font-weight: 700; }
+.form-print__total { margin: 0 0 0 auto; color: var(--muted); font-weight: 700; }
 .form-print__total b { color: var(--ink); font-family: var(--font-display); font-size: var(--text-2xl); font-variant-numeric: tabular-nums; }
 
 .form-print__papers { display: grid; margin: 0; padding: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); list-style: none; }
@@ -166,7 +165,6 @@
 .form-print__hint--envelope { padding: var(--space-2) var(--space-3); color: var(--ink-soft); background: color-mix(in srgb, var(--amber-soft) 70%, var(--surface)); border-radius: var(--radius-sm); }
 .form-print__hint--envelope strong { color: var(--ink); }
 
-.form-print__dock { display: none; }
 
 .form-print__fields { margin-top: var(--stack-gap); }
 .form-print__fields summary { display: flex; padding: var(--inset-pad) var(--card-pad); align-items: baseline; flex-wrap: wrap; gap: var(--space-3); cursor: pointer; list-style: none; }
@@ -181,27 +179,92 @@
   .form-print__table { min-width: 820px; }
 }
 
-@media (max-width: 1100px) {
-  .form-print { grid-template-columns: minmax(0, 1fr); }
-  .form-print__tray { position: static; }
-  .form-print__tray form { max-height: none; overflow: visible; }
-  .form-print__dock:not([hidden]) {
-    position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 30; display: inline-flex; align-items: baseline; gap: var(--space-1);
-    padding: var(--space-3) var(--space-5); color: var(--action-on); background: var(--action-bg); border-radius: var(--radius-pill);
-    box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow-ink) 22%, transparent); font-weight: 800; text-decoration: none;
-  }
-  .form-print__dock b { font-size: var(--text-md); }
-}
-
-/* 手機底部有導覽列，捷徑抬高到導覽列上方。 */
 @media (max-width: 860px) {
   .inventory-table.form-print__table tr { grid-template-columns: minmax(0, 1fr); }
   .inventory-table.form-print__table td { grid-column: 1 / -1; }
-  .form-print__dock:not([hidden]) { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); }
 }
+
+/* ── 列印清單左側收合（T-193）：窄條固定在最左側、黏在頁首下方；面板展開時把表格往右推，內容固定寬度、在面板內捲動。 ── */
+.form-print__side {
+  --tray-top: calc(var(--app-header-height, 72px) + var(--space-4)); --tray-h: calc(100dvh - var(--tray-top) - var(--space-4)); --tray-w: 360px;
+  position: sticky; top: var(--tray-top); z-index: 4; display: flex; align-items: flex-start; align-self: start; min-width: 0;
+}
+.form-print__rail {
+  display: flex; flex: none; flex-direction: column; align-items: center; gap: var(--space-3); width: 56px; padding: var(--space-2) 0 var(--space-3);
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+  font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.form-print__rail:hover { background: var(--surface-soft); border-color: var(--line-mid); }
+.form-print__rail:focus-visible, .form-print__tray-close:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.form-print__rail[aria-expanded="true"] { background: var(--surface-tint); border-color: color-mix(in srgb, var(--forest) 40%, var(--line-soft)); }
+.form-print__rail-icon {
+  display: grid; flex: none; width: 32px; height: 32px; place-items: center; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-md); transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
+}
+.form-print__rail-icon svg { transition: transform var(--dur-2) var(--ease-out); }
+.form-print__rail:hover .form-print__rail-icon, .form-print__rail[aria-expanded="true"] .form-print__rail-icon { color: var(--action-text); border-color: var(--forest); }
+.form-print__rail[aria-expanded="true"] .form-print__rail-icon svg { transform: rotate(180deg); }
+.form-print__rail-title {
+  color: var(--ink); font-family: var(--font-display); font-size: var(--text-sm-plus); font-weight: 750; line-height: 1; letter-spacing: .28em;
+  writing-mode: vertical-rl; text-orientation: upright;
+}
+.form-print__rail[aria-expanded="true"] .form-print__rail-title { color: var(--action-text); }
+/* 份數徽章：收合時也看得到勾了幾份；0 份時淡色。 */
+.form-print__rail-badge {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 40px; padding-top: var(--space-2);
+  color: var(--muted); border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.form-print__rail-badge b { font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
+.form-print__rail-badge small { font-size: var(--text-2xs); font-weight: 650; line-height: 1.2; }
+.form-print__rail-badge.is-active b { display: grid; min-width: 28px; height: 28px; padding: 0 var(--space-1); place-items: center; color: var(--action-on); background: var(--action-bg); border-radius: var(--radius-md); }
+.form-print__tray-close {
+  display: grid; flex: none; width: 32px; height: 32px; padding: 0; place-items: center; color: var(--muted); background: var(--surface);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-md); cursor: pointer;
+  transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+}
+.form-print__tray-close:hover { color: var(--action-text); background: var(--surface-tint); border-color: var(--forest); }
+/* 面板：收合時寬度 0、不可聚焦；展開時寬度與間距一起長出來。 */
+.form-print__tray-panel {
+  flex: none; width: 0; margin-inline-start: 0; overflow: clip; overflow-clip-margin: var(--space-2); visibility: hidden;
+  transition: width var(--dur-3) var(--ease-out), margin-inline-start var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3);
+}
+.form-print__tray-panel.is-open { width: var(--tray-w); margin-inline-start: var(--space-3); visibility: visible; transition-delay: 0s; }
+.form-print__side.is-instant .form-print__tray-panel, .form-print__side.is-instant .form-print__rail-icon svg { transition: none; }
+.form-print__backdrop { display: none; }
+@media (max-width: 1100px) {
+  .form-print__side { --tray-w: 320px; }
+}
+/* 手機：窄條縮窄留在左側；面板改成從左側滑出、蓋在表格上（頁首下方），點遮罩或按 Esc 收回。
+   面板延伸到底部導覽列後方，捲動區留出導覽列高度（同 .side-nav__panel 的 --mobile-nav-height）。 */
+@media (max-width: 800px) {
+  .form-print { gap: var(--space-3); }
+  .form-print__side { --tray-w: min(380px, calc(100vw - var(--space-7))); }
+  .form-print__side.is-overlay-open { z-index: 160; }
+  .form-print__rail { gap: var(--space-2); width: 44px; padding: var(--space-2) 0; }
+  .form-print__rail-icon { width: 28px; height: 28px; }
+  .form-print__rail-title { font-size: var(--text-sm); letter-spacing: .2em; }
+  .form-print__rail-badge { width: 36px; }
+  .form-print__tray-panel {
+    position: fixed; inset: var(--app-header-height, 62px) auto 0 0; z-index: 2; width: var(--tray-w); margin: 0; overflow: visible;
+    transform: translateX(-100%); transition: transform var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3);
+  }
+  .form-print__tray-panel.is-open { width: var(--tray-w); margin: 0; transform: none; }
+  .form-print__tray, .form-print__tray form { height: 100%; }
+  .form-print__tray form {
+    max-height: none; align-content: start; padding-bottom: calc(var(--card-pad) + var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom));
+    border-width: 0 1px 0 0; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; box-shadow: 0 12px 48px color-mix(in srgb, var(--shadow-ink) 28%, transparent);
+  }
+  .form-print__backdrop { position: fixed; inset: var(--app-header-height, 62px) 0 0 0; z-index: 1; display: block; background: color-mix(in srgb, var(--shadow-ink) 42%, transparent); animation: form-print-fade var(--dur-2) var(--ease-out); }
+  .form-print__backdrop[hidden] { display: none; }
+  html.form-print-tray-locked { overflow: hidden; }
+}
+@keyframes form-print-fade { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   .form-print__item { animation: none; }
+  .form-print__rail, .form-print__rail-icon, .form-print__rail-icon svg, .form-print__tray-panel, .form-print__tray-close { transition: none; }
+  .form-print__backdrop { animation: none; }
 }
 
 /* ── 列印預覽（T-118）：全螢幕看稿台。深色檯面讓白紙浮出來，兩種配色都一樣；頁面是實際輸出的圖。 ── */

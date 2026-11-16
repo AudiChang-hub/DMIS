@@ -10,6 +10,50 @@
 </section>
 
 <div class="form-print" data-form-print>
+  <div class="form-print__side" data-tray-dock>
+    <button class="form-print__rail" type="button" aria-expanded="false" aria-controls="form-print-tray-panel" title="展開列印清單" data-tray-rail><span class="form-print__rail-icon" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" focusable="false"><path d="M6 3.5L10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="form-print__rail-title">列印清單</span><span class="form-print__rail-badge" aria-hidden="true" data-rail-badge><b data-rail-count>0</b><small>份</small></span><span class="visually-hidden">，已勾選 <span data-rail-count>0</span> 份</span></button>
+    <div class="form-print__tray-panel" id="form-print-tray-panel" data-tray-panel>
+      <aside class="form-print__tray" id="form-print-tray" aria-labelledby="form-print-tray-title">
+        <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form
+              data-preview-url="{% url 'form_print_preview' %}" data-pdf-url="{% url 'form_print_pdf' %}" data-envelope-url="{% url 'form_print_envelopes' %}" data-envelope-pdf-url="{% url 'form_print_envelope_pdf' %}">
+          {% csrf_token %}
+          <div class="form-print__tray-head">
+            <h2 id="form-print-tray-title">列印清單</h2>
+            <p class="form-print__total" aria-live="polite"><b data-total>0</b> 份</p>
+            <button class="form-print__tray-close" type="button" aria-expanded="false" aria-controls="form-print-tray-panel" aria-label="收合列印清單" title="收合" data-tray-close><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+          <ul class="form-print__papers" data-papers>
+            {% for form in forms %}<li data-paper="{{ form.key }}"><span class="paper paper--{{ form.key }}" aria-hidden="true"><i></i><i></i><i></i></span><span>{{ form.label }}</span><b data-paper-count>0</b></li>{% endfor %}
+          </ul>
+          <div class="form-print__empty" data-empty>
+            <strong>還沒有勾選</strong>
+            <p>在訂單表格勾選要印的套表。簽收單的備註與交車住址可以在這裡逐張修改。</p>
+          </div>
+          <ol class="form-print__list" data-list></ol>
+          <fieldset class="form-print__order-by">
+            <legend>排列方式</legend>
+            <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>聲明書一批、簽收單一批</small></span></label>
+            <label><input type="radio" name="group" value="order"><span><strong>依訂單</strong><small>同一張訂單的文件放在一起</small></span></label>
+          </fieldset>
+          <button class="form-print__preview-all" type="button" data-preview-open disabled aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span><strong data-preview-open-label>預覽</strong><small>先看帶入資料後的樣子，再列印</small></span>
+            <kbd aria-hidden="true">P</kbd>
+          </button>
+          <div class="form-actions form-print__actions">
+            <button class="button ghost" type="button" data-clear disabled>清空</button>
+            <button class="button secondary" type="submit" formaction="{% url 'form_print_envelope_pdf' %}" formtarget="_blank" data-submit-envelope-pdf disabled>直接列印信封</button>
+            <button class="button primary" type="submit" formaction="{% url 'form_print_envelopes' %}" formtarget="_self" data-submit-envelope disabled>下載信封 Word 檔</button>
+            <button class="button primary" type="submit" data-submit disabled>產生 A4 PDF</button>
+          </div>
+          <p class="form-print__hint form-print__hint--envelope"><strong>直接列印信封</strong>會在新分頁開啟 21×17 公分的 PDF。列印前，印表機要先設好「21×17 公分」自訂紙張；Chrome 列印時紙張選這個尺寸、縮放選「實際大小」，否則會被縮放或印偏。第一次請先試印一張確認位置，印不準就改用 Word 檔。</p>
+          <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。按「預覽」可先在這個畫面看過每一頁。</p>
+        </form>
+      </aside>
+    </div>
+    <div class="form-print__backdrop" data-tray-backdrop hidden></div>
+    <script src="{% static 'js/form-print-tray.js' %}?v={{ app_version }}"></script>
+  </div>
   <section class="section-block form-print__finder" aria-labelledby="form-print-orders">
     <div class="section-title"><div><h2 id="form-print-orders">選訂單</h2><small>勾選每張訂單要印的套表；點左側方塊一次勾選建議的套表。</small></div><span>{{ page_obj.paginator.count }} 筆</span></div>
 
@@ -95,45 +139,7 @@
     {% endif %}
   </section>
 
-  <aside class="form-print__tray" id="form-print-tray" aria-labelledby="form-print-tray-title">
-    <form method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-tray-form
-          data-preview-url="{% url 'form_print_preview' %}" data-pdf-url="{% url 'form_print_pdf' %}" data-envelope-url="{% url 'form_print_envelopes' %}" data-envelope-pdf-url="{% url 'form_print_envelope_pdf' %}">
-      {% csrf_token %}
-      <div class="form-print__tray-head">
-        <h2 id="form-print-tray-title">列印清單</h2>
-        <p class="form-print__total" aria-live="polite"><b data-total>0</b> 份</p>
-      </div>
-      <ul class="form-print__papers" data-papers>
-        {% for form in forms %}<li data-paper="{{ form.key }}"><span class="paper paper--{{ form.key }}" aria-hidden="true"><i></i><i></i><i></i></span><span>{{ form.label }}</span><b data-paper-count>0</b></li>{% endfor %}
-      </ul>
-      <div class="form-print__empty" data-empty>
-        <strong>還沒有勾選</strong>
-        <p>在左邊表格勾選要印的套表。簽收單的備註與交車住址可以在這裡逐張修改。</p>
-      </div>
-      <ol class="form-print__list" data-list></ol>
-      <fieldset class="form-print__order-by">
-        <legend>排列方式</legend>
-        <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>聲明書一批、簽收單一批</small></span></label>
-        <label><input type="radio" name="group" value="order"><span><strong>依訂單</strong><small>同一張訂單的文件放在一起</small></span></label>
-      </fieldset>
-      <button class="form-print__preview-all" type="button" data-preview-open disabled aria-haspopup="dialog">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-        <span><strong data-preview-open-label>預覽</strong><small>先看帶入資料後的樣子，再列印</small></span>
-        <kbd aria-hidden="true">P</kbd>
-      </button>
-      <div class="form-actions form-print__actions">
-        <button class="button ghost" type="button" data-clear disabled>清空</button>
-        <button class="button secondary" type="submit" formaction="{% url 'form_print_envelope_pdf' %}" formtarget="_blank" data-submit-envelope-pdf disabled>直接列印信封</button>
-        <button class="button primary" type="submit" formaction="{% url 'form_print_envelopes' %}" formtarget="_self" data-submit-envelope disabled>下載信封 Word 檔</button>
-        <button class="button primary" type="submit" data-submit disabled>產生 A4 PDF</button>
-      </div>
-      <p class="form-print__hint form-print__hint--envelope"><strong>直接列印信封</strong>會在新分頁開啟 21×17 公分的 PDF。列印前，印表機要先設好「21×17 公分」自訂紙張；Chrome 列印時紙張選這個尺寸、縮放選「實際大小」，否則會被縮放或印偏。第一次請先試印一張確認位置，印不準就改用 Word 檔。</p>
-      <p class="form-print__hint">信封 Word 檔沿用原本套表的紙張（21×17 公分、橫向）與邊界，用 Word 開啟後直接列印，位置和以前一樣。聲明書與簽收單的 PDF 會在新分頁開啟，用瀏覽器列印即可。按「預覽」可先在這個畫面看過每一頁。</p>
-    </form>
-  </aside>
 </div>
-
-<a class="form-print__dock" href="#form-print-tray" data-dock hidden>已勾選 <b data-dock-count>0</b> 份・前往列印</a>
 
 <details class="section-block form-print__fields" id="form-print-fields">
   <summary><h2>欄位對照</h2><small>原 Word 合併欄位對應到系統的哪一個資料</small></summary>

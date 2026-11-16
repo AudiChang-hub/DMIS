@@ -7,7 +7,9 @@
   const trayForm = root.querySelector("[data-tray-form]");
   const list = root.querySelector("[data-list]");
   const template = document.querySelector("[data-item-template]");
-  const dock = document.querySelector("[data-dock]");
+  // 左側收合窄條上的份數徽章（T-193）。
+  const railCounts = document.querySelectorAll("[data-rail-count]");
+  const railBadge = document.querySelector("[data-rail-badge]");
 
   // state：{ 訂單 pk: { number, name, vehicle, forms: { key: 顯示名稱 }, note, address, seq } }
   let state = {};
@@ -113,10 +115,8 @@
     const previewButton = trayForm.querySelector("[data-preview-open]");
     previewButton.disabled = total === 0;
     previewButton.querySelector("[data-preview-open-label]").textContent = total ? `預覽 ${total} 份` : "預覽";
-    if (dock) {
-      dock.hidden = total === 0;
-      dock.querySelector("[data-dock-count]").textContent = total;
-    }
+    railCounts.forEach((node) => { node.textContent = total; });
+    railBadge?.classList.toggle("is-active", total > 0);
     root.querySelectorAll("tr[data-order]").forEach(syncRow);
     save();
   };

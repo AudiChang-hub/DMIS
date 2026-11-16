@@ -38,7 +38,12 @@ NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "cu
 AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
 EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled", "exception_closed"]
 MAX_GROUPS = 200
-PALETTE = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"]
+# T-182：圖表色引用 app.css 的 --chart-s1～s8／--chart-other（淺深色自動切換）；同一分類在每頁固定同色，與 report-interactions.js 的對應一致。
+PALETTE = [f"var(--chart-s{index})" for index in range(1, 9)]
+OTHER_COLOR = "var(--chart-other)"
+FIXED_COLOR_SLOTS = {"車行": 0, "馭盛": 1, "網路平台": 2, "店內員工": 3, "展場": 4,
+                     "白牌電車": 0, "速克達": 1, "綠牌電車": 2, "擋車": 3, "微型電車": 4, "男性": 0, "女性": 1}
+NEUTRAL_LABELS = {"公司或其他", "其他", "生日未填", "生日異常", "未填寫或格式錯誤"}
 
 
 def dimension_color(dimension, raw, index):
@@ -47,8 +52,12 @@ def dimension_color(dimension, raw, index):
         category = next((c for c in published_snapshot()[0]['categories'] if c['name'] == raw), None)
         if category:
             return category['color']
-    categories = SOURCE_CLASSIFICATIONS if dimension == "legacy_sales_source" else ("白牌電車", "綠牌電車", "微型電車", "速克達", "擋車", "其他") if dimension == "legacy_motor_type" else ()
-    return PALETTE[categories.index(raw) if raw in categories else index % len(PALETTE)]
+    if dimension in ("legacy_sales_source", "legacy_motor_type", "sex", "legacy_sex", "age_group"):
+        if raw in NEUTRAL_LABELS:
+            return OTHER_COLOR
+        if raw in FIXED_COLOR_SLOTS:
+            return PALETTE[FIXED_COLOR_SLOTS[raw]]
+    return PALETTE[index % len(PALETTE)]
 
 
 SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
@@ -555,7 +564,7 @@ def card_result(config, card, filters):
         colors = {key: dimension_color(card["series"], key, index) for index, key in enumerate(series_keys)}
         series_legend = [{"label": dimension_label(card["series"], key, series_labels), "color": colors[key]} for key in series_keys]
         if other_series_keys and card.get("series_other"):
-            series_legend.append({"label": "其他系列（合併）", "color": "#66717d"})
+            series_legend.append({"label": "其他系列（合併）", "color": OTHER_COLOR})
         primary_values = {row["key"]: row for row in values}
         series_rank = {key: index for index, key in enumerate(series_keys)}
         for row in values:
@@ -578,7 +587,7 @@ def card_result(config, card, filters):
                 value = sum(value_of(cell) for cell in omitted)
                 parent["segments"].append({"key": "o:" + parent["key"], "label": "其他系列（合併）",
                     "point_label": parent["label"] + " · 其他系列（合併）", "value": str(value), "display": display_value(value),
-                    "count": sum(cell["count"] for cell in omitted), "color": "#66717d",
+                    "count": sum(cell["count"] for cell in omitted), "color": OTHER_COLOR,
                     "width": float(value / Decimal(parent["value"]) * 100) if Decimal(parent["value"]) else 0})
     if card["chart"] == "donut" and (metric not in ("count", "sale_total") or any(Decimal(row["value"] or 0) < 0 for row in values)):
         raise ValidationError("圓環占比不支援平均、試算或負值，請改用資料表。")

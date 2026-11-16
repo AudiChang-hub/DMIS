@@ -60,7 +60,9 @@ function initReportOverviewTools(chart) {
   const toolbar = chart.querySelector('.report-card-toolbar');
   chart.classList.add('report-overview-tools-ready');
   const menu = document.createElement('details'); menu.className = 'report-overview-tools';
-  const summary = document.createElement('summary'); summary.textContent = '圖表操作';
+  // T-182：「圖表操作」收成卡片右上的 ⋯ 圖示鈕，文字留給螢幕閱讀器與滑鼠提示。
+  const summary = document.createElement('summary'); summary.title = '圖表操作';
+  summary.innerHTML = '<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="4.5" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="15.5" cy="10" r="1.6"/></svg><span class="sr-only">圖表操作</span>';
   summary.setAttribute('aria-label', `${chart.querySelector('h2').textContent}：圖表操作`);
   const body = document.createElement('div'); body.className = 'report-overview-tool-list';
   menu.append(summary, body); toolbar.append(menu);

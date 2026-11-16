@@ -1,10 +1,3 @@
-// 甜甜圈百分比：依扇形顏色深淺選黑字或白字，淺色扇形上不再是白字。
-function donutLabelFill(color) {
-  const hex = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
-  if (!hex) return '#ffffff';
-  const [r, g, b] = [0, 2, 4].map(i => parseInt(hex[1].slice(i, i + 2), 16) / 255).map(v => (v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4));
-  return .2126 * r + .7152 * g + .0722 * b > .3 ? '#11151a' : '#ffffff';
-}
 /* 圖表互動只讀取伺服器已授權資料；不修改報表或訂單。 */
 function reportPointText(data, metric) {
   if (data.pointSummary) return data.pointSummary;
@@ -13,40 +6,151 @@ function reportPointText(data, metric) {
   if (data.pointPercentage !== "" && Number.isFinite(Number(data.pointPercentage))) text += `\n占${data.pointScope || '完整篩選範圍'}：${Number(data.pointPercentage).toFixed(1)}%`;
   return text;
 }
+/* 圖表分類色（T-182）：一律引用 app.css 的 --chart-s1～s8／--chart-other，淺深色自動切換。
+   同一分類在每一頁固定同色（依固定清單順序），不依排名或篩選後的名次換色；「其他」類固定中性灰。 */
+const REPORT_SERIES_COLORS = Array.from({length:8}, (_, index) => `var(--chart-s${index + 1})`);
+const REPORT_OTHER_COLOR = 'var(--chart-other)';
+const REPORT_FIXED_SLOTS = {'車行':0,'馭盛':1,'網路平台':2,'店內員工':3,'展場':4,
+  '白牌電車':0,'速克達':1,'綠牌電車':2,'擋車':3,'微型電車':4};
+const REPORT_NEUTRAL_LABELS = new Set(['公司或其他','其他','其他系列（合併）','生日未填','生日異常','未填寫或格式錯誤']);
+function reportSlotColor(index) { return REPORT_SERIES_COLORS[((index % 8) + 8) % 8]; }
 function reportOverviewColor(label, fallback) {
-  return {'馭盛':'#737373','車行':'#7ac36a','網路平台':'#f15a60','店內員工':'#faa75a','展場':'#5a9bd4',
-    '白牌電車':'#737373','速克達':'#f15a60','綠牌電車':'#7ac36a','擋車':'#5a9bd4','微型電車':'#faa75a'}[label] || fallback;
+  if (REPORT_NEUTRAL_LABELS.has(label)) return REPORT_OTHER_COLOR;
+  return label in REPORT_FIXED_SLOTS ? reportSlotColor(REPORT_FIXED_SLOTS[label]) : fallback;
 }
 function reportElectricColor(label, fallback) {
-  const colors = ['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'];
   const models = ['EV060L','EV062','EV076S','EV076','EV076SZV','EV070V','EV062FL','EZ1','EZZY','SHINE','TSV57','JEGO','GogoroVIVAMIX','Gogoro2D','VIVABASIC','Ur2','BOBE','S2ABS','M02','M01'];
+  if (label in REPORT_FIXED_SLOTS || REPORT_NEUTRAL_LABELS.has(label)) return reportOverviewColor(label, fallback);
   const index = models.indexOf(label);
-  return {'馭盛':colors[0],'車行':colors[1],'網路平台':colors[2],'店內員工':colors[3],'展場':colors[4]}[label] || (index >= 0 ? colors[index % colors.length] : fallback);
+  return index >= 0 ? reportSlotColor(index) : fallback;
 }
 function reportReaderColor(layout, label, fallback, energy) {
   if (layout === 'analysis_overview') return reportAnalysisColor(label, fallback);
-  const palette = ['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'];
+  if (REPORT_NEUTRAL_LABELS.has(label)) return REPORT_OTHER_COLOR;
   if (layout === 'gasoline_overview') {
     const models = ['UQ125DA','UQ125','UC125DA','UC125','UT125XDA','UT125XZ','UG125','GSX-R150','GSX250F','GSX250'];
     const i=models.indexOf(label);
-    return i<0 ? reportElectricColor(label,fallback) : palette[i];
+    return i<0 ? reportElectricColor(label,fallback) : reportSlotColor(i);
   }
   if (layout === 'platform_overview') {
     const platforms = energy === '油車' ? ['YAHOO','FRIDAY','百利市','PC','小樹購','燦坤','YAHOO+假展場'] : ['MOMO','小樹購員購','PC','YAHOO','蝦皮','MOMO員購','燦坤'];
-    const i=platforms.indexOf(label); return i<0 ? fallback : palette[i];
+    const i=platforms.indexOf(label); return i<0 ? fallback : reportSlotColor(i);
   }
   return layout === 'electric_overview' ? reportElectricColor(label,fallback) : reportOverviewColor(label,fallback);
 }
 function reportMonthSummary(label, segments, total) {
   return [label, ...segments.filter(item => Number(item.value)).map(item => `${item.label}：${item.display}`), `總計：${total}`].join('\n');
 }
-function resizeReportDonutLabels(root = document) {
-  root.querySelectorAll('.report-sales-overview .report-donut').forEach(svg => {
-    const width = svg.getBoundingClientRect().width;
-    if (width) svg.querySelectorAll('text').forEach(text => { text.style.fontSize = `${16 * 300 / width}px`; });
-  });
+/* 空狀態（T-182）：沒有資料時給圖示、原因與下一步，不只留一行小字。 */
+function reportEmptyState(chart) {
+  const doc = chart.ownerDocument;
+  const box = doc.createElement('div'); box.className = 'report-empty'; box.setAttribute('role', 'status');
+  box.innerHTML = '<span class="report-empty__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 19.5h16M7 16v-5M12 16V7M17 16v-3"/></svg></span>';
+  const title = doc.createElement('strong'); title.textContent = '這個範圍沒有可呈現的資料';
+  const text = doc.createElement('p'); text.textContent = '目前沒有可呈現的正值資料。調整篩選條件，或清除篩選後再看。';
+  box.append(title, text);
+  const clear = doc.querySelector('.report-active-filters__clear, .report-active-filters [data-report-clear-filter]');
+  if (clear) {
+    const link = doc.createElement('a'); link.className = 'button ghost small'; link.href = clear.getAttribute('href'); link.dataset.reportClearFilter = '';
+    link.textContent = clear.classList.contains('report-active-filters__clear') ? '全部清除篩選' : '移除篩選'; box.append(link);
+  }
+  return box;
 }
-if (typeof window !== 'undefined') window.addEventListener('resize', () => resizeReportDonutLabels());
+function reportDateParts(label) {
+  const match = /^(\d{4})(?:[/-](\d{1,2}))?(?:[/-](\d{1,2}))?$/.exec(String(label).trim());
+  return match ? {year: match[1], month: match[2], day: match[3]} : null;
+}
+/* 堆疊圖（T-182）：依卡片實際寬度繪製，不再固定 740px 再撐出橫向捲動。
+   月／年資料且卡片夠寬時畫直條（時間由左到右），其餘畫橫條；字級 12–13px，直條只標最高與最新的數字。 */
+function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false, colorOf, attach}) {
+  const ns = 'http://www.w3.org/2000/svg', doc = chart.ownerDocument, svg = doc.createElementNS(ns, 'svg');
+  const box = chart.getBoundingClientRect(), style = getComputedStyle(chart);
+  const inner = box.width - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0) - parseFloat(style.borderLeftWidth || 0) - parseFloat(style.borderRightWidth || 0);
+  const width = Math.max(260, Math.round(inner > 0 ? inner : 640));
+  const element = (tag, attrs, text) => {
+    const item = doc.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([key, value]) => item.setAttribute(key, String(value)));
+    if (text !== undefined) item.textContent = text;
+    svg.append(item); return item;
+  };
+  let order = groups.map((group, index) => ({group, row: totalsRows[index], label: group.querySelector('.report-stack-caption strong').textContent.trim()}));
+  const dated = order.filter(item => reportDateParts(item.label)), undated = order.filter(item => !reportDateParts(item.label));
+  const columns = ['month', 'year'].includes(chart.dataset.dimension) && dated.length >= 2 && width >= 560;
+  if (columns) order = [...dated.sort((a, b) => a.label.localeCompare(b.label)), ...undated];
+  const totals = order.map(item => Number(item.row.dataset.pointValue));
+  const maximum = reportAxisMaximum(totals);
+  order.forEach(item => {
+    const segments = [...item.group.querySelectorAll('[data-stack-segment]')];
+    item.row.dataset.pointSummary = reportMonthSummary(item.row.dataset.pointLabel, segments.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,display:segment.dataset.pointDisplay})), item.row.dataset.pointDisplay);
+  });
+  svg.classList.add('report-overview-plot', columns ? 'report-overview-plot--columns' : 'report-overview-plot--rows');
+  svg.setAttribute('aria-label', chart.querySelector('h2').textContent + (columns ? ' 直向堆疊圖' : ' 水平堆疊圖'));
+  const peak = totals.indexOf(Math.max(...totals)), latest = columns ? dated.length - 1 : -1;
+  const tick = value => Number(value).toLocaleString('zh-TW');
+  if (columns) {
+    const left = 44, right = 8, top = 24, plotHeight = width < 760 ? 200 : 240, bottom = top + plotHeight, plotWidth = width - left - right;
+    const step = plotWidth / order.length, barWidth = Math.max(4, Math.min(40, step * .66));
+    for (let index = 0; index <= 4; index++) {
+      const y = bottom - plotHeight * index / 4;
+      element('line', {x1:left, x2:width - right, y1:y, y2:y, class:index ? 'report-plot-grid' : 'report-plot-base'});
+      element('text', {x:left - 8, y:y + 4, 'text-anchor':'end', class:'report-plot-tick'}, tick(maximum * index / 4));
+    }
+    const every = Math.max(1, Math.ceil(order.length / Math.max(1, Math.floor(plotWidth / 52))));
+    let lastYear = '';
+    order.forEach((item, index) => {
+      const x = left + step * index + (step - barWidth) / 2;
+      let offset = 0;
+      item.group.querySelectorAll('[data-stack-segment]').forEach(segment => {
+        const value = Math.max(0, Number(segment.dataset.pointValue || 0)), h = value / maximum * plotHeight;
+        if (!h) return;
+        const rect = element('rect', {x, y:bottom - offset - h, width:barWidth, height:h, fill:colorOf(segment.dataset.seriesLabel, segment.style.backgroundColor), class:'report-plot-segment'});
+        if (interactiveSegments) attach(rect, segment); else rect.setAttribute('aria-hidden', 'true');
+        offset += h;
+      });
+      if (index === peak || index === latest) element('text', {x:x + barWidth / 2, y:bottom - offset - 7, 'text-anchor':'middle', class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
+      const parts = reportDateParts(item.label);
+      if (index % every === 0 || index === order.length - 1) {
+        element('text', {x:x + barWidth / 2, y:bottom + 17, 'text-anchor':'middle', class:'report-plot-tick'}, parts?.month ? `${Number(parts.month)}月` : item.label);
+        if (parts?.month && parts.year !== lastYear) { element('text', {x:x + barWidth / 2, y:bottom + 32, 'text-anchor':'middle', class:'report-plot-tick report-plot-year'}, parts.year); lastYear = parts.year; }
+      }
+      const hit = element('rect', {x:left + step * index, y:top - 18, width:step, height:plotHeight + 18, fill:'transparent'});
+      hit.classList.add('report-month-target'); attach(hit, item.row);
+    });
+    svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 40}`);
+  } else {
+    const labelWidth = Math.round(interactiveSegments ? Math.min(180, width * .34) : Math.min(96, width * .26));
+    const valueWidth = 52, top = 4, rowHeight = 30, barHeight = 18, plotWidth = width - labelWidth - valueWidth - 12;
+    const bottom = top + rowHeight * order.length;
+    // 估算字寬（中文約 13px、英數約 7.5px），超出標籤欄才截斷並保留完整名稱於提示。
+    const fit = text => { let used = 0, out = ''; for (const ch of text) { used += ch.codePointAt(0) > 255 ? 13 : 7.5; if (used > labelWidth - 12) return out.slice(0, -1) + '…'; out += ch; } return out; };
+    const steps = plotWidth < 260 ? 2 : 4; // 窄卡片只留 0、中間、最大三個刻度，數字不擠在一起。
+    for (let index = 0; index <= steps; index++) {
+      const x = labelWidth + plotWidth * index / steps;
+      element('line', {x1:x, x2:x, y1:top, y2:bottom, class:index ? 'report-plot-grid' : 'report-plot-base'});
+      element('text', {x, y:bottom + 18, 'text-anchor':index === 0 ? 'start' : index === steps ? 'end' : 'middle', class:'report-plot-tick'}, tick(maximum * index / steps));
+    }
+    order.forEach((item, index) => {
+      const y = top + index * rowHeight;
+      const short = fit(item.label);
+      const name = element('text', {x:labelWidth - 10, y:y + rowHeight / 2 + 4, 'text-anchor':'end', class:'report-plot-label'}, short);
+      if (short !== item.label) { const title = doc.createElementNS(ns, 'title'); title.textContent = item.label; name.append(title); }
+      let offset = 0;
+      item.group.querySelectorAll('[data-stack-segment]').forEach(segment => {
+        const value = Math.max(0, Number(segment.dataset.pointValue || 0)), w = value / maximum * plotWidth;
+        if (!w) return;
+        const rect = element('rect', {x:labelWidth + offset, y:y + (rowHeight - barHeight) / 2, width:w, height:barHeight, fill:colorOf(segment.dataset.seriesLabel, segment.style.backgroundColor), class:'report-plot-segment'});
+        if (interactiveSegments) attach(rect, segment); else rect.setAttribute('aria-hidden', 'true');
+        offset += w;
+      });
+      element('text', {x:labelWidth + offset + 8, y:y + rowHeight / 2 + 4, class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
+      // 整列包含短小系列與空白處，滑鼠提示及點選皆使用該分類，不誤變為分類加系列。
+      const hit = element('rect', {x:interactiveSegments ? 0 : labelWidth, y:y + 1, width:interactiveSegments ? labelWidth - 5 : plotWidth, height:rowHeight - 2, fill:'transparent'});
+      hit.classList.add('report-month-target'); attach(hit, item.row);
+    });
+    svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 26}`);
+  }
+  return {svg, columns};
+}
 function reportFraction(value, total) {
   if (!Number.isFinite(Number(value)) || !Number.isFinite(Number(total)) || Number(total) <= 0) return 0;
   return Math.max(0, Math.min(100, Number(value) / Number(total) * 100));
@@ -109,7 +213,8 @@ function reportAxisMaximum(values) {
   const maximum = Math.max(0, ...values.filter(Number.isFinite));
   if (!maximum) return 4;
   const rough = maximum / 4, power = 10 ** Math.floor(Math.log10(rough));
-  const step = [1, 2, 5, 10].find(value => value * power >= rough) * power;
+  // T-182：加入 2.5 倍刻度（僅限十位數以上，刻度仍為整數），96 台的軸頂是 100 而不是 200。
+  const step = [1, 2, ...(power >= 10 ? [2.5] : []), 5, 10].find(value => value * power >= rough) * power;
   return Math.max(4, Math.ceil(step) * 4);
 }
 function reportDebounce(run, delay = 300, timers = globalThis) {
@@ -162,7 +267,7 @@ function reportAutoSubmitFilters(form) {
     pendingMulti = null; queue.schedule(null, 0);
   }, true);
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportMonthSummary, initReportTablePagination};
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
 if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError});
 function initReportVisuals(root) {
   "use strict";
@@ -230,10 +335,39 @@ function initReportVisuals(root) {
   if (editorCards) new MutationObserver(() => initMulti(editorCards)).observe(editorCards, {childList:true});
 
   root.querySelectorAll('[data-chart="table"] table.report-results').forEach(initReportTablePagination);
+  // 台數統計（T-182）：台數欄加細長條、0 淡色、手機卡片的欄名。只處理 count_overview 的多欄彙總表。
+  root.querySelectorAll('.report-reader-main[data-reader-layout="count_overview"] .report-summary-table').forEach(table => {
+    if (table.dataset.countReady) return; table.dataset.countReady = 'true';
+    const headers = [...table.tHead.rows[0].cells].map(cell => cell.textContent.replace(/[↕▲▼]/g, '').trim());
+    const dims = table.tBodies[0].rows[0] ? [...table.tBodies[0].rows[0].cells].filter(cell => cell.tagName === 'TH').length : 1;
+    const parse = text => Number(String(text).replace(/[^0-9.-]/g, ''));
+    const counts = [...table.tBodies[0].rows].map(row => row.cells[dims]).filter(Boolean);
+    const maximum = Math.max(0, ...counts.map(cell => parse(cell.textContent)).filter(Number.isFinite));
+    [...table.tBodies[0].rows, ...(table.tFoot ? table.tFoot.rows : [])].forEach(row => {
+      [...row.cells].filter(cell => cell.tagName === 'TD').forEach((cell, index) => {
+        cell.dataset.label = headers[dims + index] || '';
+        if (parse(cell.textContent) === 0 && cell.textContent.trim() !== '') cell.classList.add('is-zero');
+      });
+    });
+    counts.forEach(cell => {
+      const value = parse(cell.textContent), text = cell.textContent.trim();
+      const wrap = document.createElement('span'); wrap.className = 'report-count-cell';
+      const bar = document.createElement('span'); bar.className = 'report-count-cell__bar'; bar.setAttribute('aria-hidden', 'true');
+      bar.style.width = `${maximum > 0 ? Math.max(0, value) / maximum * 100 : 0}%`;
+      const label = document.createElement('span'); label.className = 'report-count-cell__value'; label.textContent = text;
+      wrap.append(bar, label); cell.replaceChildren(wrap);
+    });
+  });
 
-  const palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"];
+  const palette = REPORT_SERIES_COLORS;
   root.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {
     const rows = [...chart.querySelectorAll("[data-point-value]")];
+    // 空狀態（T-182）：表格只剩「此範圍沒有符合的訂單」或堆疊沒有任何列時，換成有圖示與下一步的空狀態（圓環圖另行處理）。
+    if (chart.dataset.chart !== 'donut' && chart.dataset.chart !== 'score' && !rows.length && !chart.querySelector('.report-empty')
+        && (chart.querySelector('.report-results tbody td[colspan]') || chart.querySelector('.report-stacks > p'))) {
+      chart.querySelectorAll('.report-table-wrap, .report-stacks, .report-series-legend, [data-line-chart]').forEach(item => { item.hidden = true; });
+      (chart.querySelector('.report-card-foot') || chart.lastElementChild).before(reportEmptyState(chart));
+    }
     const tip = document.createElement("div");
     tip.className = "report-point-tooltip"; tip.id = `report-tooltip-${chartIndex}`; tip.setAttribute("role", "tooltip"); tip.hidden = true; chart.append(tip);
     let hideTimer;
@@ -279,7 +413,7 @@ function initReportVisuals(root) {
     };
     const overview = chart.closest('.report-sales-overview');
     const layout = overview?.dataset.readerLayout;
-    const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'][i%10]]));
+    const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),REPORT_NEUTRAL_LABELS.has(entry.textContent.trim()) ? REPORT_OTHER_COLOR : reportSlotColor(i)]));
     const contrast = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
     const overviewColor = (label, fallback) => chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : chart.dataset.classificationColors === 'true' ? fallback : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
     if (overview || chart.dataset.palette === 'accessible') {
@@ -330,67 +464,29 @@ function initReportVisuals(root) {
       const stacks = chart.querySelector('.report-stacks');
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {
-        const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-        const wideElectric = (['electric_overview','gasoline_overview'].includes(layout) && chart.classList.contains('report-chart--wide')) || ['platform_overview','dealer_overview'].includes(layout);
-        const width = wideElectric ? Math.max(740, chart.clientWidth - 24) : 740;
-        const left = layout === 'dealer_overview' ? 190 : 108, right = 100, top = 8, rowHeight = 26;
-        const bottom = top + rowHeight * groups.length, plotWidth = width - left - right;
-        const totals = [...chart.querySelectorAll('.report-results tr[data-point-value]')].map(row => Number(row.dataset.pointValue));
         const monthRows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
-        const maximum = reportAxisMaximum(totals);
-        svg.classList.add('report-overview-plot'); svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 30}`);
-        svg.setAttribute('aria-label', chart.querySelector('h2').textContent + ' 水平堆疊圖');
-        const element = (tag, attrs, text) => {
-          const item = document.createElementNS(ns, tag);
-          Object.entries(attrs).forEach(([key, value]) => item.setAttribute(key, String(value)));
-          if (text !== undefined) item.textContent = text;
-          svg.append(item); return item;
-        };
-        for (let index = 0; index <= 4; index++) {
-          const x = left + plotWidth * index / 4;
-          element('line', {x1:x,x2:x,y1:top,y2:bottom,stroke:'var(--line)'});
-          element('text', {x,y:bottom+22,'text-anchor':'middle',fill:'currentColor','font-size':17}, String(maximum * index / 4));
-        }
-        groups.forEach((group, index) => {
-          const y = top + index * rowHeight;
-          const month = monthRows[index];
-          const segments = [...group.querySelectorAll('[data-stack-segment]')];
-          month.dataset.pointSummary = reportMonthSummary(month.dataset.pointLabel, segments.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,display:segment.dataset.pointDisplay})), month.dataset.pointDisplay);
-          element('text', {x:left-8,y:y+20,'text-anchor':'end',fill:'currentColor','font-size':17}, group.querySelector('.report-stack-caption strong').textContent);
-          let offset = 0;
-          group.querySelectorAll('[data-stack-segment]').forEach(segment => {
-            const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
-            if (!segmentWidth) return;
-            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:overviewColor(segment.dataset.seriesLabel, segment.style.backgroundColor)});
-            if (layout === 'dealer_overview') attach(rect, segment);
-            else rect.setAttribute('aria-hidden', 'true');
-            offset += segmentWidth;
-          });
-          const totalX = left + Math.max(0,Number(month.dataset.pointValue)) / maximum * plotWidth + 10;
-          element('text', {x:totalX,y:y+20,fill:'currentColor','font-size':17,'class':'report-bar-total-label','pointer-events':'none'}, month.dataset.pointDisplay);
-          // 整列包含短小系列與空白處，滑鼠提示及點選皆使用月份，不誤變為月份加通路。
-          const hit = element('rect', {x:layout === 'dealer_overview' ? 0 : left,y:y+1,width:layout === 'dealer_overview' ? left-5 : plotWidth,height:24,fill:'transparent'});
-          hit.classList.add('report-month-target'); attach(hit, month);
-        });
+        const plot = reportStackPlot(chart, groups, monthRows, {interactiveSegments: layout === 'dealer_overview', colorOf: overviewColor, attach});
+        const svg = plot.svg, columns = plot.columns;
         let brushStart = null, brushing = false, suppressClick = false;
         const points = [...svg.querySelectorAll('.report-month-target')];
         const clearBrush = () => points.forEach(point => point.classList.remove('report-brush-candidate'));
-        const range = (a,b) => points.filter(point => { const r=point.getBoundingClientRect(); return r.bottom >= Math.min(a,b) && r.top <= Math.max(a,b); });
+        const range = (a,b) => points.filter(point => { const r=point.getBoundingClientRect(); return columns ? r.right >= Math.min(a,b) && r.left <= Math.max(a,b) : r.bottom >= Math.min(a,b) && r.top <= Math.max(a,b); });
+        const along = event => columns ? event.clientX : event.clientY;
         svg.addEventListener('pointerdown', event => {
           if (event.button !== 0 || event.pointerType === 'touch' || !event.target.closest('.report-month-target')) return;
-          brushStart = event.clientY; brushing = false;
+          brushStart = along(event); brushing = false;
         });
         svg.addEventListener('pointermove', event => {
           if (brushStart === null || !event.buttons) return;
-          if (Math.abs(event.clientY-brushStart) > 5) {
+          if (Math.abs(along(event)-brushStart) > 5) {
             brushing = true; svg.setPointerCapture(event.pointerId); hideTip(); clearBrush();
-            range(brushStart,event.clientY).forEach(point => point.classList.add('report-brush-candidate'));
+            range(brushStart,along(event)).forEach(point => point.classList.add('report-brush-candidate'));
           }
         });
         svg.addEventListener('pointerup', event => {
           if (brushing) {
             suppressClick = true;
-            chart.dispatchEvent(new CustomEvent('report-view-change',{bubbles:true,detail:{card:Number(chart.dataset.chartIndex),groups:range(brushStart,event.clientY).map(point=>point.dataset.selectionGroup),additive:event.ctrlKey || event.metaKey}}));
+            chart.dispatchEvent(new CustomEvent('report-view-change',{bubbles:true,detail:{card:Number(chart.dataset.chartIndex),groups:range(brushStart,along(event)).map(point=>point.dataset.selectionGroup),additive:event.ctrlKey || event.metaKey}}));
             setTimeout(()=>{ suppressClick=false; },0);
           }
           brushStart = null; brushing = false; clearBrush();
@@ -412,36 +508,32 @@ function initReportVisuals(root) {
       const total = Number(chart.dataset.total);
       const host = chart.querySelector("[data-line-chart]");
       if (total > 0 && rows.length) {
+        // T-182：甜甜圈固定比例、永遠完整；扇形之間留 2px 底色縫，中間放總數，占比移到下方圖例。
         const ns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(ns, "svg"); svg.setAttribute("viewBox", "0 0 300 300"); svg.classList.add("report-donut");
-        const solid = layout === 'analysis_overview' && (chart.hasAttribute('data-per-model') || overview.querySelectorAll('[data-chart-index]').length === 4);
-        if (solid) svg.classList.add('report-solid-pie');
-        const ring = (color, fraction, offset) => {
+        svg.setAttribute("role", "group"); svg.setAttribute("aria-label", chart.querySelector("h2").textContent + " 圓環圖");
+        const shown = rows.filter(row => reportFraction(row.dataset.pointValue, total) > 0);
+        const ring = (color, fraction, offset, gap) => {
           const circle = document.createElementNS(ns, "circle");
-          for (const [key, value] of Object.entries({cx:150,cy:150,r:solid?75:100,fill:"none",stroke:color,"stroke-width":solid?150:46,pathLength:100,"stroke-dasharray":`${fraction} ${100-fraction}`,"stroke-dashoffset":-offset,transform:"rotate(-90 150 150)"})) circle.setAttribute(key, String(value));
+          for (const [key, value] of Object.entries({cx:150,cy:150,r:104,fill:"none",stroke:color,"stroke-width":44,pathLength:100,"stroke-dasharray":`${Math.max(.01, fraction - gap)} ${100 - fraction + gap}`,"stroke-dashoffset":-offset,transform:"rotate(-90 150 150)"})) circle.setAttribute(key, String(value));
           svg.append(circle); return circle;
         };
-        ring("var(--line)", 100, 0); let offset = 0;
+        ring("var(--line-soft)", 100, 0, 0); let offset = 0;
         rows.forEach((row, index) => {
           const fraction = reportFraction(row.dataset.pointValue, total);
           if (!fraction) return;
           const color = row.dataset.pointColor || palette[index % palette.length];
-          attach(ring(color, fraction, offset), row);
-          if (overview && fraction >= 2) {
-            const angle = (offset + fraction / 2) * Math.PI / 50 - Math.PI / 2;
-            const label = document.createElementNS(ns, 'text');
-            for (const [key,value] of Object.entries({x:150+100*Math.cos(angle),y:155+100*Math.sin(angle),'text-anchor':'middle',fill:donutLabelFill(color),'font-size':14,'font-weight':700,'pointer-events':'none',class:'report-donut-label'})) label.setAttribute(key,String(value));
-            label.textContent = `${fraction.toFixed(1)}%`; svg.append(label);
-          }
+          attach(ring(color, fraction, offset, shown.length > 1 ? .5 : 0), row);
           offset += fraction;
           const swatch = document.createElement("span"); swatch.className = "report-legend-dot"; swatch.style.background = color;
           row.querySelector("th").prepend(swatch);
         });
-        if (!overview) { const text = document.createElementNS(ns, "text"); text.setAttribute("x", "150"); text.setAttribute("y", "154"); text.setAttribute("text-anchor", "middle"); text.setAttribute("fill", "currentColor"); text.textContent = chart.querySelector(".report-score strong").textContent; svg.append(text); }
+        const centre = (text, y, className) => { const item = document.createElementNS(ns, "text"); for (const [key, value] of Object.entries({x:150,y,"text-anchor":"middle",class:className})) item.setAttribute(key, String(value)); item.textContent = text; svg.append(item); };
+        centre(chart.querySelector(".report-score strong")?.textContent.trim() || "", 160, "report-donut-total");
+        centre(chart.dataset.metricLabel === "訂單台數" ? "張訂單" : chart.dataset.metricLabel || "", 188, "report-donut-caption");
         host.append(svg);
-        if (overview) resizeReportDonutLabels(chart);
-        if (offset < 99.99) { const note = document.createElement("p"); note.className = "report-muted"; note.textContent = "灰色區域為未顯示群組；占比以完整篩選範圍計算。"; host.append(note); }
-      } else host.textContent = "目前沒有可呈現的正值資料。";
+        if (offset < 99.99) { const note = document.createElement("p"); note.className = "report-muted"; note.textContent = "淡灰區域為未顯示群組；占比以完整篩選範圍計算。"; host.append(note); }
+      } else host.replaceChildren(reportEmptyState(chart));
     }
     if (overview) {
       const table = chart.querySelector('.report-table-wrap');
@@ -451,9 +543,12 @@ function initReportVisuals(root) {
           const link = row.querySelector('[data-report-drill]');
           if (!link) return;
           const entry = link.cloneNode(true), dot = document.createElement('i'); dot.style.background = row.dataset.pointColor;
-          entry.prepend(dot); entry.append(` ${Number(row.dataset.pointPercentage || 0).toFixed(1)}%`); legend.append(entry);
+          const name = document.createElement('span'); name.className = 'report-overview-legend__name'; name.append(...entry.childNodes);
+          const value = document.createElement('span'); value.className = 'report-overview-legend__value'; value.textContent = row.dataset.pointDisplay;
+          const share = document.createElement('span'); share.className = 'report-overview-legend__share'; share.textContent = `${Number(row.dataset.pointPercentage || 0).toFixed(1)}%`;
+          entry.append(dot, name, value, share); legend.append(entry);
         });
-        chart.querySelector('[data-line-chart]').before(legend);
+        chart.querySelector('[data-line-chart]').after(legend);
       }
       if (table) {
         if (['stacked', 'donut'].includes(chart.dataset.chart)) table.hidden = true;
@@ -548,8 +643,9 @@ if (typeof document !== "undefined") initReportVisuals(document);
         card: focused.closest('[data-chart-index]').dataset.chartIndex, group: focused.dataset.selectionGroup
       } : null;
       grid.replaceWith(document.importNode(nextGrid, true));
-      for (const selector of [".report-context", "[data-report-selection-tags]", "[data-report-active-filters]"]) {
-        reader.querySelector(selector).replaceWith(document.importNode(next.querySelector(selector), true));
+      for (const selector of [".report-context", "[data-report-selection-tags]", "[data-report-active-filters]", "[data-report-kpis]"]) {
+        const current = reader.querySelector(selector), incoming = next.querySelector(selector);
+        if (current && incoming) current.replaceWith(document.importNode(incoming, true));
       }
       const oldRecords = reader.querySelector(".report-record-panel"), newRecords = next.querySelector(".report-record-panel");
       if (newRecords) {

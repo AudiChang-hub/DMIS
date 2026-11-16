@@ -13,14 +13,15 @@
 - 顏色、圓角、字級一律使用 `app.css` 開頭的設計參數。六種外觀主題靠同一組參數切換，
   寫死色碼會讓夜間／高對比外觀失效。例外：參數定義與主題區塊、主題選擇器的預覽色塊、列印樣式與 `contract.css`。
   半透明色用 `color-mix(in srgb, var(--參數) N%, transparent)`；陰影與遮罩用 `--shadow-ink`。
-  報表圖表的資料系列色由 `sales/reporting/engine.py` 與報表 JS 定義，不屬 CSS 參數。
+  報表圖表的分類色用 `--chart-s1`～`--chart-s8` 與 `--chart-other`（2.11.0 起，淺深色各自驗證色盲分辨）；
+  哪個分類用哪一格由 `sales/reporting/engine.py` 與報表 JS 依固定順序對應，同一分類每頁同色，「其他」類固定中性灰。
 
 | 類別 | 參數 |
 | --- | --- |
 | 基本色 | `--ink`／`--ink-soft`（文字）、`--muted`、`--surface*`、`--paper`、`--line-soft`／`--line-mid`／`--line`／`--line-strong`（由淺到深的線條）、`--forest`（操作）、`--navy`（框架）、`--gold`（重點）、`--focus-ring` |
 | 狀態色 | `--green`／`--blue`／`--amber`／`--red` 各有 `-soft`（底）、`-border`（淡邊框）、`-border-strong`（強調邊框）、`-ink`（深色文字）；`--amber-strong` 為待處理強調色 |
 | 色上文字 | `--on-accent`（主色、深藍底上的白字）、`--on-status`（狀態色底上的字，夜間自動轉深） |
-| 識別色 | `--identity-sym-*`、`--identity-suzuki*`、`--identity-yellow*`、`--identity-violet*`（品牌與分線群組標籤）、`--chart-1` |
+| 識別色 | `--identity-sym-*`、`--identity-suzuki*`、`--identity-yellow*`、`--identity-violet*`（品牌與分線群組標籤）、`--chart-1`、`--chart-s1`～`--chart-s8`／`--chart-other`（報表圖表分類色） |
 | 圓角 | `--radius-xs` 6px、`--radius-sm` 8px、`--radius-md` 12px（按鈕、輸入框）、`--radius-lg` 16px、`--radius` 18px（主卡片）、`--radius-pill`；3px 以下的細線與 `50%` 可直接寫 |
 | 字級 | `--text-2xs` 11px、`--text-xs` 12px、`--text-sm` 13px、`--text-sm-plus` 14px、`--text-base` 16px、`--text-md` 18px、`--text-lg` 20px、`--text-xl` 24px、`--text-2xl` 28px、`--text-3xl` 32px；大標題可用 `clamp()` |
 | 間距刻度 | `--space-1`～`--space-8`：4、8、12、16、24、32、48、64px；padding／margin／gap 只用刻度，0–3px 細線例外 |

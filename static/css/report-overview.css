@@ -2,9 +2,7 @@
 .report-sales-overview .report-overview-tools-ready > .report-chart-options,
 .report-sales-overview .report-overview-tools-ready > .report-chart-controls,
 .report-sales-overview .report-overview-tools-ready .report-card-toolbar > .report-export,
-.report-sales-overview .report-overview-tools-ready .report-card-toolbar small { display:none; }
-.report-sales-overview .report-overview-tools-ready > .report-score { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem; margin:.25rem 0 .75rem; }
-.report-sales-overview .report-overview-tools-ready > .report-score > span { display:none; }
+.report-sales-overview .report-overview-tools-ready .report-card-toolbar > div > small:empty { display:none; }
 .report-sales-overview .report-card-toolbar { overflow:visible; align-items:center; }
 .report-overview-tools { position:relative; margin-left:auto; flex-shrink:0; }
 .report-overview-tools > summary { cursor:pointer; padding:.5rem .75rem; border:1px solid var(--line); border-radius:var(--radius-md); }
@@ -17,8 +15,6 @@
 .report-sales-overview .report-multi-list label button { margin-left:auto; flex-shrink:0; padding:var(--space-1) var(--space-2); border:1px solid var(--line); border-radius:var(--radius-xs); background:var(--surface); color:var(--ink); }
 .report-sales-overview .report-month-target { cursor:pointer; }
 .report-sales-overview .report-month-target.report-brush-candidate { fill:color-mix(in srgb,var(--amber) 25%,transparent); stroke:var(--amber); }
-.report-reader-shell .report-sales-overview .report-overview-plot { min-width:640px; }
-.report-reader-shell .report-sales-overview .report-donut { max-width:600px; }
 .report-sales-overview .report-month-target.report-point-selected { fill:color-mix(in srgb,var(--amber) 14%,transparent); }
 .report-sales-overview .report-record-panel th a { display:block; white-space:nowrap; }
 @media(max-width:700px) { .report-sales-overview .report-card-toolbar { flex-wrap:wrap; gap:var(--space-2); } .report-overview-tools > summary { min-height:40px; } }
@@ -40,11 +36,10 @@
 }
 .report-reader-main[data-reader-layout="gasoline_overview"] .report-grid > .report-chart:first-child { grid-column:1/-1; }
 .report-reader-main[data-reader-layout="analysis_overview"] .report-chart > .report-scope-summary { font-size:var(--text-base); padding:var(--space-2); margin-bottom:var(--space-2); }
-.report-reader-shell .report-sales-overview .report-analysis-plot { width:100%; min-width:640px; height:auto; flex-shrink:0; display:block; margin:auto 0; }
-.report-reader-shell .report-solid-pie .report-point-selected { stroke-width:150px; }
 /* T-143：台數表在上、來源訂單明細在下，兩者全寬，避免並排擠壓截斷欄位。 */
-.report-reader-main[data-reader-layout="count_overview"] { display:block; }
-.report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { margin:var(--stack-gap-sm) 0 0; }
+/* T-182：上下排列改用與其他報表相同的直向 flex，區塊間距統一為 --stack-gap。 */
+.report-reader-main[data-reader-layout="count_overview"] { display:flex; flex-direction:column; gap:var(--stack-gap); }
+.report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { margin:0; }
 .report-reader-main[data-reader-layout="count_overview"] .report-grid { grid-template-columns:1fr; }
 .report-reader-main[data-reader-layout="count_overview"] .report-record-panel .report-card-toolbar { flex-wrap:wrap; }
 .report-reader-main[data-reader-layout="count_overview"] .report-summary-table thead th:not(:first-child) { text-align:right; }

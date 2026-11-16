@@ -4,7 +4,7 @@ const {designerScale, designerCanvasWidth, designerChipText} = require('../../st
 const {reportAnalysisFill} = require('../../static/js/report-analysis.js');
 test('人口分析覆寫配色時，圖形沿用與提示及圖例相同的顏色', () => {
   assert.equal(reportAnalysisFill('男性', '#0072b2', 'accessible'), '#0072b2');
-  assert.equal(reportAnalysisFill('男性', '#0072b2', ''), '#737373');
+  assert.equal(reportAnalysisFill('男性', '#0072b2', ''), 'var(--chart-s1)');
 });
 test('畫布縮放不改變目標內容寬度', () => {
   assert.equal(designerScale('fit', 1440, 2000, 720, 600), .5);

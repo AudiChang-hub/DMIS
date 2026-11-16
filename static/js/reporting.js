@@ -98,13 +98,21 @@ function renderReportLines(root) {
     if (!valid.length) return;
     const min = Math.min(0, ...valid), max = Math.max(1, ...valid), range = max - min;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 600 190");
+    svg.setAttribute("viewBox", "0 0 620 190");
     const addLine = segment => {
       if (!segment.length) return;
       const path = document.createElementNS(svg.namespaceURI, "polyline");
       path.setAttribute("points", segment.join(" ")); path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "var(--forest)"); path.setAttribute("stroke-width", "3"); svg.append(path);
+      path.setAttribute("stroke", "var(--chart-s1)"); path.setAttribute("stroke-width", "2.5"); path.setAttribute("stroke-linejoin", "round"); svg.append(path);
     };
+    // T-182：淡色水平格線與刻度（0、中間、最大），折線不再懸空。
+    [0, .5, 1].forEach(ratio => {
+      const y = 155 - ratio * 130, grid = document.createElementNS(svg.namespaceURI, "line");
+      for (const [key, value] of Object.entries({x1:22, x2:572, y1:y, y2:y, class:ratio ? "report-plot-grid" : "report-plot-base"})) grid.setAttribute(key, String(value));
+      const tick = document.createElementNS(svg.namespaceURI, "text");
+      for (const [key, value] of Object.entries({x:576, y:y + 4, class:"report-plot-tick"})) tick.setAttribute(key, String(value));
+      tick.textContent = Number(min + range * ratio).toLocaleString("zh-TW"); svg.append(grid, tick);
+    });
     let segment = [];
     points.forEach((value, index) => {
       if (value === null || !Number.isFinite(value)) { addLine(segment); segment = []; return; }
@@ -112,12 +120,12 @@ function renderReportLines(root) {
       const y = 155 - (value - min) / range * 130;
       segment.push(`${x},${y}`);
       const dot = document.createElementNS(svg.namespaceURI, "circle");
-      dot.setAttribute("cx", String(x)); dot.setAttribute("cy", String(y)); dot.setAttribute("r", "4"); dot.setAttribute("fill", "var(--forest)");
+      dot.setAttribute("cx", String(x)); dot.setAttribute("cy", String(y)); dot.setAttribute("r", "4"); dot.setAttribute("fill", "var(--chart-s1)"); dot.setAttribute("stroke", "var(--surface)"); dot.setAttribute("stroke-width", "2");
       const title = document.createElementNS(svg.namespaceURI, "title"); title.textContent = `${rows[index].dataset.pointLabel}: ${value}`;
       dot.append(title); svg.append(dot);
     });
     addLine(segment);
-    const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", "20"); label.setAttribute("y", "183"); label.setAttribute("font-size", "12"); label.setAttribute("fill", "var(--muted)");
+    const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", "20"); label.setAttribute("y", "183"); label.setAttribute("class", "report-plot-tick");
     label.textContent = `${rows[0].dataset.pointLabel} → ${rows.at(-1).dataset.pointLabel}（逐群數值詳見下表）`; svg.append(label);
     chart.querySelector("[data-line-chart]")?.append(svg);
   });

@@ -83,20 +83,22 @@ test('彩色提示只使用文字節點，名稱不作 HTML；長清單不截斷
 });
 
 test('人口分類顏色不隨篩選排序漂移且未知分類保留', () => {
-  assert.equal(reportAnalysisColor('男性','#000'),'#737373');
-  assert.equal(reportAnalysisColor('女性','#000'),'#f15a60');
-  assert.equal(reportAnalysisColor('公司或其他','#000'),'#7ac36a');
-  assert.equal(reportAnalysisColor('灰','#000'),'#5a9bd4');
+  // T-182：改用 app.css 圖表色參數，淺深色自動切換；「公司或其他」固定中性灰。
+  assert.equal(reportAnalysisColor('男性','#000'),'var(--chart-s1)');
+  assert.equal(reportAnalysisColor('女性','#000'),'var(--chart-s2)');
+  assert.equal(reportAnalysisColor('公司或其他','#000'),'var(--chart-other)');
+  assert.equal(reportAnalysisColor('灰','#000'),'var(--chart-s3)');
   assert.equal(reportAnalysisColor('未列顏色','#123456'),'#123456');
 });
 
 test('電動車來源配色獨立，型號兩圖同色且不受排序影響', () => {
-  assert.equal(reportElectricColor('車行','#000'), '#f15a60');
-  assert.equal(reportElectricColor('網路平台','#000'), '#7ac36a');
-  assert.equal(reportOverviewColor('車行','#000'), '#7ac36a');
-  assert.equal(reportElectricColor('EV060L','#000'), '#737373');
-  assert.equal(reportElectricColor('EV076S','#000'), '#7ac36a');
-  assert.equal(reportElectricColor('M02','#000'), '#7dd3ef');
+  // T-182：來源在每一頁同色（車行、馭盛、網路平台…依固定順序），型號依固定清單順序，超過 8 個依序循環。
+  assert.equal(reportElectricColor('車行','#000'), 'var(--chart-s1)');
+  assert.equal(reportElectricColor('網路平台','#000'), 'var(--chart-s3)');
+  assert.equal(reportOverviewColor('車行','#000'), reportElectricColor('車行','#000'));
+  assert.equal(reportElectricColor('EV060L','#000'), 'var(--chart-s1)');
+  assert.equal(reportElectricColor('EV076S','#000'), 'var(--chart-s3)');
+  assert.equal(reportElectricColor('M02','#000'), 'var(--chart-s3)');
   assert.equal(reportElectricColor('未列型號','#123456'), '#123456');
 });
 
@@ -106,9 +108,10 @@ test('原報表整月提示包含全部非零系列及合計，不把月份縮�
   assert.equal(reportPointText({pointSummary:summary}, '訂單台數'), summary);
 });
 test('來源與機種原色固定，不因排序或篩選改變', () => {
-  assert.equal(reportOverviewColor('車行','#000'), '#7ac36a');
-  assert.equal(reportOverviewColor('速克達','#000'), '#f15a60');
-  assert.equal(reportOverviewColor('其他','#123456'), '#123456');
+  assert.equal(reportOverviewColor('車行','#000'), 'var(--chart-s1)');
+  assert.equal(reportOverviewColor('速克達','#000'), 'var(--chart-s2)');
+  assert.equal(reportOverviewColor('其他','#123456'), 'var(--chart-other)');
+  assert.equal(reportOverviewColor('未列分類','#123456'), '#123456');
 });
 
 test('離線與逾時提示中文復原方式，保留權限及版本等具體錯誤', () => {

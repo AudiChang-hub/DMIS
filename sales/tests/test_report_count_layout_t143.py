@@ -75,7 +75,9 @@ class CountOverviewStackedLayoutTests(TestCase):
     def test_count_page_stacks_summary_above_records_at_full_width(self):
         rules = css_rules("report-overview.css")
         main = declarations(rules, MAIN)
-        self.assertIn("display:block", main[0].replace(" ", ""))
+        # T-182 起改為直向 flex（與其他報表同一套間距），仍是上下排列、全寬。
+        self.assertIn("display:flex", main[0].replace(" ", ""))
+        self.assertIn("flex-direction:column", main[0].replace(" ", ""))
         self.assertFalse([body for found, body in rules if MAIN in found and "grid-template-columns" in body
                           and ".report-grid" not in found])
         self.assertFalse([body for found, body in rules if MAIN in found and "grid-column:2" in body.replace(" ", "")])

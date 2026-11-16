@@ -77,26 +77,16 @@
 .report-summary-table td{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.report-summary-table th{min-width:7rem}.report-chart .report-summary-table td:last-child{width:auto}.report-summary-table tfoot{font-weight:700;background:var(--surface-soft)}
 .report-grid>.report-chart:only-child{grid-column:1/-1}
 .report-reader-shell .report-sales-overview .report-overview-plot{height:auto;max-width:none}
-@media(max-width:800px){.report-reader-shell .report-sales-overview .report-chart{overflow-x:auto!important;min-width:0}}
 .report-reader-shell.report-overview-shell{padding-top:var(--space-4)}.report-reader-shell .report-sales-overview .report-score{flex-direction:row;gap:var(--space-1) var(--space-3);margin:var(--space-2) 0}.report-reader-shell .report-sales-overview .report-score strong{font-size:var(--text-lg)}.report-reader-shell .report-sales-overview .report-filter{padding:var(--space-3);margin:var(--space-2) 0;gap:var(--space-2) var(--space-3)}.report-reader-shell .report-sales-overview .report-advanced-filter{padding-top:2px}.report-reader-shell .report-sales-overview .report-advanced-filter>summary{padding:var(--space-1) 0;min-height:28px;font-size:var(--text-sm)}.report-reader-shell .report-sales-overview .report-chart{padding:var(--space-3)}.report-reader-shell .report-sales-overview .report-heading h1{font-size:var(--text-xl)}.report-reader-shell .report-sales-overview .report-chart .report-card-toolbar{padding-bottom:var(--space-2)}.report-reader-shell .report-sales-overview .report-selection-controls{margin:var(--space-2) 0}
-.report-sales-overview>.report-heading{margin-bottom:0}.report-sales-overview>.report-heading .eyebrow{display:none}.report-sales-overview>.report-heading h1{font-size:var(--text-xl)}.report-sales-overview .report-grid{gap:var(--stack-gap);align-items:start}.report-sales-overview .report-chart{background:var(--surface);border:0;box-shadow:none;border-radius:var(--radius-xs);padding:var(--space-3);min-height:0!important}.report-sales-overview .report-card-toolbar{margin-bottom:var(--space-2)}.report-sales-overview .report-card-toolbar h2{font-size:var(--text-lg);text-align:center}.report-sales-overview .report-card-toolbar>div{flex:1}.report-sales-overview .report-card-toolbar small{display:none}.report-sales-overview .report-score{display:flex;align-items:baseline;gap:var(--space-2);flex-wrap:wrap;margin:var(--space-2) 0}.report-sales-overview .report-score>span{font-size:var(--text-2xs)}.report-sales-overview .report-score strong{font-size:var(--text-lg)}.report-sales-overview .report-score small{font-size:var(--text-2xs)}.report-sales-overview .report-chart-controls{font-size:var(--text-2xs)}.report-sales-overview .report-chart-controls .button{padding:var(--space-1) var(--space-2);min-height:30px}.report-sales-overview .report-series-legend{font-size:var(--text-2xs);gap:var(--space-2);margin:var(--space-2) 0}.report-overview-plot{display:block;width:100%;height:auto;overflow:visible}.report-chart-data{font-size:var(--text-xs);color:var(--muted);margin-top:var(--space-2)}.report-chart-data>summary{cursor:pointer;min-height:30px}.report-overview-legend{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-3);font-size:var(--text-2xs);margin:var(--space-3) 0}.report-overview-legend a{display:inline-flex;align-items:center;gap:var(--space-1)}.report-overview-legend i{width:10px;height:10px;border-radius:2px}.report-sales-overview .report-donut{max-width:370px;margin:var(--stack-gap) auto}.report-sales-overview .report-filter>.report-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.report-sales-overview .report-selection-controls{padding:var(--space-2) 0;background:none;border:0;box-shadow:none}.report-sales-overview .report-chart-options{display:inline-block}.report-sales-overview .report-candidate-note{font-size:var(--text-2xs)}.report-sales-overview .report-reader-description>summary{font-size:var(--text-xs);min-height:28px;padding:var(--space-1) 0}
-@media(max-width:800px){.report-sales-overview .report-grid{grid-template-columns:1fr}.report-sales-overview .report-overview-plot{min-width:520px}.report-sales-overview .report-chart{overflow-x:auto}.report-sales-overview .report-filter>.report-filter-grid{grid-template-columns:1fr}.report-sales-overview .report-donut{max-width:280px}}
+.report-sales-overview>.report-heading{margin-bottom:0}.report-sales-overview>.report-heading .eyebrow{display:none}.report-sales-overview>.report-heading h1{font-size:var(--text-xl)}.report-sales-overview .report-grid{gap:var(--stack-gap);align-items:start}.report-sales-overview .report-chart{background:var(--surface);border:0;box-shadow:none;border-radius:var(--radius-xs);padding:var(--space-3);min-height:0!important}.report-sales-overview .report-card-toolbar{margin-bottom:var(--space-2)}.report-sales-overview .report-card-toolbar h2{font-size:var(--text-lg)}.report-sales-overview .report-card-toolbar>div{flex:1}.report-sales-overview .report-score{display:flex;align-items:baseline;gap:var(--space-2);flex-wrap:wrap;margin:var(--space-2) 0}.report-sales-overview .report-score>span{font-size:var(--text-2xs)}.report-sales-overview .report-score strong{font-size:var(--text-lg)}.report-sales-overview .report-score small{font-size:var(--text-2xs)}.report-sales-overview .report-chart-controls{font-size:var(--text-2xs)}.report-sales-overview .report-chart-controls .button{padding:var(--space-1) var(--space-2);min-height:30px}.report-sales-overview .report-series-legend{font-size:var(--text-2xs);gap:var(--space-2);margin:var(--space-2) 0}.report-overview-plot{display:block;width:100%;height:auto;overflow:visible}.report-chart-data{font-size:var(--text-xs);color:var(--muted);margin-top:var(--space-2)}.report-chart-data>summary{cursor:pointer;min-height:30px}.report-overview-legend{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-3);font-size:var(--text-2xs);margin:var(--space-3) 0}.report-overview-legend a{display:inline-flex;align-items:center;gap:var(--space-1)}.report-overview-legend i{width:10px;height:10px;border-radius:2px}.report-sales-overview .report-filter>.report-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.report-sales-overview .report-selection-controls{padding:var(--space-2) 0;background:none;border:0;box-shadow:none}.report-sales-overview .report-chart-options{display:inline-block}.report-sales-overview .report-candidate-note{font-size:var(--text-2xs)}.report-sales-overview .report-reader-description>summary{font-size:var(--text-xs);min-height:28px;padding:var(--space-1) 0}
+@media(max-width:800px){.report-sales-overview .report-grid{grid-template-columns:1fr}.report-sales-overview .report-filter>.report-filter-grid{grid-template-columns:1fr}}
 .report-point-selected{filter:drop-shadow(0 0 3px var(--primary));outline:2px solid var(--primary);outline-offset:2px}.report-donut .report-point-selected{outline:none}
-/* 總車輛銷售專用：一致閱讀字級、同列等高及直接圖形操作。 */
-.report-reader-shell .report-sales-overview :where(p,small,span,a,label,summary,button,input,select,textarea,th,td,strong,.report-series-legend,.report-overview-legend,.report-point-tooltip){font-size:var(--text-base) !important}
-.report-reader-shell .report-sales-overview .report-score strong{font-size:var(--text-lg) !important}
 .report-reader-shell .report-sales-overview .report-grid{align-items:stretch}
-.report-reader-shell .report-sales-overview .report-chart{display:flex;flex-direction:column;min-width:0;overflow-x:auto}
-.report-reader-shell .report-sales-overview .report-overview-plot{min-width:520px;flex-shrink:0}
-.report-reader-shell .report-sales-overview [data-chart="donut"] [data-line-chart]{display:flex;flex:1;flex-direction:column;justify-content:center;align-items:center;min-height:360px}
-.report-reader-shell .report-sales-overview .report-donut{width:100%;height:auto;max-width:460px;margin:var(--stack-gap-sm) auto;flex-shrink:0}
-.report-reader-shell .report-sales-overview .report-donut text{font-size:var(--text-xl)}
+.report-reader-shell .report-sales-overview .report-chart{display:flex;flex-direction:column;min-width:0}
 .report-reader-shell .report-sales-overview .report-chart [hidden]{display:none!important}
 .report-reader-shell .report-sales-overview .report-chart-controls{flex-wrap:wrap;margin:var(--space-2) 0}
 .report-reader-shell .report-sales-overview .report-chart-controls .button{min-height:40px}
 .report-reader-shell .report-sales-overview .report-point-selected{filter:drop-shadow(0 0 3px var(--amber))}
-.report-reader-shell .report-sales-overview .report-donut .report-point-selected{outline:none;stroke-width:54px}
-@media(max-width:800px){.report-reader-shell .report-sales-overview [data-chart="donut"] [data-line-chart]{min-height:280px}.report-reader-shell .report-sales-overview .report-donut{min-width:250px;max-width:400px}}
 @media(min-width:800.02px) and (max-width:1100px){.report-reader-shell .report-sales-overview .report-grid{grid-template-columns:1fr}}
 .report-current-page{display:none}.report-reader-description{margin:0 0 var(--stack-gap);color:var(--muted)}.report-reader-description summary{cursor:pointer;padding:var(--space-3) 0;min-height:44px}.report-reader-layout{grid-template-columns:240px minmax(0,1fr)}.report-reader-main>.report-heading{margin-top:0}.report-page-nav a{min-height:44px}
 @media(max-width:1100px) and (min-width:800.02px){.report-reader-layout{grid-template-columns:210px minmax(0,1fr)}}
@@ -149,7 +139,6 @@
 .report-card-toolbar { border-bottom-color: var(--line-soft); }
 .report-card-toolbar h2 { font-family: var(--font-display); letter-spacing: -.015em; }
 .report-score strong { font-family: var(--font-display); font-weight: 800; letter-spacing: -.035em; line-height: 1.1; }
-.report-donut-label { paint-order: stroke; stroke: color-mix(in srgb, var(--shadow-ink) 18%, transparent); stroke-width: 2px; }
 /* 大數據分析樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車型；寬螢幕在報表右側，1280px 以下移到內容上方並可收合。 */
 .report-reader-layout.has-tree-filter > .report-page-nav { grid-area: nav; }
 .report-reader-layout.has-tree-filter > .report-reader-main { grid-area: main; }
@@ -302,3 +291,216 @@
 @keyframes report-side-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .report-side-rail, .report-side-rail__icon, .report-side-rail__icon svg, .report-side-panel, .report-side-panel__close { transition: none; } .report-side-backdrop { animation: none; } }
 @media print { .report-side-dock { display: none !important; } }
+
+/* ===== T-182 報表閱讀版面（使用者 2026-11-16 選 B）：KPI 摘要、12 欄主從網格、單行篩選列、圖卡分層字級、⋯ 選單、三種狀態。
+   只作用在報表閱讀頁與設計器畫布（.report-reader-shell）；報表設計器本身、報表目錄與其他頁面不受影響。 */
+.report-reader-shell .report-reader-main { --report-gap: var(--stack-gap); display: flex; flex-direction: column; gap: var(--stack-gap); }
+/* 頁面層區塊（篩選列、摘要、圖卡、明細）一律 --stack-gap；標題與口徑說明屬同一組，靠近一點。 */
+.report-reader-shell .report-reader-main > .report-heading + .report-reader-description { margin-top: calc(var(--space-2) - var(--stack-gap)); }
+.report-reader-shell .report-reader-main > * { margin-block: 0; }
+.report-reader-shell .report-reader-main > .report-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--stack-gap-sm); }
+.report-reader-shell .report-reader-main > .report-heading .eyebrow { display: block; margin: 0 0 var(--space-1); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.report-reader-shell .report-reader-main > .report-heading h1 { margin: 0; font-size: clamp(1.5rem, 1.2rem + 1vw, var(--text-2xl)); line-height: 1.2; }
+.report-reader-shell .report-reader-main > .report-heading .button, .report-reader-shell .report-heading-actions .button { min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); }
+.report-reader-shell .report-reader-main > .report-reader-description { font-size: var(--text-sm); color: var(--muted); }
+.report-reader-shell .report-reader-main > .report-reader-description > summary { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.report-reader-shell .report-reader-main > .report-reader-description > summary::before { content: "i"; display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 50%; font: 700 10px/1 var(--font-sans); }
+.report-reader-shell .report-reader-main > .report-reader-description[open] { padding: var(--space-3) var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md); }
+.report-reader-shell .report-reader-main > .report-reader-description > p, .report-reader-shell .report-reader-description .report-notice { max-width: 80ch; margin: var(--space-2) 0 0; font-size: var(--text-sm); line-height: 1.6; }
+.report-reader-shell .report-reader-main > .report-scope-summary { margin: 0; padding: var(--space-2) var(--space-3); border-left: 0; font-size: var(--text-sm); }
+
+/* 單行篩選列：欄名在選單左側，進階篩選是一顆按鈕，目前篩選標籤接在後面。 */
+.report-reader-shell .report-reader-main > .report-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); box-shadow: none; }
+.report-reader-shell .report-reader-main > .report-filter > .report-filter-heading { display: none; }
+.report-reader-shell .report-reader-main > .report-filter > .report-filter-grid { display: contents; }
+.report-reader-shell .report-reader-main > .report-filter .report-field { flex-direction: row; align-items: center; gap: var(--space-2); flex: 0 1 auto; min-width: 0; }
+.report-reader-shell .report-reader-main > .report-filter .report-field > label { flex: none; font-size: var(--text-sm); font-weight: 600; color: var(--muted); white-space: nowrap; }
+.report-reader-shell .report-reader-main > .report-filter .report-field > :is(select, input:not([type=checkbox]), .report-multiselect) { width: auto; min-width: 150px; max-width: 280px; }
+.report-reader-shell .report-reader-main > .report-filter .report-field > :is(select, input:not([type=checkbox])) { min-height: 38px; padding-block: var(--space-1); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); }
+.report-reader-shell .report-reader-main > .report-filter .report-multiselect > summary { min-height: 38px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); }
+.report-reader-shell .report-reader-main > .report-filter .report-field > small { display: none; }
+.report-reader-shell .report-reader-main > .report-filter > .report-advanced-filter { order: 2; margin: 0; padding: 0; border: 0; }
+.report-reader-shell .report-reader-main > .report-filter > .report-advanced-filter > summary { display: inline-flex; align-items: center; min-height: 38px; padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); font-weight: 600; color: var(--ink-soft); background: var(--surface); }
+.report-reader-shell .report-reader-main > .report-filter > .report-advanced-filter > summary:hover { border-color: var(--line-strong); background: var(--surface-soft); }
+.report-reader-shell .report-reader-main > .report-filter > .report-advanced-filter[open] { flex-basis: 100%; }
+.report-reader-shell .report-reader-main > .report-filter > .report-advanced-filter > .report-filter-grid { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--line-soft); }
+.report-reader-shell .report-reader-main > .report-filter > .report-active-filters { order: 3; flex: 1 1 260px; margin: 0; min-height: 0; }
+.report-reader-shell .report-reader-main > .report-filter .report-filter-chip { border-radius: var(--radius-sm); }
+.report-reader-shell .report-reader-main > .report-filter .report-active-filters__clear { border-radius: var(--radius-sm); }
+.report-reader-shell .report-reader-main > .report-filter > .report-filter-grid > .report-field { order: 1; }
+
+/* KPI 摘要列 */
+.report-kpis[hidden] { display: none; }
+.report-kpis__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 0; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); overflow: hidden; }
+.report-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--space-4) var(--space-5); box-shadow: -1px 0 0 var(--line-soft); }
+.report-kpi__label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.report-kpi__label i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.report-kpi__value { display: flex; align-items: baseline; gap: var(--space-1); margin: 0; min-width: 0; }
+.report-kpi__value strong { font-family: var(--font-display); font-size: clamp(1.5rem, 1.25rem + .8vw, var(--text-3xl)); font-weight: 750; line-height: 1.2; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-kpi--text .report-kpi__value strong { font-size: var(--text-xl); letter-spacing: -.01em; }
+.report-kpi__value span { font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.report-kpi__sub { margin: 0; font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* 連動提示與更新狀態：提示放到圖卡底部，這一列只在有選取標籤、更新中或失敗時出現。 */
+.report-reader-shell .report-reader-main > .report-selection-controls { margin: 0; padding: 0; gap: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main > .report-selection-controls > :is(strong, small[data-report-selection-hint]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.report-reader-shell .report-reader-main > .report-selection-controls:not(:has([data-report-selection-tags] > *, [data-report-retry]:not([hidden]))) { display: none; }
+.report-reader-shell .report-reader-main > .report-selection-controls:has([data-report-retry]:not([hidden])) { display: flex; padding: var(--space-3) var(--space-4); border: 1px solid var(--red-border); border-radius: var(--radius-md); background: var(--red-soft); color: var(--red-ink); }
+.report-reader-shell .report-reader-main > .report-selection-controls:has([data-report-retry]:not([hidden])) [data-report-update-status] { color: var(--red-ink); font-weight: 600; }
+.report-reader-shell .report-reader-main > .report-context { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+
+/* 12 欄主從網格：主圖 8 欄＋占比 4 欄，同列等高；1100px 以下單欄。 */
+.report-reader-shell .report-reader-main .report-exploration .report-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--report-gap); align-items: stretch; }
+.report-reader-shell .report-reader-main .report-grid > * { grid-column: span 6; }
+.report-reader-shell .report-reader-main .report-grid > :is(.report-chart--wide, .report-per-model-note, .report-chart:only-child) { grid-column: 1 / -1; }
+.report-reader-shell .report-reader-main .report-grid > .report-chart:not([data-chart="donut"], .report-chart--wide):has(+ .report-chart[data-chart="donut"]:not(.report-chart--wide)) { grid-column: span 8; }
+.report-reader-shell .report-reader-main .report-grid > .report-chart:not([data-chart="donut"], .report-chart--wide) + .report-chart[data-chart="donut"]:not(.report-chart--wide) { grid-column: span 4; }
+.report-reader-shell .report-reader-main:is([data-reader-layout="count_overview"], [data-reader-layout="electric_overview"], [data-reader-layout="gasoline_overview"]) .report-grid > .report-chart:first-child { grid-column: 1 / -1; }
+.report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-grid > * { grid-column: 1 / -1; }
+@media (max-width: 1100px) { .report-reader-shell .report-reader-main .report-grid > * { grid-column: 1 / -1 !important; } }
+
+/* 圖卡：標題靠左與內容同一條左緣，副標說明分類與單位；總數與「查看來源訂單」放卡片底部。 */
+.report-reader-shell .report-reader-main .report-grid > .report-chart { position: relative; display: flex; flex-direction: column; min-width: 0; margin: 0; padding: var(--space-5) var(--space-5) 0; overflow: visible; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-soft); }
+.report-reader-shell .report-reader-main .report-chart > .report-card-toolbar { align-items: flex-start; flex-direction: row; flex-wrap: nowrap; gap: var(--space-3); margin: 0 0 var(--space-4); padding: 0; border: 0; }
+.report-reader-shell .report-reader-main .report-chart > .report-card-toolbar > div { flex: 1 1 auto; min-width: 0; }
+.report-reader-shell .report-reader-main .report-chart > .report-card-toolbar h2 { margin: 0; font-size: var(--text-md); font-weight: 700; line-height: 1.35; text-align: left; letter-spacing: -.01em; }
+.report-reader-shell .report-reader-main .report-chart > .report-card-toolbar small { display: block; margin-top: 2px; font-size: var(--text-sm); color: var(--muted); }
+.report-reader-shell .report-reader-main .report-chart > .report-scope-summary { gap: var(--space-1) var(--space-2); margin: calc(-1 * var(--space-2)) 0 var(--space-4); padding: 0; border: 0; background: none; font-size: var(--text-xs); color: var(--muted); }
+.report-reader-shell .report-reader-main .report-chart > .report-scope-summary strong { font-weight: 600; }
+.report-reader-shell .report-reader-main .report-chart > .report-scope-summary span { padding: 1px var(--space-2); border-radius: var(--radius-xs); background: var(--surface-soft); color: var(--ink-soft); }
+.report-reader-shell .report-reader-main .report-chart > :is(.report-notice, .report-candidate-note, .report-record-note) { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-chart > .report-notice { padding: var(--space-2) var(--space-3); }
+.report-reader-shell .report-reader-main .report-chart > .report-record-note > summary { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.report-reader-shell .report-reader-main .report-chart > .report-record-note > summary::before { content: "i"; display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 50%; font: 700 10px/1 var(--font-sans); }
+.report-reader-shell .report-reader-main .report-chart > .report-record-note > .report-notice { margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-chart > .report-series-legend { gap: var(--space-2) var(--space-4); margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--ink-soft); }
+.report-reader-shell .report-reader-main .report-chart > .report-series-legend i { width: 10px; height: 10px; border-radius: 2px; }
+.report-reader-shell .report-reader-main .report-chart > .report-chart-options > summary { min-height: 32px; padding: 0; font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-chart > .report-chart-controls { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-chart > .report-chart-controls .button { min-height: 32px; padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-chart > .report-card-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); margin: auto calc(-1 * var(--space-5)) 0; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--line-soft); font-size: var(--text-sm); color: var(--muted); }
+.report-reader-shell .report-reader-main .report-chart > :not(.report-card-foot):nth-last-child(2) { margin-bottom: var(--space-5); }
+.report-reader-shell .report-reader-main .report-card-foot > .report-score { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+.report-reader-shell .report-reader-main .report-card-foot > .report-score > span { display: none; }
+.report-reader-shell .report-reader-main .report-card-foot > .report-score strong { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; color: var(--ink); letter-spacing: 0; line-height: 1.4; }
+.report-reader-shell .report-reader-main .report-chart[data-metric-label="訂單台數"] .report-card-foot > .report-score strong { display: none; }
+.report-reader-shell .report-reader-main .report-card-foot > .report-score small { font-size: var(--text-sm); }
+.report-reader-shell .report-reader-main .report-card-foot a { font-weight: 600; }
+.report-card-hint { font-size: var(--text-xs); color: var(--muted); }
+
+/* ⋯ 圖表操作 */
+.report-reader-shell .report-overview-tools { margin-left: auto; }
+.report-reader-shell .report-overview-tools > summary { display: grid; place-items: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--muted); list-style: none; transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out); }
+.report-reader-shell .report-overview-tools > summary::-webkit-details-marker { display: none; }
+.report-reader-shell .report-overview-tools > summary::before, .report-reader-shell .report-overview-tools > summary::after { content: none; display: none; }
+.report-reader-shell .report-overview-tools > summary svg { display: block; width: 18px; height: 18px; margin: 0; fill: currentColor; }
+.report-reader-shell .report-overview-tools > summary:hover, .report-reader-shell .report-overview-tools[open] > summary { background: var(--surface-soft); border-color: var(--line-soft); color: var(--ink); }
+.report-reader-shell .report-overview-tools > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.report-reader-shell .report-overview-tool-list { top: calc(100% + var(--space-1)); border-color: var(--line-soft); border-radius: var(--radius-lg); }
+.report-reader-shell .report-overview-tool-list :is(button, select) { border-radius: var(--radius-sm); font-size: var(--text-sm-plus); }
+
+/* 圖形：髮絲格線、12–13px 刻度、分段之間 1.5px 底色縫。 */
+.report-reader-shell .report-chart svg.report-overview-plot { display: block; width: 100%; height: auto; min-width: 0; max-width: 100%; margin: 0; overflow: visible; }
+.report-plot-grid { stroke: var(--line-soft); stroke-width: 1; }
+.report-plot-base { stroke: var(--line-strong); stroke-width: 1; }
+.report-plot-tick { font-size: var(--text-xs); fill: var(--muted); font-variant-numeric: tabular-nums; }
+.report-plot-year { font-size: var(--text-2xs); font-weight: 650; fill: var(--ink-soft); }
+.report-plot-label { font-size: var(--text-sm); fill: var(--ink-soft); }
+.report-plot-value { font-size: var(--text-xs); font-weight: 650; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.report-plot-segment { stroke: var(--surface); stroke-width: 1.5; }
+.report-reader-shell .report-month-target { cursor: pointer; transition: fill var(--dur-1) var(--ease-out); }
+.report-reader-shell .report-month-target:hover { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
+.report-reader-shell .report-sales-overview .report-month-target.report-point-selected { fill: color-mix(in srgb, var(--forest) 12%, transparent); filter: none; outline: none; }
+.report-reader-shell .report-plot-segment.report-point-selected { stroke: var(--ink); stroke-width: 2; filter: none; outline: none; }
+.report-reader-shell .report-chart [data-line-chart] { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1 1 auto; gap: var(--space-3); min-height: 0; }
+.report-reader-shell .report-chart[data-chart="line"] [data-line-chart] { align-items: stretch; }
+.report-reader-shell .report-chart svg.report-donut { width: min(240px, 100%); height: auto; max-width: 100%; margin: 0 auto; overflow: visible; }
+.report-donut circle { transition: opacity var(--dur-1) var(--ease-out); }
+.report-donut circle.report-point-selected { filter: none; outline: none; stroke-width: 52px; }
+.report-donut-total { font-family: var(--font-display); font-size: 42px; font-weight: 750; fill: var(--ink); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.report-donut-caption { font-size: var(--text-md); fill: var(--muted); }
+.report-reader-shell .report-chart .report-muted { margin: 0; font-size: var(--text-xs); color: var(--muted); text-align: center; }
+.report-reader-shell .report-overview-legend { display: grid; gap: 0; width: 100%; margin: var(--space-4) 0 0; font-size: var(--text-sm-plus); }
+.report-reader-shell .report-overview-legend a { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 3.75rem; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-1); border-top: 1px solid var(--line-soft); border-radius: var(--radius-xs); color: var(--ink); text-decoration: none; }
+.report-reader-shell .report-overview-legend a:first-child { border-top: 0; }
+.report-reader-shell .report-overview-legend a:hover { background: var(--surface-soft); }
+.report-reader-shell .report-overview-legend a.report-row-selected { background: color-mix(in srgb, var(--forest) 10%, var(--surface)); font-weight: 650; }
+.report-reader-shell .report-overview-legend i { width: 10px; height: 10px; border-radius: 2px; }
+.report-overview-legend__name { min-width: 0; overflow-wrap: anywhere; }
+.report-overview-legend__value { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.report-overview-legend__share { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.report-electric-overview .report-overview-legend { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); column-gap: var(--space-5); }
+.report-electric-overview .report-overview-legend a:nth-child(-n+3) { border-top: 0; }
+.report-reader-shell .report-chart .report-bar-track { height: 12px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0; background: var(--surface-soft); }
+.report-reader-shell .report-chart .report-bar-track > span { background: var(--chart-s1); border-radius: 0 var(--radius-xs) var(--radius-xs) 0; }
+.report-reader-shell .report-chart .report-bar-end-value, .report-reader-shell .report-chart .report-stack-end-value { font-size: var(--text-sm); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* 表格：數字靠右等寬、單位寫在表頭、0 淡色、合計列加粗；台數欄加細長條。 */
+.report-reader-shell .report-reader-main .report-chart .report-table-wrap { margin-inline: calc(-1 * var(--space-5)); }
+.report-reader-shell .report-reader-main .report-chart .report-results { font-size: var(--text-sm-plus); }
+.report-reader-shell .report-reader-main .report-chart .report-results :is(th, td) { padding: var(--space-3); border-color: var(--line-soft); }
+.report-reader-shell .report-reader-main .report-chart .report-results :is(th, td):first-child { padding-left: var(--space-5); }
+.report-reader-shell .report-reader-main .report-chart .report-results :is(th, td):last-child { padding-right: var(--space-5); }
+.report-reader-shell .report-reader-main .report-chart .report-results thead th { font-size: var(--text-xs); font-weight: 650; color: var(--muted); background: var(--surface-soft); border-bottom: 1px solid var(--line); }
+.report-reader-shell .report-reader-main .report-chart .report-summary-table tfoot :is(th, td) { border-top: 1px solid var(--line-strong); border-bottom: 0; background: var(--surface-soft); font-weight: 750; }
+.report-reader-shell .report-reader-main .report-chart .report-summary-table td.is-zero { color: var(--muted); font-weight: 400; }
+.report-count-cell { display: grid; grid-template-columns: minmax(48px, 1fr) minmax(2.5rem, auto); align-items: center; gap: var(--space-3); }
+.report-count-cell__bar { display: block; height: 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0; background: var(--chart-s1); min-width: 2px; }
+.report-count-cell__value { font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; }
+.report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table th:nth-child(2) { width: 42%; }
+@media (max-width: 640px) {
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table thead { display: none; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table :is(tbody, tfoot) { display: block; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line-soft); }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table :is(th, td) { padding: 0 !important; border: 0; background: none; text-align: left; white-space: normal; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table :is(tbody, tfoot) th { grid-column: 1 / -1; font-size: var(--text-base); font-weight: 650; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table td { display: grid; gap: 2px; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table td::before { content: attr(data-label); font-size: var(--text-xs); font-weight: 600; color: var(--muted); }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table td:has(.report-count-cell) { grid-column: 1 / -1; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tfoot tr { background: var(--surface-soft); }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-chart .report-summary-table tfoot :is(th, td) { border: 0; background: none; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tfoot td:first-of-type { grid-column: 1 / -1; }
+}
+
+/* 來源訂單明細：與圖卡同一套標題層級與字級。 */
+.report-reader-shell .report-reader-main > .report-record-panel { border-color: var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }
+.report-reader-shell .report-reader-main > .report-record-panel > .report-card-toolbar { align-items: flex-start; gap: var(--space-3); margin: 0 0 var(--space-4); padding: 0; border: 0; }
+.report-reader-shell .report-reader-main > .report-record-panel > .report-card-toolbar h2 { margin: 0; font-size: var(--text-md); text-align: left; }
+.report-reader-shell .report-reader-main > .report-record-panel > .report-card-toolbar p { margin: 2px 0 0; font-size: var(--text-sm); color: var(--muted); }
+.report-reader-shell .report-reader-main > .report-record-panel > .report-card-toolbar .button { flex: none; min-height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); }
+.report-reader-shell .report-reader-main > .report-record-panel .report-results { font-size: var(--text-sm-plus); }
+/* 空狀態、更新中 */
+.report-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); flex: 1 1 auto; min-height: 220px; padding: var(--space-6) var(--space-4); text-align: center; }
+.report-empty__icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: var(--space-1); border-radius: var(--radius-md); background: var(--surface-soft); color: var(--muted); }
+.report-chart .report-empty__icon svg { display: block; width: 22px; height: 22px; margin: 0; }
+.report-empty strong { font-family: var(--font-display); font-size: var(--text-base); font-weight: 700; color: var(--ink); }
+.report-empty p { max-width: 34ch; margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.report-empty .button { margin-top: var(--space-2); min-height: 36px; border-radius: var(--radius-sm); }
+.report-reader-shell .report-reader-main[aria-busy="true"] :is(.report-grid, .report-kpis) { opacity: .55; transition: opacity var(--dur-2) var(--ease-out); }
+.report-reader-shell .report-reader-main[aria-busy="true"] .report-grid > .report-chart::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: linear-gradient(90deg, transparent, var(--forest), transparent); background-size: 50% 100%; background-repeat: no-repeat; animation: report-loading 1.1s linear infinite; }
+@keyframes report-loading { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+
+@media (max-width: 800px) {
+  .report-reader-shell .report-reader-main .report-grid > .report-chart { padding: var(--space-4) var(--space-4) 0; }
+  .report-reader-shell .report-reader-main .report-chart > .report-card-foot { margin-inline: calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4); }
+  .report-reader-shell .report-reader-main .report-chart > :not(.report-card-foot):nth-last-child(2) { margin-bottom: var(--space-4); }
+  .report-reader-shell .report-reader-main .report-chart .report-table-wrap { margin-inline: calc(-1 * var(--space-4)); }
+  .report-reader-shell .report-reader-main .report-chart .report-results :is(th, td):first-child { padding-left: var(--space-4); }
+  .report-reader-shell .report-reader-main .report-chart .report-results :is(th, td):last-child { padding-right: var(--space-4); }
+  .report-kpis__list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-kpi { padding: var(--space-3) var(--space-4); box-shadow: -1px 0 0 var(--line-soft), 0 -1px 0 var(--line-soft); }
+}
+@media (max-width: 640px) {
+  .report-reader-shell .report-reader-main > .report-filter { padding: var(--space-3); }
+  .report-reader-shell .report-reader-main > .report-filter .report-field { flex: 1 1 100%; }
+  .report-reader-shell .report-reader-main > .report-filter .report-field > :is(select, input:not([type=checkbox]), .report-multiselect) { flex: 1 1 auto; max-width: none; min-width: 0; }
+  .report-reader-shell .report-reader-main > .report-filter .report-field > label { min-width: 4.5em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-reader-shell .report-reader-main[aria-busy="true"] .report-grid > .report-chart::before { animation: none; background-size: 100% 100%; opacity: .5; }
+  .report-donut circle, .report-reader-shell .report-month-target, .report-reader-shell .report-overview-tools > summary { transition: none; }
+}
+@media print {
+  .report-card-hint, .report-reader-shell .report-reader-main > .report-selection-controls { display: none !important; }
+  .report-kpis__list, .report-reader-shell .report-reader-main .report-grid > .report-chart { box-shadow: none; }
+}

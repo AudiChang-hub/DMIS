@@ -1,8 +1,10 @@
-/* 人口分析的直條圖；只使用已授權模板資料與既有交叉篩選連結。 */
+/* 人口分析的長條圖；只使用已授權模板資料與既有交叉篩選連結。
+   T-182：改用與其他堆疊圖相同的橫向長條（report-interactions.js 的 reportStackPlot），依卡片寬度繪製，手機不再左右捲動。 */
 function reportAnalysisColor(label, fallback) {
-  return {'男性':'#737373','女性':'#f15a60','公司或其他':'#7ac36a','生日未填':'#5a9bd4',
-    '灰':'#5a9bd4','白':'#faa75a','藍':'#7ac36a','帕瑪森白':'#7dd3ef','黑':'#f15a60',
-    '魔綠幻紫':'#737373','黃':'#9e67ab','海神藍':'#ce7058'}[label] || fallback;
+  const neutral = ['公司或其他', '生日未填', '生日異常', '其他', '其他系列（合併）'];
+  if (neutral.includes(label)) return 'var(--chart-other)';
+  const slots = {'男性':1, '女性':2, '灰':3, '白':4, '藍':5, '帕瑪森白':6, '黑':7, '魔綠幻紫':8, '黃':1, '海神藍':2};
+  return label in slots ? `var(--chart-s${slots[label]})` : fallback;
 }
 function reportAnalysisFill(label, fallback, palette) {
   return palette === 'accessible' ? fallback : reportAnalysisColor(label, fallback);
@@ -11,42 +13,25 @@ function renderReportAnalysis(chart, attach) {
   const rows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
   if (!rows.length) return;
   const stacked = chart.dataset.chart === 'stacked';
-  const groups = [...chart.querySelectorAll('.report-stack-row')];
-  const ns = 'http://www.w3.org/2000/svg';
-  const width = Math.max(740, rows.length * 90 + 80), height = 500, left = 55, top = 26, bottom = 390;
-  const maximum = reportAxisMaximum(rows.map(row => Number(row.dataset.pointValue)));
-  const step = (width-left-20)/rows.length, barWidth = Math.min(72, step*.65);
-  const svg = document.createElementNS(ns,'svg');
-  svg.classList.add('report-analysis-plot'); svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
-  // 分類增加時只在卡片內捲動，不把 20px 文字縮成不可讀的小字。
-  svg.style.minWidth = `${Math.max(640, Math.ceil(width * .8))}px`;
-  svg.setAttribute('aria-label',chart.querySelector('h2').textContent+' 垂直長條圖');
-  const make = (tag, attrs, text) => { const el=document.createElementNS(ns,tag); Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); if(text!==undefined) el.textContent=text; svg.append(el); return el; };
-  for(let i=0;i<=4;i++) {
-    const y=bottom-(bottom-top)*i/4;
-    make('line',{x1:left,x2:width-20,y1:y,y2:y,stroke:'var(--line)'});
-    make('text',{x:left-8,y:y+6,'text-anchor':'end',fill:'currentColor','font-size':20},String(maximum*i/4));
-  }
-  rows.forEach((row,index)=>{
-    const x=left+step*(index+.5)-barWidth/2;
-    const segments=stacked ? [...groups[index].querySelectorAll('[data-stack-segment]')] : [row];
-    let offset=0;
-    segments.forEach(segment=>{
-      const value=Number(segment.dataset.pointValue), h=value/maximum*(bottom-top);
-      if(!h) return;
-      const label=stacked ? segment.dataset.seriesLabel : row.dataset.pointLabel;
-      const fallback = chart.dataset.palette === 'accessible' && stacked ? segment.style.backgroundColor : segment.dataset.pointColor||segment.style.backgroundColor||'#737373';
-      const rect=make('rect',{x,y:bottom-offset-h,width:barWidth,height:h,fill:reportAnalysisFill(label,fallback,chart.dataset.palette)});
-      attach(rect,segment);
-      offset+=h;
+  let groups = [...chart.querySelectorAll('.report-stack-row')];
+  if (!stacked) {
+    // 單一系列的長條：每列當成只有一段的堆疊，顏色依分類固定。
+    groups = rows.map(row => {
+      const group = document.createElement('div'), caption = document.createElement('strong'), wrap = document.createElement('div');
+      wrap.className = 'report-stack-caption'; wrap.append(caption); caption.textContent = row.dataset.pointLabel;
+      const segment = document.createElement('span'); segment.dataset.stackSegment = '';
+      Object.assign(segment.dataset, {seriesLabel: row.dataset.pointLabel, pointValue: row.dataset.pointValue, pointDisplay: row.dataset.pointDisplay});
+      segment.style.backgroundColor = row.dataset.pointColor || 'var(--chart-s1)';
+      group.append(wrap, segment); return group;
     });
-    const totalHeight = Math.max(0,Number(row.dataset.pointValue))/maximum*(bottom-top);
-    make('text',{x:x+barWidth/2,y:bottom-totalHeight-8,'text-anchor':'middle',fill:'currentColor','font-size':20,'class':'report-bar-total-label'},row.dataset.pointDisplay);
-    const label=make('text',{x:x+barWidth/2,y:bottom+28,'text-anchor':'middle',fill:'currentColor','font-size':20},row.dataset.pointLabel);
-    attach(label,row);
-    if(row.dataset.pointLabel.length>6) label.setAttribute('transform',`rotate(-25 ${x+barWidth/2} ${bottom+28})`);
+  }
+  const {svg} = reportStackPlot(chart, groups, rows, {
+    interactiveSegments: stacked,
+    colorOf: (label, fallback) => reportAnalysisFill(label, chart.dataset.palette === 'accessible' && stacked ? fallback : fallback || 'var(--chart-s1)', chart.dataset.palette),
+    attach,
   });
-  const table=chart.querySelector('.report-table-wrap'); table.before(svg); table.hidden=true;
-  const stacks=chart.querySelector('.report-stacks'); if(stacks) stacks.hidden=true;
+  svg.classList.add('report-analysis-plot');
+  const table = chart.querySelector('.report-table-wrap'); table.before(svg); table.hidden = true;
+  const stacks = chart.querySelector('.report-stacks'); if (stacks) stacks.hidden = true;
 }
-if(typeof module!=='undefined' && module.exports) module.exports={reportAnalysisColor,reportAnalysisFill};
+if (typeof module !== 'undefined' && module.exports) module.exports = {reportAnalysisColor, reportAnalysisFill};

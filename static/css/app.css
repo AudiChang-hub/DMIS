@@ -107,6 +107,16 @@
   --identity-violet: #7c5ac7;
   --identity-violet-ink: #3d246f;
   --chart-1: #4257a5;
+  /* 報表圖表分類色（T-182）：固定順序 8 色＋「其他」中性灰；淺／深色各自通過色盲分辨與 3:1 對比檢查。分類依固定順序對應，不依排名換色。 */
+  --chart-s1: #3446f0;
+  --chart-s2: #e0663a;
+  --chart-s3: #1a9e72;
+  --chart-s4: #c48600;
+  --chart-s5: #c9518f;
+  --chart-s6: #7b5cd6;
+  --chart-s7: #2b8cb5;
+  --chart-s8: #a0612f;
+  --chart-other: #8a8f98;
   --select-chevron: var(--ink-soft);
   /* 操作色：--action-text 用於綠色文字與連結，深色主題改為淺色以維持對比。 */
   --action-text: #2f40e3;
@@ -189,6 +199,15 @@ html[data-theme="night-blue"] {
   --identity-violet: #9a7ce0;
   --identity-violet-ink: #d9ccff;
   --chart-1: #7d8fd6;
+  --chart-s1: #6876ff;
+  --chart-s2: #dc6a3f;
+  --chart-s3: #1fa577;
+  --chart-s4: #b5820c;
+  --chart-s5: #cf5c9c;
+  --chart-s6: #8c6fe6;
+  --chart-s7: #2793b8;
+  --chart-s8: #b0703a;
+  --chart-other: #6b7380;
   --shadow-ink: #000000;
   --ink: #eef1f5;
   --muted: #a3acb8;
@@ -285,6 +304,15 @@ html[data-theme="night-blue"] {
     --identity-violet: #9a7ce0;
     --identity-violet-ink: #d9ccff;
     --chart-1: #7d8fd6;
+    --chart-s1: #6876ff;
+    --chart-s2: #dc6a3f;
+    --chart-s3: #1fa577;
+    --chart-s4: #b5820c;
+    --chart-s5: #cf5c9c;
+    --chart-s6: #8c6fe6;
+    --chart-s7: #2793b8;
+    --chart-s8: #b0703a;
+    --chart-other: #6b7380;
     --shadow-ink: #000000;
     --ink: #eef1f5;
     --muted: #a3acb8;

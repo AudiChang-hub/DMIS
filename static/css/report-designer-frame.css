@@ -7,6 +7,8 @@ html,body{margin:0!important;padding:0!important;min-height:0!important;backgrou
 .designer-chart-overlay.is-selected{border-color:var(--forest);box-shadow:0 0 0 1px white inset}
 .designer-chart-overlay>button{font:600 16px system-ui;color:white;background:var(--forest);border:0;padding:var(--space-2);border-radius:var(--radius-xs);cursor:grab;touch-action:none}
 .designer-chart-overlay [data-resize]{position:absolute;bottom:0;right:0;cursor:nwse-resize}
+/* T-182：圖卡標題改靠左後，「圖表 N」拖曳標籤改貼在卡片上緣外側，不蓋住標題。 */
+.designer-chart-overlay>button:not([data-resize]){position:absolute;top:calc(-1 * var(--space-4));left:var(--space-4);padding:var(--space-1) var(--space-2);font-size:var(--text-sm)}
 .designer-chart-overlay:focus-visible{outline:3px solid var(--focus-ring)}
 body[data-designer-mode=edit] .report-chart{position:relative}
 body[data-designer-mode=preview] .designer-chart-overlay{display:none}

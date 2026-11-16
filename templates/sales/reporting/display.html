@@ -9,6 +9,7 @@
 <details class="report-reader-description"><summary>資料口徑與說明</summary><p>{{ config.description }}</p></details>
 {% if scope_labels %}<section class="report-scope-summary" aria-label="報表固定範圍"><strong>報表固定範圍</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}<small>{% site_text 'display.4950691be4b4' %}</small></section>{% endif %}
 {% include 'sales/reporting/reader_filters.html' %}
+{% include 'sales/reporting/_kpi_strip.html' %}
 <section class="report-selection-controls" aria-label="圖表探索方式"><strong>點選圖表即可連動</strong>{% if reader_overview %}<small data-report-selection-hint>{% site_text 'display.3f84b7566769' %}</small>{% else %}<label><input type="checkbox" data-report-multiple> 複選分類</label><small>{% site_text 'display.84dc5c9c97a7' %}</small>{% endif %}<span data-report-update-status role="status" aria-live="polite"></span><button type="button" class="button ghost" data-report-retry hidden>重試更新</button><div data-report-selection-tags>{% for item in focus_items %}<a class="button ghost" data-report-clear-filter href="?{{ item.remove_query }}">移除「{{ item.title }}」×</a>{% endfor %}</div></section>
 <p class="report-context">依據：{% if config.date_basis == 'registration_date' %}領牌日期{% if config.include_undated %}（未選期間時包含未領牌，日期未填另列；指定期間時排除）{% else %}（不含未領牌）{% endif %}{% else %}訂單日期{% endif %}；不含草稿與取消訂單。車價不代表實收或淨利。<br>資料查詢時間 {{ queried_at|date:'Y/m/d H:i:s' }} · 報表發布 {{ report.published_at|date:'Y/m/d H:i' }}</p>
 {% if error %}<p class="report-notice" role="alert">無法完成查詢：{{ error }}</p>{% endif %}

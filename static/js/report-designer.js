@@ -49,6 +49,26 @@ if (typeof document !== 'undefined') (() => {
   }
   new ResizeObserver(resizeCanvas).observe(viewport);
 
+  /* T-180 右側設定面板黏在頁首下方：高度只取目前看得到的範圍（面板頂到儲存列上緣或工作台底），
+     捲到頁底也不滑進頁首、不被儲存列蓋住；疊在下方（≤850px）與全螢幕時不處理。 */
+  const propertyPanel = forms.closest('.report-property-panel'), savebar = editor.querySelector('.report-savebar');
+  const stackedPanel = matchMedia('(max-width:850px)');
+  let panelFrame = 0;
+  function fitPanel() {
+    panelFrame = 0;
+    if (stackedPanel.matches || document.body.classList.contains('designer-focused')) { propertyPanel.style.removeProperty('--designer-panel-fit'); return; }
+    const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-3')) || 12;
+    const top = Math.max(propertyPanel.getBoundingClientRect().top, parseFloat(getComputedStyle(propertyPanel).top) || 0);
+    const floor = Math.min(window.innerHeight, savebar ? savebar.getBoundingClientRect().top - gap : Infinity, bench.getBoundingClientRect().bottom - 1);
+    propertyPanel.style.setProperty('--designer-panel-fit', `${Math.max(240, Math.floor(floor - top))}px`);
+  }
+  const queueFitPanel = () => { if (!panelFrame) panelFrame = requestAnimationFrame(fitPanel); };
+  window.addEventListener('scroll', queueFitPanel, {passive: true});
+  window.addEventListener('resize', queueFitPanel);
+  stackedPanel.addEventListener('change', queueFitPanel);
+  const panelObserver = new ResizeObserver(queueFitPanel);
+  [bench, savebar].forEach(el => el && panelObserver.observe(el));
+
   /* ── 條件標籤：「這份報表只算」與「這張圖另外只算」 ───────────────── */
   function scopeEntries(container) {
     return [...container.querySelectorAll('.report-field')].map(wrapper => {

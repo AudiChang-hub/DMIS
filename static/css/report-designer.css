@@ -51,7 +51,7 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
 .designer-subsection>p{color:var(--muted);font-size:var(--text-base);line-height:1.6}
 
 /* ── 工作台 ── */
-[data-report-editor] .report-design-workbench{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:auto minmax(560px,1fr);gap:0;align-items:stretch;margin:0;border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;background:var(--surface)}
+[data-report-editor] .report-design-workbench{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-rows:auto minmax(560px,1fr);gap:0;align-items:stretch;margin:0;border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;overflow:clip;background:var(--surface);--designer-sticky-top:calc(var(--app-header-height, 73px) + var(--space-3));--designer-panel-max:calc(100dvh - var(--designer-sticky-top) - var(--designer-savebar-reserve, 85px) - var(--space-3))}
 .designer-toolbar{grid-column:1/-1;display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--line);background:var(--surface)}
 .designer-toolbar label{display:flex;align-items:center;gap:var(--space-2);white-space:nowrap;font-size:var(--text-base)}
 .designer-toolbar select{width:auto;min-height:38px;padding:var(--space-2)}
@@ -74,15 +74,17 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
 .designer-panel-head .designer-add-card{white-space:nowrap}
 .designer-panel-head [data-card-message]:empty{display:none}
 .designer-add-card{justify-content:center;border-style:dashed!important}
-[data-report-editor] .report-canvas-area{display:flex;flex-direction:column;min-width:0;background:var(--surface-soft);padding:var(--space-3)}
+[data-report-editor] .report-canvas-area{display:flex;flex-direction:column;min-width:0;min-height:var(--designer-panel-max);background:var(--surface-soft);padding:var(--space-3);border-right:1px solid var(--line)}
 .designer-mode-help{font-size:var(--text-sm-plus);color:var(--muted);margin:0 0 var(--space-3)}
 .designer-viewport{flex:1;overflow:auto;height:calc(100vh - 300px);min-height:520px;padding:var(--space-4);background:var(--paper);border-radius:var(--radius-sm)}
 [data-report-editor] .report-design-canvas{display:block;position:relative;margin:0 auto;padding:0;border:0;background:var(--surface);box-shadow:0 3px 14px color-mix(in srgb,var(--shadow-ink) 15%,transparent);min-height:0}
 .report-design-canvas>iframe{display:block;border:0;max-width:none;transform-origin:top left;position:absolute;left:0;top:0;background:var(--surface)}
 [data-report-editor] .report-design-canvas[aria-busy=true]>iframe{opacity:.72;transition:opacity var(--dur-2) var(--ease-out)}
 
-/* ── 右側圖表設定 ── */
-[data-report-editor] .report-property-panel{position:static;top:auto;padding:var(--space-4);border:0;border-left:1px solid var(--line);border-radius:0;max-height:calc(100vh - 200px);overflow:auto;min-width:0}
+/* ── 右側圖表設定 ──
+   T-180：面板黏在頁首下方，捲到哪都看得到；高度由 report-designer.js 依可見範圍（頁首到儲存列或工作台底）算成 --designer-panel-fit，
+   內容過長在面板內捲動。工作台用 overflow:clip（不建立捲動容器）才不會讓 sticky 失效；畫布區至少與面板一樣高，面板縮放不影響版面高度。 */
+[data-report-editor] .report-property-panel{position:sticky;top:var(--designer-sticky-top);align-self:start;padding:var(--space-4);border:0;border-radius:0;max-height:var(--designer-panel-fit, var(--designer-panel-max));overflow:auto;overscroll-behavior:contain;min-width:0}
 .report-property-panel p,.report-property-panel small{font-size:var(--text-sm-plus);line-height:1.6}
 .designer-interaction-help h2{font-size:var(--text-md);margin:0 0 var(--space-3)}
 [data-report-editor] .report-editor-card{padding:0;border:0;box-shadow:none;margin:0;background:none}
@@ -122,7 +124,7 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
 .designer-focused [data-report-editor] .report-design-workbench{position:fixed;inset:82px 12px 82px;z-index:40;grid-template-rows:auto minmax(0,1fr);align-items:stretch;margin:0;box-shadow:0 8px 28px color-mix(in srgb,var(--shadow-ink) 13%,transparent)}
 .designer-focused [data-report-editor] .report-canvas-area{min-height:0;align-self:stretch}
 .designer-focused .designer-viewport{height:auto;min-height:0}
-.designer-focused [data-report-editor] .report-property-panel{max-height:none;min-height:0;align-self:stretch;height:100%}
+.designer-focused [data-report-editor] .report-property-panel{position:static;max-height:none;min-height:0;align-self:stretch;height:100%}
 .designer-focused [data-report-editor] .report-savebar{position:fixed;bottom:8px;left:12px;right:12px;z-index:41}
 [data-focus-workbench][aria-pressed=true]{background:var(--forest);color:var(--on-accent);border-color:var(--forest)}
 
@@ -134,7 +136,8 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
   body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .report-workspace{padding-inline:var(--space-2)}
   [data-report-editor] .report-design-workbench{display:flex;flex-direction:column}
   .designer-viewport{height:520px;min-height:0;padding:var(--space-2)}
-  [data-report-editor] .report-property-panel{max-height:none;border-left:0;border-top:1px solid var(--line)}
+  [data-report-editor] .report-canvas-area{min-height:0;border-right:0}
+  [data-report-editor] .report-property-panel{position:static;max-height:none;border-top:1px solid var(--line)}
   .designer-toolbar{gap:var(--space-2)}
   .designer-toolbar__status{flex-basis:100%;order:5}
   .designer-scope__date{margin-left:0}

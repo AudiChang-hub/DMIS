@@ -438,12 +438,7 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
         [
             p("車價"),
             p(safe(order.vehicle_model)),
-            p(
-                "分期總額（含牌險），由融資支付"
-                if order.payment_type == order.PaymentType.INSTALLMENT
-                and not order.plate_insurance_fee
-                else safe(order.color.name)
-            ),
+            p(safe(order.color.name)),
             p("1", center_style),
             p(money(order.vehicle_price), right_style),
             p(money(order.vehicle_price), right_style),

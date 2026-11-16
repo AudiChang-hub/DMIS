@@ -70,6 +70,9 @@ class InstallmentPlateDefaultTests(TestCase):
         text = pdf_text(build_order_contract_pdf(SalesOrder.objects.get(pk=order.pk)))
         self.assertNotIn("另計", text)
         self.assertIn("分期外應收", text)
+        # 使用者 2026-11-16：分期單牌險列印「—」；不會印出的舊說明「由融資支付」已刪除，輸出不變。
+        self.assertIn("稅金 牌險 1 — —", text)
+        self.assertNotIn("融資", text)
 
     def test_dealer_installment_blank_plate_fee_also_defaults_to_zero(self):
         from sales.models import SalesSource

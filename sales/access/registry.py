@@ -59,9 +59,9 @@ SCREEN_GROUPS = (
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", (("給付追蹤", ("dealer_payouts",)),)),
     ("data", "資料維護區", (
-        ("車輛與商品", ("brands", "models", "inventory", "accessories")),
+        ("車輛與商品", ("brands", "models", "costs", "inventory", "accessories")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
-        ("費率與規則", ("costs", "incentives", "commissions", "rewards", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
+        ("費率與規則", ("incentives", "commissions", "rewards", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
         ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
     )),
 )

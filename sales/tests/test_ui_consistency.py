@@ -372,7 +372,8 @@ class UiConsistencyTests(SimpleTestCase):
         group = base.split('<h2 id="data-menu-vehicles">', 1)[1].split("</section>", 1)[0]
         labels = re.findall(r"<strong>([^<]+)</strong>", group)
 
-        self.assertEqual(labels, ["車輛品牌", "機種與售價", "車輛庫存", "配件與工資", "原廠車型比對"])
+        # T-205：結算成本搬進機種與售價；「機種與售價・結算成本」只給沒有機種權限、有成本權限的人。
+        self.assertEqual(labels, ["車輛品牌", "機種與售價", "機種與售價・結算成本", "車輛庫存", "配件與工資", "原廠車型比對"])
 
     def test_header_nav_fits_medium_screens(self):
         """861–1100px 導覽膠囊要收窄，且基礎內距規則必須在它之前，否則頁首會超出畫面。"""

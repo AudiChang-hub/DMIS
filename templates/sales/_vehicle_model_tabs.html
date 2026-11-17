@@ -1,0 +1,6 @@
+{% load screen_access %}{# 機種與售價｜結算成本：兩頁共用分頁列（T-205）。網址不變；結算成本分頁依 costs 權限顯示，沒有結算成本權限時不顯示分頁列。 #}
+{% can_access 'vehicle_model_list' as tab_models %}{% can_access 'settlement_cost_rule_list' as tab_costs %}
+{% if tab_costs %}<nav class="account-tabs vehicle-model-tabs" aria-label="機種與售價分頁">
+  {% if tab_models %}<a href="{% url 'vehicle_model_list' %}"{% if current == 'models' %} aria-current="page"{% endif %}>機種與售價</a>{% endif %}
+  <a href="{% url 'settlement_cost_rule_list' %}"{% if current == 'costs' %} aria-current="page"{% endif %}>結算成本</a>
+</nav>{% endif %}

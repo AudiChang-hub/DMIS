@@ -26,6 +26,13 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "icon": "型",
         "route": "vehicle_model_list",
     },
+    # T-205：結算成本搬進機種與售價；key 不變，已選的捷徑與常用功能照樣能用。
+    {
+        "key": "settlement-costs",
+        "label": "機種與售價・結算成本",
+        "icon": "本",
+        "route": "settlement_cost_rule_list",
+    },
     {"key": "customers", "label": "客戶查詢", "icon": "人", "route": "customer_list"},
     {
         "key": "network-platforms",
@@ -68,12 +75,6 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "label": "補助方案",
         "icon": "補",
         "route": "subsidy_program_list",
-    },
-    {
-        "key": "settlement-costs",
-        "label": "車輛結算成本",
-        "icon": "本",
-        "route": "settlement_cost_rule_list",
     },
     {
         "key": "incentives",

@@ -64,7 +64,9 @@ class ProductExperienceTests(TestCase):
         self.assertContains(source_page, "網路平台")
         self.assertContains(source_page, "本店人員")
         self.assertContains(source_page, reverse("accessory_product_list"))
-        self.assertContains(source_page, reverse("settlement_cost_rule_list"))
+        # T-205：結算成本搬進機種與售價的分頁，選單不再另列。
+        self.assertContains(source_page, reverse("vehicle_model_list"))
+        self.assertNotContains(source_page, reverse("settlement_cost_rule_list"))
         self.assertContains(source_page, reverse("incentive_rule_list"))
         self.assertContains(source_page, reverse("dealer_sales_program_list"))
         self.assertContains(source_page, reverse("dealer_volume_bonus_list"))
@@ -118,6 +120,7 @@ class ProductExperienceTests(TestCase):
         daily_routes = (
             "vehicle_brand_list",
             "vehicle_model_list",
+            "settlement_cost_rule_list",  # T-205：只給沒有機種權限的人，排在機種與售價後面
             "inventory_list",
             "accessory_product_list",
             "customer_list",
@@ -127,7 +130,6 @@ class ProductExperienceTests(TestCase):
             "price_list_distribution",
         )
         rule_routes = (
-            "settlement_cost_rule_list",
             "incentive_rule_list",
             "dealer_sales_program_list",
             "dealer_reward_campaign_list",
@@ -159,7 +161,7 @@ class ProductExperienceTests(TestCase):
             ("customer_list", "客戶查詢", "customer_list.html"),
             ("sales_source_list", "車行", "sales_source_list.html"),
             ("price_list_distribution", "價格表分發", "price_list_distribution.html"),
-            ("settlement_cost_rule_list", "車輛結算成本", "settlement_cost_rule_list.html"),
+            # T-205：結算成本改為機種與售價的分頁，不再是資料維護區的獨立入口。
             ("incentive_rule_list", "原廠獎勵與補助", "incentive_campaign_list.html"),
             ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
             ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
@@ -589,7 +591,7 @@ class ProductExperienceTests(TestCase):
             "dealer_volume_bonus_list": "sales_source_list",
             "business_holiday_list": "data_maintenance",
             "brand_registration_fee_rule_list": "data_maintenance",
-            "settlement_cost_rule_list": "data_maintenance",
+            "settlement_cost_rule_list": "vehicle_model_list",  # T-205
             "incentive_rule_list": "data_maintenance",
             "legacy_import_list": "data_maintenance",
             "positioned_template_list": "data_maintenance",

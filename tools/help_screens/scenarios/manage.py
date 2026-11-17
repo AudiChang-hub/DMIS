@@ -231,7 +231,7 @@ def official_catalog(page, base, out, assets, facts):
     return {}
 
 
-# ── 原廠獎勵、補助方案與結算成本 ─────────────────────────────────
+# ── 原廠獎勵與補助方案 ─────────────────────────────────
 def incentives(page, base, out, assets, facts):
     out = folder(out, "incentives")
     wide(page, 1300)

@@ -42,6 +42,8 @@
                 <h2 id="data-menu-vehicles">車輛與商品</h2>
                 {% if_access 'vehicle_brand_list' %}<a href="{% url 'vehicle_brand_list' %}"><strong>車輛品牌</strong><small>共用品牌名稱與別名</small></a>{% endif_access %}
                 {% if_access 'vehicle_model_list' %}<a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、顏色與價格</small></a>{% endif_access %}
+                {# T-205：結算成本在機種與售價的分頁；只有結算成本權限的人直接連到結算成本。 #}
+                {% can_access 'vehicle_model_list' as menu_models %}{% if not menu_models %}{% if_access 'settlement_cost_rule_list' %}<a href="{% url 'settlement_cost_rule_list' %}"><strong>機種與售價・結算成本</strong><small>依機種與領牌日生效</small></a>{% endif_access %}{% endif %}
                 {% if_access 'inventory_list' %}<a href="{% url 'inventory_list' %}"><strong>車輛庫存</strong><small>進車、車況與調車歷程</small></a>{% endif_access %}
                 {% if_access 'accessory_product_list' %}<a href="{% url 'accessory_product_list' %}"><strong>配件與工資</strong><small>售價、安裝工資與參考成本</small></a>{% endif_access %}
                 {% if can_manage_screen_access %}<a href="{% url 'official_catalog' %}"><strong>原廠車型比對</strong><small>SYM／SUZUKI 官網車型、車色與圖片</small></a>{% endif %}
@@ -57,7 +59,6 @@
               </section>{% endif %}
               {% if data_rules_visible %}<section class="data-menu-group" aria-labelledby="data-menu-rules">
                 <h2 id="data-menu-rules">費率與規則</h2>
-                {% if_access 'settlement_cost_rule_list' %}<a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>{% endif_access %}
                 {% if_access 'incentive_rule_list' %}<a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>常態與加碼活動：實銷、促銷與分期補貼</small></a>{% endif_access %}
                 {# 車行傭金與獎勵四頁共用一個入口（T-162），連到有權限的第一個分頁。 #}
                 {% can_access 'dealer_sales_program_list' as dr_commission %}{% can_access 'dealer_reward_campaign_list' as dr_campaign %}{% can_access 'dealer_reward_catalog_list' as dr_catalog %}{% can_access 'dealer_volume_bonus_list' as dr_bonus %}{% if dr_commission %}{% url 'dealer_sales_program_list' as dr_url %}{% elif dr_campaign %}{% url 'dealer_reward_campaign_list' as dr_url %}{% elif dr_catalog %}{% url 'dealer_reward_catalog_list' as dr_url %}{% elif dr_bonus %}{% url 'dealer_volume_bonus_list' as dr_url %}{% endif %}{% if dr_url %}<a href="{{ dr_url }}"><strong>車行傭金與獎勵</strong><small>基礎傭金、獎勵活動與品項、台數獎金</small></a>{% endif %}

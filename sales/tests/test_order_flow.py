@@ -784,7 +784,7 @@ class OrderFlowTests(TestCase):
             "installment_company_list",
             "business_holiday_list",
             "brand_registration_fee_rule_list",
-            "settlement_cost_rule_list",
+            # T-205：結算成本的上一層改為機種與售價（另見 test_settlement_costs_in_models_t205）。
             "incentive_rule_list",
             "legacy_import_list",
             "positioned_template_list",
@@ -5396,7 +5396,8 @@ class OrderOperationsTests(TestCase):
         self.assertContains(hub, reverse("sales_source_list"))
         self.assertContains(hub, reverse("sales_source_platform_list"))
         self.assertContains(hub, reverse("sales_source_staff_list"))
-        self.assertContains(hub, "車輛結算成本")
+        # T-205：結算成本搬進機種與售價的分頁，資料維護區不再另列卡片。
+        self.assertNotContains(hub, "車輛結算成本")
         self.assertContains(hub, "原廠獎勵與補助")
         self.assertEqual(customers.status_code, 200)
         self.assertContains(customers, self.order.owner_name)

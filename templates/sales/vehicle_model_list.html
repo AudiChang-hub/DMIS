@@ -20,6 +20,7 @@
     <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增機種／年式</a>
   </div>
 </section>
+{% include "sales/_vehicle_model_tabs.html" with current="models" %}
 
 <nav class="source-status-switch" aria-label="依使用狀態查看機種與售價">
   <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>

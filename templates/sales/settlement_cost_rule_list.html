@@ -3,11 +3,12 @@
 {% block title %}車輛結算成本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+{% load screen_access %}{% url 'data_maintenance' as data_url %}{% url 'vehicle_model_list' as models_url %}{% can_access 'vehicle_model_list' as can_models %}
+{# T-205：結算成本搬進「機種與售價」；沒有機種權限時返回資料維護區。 #}
+{% if can_models %}{% include "sales/_page_back.html" with fallback_url=models_url label="機種與售價" root_url=data_url root_label="資料維護區" current_label="結算成本" %}{% else %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" current_label="結算成本" %}{% endif %}
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">依領牌日認列成本</p>
+    <p class="eyebrow">機種與售價・依領牌日認列成本</p>
     <h1>車輛結算成本</h1>
     <p class="muted">{% site_text 'settlement_cost_rule_list.7a65e761c113' %}</p>
   </div>
@@ -16,6 +17,7 @@
     <a class="button primary" href="{% url 'settlement_cost_rule_create' %}">＋ 新增成本版本</a>
   </div>
 </section>
+{% include "sales/_vehicle_model_tabs.html" with current="costs" %}
 
 <form method="get" class="master-filters">
   <div class="inventory-filter master-search">

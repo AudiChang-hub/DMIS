@@ -26,6 +26,12 @@
     <div><h2>機種與售價</h2><p>{% site_text 'data_maintenance.439b5cacbee0' %}</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
+  {# T-205：結算成本在機種與售價的分頁；只有結算成本權限的人才另外顯示這張卡。 #}
+  {% can_access 'vehicle_model_list' as card_models %}{% if not card_models %}{% if_access 'settlement_cost_rule_list' %}<a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
+    <span class="maintenance-card__icon">本</span>
+    <div><h2>機種與售價・結算成本</h2><p>{% site_text 'data_maintenance.e446c3013a86' %}</p><strong>{{ settlement_cost_rule_count }} 筆成本版本</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>{% endif_access %}{% endif %}
   {% if_access 'catalog_photo_board' %}<a class="maintenance-card" href="{% url 'catalog_photo_board' %}{% if catalog_photo_missing_count %}?missing=1{% endif %}">
     <span class="maintenance-card__icon">圖</span>
     <div><h2>車色圖片</h2><p>{% site_text 'data_maintenance.catalog_photo_board' %}</p><strong>{% if catalog_photo_missing_count %}缺圖 {{ catalog_photo_missing_count }} 張{% else %}啟用車色都有圖{% endif %}</strong></div>
@@ -73,11 +79,6 @@
 <section class="maintenance-section" aria-labelledby="maintenance-rules" data-side-nav-section="費率與規則">
   <div class="maintenance-section__heading"><div><p class="eyebrow">系統自動帶入</p><h2 id="maintenance-rules">費率與規則</h2></div><p>{% site_text 'data_maintenance.966d4a0e8e2f' %}</p></div>
   <div class="maintenance-grid">
-  {% if_access 'settlement_cost_rule_list' %}<a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
-    <span class="maintenance-card__icon">本</span>
-    <div><h2>車輛結算成本</h2><p>{% site_text 'data_maintenance.e446c3013a86' %}</p><strong>{{ settlement_cost_rule_count }} 筆成本版本</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
   {% if_access 'incentive_rule_list' %}<a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
     <span class="maintenance-card__icon">補</span>
     <div><h2>原廠獎勵與補助</h2><p>{% site_text 'data_maintenance.275db464f367' %}</p><strong>{{ incentive_campaign_count }} 個啟用活動</strong></div>

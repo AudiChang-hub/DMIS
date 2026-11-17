@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from sales.models import (
     LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot, OrderChange, SalesOrder, Store, VehicleColor,
-    VehicleInventory, VehicleModel,
+    VehicleInventory, VehicleInventoryHistory, VehicleModel,
 )
 from sales.services.order_search import build_order_search_payload
 from sales.services.vehicle_model_copy import execute_new_year
@@ -187,13 +187,15 @@ class ApplyColorCodesTests(TestCase):
         self.assertEqual(preview[orders["gogoro"].pk]["略過原因"], "非台鈴品牌")
         self.assertEqual(preview[orders["missing"].pk]["略過原因"], "對應表查無此號碼")
         self.assertEqual(preview[orders["nocode"].pk]["略過原因"], "查無色碼")
-        self.assertEqual(preview[orders["allocated"].pk]["已配庫存車車色"], "不同：白（未改）")
+        self.assertEqual(preview[orders["allocated"].pk]["已配庫存車車色"], "白→帕瑪森白 W17")
+        self.assertIn("已配庫存車要一起改車色：1 台", out)
+        self.assertFalse(VehicleInventoryHistory.objects.exists())
         self.assertIn("更新 5", out)
 
     def test_apply_creates_inactive_colors_fills_codes_and_logs_changes(self):
         orders, mapping = self.build_fixture()
         out, _ = self.run_command(mapping, "--apply")
-        self.assertIn("新建車色 2 個、補色碼 1 個、更新訂單 5 張", out)
+        self.assertIn("新建車色 2 個、補色碼 1 個、更新訂單 5 張（每張留 OrderChange）、已配庫存車 1 台", out)
         parmesan = VehicleColor.objects.get(vehicle_model=self.sui, name="帕瑪森白")
         self.assertEqual((parmesan.code, parmesan.active), ("W17", False))
         self.black.refresh_from_db()
@@ -207,7 +209,13 @@ class ApplyColorCodesTests(TestCase):
         for key in ("gogoro", "missing", "nocode"):
             self.assertEqual(SalesOrder.objects.get(pk=orders[key].pk).color_id, orders[key].color_id)
         vehicle = VehicleInventory.objects.get(engine_number="DL01-117213")
-        self.assertEqual(vehicle.color_id, self.white.pk)
+        self.assertEqual(vehicle.color_id, parmesan.pk)
+        history = VehicleInventoryHistory.objects.get(vehicle=vehicle)
+        self.assertEqual((history.event_type, history.actor_name), ("updated", "PM（使用者指示）"))
+        self.assertIn("T-223", history.reason)
+        self.assertEqual(history.changes, {"車色": {"before": "白", "after": "帕瑪森白 W17"}})
+        allocated_change = OrderChange.objects.get(order=orders["allocated"], actor_name="PM（使用者指示）")
+        self.assertEqual(allocated_change.changes["已配庫存車車色"], {"before": "白", "after": "帕瑪森白 W17"})
         change = OrderChange.objects.get(order=orders["new"], actor_name="PM（使用者指示）")
         self.assertIn("T-223", change.reason)
         self.assertEqual(change.changes, {"車色": {"before": "白", "after": "帕瑪森白 W17"}})
@@ -222,6 +230,20 @@ class ApplyColorCodesTests(TestCase):
         self.assertEqual(preview[orders["new"].pk]["結果"], "不變")
         self.assertEqual(list(VehicleColor.objects.order_by("pk").values_list("pk", "name", "code", "active")), colors)
         self.assertEqual(OrderChange.objects.filter(actor_name="PM（使用者指示）").count(), 5)
+        self.assertEqual(VehicleInventoryHistory.objects.count(), 1)
+        self.assertEqual(preview[orders["allocated"].pk]["已配庫存車車色"], "已是新車色")
+
+    def test_allocated_vehicle_only_mismatch_is_fixed(self):
+        parmesan = VehicleColor.objects.create(vehicle_model=self.sui, name="帕瑪森白", code="W17", active=False)
+        vehicle = VehicleInventory.objects.create(vehicle_model=self.sui, color=self.white, engine_number="DL04-1",
+                                                  ownership_store=self.store, location_store=self.store)
+        order = make_order(self.sui, parmesan, allocated_vehicle=vehicle)
+        mapping = self.mapping([["SUZUKI SUI 125", "DL04-1", "W17", "帕瑪森白", "", ""]])
+        _, preview = self.run_command(mapping, "--apply")
+        self.assertEqual((preview[order.pk]["結果"], preview[order.pk]["已配庫存車車色"]), ("更新", "白→帕瑪森白 W17"))
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.color_id, parmesan.pk)
+        self.assertEqual(list(OrderChange.objects.get(order=order, actor_name="PM（使用者指示）").changes), ["已配庫存車車色"])
 
     def test_conflicting_codes_are_skipped(self):
         first = self.legacy_order(self.sui, self.white, "DL02-1")

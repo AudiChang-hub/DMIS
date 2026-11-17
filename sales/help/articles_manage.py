@@ -191,7 +191,7 @@ MANAGE = (
         related=("create-order", "order-pricing"),
         routes=("accessory_product_list", "accessory_product_create", "accessory_product_edit", "accessory_category_list"),
         access=("accessory_product_list",), depends=("sales/accessory_product_list.html", "sales/accessory_product_form.html"),
-        verified="2.15.0",
+        verified="2.19.0",
     ),
     Article(
         slug="vehicle-models", title="機種、售價與年式", group="manage",
@@ -228,7 +228,7 @@ MANAGE = (
         replaces=("vehicle-colors", "vehicle-model-tools", "master-data"), access=("vehicle_model_list",),
         open_route="vehicle_model_list", open_label="打開機種與售價",
         depends=("sales/_vehicle_model_workspace.html", "sales/vehicle_model_price_versions.html", "sales/vehicle_model_batch.html"),
-        verified="2.15.0",
+        verified="2.19.0",
     ),
     Article(
         slug="catalog-photos", title="選車展示與車色圖片", group="manage",
@@ -300,7 +300,7 @@ MANAGE = (
         related=("vehicle-models", "subsidy"),
         routes=("incentive_rule_list", "incentive_campaign_create", "subsidy_program_list", "incentive_rule_create", "incentive_rule_edit", "incentive_campaign_edit"),
         access=("incentive_rule_list",), depends=("sales/incentive_campaign_form.html", "sales/subsidy_program_list.html"),
-        verified="2.15.0",
+        verified="2.19.0",
     ),
     Article(
         slug="installment-rules", title="分期方案、領牌費用與假日", group="manage",
@@ -331,7 +331,7 @@ MANAGE = (
         routes=("installment_company_list", "vehicle_installment_plan_list", "brand_registration_fee_rule_list", "business_holiday_list"),
         access=("installment_company_list",),
         depends=("sales/installment_plan_list.html", "sales/brand_registration_fee_rule_list.html", "sales/business_holiday_list.html"),
-        verified="2.15.0",
+        verified="2.19.0",
     ),
     Article(
         slug="sales-sources", title="車行、網路平台與本店人員", group="manage",
@@ -396,7 +396,7 @@ MANAGE = (
         routes=("dealer_sales_program_list", "dealer_reward_campaign_list", "dealer_reward_catalog_list", "dealer_volume_bonus_list",
                 "dealer_volume_bonus_create", "dealer_reward_catalog_create", "dealer_reward_catalog_edit", "dealer_volume_bonus_edit", "dealer_volume_bonus_delete", "dealer_volume_bonus_detail", "dealer_reward_campaign_create", "dealer_reward_campaign_edit"),
         replaces=("dealer-sales-programs", "dealer-volume-bonus"), access=("dealer_volume_bonus_list",),
-        depends=("sales/dealer_volume_bonus_form.html", "sales/dealer_volume_bonus_list.html"), verified="2.18.0",
+        depends=("sales/dealer_volume_bonus_form.html", "sales/dealer_volume_bonus_list.html"), verified="2.19.0",
     ),
     Article(
         slug="accounts", title="帳號與權限", group="manage",
@@ -427,7 +427,7 @@ MANAGE = (
         routes=("user_management", "permission_workspace", "access_edit", "order_account_scope", "order_customer_access",
                 "user_account_create", "user_account_edit", "user_account_reset_password"),
         replaces=("account-management", "single-order-access", "profit-access"), access=("user_management",),
-        depends=("sales/user_management.html", "sales/access/edit.html", "sales/permissions/_header.html"), verified="2.15.0",
+        depends=("sales/user_management.html", "sales/access/edit.html", "sales/permissions/_header.html"), verified="2.19.0",
     ),
     Article(
         slug="report-design", title="建立與修改報表", group="manage",
@@ -481,7 +481,7 @@ MANAGE = (
         routes=("positioned_template_list", "positioned_template_create", "positioned_template_edit", "print_company_settings"),
         replaces=("print-templates", "print-company", "print-company-admin"), access=("positioned_template_list",),
         depends=("sales/positioned_template_form.html", "sales/positioned_template_list.html", "sales/print_company_settings.html"),
-        verified="2.15.0",
+        verified="2.19.0",
     ),
     Article(
         slug="import", title="舊資料 Excel 匯入", group="manage",

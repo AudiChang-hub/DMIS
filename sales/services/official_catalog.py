@@ -783,7 +783,7 @@ def _notify_automatic(check, summary, errors, failed=False):
         lines.append("有變動：" + "、".join(changed[:10]) + ("…" if len(changed) > 10 else ""))
     if errors:
         lines.append(f"讀取失敗 {len(errors)} 頁：" + "；".join(errors[:3]))
-    lines.append("請到 選車展示管理 → 原廠車型比對 查看並確認。")
+    lines.append("請到 資料維護區 → 原廠車型比對 查看並確認。")
     notify("official_catalog_check", None, title, "\n".join(lines), recipients=[admin], dedupe_suffix=str(check.pk))
 
 

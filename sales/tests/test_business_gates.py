@@ -86,6 +86,27 @@ class BusinessGateTests(TestCase):
         second.refresh_from_db()
         self.assertFalse(second.delivery_blockers())
 
+    def test_exception_close_forfeit_reason_is_really_optional(self):
+        """T-202：沒收備註標「（選填）」，有沒收金額也可以留空結案（使用者 2026-11-17：「改成選填」）。"""
+        from sales.forms import ExceptionCloseForm
+        order, _vehicle = self.make_order(deposit=Decimal("0"))
+        order = self.v2(order)
+        self.receive(order, "20000")
+        order = self.registered(order)
+        form = ExceptionCloseForm(order, {
+            "forfeited_amount": "6000", "forfeit_reason": "", "resale_price": "62000", "completed_on": "2026-08-06",
+            "method": SalesOrder.PaymentMethod.TRANSFER, "reference": "末五碼 1",
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.fields["forfeit_reason"].label, "沒收備註（選填）")
+        order = close_after_registration(
+            order.pk, actor_name="測試", reason="", forfeited_amount=Decimal("6000"), forfeit_reason="",
+            resale_price=Decimal("62000"), completed_on=date(2026, 8, 6),
+            method=SalesOrder.PaymentMethod.TRANSFER, reference="末五碼 1",
+        )
+        self.assertEqual(order.status, SalesOrder.Status.EXCEPTION_CLOSED)
+        self.assertEqual(order.refund_amount, Decimal("14000"))
+
     # H4：領牌後棄單例外結案
     def test_exception_close_releases_registered_vehicle_with_settlement(self):
         order, vehicle = self.make_order(deposit=Decimal("0"))

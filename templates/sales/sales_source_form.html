@@ -92,7 +92,7 @@
       <section class="source-basic-card source-basic-card--settings">
         <header><strong>名單與使用狀態</strong><small>{% site_text 'sales_source_form.d58e77149c35' %}</small></header>
         <div class="source-status-options">
-          <div class="source-status-option">{% include "sales/_field.html" with field=form.holiday_gift %}</div>
+          {% if "holiday_gift" in form.fields %}<div class="source-status-option">{% include "sales/_field.html" with field=form.holiday_gift %}</div>{% endif %}
           <div class="source-status-option">{% include "sales/_field.html" with field=form.active %}</div>
         </div>
       </section>

@@ -276,6 +276,23 @@ class OrderDeletionTests(TestCase):
         self.assertEqual(self.client.post(url, payload).status_code, 302)
         self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
 
+    def test_review_page_shows_what_to_handle_first_without_blocking(self):
+        """T-202（使用者選 A）：系統算出的「請先處理以下事項」用紅框列出，只提醒、不擋；admin 勾確認照樣能刪。"""
+        self.receive("3000")
+        url = reverse("order_delete", args=[self.order.pk])
+        page = self.client.get(url)
+        self.assertContains(page, "請先處理以下事項")
+        self.assertContains(page, "有實收紀錄，請先完成取消及退款結算，不可用刪除代替沖銷。")
+        self.assertContains(page, 'class="callout callout--danger"')
+        self.assertNotContains(page, "此訂單不能刪除")
+        payload = self.payload(force="on", impact_confirmation=page.context["form"]["impact_confirmation"].value())
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
+
+    def test_review_page_without_issues_has_no_red_box(self):
+        page = self.client.get(reverse("order_delete", args=[self.order.pk]))
+        self.assertNotContains(page, "請先處理以下事項")
+
     def make_inventory(self, status="reserved"):
         from sales.models import Store, VehicleInventory
         store = Store.objects.create(name="合成庫存門市")

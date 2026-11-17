@@ -14,6 +14,7 @@ HERO_EXEMPT = {
     "errors/403.html",
     "errors/404.html",
     "errors/500.html",
+    "errors/csrf.html",
     "registration/login.html",
     "registration/password_change_required.html",
     "sales/announcement_detail.html",

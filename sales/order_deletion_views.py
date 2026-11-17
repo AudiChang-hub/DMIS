@@ -59,7 +59,8 @@ def order_delete(request, pk, *, restore=False):
             impacts.append("退出有效收款待辦及營運統計，保留收款證據；不自動標記退款。")
         if order.dealer_volume_bonus_allocations.exists():
             impacts.append("作廢原單獎金分配並更新結算台數與合計；其他訂單分配不轉嫁、不改寫。")
-    blockers = []
+    # T-202（使用者選 A）：系統算出的待處理事項只顯示、不擋；admin 勾確認後照樣可刪。不能刪的另外列在「此訂單不能刪除」。
+    blockers = [] if restore else [item for item in deletion_blockers(order) if item not in permanent_blockers]
     if request.method == "POST" and form.is_valid():
         try:
             action = request.POST.get("action", "delete" if root or restore else "request")

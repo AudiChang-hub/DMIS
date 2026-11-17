@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}頁面停留太久｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="card error-page" role="alert">
+  <p class="eyebrow">資料未送出</p>
+  <h1>頁面停留太久，請重新整理後再送一次</h1>
+  <p>為了保護資料，畫面開著太久沒有操作時，送出的表單會失效。這次的內容沒有存進系統。</p>
+  <p class="muted">請按「返回上一頁」、重新整理後再填一次；訂單頁會自動儲存，回去時已經存好的資料仍在。</p>
+  <div class="form-actions">
+    <button class="button ghost" type="button" data-history-back data-fallback-url="{% url 'dashboard' %}">返回上一頁</button>
+    <a class="button primary" href="{% url 'dashboard' %}">回到首頁</a>
+  </div>
+</section>
+{% endblock %}

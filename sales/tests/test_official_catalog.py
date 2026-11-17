@@ -230,6 +230,9 @@ class OfficialCatalogCheckJobTests(TestCase):
         (notice,) = Notification.objects.filter(recipient=admin, event_key="official_catalog_check")
         self.assertIn("2 款新出現", notice.title)
         self.assertIn("SUI 125", notice.body)
+        # T-202：「選車展示管理」頁已不存在，通知要指到實際的入口
+        self.assertIn("請到 資料維護區 → 原廠車型比對 查看並確認", notice.body)
+        self.assertNotIn("選車展示管理", notice.body)
         check = OfficialCatalogCheck.objects.get()
         self.assertIsNone(check.requested_by)
         self.call_scheduled(pages)  # 沒有變化不通知

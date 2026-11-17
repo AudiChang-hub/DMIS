@@ -1092,6 +1092,9 @@ class SalesSourceForm(forms.ModelForm):
         self.fields["line_group_presence"].initial = (
             "yes" if self.instance.has_line_group else "no"
         )
+        if behavior == SalesSource.SourceType.PLATFORM:
+            # 網路平台不送年節禮（使用者 2026-11-17，T-202）：不顯示勾選，資料欄位保留不動。
+            self.fields.pop("holiday_gift")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -5071,8 +5074,6 @@ class ExceptionCloseForm(forms.Form):
         cleaned["forfeited_amount"] = forfeited
         if forfeited > self.received:
             self.add_error("forfeited_amount", f"沒收金額不可超過已收 {self.received:,.0f} 元。")
-        if forfeited and not (cleaned.get("forfeit_reason") or "").strip():
-            self.add_error("forfeit_reason", "有沒收金額時，請填寫沒收原因。")
         if self.received - forfeited > 0 and not cleaned.get("method"):
             self.add_error("method", "有應退金額時，請選擇退款方式。")
         return cleaned

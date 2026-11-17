@@ -10172,6 +10172,11 @@ def page_not_found(request, exception=None):
     return render(request, "errors/404.html", status=404)
 
 
+def csrf_failure(request, reason=""):
+    """表單安全碼過期（頁面停太久才送出）：中文說明與返回按鈕，取代 Django 英文 403（T-202）。"""
+    return render(request, "errors/csrf.html", status=403)
+
+
 def server_error(request):
     return render(
         request,

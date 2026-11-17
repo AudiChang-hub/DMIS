@@ -249,7 +249,7 @@ class Command(BaseCommand):
             raise CommandError(f"{owner_name} 確認領牌失敗：{message}")
 
     def volume_bonus(self):
-        """10 月滿 3 台每台加 500；10 月已結束，立刻入帳（和每天 03:50 的排程結果相同）。"""
+        """10 月滿 3 台每台加 500；10 月已結束，試算完成、待在給付頁按結算（T-203 起不自動入帳）。"""
         from sales.models import DealerVolumeBonusRule, DealerVolumeBonusTier
         from sales.services.volume_bonus import recompute_rule
         rule, created = DealerVolumeBonusRule.objects.get_or_create(name="示範十月台數獎金", defaults=dict(

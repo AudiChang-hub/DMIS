@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from threading import Barrier
 from unittest import skipUnless
+from unittest.mock import patch
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -25,7 +26,7 @@ from sales.reporting import payouts
 from sales.services.dealer_commission import apply_order_dealer_commission
 from sales.services.dealer_reward_campaign import apply_order_dealer_rewards
 from sales.services.dealer_settlement import dealer_settlement
-from sales.services.volume_bonus import recompute_rule
+from sales.services.volume_bonus import recompute_rule, settle_group
 from sales.tests import test_finance_ledger as ledger
 
 KEY = "commission:order:{}"
@@ -251,7 +252,7 @@ class PayoutViewTests(PayoutTestBase):
 
 
 class PayoutVolumeBonusTests(TestCase):
-    """台數獎金（T-148 OrderVolumeBonus）：每期 × 每家車行 × 每條規則一列；期間結束入帳才可勾選。"""
+    """台數獎金（T-148 OrderVolumeBonus）：每期 × 每家車行 × 每條規則一列；按「結算」後才可勾選（T-203）。"""
     OCT = (date(2026, 10, 1), date(2026, 10, 31))
     DURING = timezone.make_aware(datetime(2026, 10, 20, 10))
     AFTER = timezone.make_aware(datetime(2026, 11, 1, 4))
@@ -284,8 +285,9 @@ class PayoutVolumeBonusTests(TestCase):
         self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=self.DURING)
-        self.assertEqual(self.bonus_items(), [])
-        [item] = self.bonus_items(include_estimate=True)
+        with patch("sales.services.volume_bonus.timezone.localdate", return_value=date(2026, 10, 20)):
+            self.assertEqual(self.bonus_items(), [])
+            [item] = self.bonus_items(include_estimate=True)
         self.assertTrue(item.estimate)
         self.assertFalse(item.checkable)
         self.assertEqual(item.status, "estimate")
@@ -296,6 +298,7 @@ class PayoutVolumeBonusTests(TestCase):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=self.AFTER)
+        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "〔人員〕", now=self.AFTER)
         [item] = self.bonus_items()
         self.assertEqual((item.amount, item.dealer, item.short_label), (Decimal("1000"), self.dealer, "十月衝量"))
         self.assertIn("2 台，達 2 台門檻", item.period_label)
@@ -306,21 +309,25 @@ class PayoutVolumeBonusTests(TestCase):
         self.assertEqual(commission.amount, Decimal("2000"))
         self.assertEqual(payouts.totals(payouts.collect_items())["unpaid_amount"], Decimal("5000"))
 
-    def test_paid_bonus_recalculated_is_flagged_and_vanished_bonus_is_orphan(self):
+    def test_paid_settled_bonus_stays_fixed_and_flags_changes(self):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=self.AFTER)
+        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "〔人員〕", now=self.AFTER)
         [item] = self.bonus_items()
         payouts.set_paid([item.source_key], True, "〔人員〕")
         self.order(date(2026, 10, 25))
         recompute_rule(rule.pk, now=self.AFTER)
         [item] = self.bonus_items()
-        self.assertEqual((item.status, item.difference), ("changed", Decimal("500")))
+        # T-203：結算後金額固定，不出現「給付後金額有變」；改標「結算後有變」。
+        self.assertEqual((item.status, item.amount), ("paid", Decimal("1000")))
+        self.assertIn("目前 3 台", item.settle_changes[0])
         for order in (first, second):
             SalesOrder.all_objects.filter(pk=order.pk).update(status="cancelled")
         recompute_rule(rule.pk, now=self.AFTER)
-        self.assertEqual(self.bonus_items(), [])
-        self.assertEqual([entry.source_key for entry in payouts.orphan_entries(payouts.collect_items())], [item.source_key])
+        [item] = self.bonus_items()
+        self.assertEqual(item.amount, Decimal("1000"))
+        self.assertEqual(payouts.orphan_entries(payouts.collect_items()), [])
 
 
 class PayoutRewardTests(PayoutTestBase):

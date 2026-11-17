@@ -1,5 +1,5 @@
 {% load sales_format %}
-<section class="dealer-settlement is-{{ settlement.direction }}{% if compact %} dealer-settlement--compact{% endif %}" aria-label="車行結算" data-dealer-settlement data-settlement-base="{{ settlement.base_without_commission|stringformat:'d' }}">
+<section class="dealer-settlement is-{{ settlement.direction }}{% if compact %} dealer-settlement--compact{% endif %}" aria-label="車行結算" data-dealer-settlement data-settlement-base="{{ settlement.base_without_commission|stringformat:'d' }}" data-settlement-bonus="{{ settlement.volume_bonus|stringformat:'d' }}">
   <header class="dealer-settlement__head">
     <div>
       <p class="dealer-settlement__eyebrow">車行結算 · {{ settlement.mode_label }}</p>
@@ -16,6 +16,6 @@
     </li>
     {% endfor %}
   </ol>
-  {% if settlement.volume_bonus %}<p class="dealer-settlement__note">傭金含台數獎金 ${{ settlement.volume_bonus|number_with_commas }}（期間結束自動入帳）：另外付給車行，不扣本單應收。</p>{% endif %}
+  {% if settlement.volume_bonus %}<p class="dealer-settlement__note">傭金不含台數獎金：已結算的台數獎金 ${{ settlement.volume_bonus|number_with_commas }} 另外發放給車行，不扣本單應收。</p>{% endif %}
   <p class="dealer-settlement__note">{% if settlement.installment_fees %}分期總價固定、車款由分期公司撥款；牌險、選號、配件等由車行付的費用與傭金互抵（未扣訂金）。{% elif settlement.installment %}分期單車款由分期公司撥款，只結算配件與傭金。{% else %}原現金價不扣已核准優惠。{% endif %}正數向車行收、負數付給車行；只供對帳參考，不會自動登記收款或掛帳。</p>
 </section>

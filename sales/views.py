@@ -279,7 +279,7 @@ from .services.dealer_commission import apply_order_dealer_commission
 from .services.bonus_rule_deletion import bonus_rule_delete_preview, delete_bonus_rule
 from .services.volume_bonus import (
     group_preview as volume_bonus_group_preview,
-    is_posted_period as volume_bonus_is_posted,
+    period_ended as volume_bonus_period_ended,
     scope_dealers as volume_bonus_scope_dealers,
 )
 from .services.secret_fields import decrypt_secret, encrypt_secret
@@ -3182,7 +3182,7 @@ def dealer_volume_bonus_list(request):
                 period_entries = [volume_bonus_group_preview(rule, period, dealer) for dealer in volume_bonus_scope_dealers(rule, period)]
                 period_entries = [entry for entry in period_entries if entry["quantity"] or show_all]
                 entries.extend(period_entries)
-                groups.append({'period': period, 'entries': period_entries, 'posted': volume_bonus_is_posted(period)})
+                groups.append({"period": period, "entries": period_entries, "ended": volume_bonus_period_ended(period)})
         if tab == "trial" and not show_all and not any(entry["quantity"] for entry in entries):
             hidden_count += 1
             continue

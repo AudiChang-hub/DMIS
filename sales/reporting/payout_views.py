@@ -88,7 +88,7 @@ def dealer_payout_list(request):
         "groups": payouts.summarize(items),
         "totals": totals,
         "orphans": orphans,
-        "attention_count": totals["changed_count"] + len(orphans),
+        "attention_count": totals["changed_count"] + totals["settle_changed_count"] + len(orphans),
         "can_open_orders": policy.route("order_list"),
         "dealers": dealers,
         "status_labels": payouts.STATUS_LABELS,
@@ -112,6 +112,27 @@ def _back(request):
     return redirect("dealer_payout_list")
 
 
+def _settlement_action(request, action, actor):
+    """台數獎金結算／取消結算（T-203，使用者 2026-11-17 選 C）：規則×期間×車行一組。"""
+    from sales.services.audit_note import money
+    from sales.services.volume_bonus import cancel_settlement, settle_group
+
+    scope = [request.POST.get(name, "") for name in ("rule", "period", "dealer")]
+    if not all(value.isdigit() for value in scope):
+        raise ValidationError("找不到要結算的台數獎金，請重新整理。")
+    rule_id, period_id, dealer_id = (int(value) for value in scope)
+    if action == "settle":
+        total = request.POST.get("total", "")
+        settlement = settle_group(rule_id, period_id, dealer_id, actor,
+                                  expected_total=int(total) if total.isdigit() else None)
+        messages.success(request, f"已結算 {settlement.dealer.name}「{settlement.rule}」{settlement.period.label}："
+                                  f"{settlement.quantity} 台、{money(settlement.total_amount)}，已加進各單傭金支出，待發放給車行。")
+    else:
+        settlement = cancel_settlement(rule_id, period_id, dealer_id, actor)
+        messages.success(request, f"已取消 {settlement.dealer.name}「{settlement.rule}」{settlement.period.label} 的結算，"
+                                  "獎金已從各單傭金支出移除、回到試算。")
+
+
 @login_required
 @require_POST
 def dealer_payout_update(request):
@@ -132,6 +153,8 @@ def dealer_payout_update(request):
         elif action == "confirm" and len(keys) == 1:
             payouts.confirm_difference(keys[0], actor)
             messages.success(request, "已確認差額，改以目前金額記為已給付。")
+        elif action in {"settle", "cancel_settlement"}:
+            _settlement_action(request, action, actor)
         elif action == "resolve" and request.POST.get("entry", "").isdigit():
             outcome = request.POST.get("outcome", "")
             payouts.resolve_orphan(int(request.POST["entry"]), actor, outcome)

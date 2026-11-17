@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">報表中心 · 給付追蹤</p>
     <h1>車行傭金／獎金給付</h1>
-    <p class="muted">領牌完成後列出要給車行的傭金與實物；台數獎金在統計期間結束、自動入帳後列出。勾「已給付」只做追蹤，不影響車行結算、掛帳與淨利。</p>
+    <p class="muted">領牌完成後列出要給車行的傭金與實物。台數獎金在統計期間結束後列為「待結算」，按「結算」才加進傭金支出與淨利，之後另外發放給車行。勾「已給付」只做追蹤，不影響車行結算、掛帳與淨利。</p>
   </div>
   {% if can_export %}<div class="hero-actions"><a class="button ghost" href="{% url 'dealer_payout_export' %}?{{ request.GET.urlencode }}" data-no-busy>匯出 CSV</a></div>{% endif %}
 </header>
@@ -43,10 +43,11 @@
       <span>未給付金額</span>
       <strong class="payout-figure">${{ totals.unpaid_amount|number_with_commas }}</strong>
       <small>{{ totals.unpaid_count }} 個項目未給付{% if totals.dealer_count %} · {{ totals.dealer_count }} 家車行{% endif %}</small>
+      {% if totals.settle_count %}<a class="payout-summary__settle" href="?{% if selected.dealer %}dealer={{ selected.dealer }}&amp;{% endif %}status=settle">台數獎金待結算 {{ totals.settle_count }} 組 · ${{ totals.settle_amount|number_with_commas }}<small>結算後才算進未給付</small></a>{% endif %}
     </div>
     <dl class="payout-summary__facts">
       <div><dt>已給付金額</dt><dd>${{ totals.paid_amount|number_with_commas }}</dd></div>
-      <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if totals.changed_count or orphans %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.changed_count and orphans %} · {% endif %}{% if orphans %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
+      <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if attention_count %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.settle_changed_count %}{% if totals.changed_count %} · {% endif %}結算後有變 {{ totals.settle_changed_count }}{% endif %}{% if orphans %}{% if totals.changed_count or totals.settle_changed_count %} · {% endif %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
       <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌</dd><small>傭金依領牌日、台數獎金依期間結束日、車行獎勵未確認領牌時依訂單日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
     </dl>
   </section>
@@ -76,14 +77,16 @@
   {% endif %}
 
   {% for group in groups %}
-  <details class="payout-dealer" {% if group.unpaid_amount or group.unpaid_goods or group.attention or groups|length <= 3 %}open{% endif %}>
+  <details class="payout-dealer" {% if group.unpaid_amount or group.unpaid_goods or group.attention or group.settle_count or group.settle_changed or groups|length <= 3 %}open{% endif %}>
     <summary class="payout-dealer__head">
       <span class="payout-dealer__name"><strong>{{ group.dealer.name }}</strong><small>{{ group.count }} 個項目</small></span>
       <span class="payout-dealer__due">
         {% if group.unpaid_amount %}<span class="payout-dealer__amount"><small>未給付</small>${{ group.unpaid_amount|number_with_commas }}</span>{% endif %}
         {% for goods in group.unpaid_goods %}<span class="payout-goods">{{ goods.label }} × {{ goods.quantity }}{{ goods.unit }}</span>{% endfor %}
-        {% if not group.unpaid_amount and not group.unpaid_goods %}<span class="payout-state payout-state--paid">全部已給付</span>{% endif %}
+        {% if group.settle_count %}<span class="payout-state payout-state--settle">待結算 {{ group.settle_count }} 組 · ${{ group.settle_amount|number_with_commas }}</span>{% endif %}
+        {% if not group.unpaid_amount and not group.unpaid_goods and not group.settle_count %}<span class="payout-state payout-state--paid">全部已給付</span>{% endif %}
         {% if group.attention %}<span class="payout-state payout-state--changed">金額有變 {{ group.attention }}</span>{% endif %}
+        {% if group.settle_changed %}<span class="payout-state payout-state--changed">結算後有變 {{ group.settle_changed }}</span>{% endif %}
       </span>
     </summary>
     <div class="payout-dealer__body">
@@ -120,7 +123,7 @@
   {% empty %}
   <div class="empty-state payout-empty">
     <span class="empty-state__icon" aria-hidden="true">✓</span>
-    {% if filters_active %}<h3>沒有符合篩選的項目</h3><p>換個車行、日期或狀態，或按「清除」看全部。</p>{% else %}<h3>目前沒有要給車行的項目</h3><p>{{ start_date|date:'Y/m/d' }} 起領牌完成的車行單，有傭金或實物獎勵就會列在這裡。</p>{% endif %}
+    {% if filters_active %}<h3>沒有符合篩選的項目</h3><p>換個車行、日期或狀態，或按「清除」看全部。</p>{% else %}<h3>目前沒有要給車行的項目</h3><p>{{ start_date|date:'Y/m/d' }} 起領牌完成的車行單，有傭金或實物獎勵就會列在這裡；台數獎金在期間結束後列為待結算。</p>{% endif %}
   </div>
   {% endfor %}
 </div>

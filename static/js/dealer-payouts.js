@@ -1,4 +1,4 @@
-/* 車行傭金／獎金給付（T-150）：勾選即登記、備註離開欄位即儲存。
+/* 車行傭金／獎金給付（T-150）：勾選即登記、備註離開欄位即儲存；台數獎金結算先開確認卡（T-203）。
    送出交給 form-feedback.js（取消已給付先確認、防重複送出）與 inplace-regions.js（原地換入、不捲動）；
    沒有 JavaScript 時各列有 noscript 按鈕可整頁送出。 */
 (() => {
@@ -18,6 +18,20 @@
       toggle.checked = !wanted;
       form.closest("[data-payout-item]")?.classList.remove("is-saving");
     }
+  });
+
+  // 台數獎金結算（T-203）：「結算」先開確認卡，按「確認結算」才送出；Esc、先不要、點背景都是取消。
+  page.addEventListener("click", (event) => {
+    const opener = event.target.closest("[data-settle-open]");
+    if (opener) {
+      document.getElementById(opener.dataset.settleOpen)?.showModal();
+      return;
+    }
+    if (event.target.closest("[data-settle-close]")) {
+      event.target.closest("dialog")?.close();
+      return;
+    }
+    if (event.target.matches?.("[data-settle-dialog]")) event.target.close();
   });
 
   // 備註：改完離開欄位（change）就儲存；Enter 也是儲存，不另跳頁。

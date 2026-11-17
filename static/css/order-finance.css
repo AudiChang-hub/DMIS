@@ -30,6 +30,8 @@
   background: radial-gradient(420px 200px at 100% 0%, color-mix(in srgb, var(--forest) 55%, transparent), transparent 70%), var(--spotlight);
 }
 .finance-kpi--net .finance-kpi__label, .finance-kpi--net small { color: var(--on-spotlight-muted); }
+/* 未結算的台數獎金試算（T-203）：只提示、不計入淨利；手機版其他說明隱藏時仍顯示。 */
+.finance-kpi__pending { display: block; margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px dashed color-mix(in srgb, var(--on-spotlight-muted) 45%, transparent); }
 .finance-kpi--net .finance-kpi__label i { background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
 .finance-kpi__value--net { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; color: var(--on-spotlight); }
 .finance-kpi__value--net [data-profit-value] { color: var(--on-spotlight); }
@@ -231,6 +233,7 @@
   .finance-overview__kpis { gap: var(--space-3); }
   .finance-kpi { padding: var(--space-3) var(--inset-pad); }
   .finance-kpi small { display: none; }
+  .finance-kpi small.finance-kpi__pending { display: block; }
   .finance-overview__dirty { margin-left: 0; }
   .finance-strip__card, .dealer-settlement { padding: var(--inset-pad); }
   .finance-strip__figures { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--space-3); }

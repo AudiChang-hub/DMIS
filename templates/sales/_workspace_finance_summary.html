@@ -15,6 +15,7 @@
       <span class="finance-kpi__label"><i aria-hidden="true"></i>淨利</span>
       <div class="finance-kpi__value finance-kpi__value--net">{% include 'sales/_order_profit.html' %}</div>
       <small>收入合計－支出合計</small>
+      {% if volume_bonus_estimate and profit_unlocked and not order.is_cancelled_sale %}<small class="finance-kpi__pending">台數獎金試算 ${{ volume_bonus_estimate|number_with_commas }} 尚未結算，不計入淨利</small>{% endif %}
     </div>
   </div>
   {# 成交總額、總收款與車行結算移到最上面的 ①（_workspace_finance_settlement.html，使用者 2026-11-09 p7）。 #}

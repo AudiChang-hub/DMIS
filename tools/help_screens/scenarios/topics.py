@@ -1,6 +1,6 @@
 """日常與偶爾用的篇章截圖（T-197 第一批）。每段一個函式、各自寫到 static/help/screens/<篇名>/。
 
-使用 seed_help_demo 的合成資料：示範車行丙 10 月 3 張（台數獎金已入帳）、示範客戶31（取消用）、示範客戶32（收款用），
+使用 seed_help_demo 的合成資料：示範車行丙 10 月 3 張（台數獎金待結算，T-203）、示範客戶31（取消用）、示範客戶32（收款用），
 以及 create_order／mainline 建好的王小明訂單（facts["create_order"]["order_pk"]）。
 """
 from shots import ANNOTATE, CLEAR, TEXT, common_parent, leaf_text, mark, region, shot, viewport
@@ -37,8 +37,8 @@ def dealer_payouts(page, base, out, assets, facts):
     page.wait_for_timeout(600)
     card = mark(page, "button:has-text('示範車行丙全部標記已給付')", "dealer-card", "section, article, details")
     text = page.evaluate(TEXT, "main")
-    if "$6,000" not in text or "達 3 台門檻" not in text:
-        raise RuntimeError("示範車行丙不是 $6,000／達 3 台門檻，說明範例要重算：" + text[:400])
+    if "$4,500" not in text or "達 3 台門檻" not in text or "待結算 1 組" not in text:
+        raise RuntimeError("示範車行丙不是 $4,500＋待結算 1 組／達 3 台門檻，說明範例要重算：" + text[:400])
     filters = mark(page, "select[name=dealer]", "payout-filters", "form")
     summary = leaf_text(page, "未給付金額", "payout-summary-title")
     page.evaluate("()=>{let x=document.querySelector('[data-help-shot=payout-summary-title]'); while(x && !/已給付金額/.test(x.innerText)) x=x.parentElement; x.setAttribute('data-help-shot','payout-summary')}")
@@ -47,12 +47,23 @@ def dealer_payouts(page, base, out, assets, facts):
     first_row = mark(page, f"{card} >> text=抵扣應收", "commission-tag")
     bonus = mark(page, "text=示範十月台數獎金", "bonus-name")
     shot(page, out / "02-dealer-card.jpg", [{"sel": card, "n": 3, "pad": 2}, {"sel": first_row, "n": 4}, {"sel": bonus, "n": 5}], margin=24, max_height=980)
-    page.locator("text=逐單明細 3 張").first.click()
+    # 結算台數獎金（T-203）：先開確認卡，展開逐單明細後截圖，再確認結算。
+    page.locator("[data-settle-open]").first.click()
     page.wait_for_timeout(500)
-    detail = mark(page, "text=逐單明細 3 張", "bonus-detail", "details, div[class]")
-    shot(page, out / "03-bonus-detail.jpg", [{"sel": detail, "n": 6}], margin=30)
+    sheet = mark(page, "dialog[open] .payout-settle-dialog__values", "settle-values")
+    page.locator("dialog[open] summary:has-text('逐單明細 3 張')").click()
+    page.wait_for_timeout(300)
+    viewport(page, out / "03-settle-confirm.jpg", [{"sel": sheet, "n": 6}], height=1000)
+    page.locator("dialog[open] button[type=submit]").click()
+    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+    settled = page.evaluate(TEXT, "main")
+    if "$6,000" not in settled or "待發放" not in settled:
+        raise RuntimeError("結算後未給付不是 $6,000 或沒有「待發放」：" + settled[:400])
+    mark(page, ".payout-bonuses >> text=示範十月台數獎金", "bonus-name")  # 結算後整塊原地換新，標記要重下；成功提示也有規則名稱，限定在台數獎金區
     # 標記台數獎金已給付（只做追蹤，不寫收支）
-    toggle = page.evaluate("()=>{const row=document.querySelector('[data-help-shot=bonus-name]').closest('[class*=item], li, article, div'); let x=row; while(x && !x.querySelector('input[type=checkbox], button')) x=x.parentElement; const c=x.querySelector('label:has(input[type=checkbox]), button'); c.setAttribute('data-help-shot','bonus-toggle'); return c.textContent.trim()}")
+    # 結算後台數獎金列多了「取消結算」按鈕，直接找同一列的已給付勾選框。
+    toggle = page.evaluate("()=>{const row=document.querySelector('[data-help-shot=bonus-name]').closest('li'); const c=row.querySelector('label:has(input[type=checkbox])'); c.setAttribute('data-help-shot','bonus-toggle'); return c.textContent.trim()}")
     page.click("[data-help-shot=bonus-toggle]")
     page.wait_for_timeout(1500)
     confirm = page.locator("dialog[open] button.primary")
@@ -60,7 +71,7 @@ def dealer_payouts(page, base, out, assets, facts):
         confirm.first.click()
         page.wait_for_timeout(1500)
     page.wait_for_load_state("networkidle")
-    bonus = mark(page, "text=示範十月台數獎金", "bonus-name-paid")
+    bonus = mark(page, ".payout-bonuses >> text=示範十月台數獎金", "bonus-name-paid")
     shot(page, out / "04-bonus-paid.jpg", [{"sel": bonus, "n": 7}], margin=90)
     paid = page.evaluate(TEXT, "main")
     return {"toggle": toggle, "after": paid[paid.find("已給付金額"):][:80]}

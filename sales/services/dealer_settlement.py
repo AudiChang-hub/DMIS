@@ -5,6 +5,8 @@
 - 分期購車（系統建立）：分期外應收（牌險、選號、配件等由車行付的費用，扣訂金前）－ 傭金（T-154）；
   分期總價本身固定、不扣傭金。Excel 匯入的分期單照舊：配件費 － 傭金。
 正數＝向車行收；負數＝付給車行；零＝無需收付。
+「傭金」不含台數獎金：已結算的台數獎金另外發放給車行，不扣本單應收（T-203，使用者 2026-11-17 選 C），
+和車行掛帳（`customer_receivable.dealer_account_due`）同一個數字。
 """
 from decimal import Decimal
 
@@ -48,10 +50,10 @@ def dealer_settlement(order, profile=None):
         return None
     if profile is None:
         profile = OrderOperationsProfile.objects.filter(order=order).first()
-    commission = _money(profile.dealer_commission_expense if profile else ZERO)
-    # 傭金支出含期間結束後自動入帳的台數獎金（T-148）；這筆另外付給車行，不扣本單應收。
+    # 傭金支出含已結算的台數獎金；這筆另外發放給車行，不扣本單應收，結算只扣其餘傭金（T-203）。
     from sales.services.dealer_commission import commission_volume_bonus
     volume_bonus = _money(commission_volume_bonus(order, profile)) if profile else ZERO
+    commission = _money(profile.dealer_commission_expense if profile else ZERO) - volume_bonus
     accessories = _money(order.accessory_total)
     installment = order.payment_type == SalesOrder.PaymentType.INSTALLMENT
     # 系統建立的分期車行單：牌險、選號、配件等由車行付的費用與傭金互抵（T-154）；Excel 匯入單照舊。
@@ -93,7 +95,7 @@ def dealer_settlement(order, profile=None):
         "amount": abs(total),
         "direction": direction,
         "label": label,
-        # 前端即時試算：除傭金外各項合計，傭金欄位修改時以此重算。
+        # 前端即時試算：除傭金外各項合計，傭金欄位修改時以此重算（收支頁的傭金支出含台數獎金，前端先扣掉）。
         "base_without_commission": total + commission,
         "volume_bonus": volume_bonus,
     }

@@ -25,8 +25,13 @@ def bonus_rule_snapshot(rule):
     return json.loads(json.dumps(snapshot, cls=DjangoJSONEncoder))
 
 
+def _settlement_count(rule):
+    # 舊「確認結算」＋T-203 有效的台數獎金結算（取消後的紀錄不擋）。
+    return rule.settlements.count() + rule.group_settlements.filter(cancelled_at__isnull=True).count()
+
+
 def bonus_rule_delete_preview(rule, actor):
-    settlement_count = rule.settlements.count()
+    settlement_count = _settlement_count(rule)
     periods = list(rule.periods.all())
     return {
         "settlement_count": settlement_count,
@@ -45,8 +50,8 @@ def delete_bonus_rule(*, rule_id, actor, confirmation_token):
         rule = DealerVolumeBonusRule.objects.select_for_update().get(pk=rule_id)
     except DealerVolumeBonusRule.DoesNotExist as exc:
         raise ValidationError("規則已不存在，未重複執行刪除。") from exc
-    if rule.settlements.exists():
-        raise ValidationError("此規則已有結算，只能停用，不能刪除。")
+    if _settlement_count(rule):
+        raise ValidationError("此規則已有結算，只能停用，不能刪除；要刪除請先到給付頁取消結算。")
     try:
         confirmed = signing.loads(confirmation_token, salt=CONFIRMATION_SALT, max_age=3600)
     except signing.BadSignature as exc:

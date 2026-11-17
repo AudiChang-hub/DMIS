@@ -172,7 +172,20 @@ def finance_overview_context(form, profile, order):
         'finance_totals': finance_totals(profile),
         'dealer_settlement': dealer_settlement(order, profile),
         'plate_variance': plate_variance,
+        'volume_bonus_estimate': unsettled_volume_bonus(order),
     }
+
+
+def unsettled_volume_bonus(order):
+    """還沒結算的台數獎金試算（T-203）：不計入淨利，只在淨利旁灰字提示。匯入單與非車行獎金單為 0。"""
+    from django.db.models import Sum
+
+    from sales.models import OrderVolumeBonus
+
+    if not order.pk:
+        return 0
+    return OrderVolumeBonus.objects.filter(order=order, posted_at__isnull=True, amount__gt=0).aggregate(
+        total=Sum("amount"))["total"] or 0
 
 
 def apply_inline_discount(request, order, form):

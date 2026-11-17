@@ -1523,9 +1523,10 @@ class DealerVolumeBonusRuleDealer(models.Model):
 
 
 class OrderVolumeBonus(TimeStampedModel):
-    """依規則自動計算的逐單台數獎金（T-148 方案 B）。
+    """依規則自動計算的逐單台數獎金（T-148 方案 B；T-203 改為手動結算）。
 
-    期間內為預估（posted_at 空白，不進傭金支出）；期間結束後自動入帳，之後異動仍自動重算。
+    未結算（posted_at 空白）一律是試算，不進傭金支出；使用者在給付頁按「結算」後填上 posted_at（＝結算時間），
+    金額固定、加進傭金支出（T-203，使用者 2026-11-17 選 C）。結算紀錄見 `VolumeBonusSettlement`。
     """
     order = models.ForeignKey("SalesOrder", on_delete=models.CASCADE, related_name="volume_bonuses", verbose_name="訂單")
     rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="order_bonuses", verbose_name="台數獎金規則")
@@ -1542,6 +1543,39 @@ class OrderVolumeBonus(TimeStampedModel):
         indexes = [models.Index(fields=["rule", "period", "dealer"], name="order_bonus_scope_idx")]
         verbose_name = "訂單台數獎金"
         verbose_name_plural = "訂單台數獎金"
+
+
+class VolumeBonusSettlement(TimeStampedModel):
+    """台數獎金結算紀錄（T-203，使用者 2026-11-17 選 C）：規則 × 期間 × 收款車行一組。
+
+    月底在報表中心〈車行傭金／獎金給付〉按「結算」建立；結算後各單獎金固定、加進傭金支出，另外發放給車行，
+    不扣應收或掛帳。取消結算只填 cancelled_at（保留紀錄），可再重新結算；同一組同時只有一筆有效結算。
+    """
+    rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="group_settlements", verbose_name="台數獎金規則")
+    period = models.ForeignKey(DealerVolumeBonusPeriod, on_delete=models.CASCADE, related_name="group_settlements", verbose_name="統計期間")
+    dealer = models.ForeignKey(SalesSource, on_delete=models.PROTECT, related_name="volume_bonus_group_settlements", verbose_name="收款車行")
+    quantity = models.PositiveIntegerField("結算台數")
+    minimum_quantity = models.PositiveSmallIntegerField("達到門檻")
+    bonus_per_vehicle = models.DecimalField("每台獎金", max_digits=12, decimal_places=0)
+    total_amount = models.DecimalField("結算金額", max_digits=14, decimal_places=0)
+    settled_at = models.DateTimeField("結算時間")
+    settled_by = models.CharField("結算人員", max_length=150)
+    cancelled_at = models.DateTimeField("取消時間", null=True, blank=True)
+    cancelled_by = models.CharField("取消人員", max_length=150, blank=True, default="")
+
+    class Meta:
+        ordering = ["-settled_at", "-pk"]
+        constraints = [models.UniqueConstraint(
+            fields=["rule", "period", "dealer"], condition=models.Q(cancelled_at__isnull=True),
+            name="unique_active_volume_bonus_settlement",
+        )]
+        verbose_name = "台數獎金結算"
+        verbose_name_plural = "台數獎金結算"
+
+    @property
+    def source_key(self):
+        """與給付頁台數獎金列同一個鍵（`reporting.payouts.volume_bonus_items`）。"""
+        return f"volume_bonus:rule:{self.rule_id}:period:{self.period_id}:dealer:{self.dealer_id}"
 
 
 class DealerVolumeBonusTier(TimeStampedModel):

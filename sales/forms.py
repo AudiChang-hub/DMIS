@@ -1668,8 +1668,8 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         existing = list(self.instance.periods.all())
         for period in existing:
             if (period.starts_on, period.ends_on) not in self.period_ranges:
-                if period.settlements.exists():
-                    raise ValidationError("已結算期間不可取消。")
+                if period.settlements.exists() or period.group_settlements.filter(cancelled_at__isnull=True).exists():
+                    raise ValidationError("已結算期間不可取消；要取消請先到給付頁取消結算。")
                 period.delete()
         for start, end in self.period_ranges:
             DealerVolumeBonusPeriod.objects.get_or_create(rule=self.instance, starts_on=start, ends_on=end)

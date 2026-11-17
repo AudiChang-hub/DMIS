@@ -7,9 +7,12 @@
   判斷日改看訂單成立日。
 - 已給付後金額變了：不自動取消，標「金額有變」，由使用者「確認差額」。來源消失：列在「來源已不存在」。
   實物獎勵因領牌日不符被撤銷資格（訂單仍有效）時標「資格撤銷・待追回」，由使用者按「已追回」或「不追回」結案。
-- 不影響車行結算、掛帳、淨利與收支帳本。
+- 勾「已給付」不影響車行結算、掛帳、淨利與收支帳本。
+- 台數獎金（T-203，使用者 2026-11-17 選 C）：期間結束後列為「待結算」，在這頁按「結算」（規則×期間×車行一組）
+  才加進各單傭金支出、淨利跟著反映；結算後顯示「待發放」，付給車行後勾「已給付」。不扣任何應收或掛帳。
 
-來源：傭金 `OrderOperationsProfile`、實物 T-149 `OrderDealerRewardLine`、台數獎金 T-148 `OrderVolumeBonus`。
+來源：傭金 `OrderOperationsProfile`、實物 T-149 `OrderDealerRewardLine`、台數獎金 T-148 `OrderVolumeBonus`
+＋ T-203 `VolumeBonusSettlement`。
 """
 import hashlib
 from collections import OrderedDict
@@ -33,6 +36,7 @@ STATUS_LABELS = OrderedDict((
     ("unpaid", "未給付"),
     ("paid", "已給付"),
     ("changed", "給付後金額有變"),
+    ("settle", "待結算"),
     ("estimate", "預估"),
 ))
 METHOD_LABELS = OrderedDict((("deduction", "抵扣應收"), ("separate", "另付")))
@@ -56,6 +60,12 @@ class PayoutItem:
     reward_name: str = ""
     pre_triggered: bool = False
     entry: DealerPayoutEntry | None = None
+    # 台數獎金結算（T-203）：""＝不適用、"pending"＝期間已結束待結算、"settled"＝已結算。
+    settle_state: str = ""
+    settlement: object = None
+    settle_changes: list = field(default_factory=list)
+    scope: tuple = ()
+    settle_info: dict = field(default_factory=dict)
 
     @property
     def kind_label(self):
@@ -127,13 +137,21 @@ class PayoutItem:
     def status(self):
         if self.estimate:
             return "estimate"
+        if self.settle_state == "pending":
+            return "settle"
         if self.changed:
             return "changed"
         return "paid" if self.paid else "unpaid"
 
     @property
     def status_label(self):
+        if self.status == "unpaid" and self.kind == DealerPayoutEntry.Kind.VOLUME_BONUS:
+            return "待發放"
         return STATUS_LABELS[self.status]
+
+    @property
+    def pending_settle(self):
+        return self.settle_state == "pending"
 
     @property
     def note(self):
@@ -141,7 +159,7 @@ class PayoutItem:
 
     @property
     def checkable(self):
-        return not self.estimate
+        return not self.estimate and self.settle_state != "pending"
 
 
 # ── 來源 ──────────────────────────────────────────────────────────────
@@ -280,13 +298,16 @@ def _period_text(period):
 
 
 def volume_bonus_items(include_estimate=False):
-    """台數獎金（T-148 `OrderVolumeBonus`）：每期 × 每家收款車行 × 每條規則一列，金額＝逐單合計。
+    """台數獎金（`OrderVolumeBonus`）：每期 × 每家收款車行 × 每條規則一列，金額＝逐單合計。
 
-    期間結束、全部入帳（`posted_at`）才列入且可勾選；期間內的預估只在 `include_estimate` 時灰色列出、不能勾。
-    統計期間結束日早於 `PAYOUT_START_DATE` 的不列。另外付給車行，不扣訂單應收（一律「另付」）。
+    T-203（使用者 2026-11-17 選 C）：
+    - 期間內是預估：只在 `include_estimate` 時灰色列出、不能勾。
+    - 期間結束、還沒結算：預設列出、標「待結算」，可按「結算」；不能勾已給付、不算進未給付金額。
+    - 已結算（有效的 `VolumeBonusSettlement`）：金額固定，標「待發放」，可勾已給付；結算後有變只標示。
+    統計期間結束日早於 `PAYOUT_START_DATE` 的不列。另外發放給車行，不扣訂單應收（一律「另付」）。
     """
-    from sales.models import OrderVolumeBonus
-    from sales.services.volume_bonus import commission_note
+    from sales.models import OrderVolumeBonus, VolumeBonusSettlement
+    from sales.services.volume_bonus import commission_note, period_ended, settlement_changes
 
     rows = (
         OrderVolumeBonus.objects.filter(period__ends_on__gte=PAYOUT_START_DATE, amount__gt=0)
@@ -296,9 +317,22 @@ def volume_bonus_items(include_estimate=False):
     groups = OrderedDict()
     for row in rows:
         groups.setdefault((row.rule_id, row.period_id, row.dealer_id), []).append(row)
+    settlements = {
+        (item.rule_id, item.period_id, item.dealer_id): item
+        for item in VolumeBonusSettlement.objects.filter(cancelled_at__isnull=True).select_related("rule", "period", "dealer")
+    } if groups else {}
     items = []
     for (rule_id, period_id, dealer_id), members in groups.items():
-        estimate = any(row.posted_at is None for row in members)
+        settlement = settlements.get((rule_id, period_id, dealer_id))
+        if settlement:
+            # 已結算：只算結算時固定的列（posted_at 有值）。
+            members = [row for row in members if row.posted_at] or members
+            state = "settled"
+        elif period_ended(members[0].period):
+            state = "pending"
+        else:
+            state = ""
+        estimate = not settlement and state != "pending"
         if estimate and not include_estimate:
             continue
         first = members[0]
@@ -317,6 +351,12 @@ def volume_bonus_items(include_estimate=False):
                 "amount": row.amount,
                 "note": commission_note(row.order),
             } for row in members],
+            settle_state=state,
+            settlement=settlement,
+            settle_changes=settlement_changes(settlement) if settlement else [],
+            scope=(rule_id, period_id, dealer_id),
+            settle_info={"rule": first.rule, "period": _period_text(first.period), "count": len(members),
+                         "minimum": first.minimum_quantity, "per_vehicle": first.amount},
         ))
     return items
 
@@ -387,6 +427,7 @@ def summarize(items):
         group = dealers.setdefault(item.dealer.pk, {
             "dealer": item.dealer, "orders": OrderedDict(), "bonuses": [],
             "unpaid_amount": ZERO, "paid_amount": ZERO, "unpaid_goods": OrderedDict(), "count": 0, "attention": 0,
+            "settle_amount": ZERO, "settle_count": 0, "settle_changed": 0,
         })
         group["count"] += 1
         if item.kind == DealerPayoutEntry.Kind.VOLUME_BONUS:
@@ -396,8 +437,14 @@ def summarize(items):
             row["items"].append(item)
         if item.estimate:
             continue
+        if item.pending_settle:
+            group["settle_amount"] += item.amount
+            group["settle_count"] += 1
+            continue
         if item.changed:
             group["attention"] += 1
+        if item.settle_changes:
+            group["settle_changed"] += 1
         if item.is_quantity:
             if not item.paid:
                 key = (item.short_label, item.unit)
@@ -420,12 +467,16 @@ def summarize(items):
 
 
 def totals(items):
-    counted = [item for item in items if not item.estimate]
+    counted = [item for item in items if not item.estimate and not item.pending_settle]
+    pending = [item for item in items if item.pending_settle]
     return {
         "unpaid_amount": sum((i.amount for i in counted if not i.paid and not i.is_quantity), ZERO),
         "paid_amount": sum((i.paid_snapshot_amount for i in counted), ZERO),
         "unpaid_count": sum(1 for i in counted if not i.paid),
         "changed_count": sum(1 for i in counted if i.changed),
+        "settle_changed_count": sum(1 for i in counted if i.settle_changes),
+        "settle_amount": sum((i.amount for i in pending), ZERO),
+        "settle_count": len(pending),
         "dealer_count": len({i.dealer.pk for i in items}),
         "item_count": len(items),
     }
@@ -471,6 +522,8 @@ def _require_item(source_key, items_by_key):
     if item is None:
         raise ValidationError("這個項目已不在給付列表（訂單可能已退車、刪除或金額歸零），請重新整理。")
     if not item.checkable:
+        if item.pending_settle:
+            raise ValidationError(f"{item.dealer.name} {item.label} 還沒結算，請先按「結算」再勾選給付。")
         raise ValidationError(f"{item.dealer.name} {item.label} 期間還沒結束，是預估金額，不能勾選給付。")
     return item
 

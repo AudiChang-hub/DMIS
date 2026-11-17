@@ -35,12 +35,12 @@ def default_customer_balance(order):
 
 
 def dealer_account_due(order):
-    """系統建立的車行單向車行收的金額（扣訂金前）＝車行結算＋台數獎金，可為負（傭金比要收的費用多，差額付給車行）。
+    """系統建立的車行單向車行收的金額（扣訂金前）＝車行結算的合計，可為負（傭金比要收的費用多，差額付給車行）。
 
     - 現金單：原現金價－傭金＋牌險＋選號＋配件（T-120 p16，使用者 2026-11-06 選 A，取代 10-17「掛帳不扣傭金」）。
     - 分期單：分期外應收（牌險、選號、配件等由車行付的費用）－傭金（T-154，使用者 2026-11-12 選 B）；
       分期總價本身仍固定、不扣傭金，分期公司撥款不變。
-    台數獎金是期間結束後另外付給車行的錢（使用者 2026-11-11 T-148），不扣本單應收，加回。
+    台數獎金結算後另外發放給車行（使用者 2026-11-17 T-203 選 C），不扣本單應收；車行結算本身已不扣台數獎金。
     Excel 匯入單與非車行單回傳 None。"""
     from sales.services.dealer_settlement import dealer_settlement
 
@@ -50,7 +50,7 @@ def dealer_account_due(order):
     settlement = dealer_settlement(order)
     if settlement is None:
         return None
-    return settlement["total"] + settlement["volume_bonus"]
+    return settlement["total"]
 
 
 def dealer_cash_credit(order):

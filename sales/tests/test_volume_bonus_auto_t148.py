@@ -1,7 +1,8 @@
-"""T-148：台數獎金依規則自動計算（不再手動結算）、適用車行可複選（每家各自計算）。
+"""T-148：台數獎金依規則自動計算、適用車行可複選（每家各自計算）。
 
-使用者 2026-11-11：選 B（期間結束後自動入帳）＋ Y（多選車行各自計算）；人工傭金保留；
-結算阻擋拿掉改自動重算；台數獎金是期間結束後另外付給車行的錢，不會讓訂單變成溢收。
+使用者 2026-11-11：選 B ＋ Y（多選車行各自計算）；人工傭金保留。
+T-203（使用者 2026-11-17 選 C）取代「期間結束自動入帳」：期間結束後仍是試算，要在給付頁按「結算」才加進傭金支出；
+結算後另外發放給車行，不扣應收或掛帳。結算本身的測試在 test_volume_bonus_settle_t203.py。
 """
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -27,7 +28,7 @@ from sales.models import (
 )
 from sales.services.dealer_commission import apply_order_dealer_commission, dealer_volume_bonus_total
 from sales.services.dealer_settlement import dealer_settlement
-from sales.services.volume_bonus import recompute_rule, sync_all
+from sales.services.volume_bonus import cancel_settlement, recompute_rule, settle_group, sync_all
 
 SEPT = (date(2026, 9, 1), date(2026, 9, 30))
 DURING = timezone.make_aware(datetime(2026, 9, 20, 10))
@@ -66,6 +67,9 @@ class VolumeBonusAutoTests(TestCase):
     def expense(self, order):
         return OrderOperationsProfile.objects.get(order=order).dealer_commission_expense
 
+    def settle(self, rule, dealer=None):
+        return settle_group(rule.pk, rule.periods.get().pk, (dealer or self.a).pk, "〔人員〕", now=AFTER)
+
     def test_multi_dealer_rule_counts_each_dealer_separately(self):
         a1, a2, b1 = self.order(self.a), self.order(self.a), self.order(self.b)
         c1, c2 = self.order(self.c), self.order(self.c)
@@ -79,34 +83,34 @@ class VolumeBonusAutoTests(TestCase):
         self.assertEqual(self.expense(c1), 2000)
         self.assertEqual(self.expense(c2), 2000)
 
-    def test_bonus_is_estimate_during_period_and_posted_after_period_ends(self):
+    def test_bonus_stays_trial_after_period_ends_until_settled(self):
         a1, a2 = self.order(self.a), self.order(self.a)
         rule = self.rule()
         recompute_rule(rule.pk, now=DURING)
         self.assertTrue(OrderVolumeBonus.objects.filter(rule=rule, posted_at__isnull=True).count() == 2)
-        self.assertEqual(self.expense(a1), 2000)  # 期間內只是預估，不進傭金支出
-        self.assertFalse(OrderEvent.objects.filter(order=a1, event_type="volume_bonus_adjusted").exists())
+        self.assertEqual(self.expense(a1), 2000)  # 期間內只是試算，不進傭金支出
         sync_all(now=AFTER)
-        self.assertEqual(OrderVolumeBonus.objects.filter(rule=rule, posted_at__isnull=False).count(), 2)
+        # T-203：期間結束也不自動入帳，要按結算。
+        self.assertEqual(OrderVolumeBonus.objects.filter(rule=rule, posted_at__isnull=False).count(), 0)
+        self.assertEqual(self.expense(a1), 2000)
+        self.assertFalse(OrderEvent.objects.filter(order=a1, event_type="volume_bonus_adjusted").exists())
+        self.settle(rule)
         self.assertEqual(self.expense(a1), 2500)
         self.assertEqual(self.expense(a2), 2500)
         self.assertEqual(dealer_volume_bonus_total(a1), 500)
-        event = OrderEvent.objects.get(order=a1, event_type="volume_bonus_adjusted")
-        self.assertIn("$0 → $500", event.description)
         self.assertEqual(sync_all(now=AFTER), 0)  # 冪等
 
-    def test_posted_bonus_recomputes_when_order_leaves_group(self):
+    def test_trial_recomputes_when_order_leaves_group(self):
         a1, a2 = self.order(self.a), self.order(self.a)
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        self.assertEqual(self.expense(a1), 2500)
+        self.assertEqual(OrderVolumeBonus.objects.filter(rule=rule).count(), 2)
         with self.captureOnCommitCallbacks(execute=True):
             a2.registration_date = date(2026, 10, 2)  # 改領牌日移出期間 → A 剩 1 台、不達門檻
             a2.save()
         self.assertEqual(self.expense(a1), 2000)
         self.assertEqual(self.expense(a2), 2000)
         self.assertFalse(OrderVolumeBonus.objects.filter(rule=rule).exists())
-        self.assertIn("$500 → 0", OrderEvent.objects.filter(order=a1, event_type="volume_bonus_adjusted").latest("pk").description)
 
     def test_order_joining_group_lifts_existing_orders_to_higher_tier(self):
         a1, a2 = self.order(self.a), self.order(self.a)
@@ -115,6 +119,8 @@ class VolumeBonusAutoTests(TestCase):
         recompute_rule(rule.pk, now=AFTER)
         with self.captureOnCommitCallbacks(execute=True):
             a3 = self.order(self.a)
+        self.assertEqual(set(OrderVolumeBonus.objects.filter(rule=rule).values_list("amount", flat=True)), {800})
+        self.settle(rule)
         for order in (a1, a2, a3):
             self.assertEqual(self.expense(order), 2800)
 
@@ -126,6 +132,7 @@ class VolumeBonusAutoTests(TestCase):
         profile.save()
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
+        self.settle(rule)
         self.assertEqual(self.expense(a1), 1234)
         self.assertEqual(self.expense(a2), 2500)
         self.assertTrue(OrderVolumeBonus.objects.filter(order=a1, posted_at__isnull=False).exists())
@@ -136,25 +143,26 @@ class VolumeBonusAutoTests(TestCase):
         before = dealer_cash_credit(a1)
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
+        self.settle(rule)
         a1.refresh_from_db()
         settlement = dealer_settlement(a1)
         self.assertEqual(settlement["volume_bonus"], 500)
         self.assertEqual(dealer_cash_credit(a1), before)  # 應收不變，不會變成溢收
-        self.assertEqual(settlement["total"], before - 500)  # 車行結算看得到多付給車行的 500
+        self.assertEqual(settlement["total"], before)  # T-203：結算卡也不扣台數獎金，和掛帳一致
 
-    def test_inactive_rule_and_rule_deletion_remove_posted_bonus(self):
+    def test_inactive_rule_keeps_settled_bonus_until_cancelled(self):
         a1, _a2 = self.order(self.a), self.order(self.a)
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
+        self.settle(rule)
         self.assertEqual(self.expense(a1), 2500)
         rule.active = False
         rule.save()
         recompute_rule(rule.pk, now=AFTER)
+        self.assertEqual(self.expense(a1), 2500)  # 已結算金額固定，停用只標「結算後有變」
+        cancel_settlement(rule.pk, rule.periods.get().pk, self.a.pk, "〔人員〕", now=AFTER)
         self.assertEqual(self.expense(a1), 2000)
-        rule.active = True
-        rule.save()
-        recompute_rule(rule.pk, now=AFTER)
-        self.assertEqual(self.expense(a1), 2500)
+        self.assertFalse(OrderVolumeBonus.objects.filter(rule=rule).exists())  # 停用的規則不再試算
         with self.captureOnCommitCallbacks(execute=True):
             rule.delete()
         self.assertEqual(self.expense(a1), 2000)

@@ -83,8 +83,8 @@ class DealerInstallmentSettlementTests(DealerInstallmentBase):
             order = self.order(plate_insurance_fee=Decimal("3000"))
             OrderOperationsProfile.objects.filter(order=order).update(dealer_commission_expense=2800)
             order = SalesOrder.objects.get(pk=order.pk)
-            # 卡片列傭金全額 2,800（含獎金），掛帳只扣 2,300。
-            self.assertEqual(dealer_settlement(order)["total"], 200)
+            # T-203：台數獎金另外發放，卡片和掛帳都只扣其餘傭金 2,300，兩邊一致。
+            self.assertEqual(dealer_settlement(order)["total"], 700)
             self.assertEqual(dealer_account_due(order), Decimal("700"))
 
     def test_commission_change_resyncs_unpaid_balance_row(self):

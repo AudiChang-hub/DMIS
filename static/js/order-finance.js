@@ -17,8 +17,10 @@
   // 收支小計可能為負（例如牌險手續費收入少收），保留負號；車行結算以方向文字表示正負，仍用絕對值。
   const setSigned = (nodes, value) => nodes.forEach(node => { node.textContent = `${value < 0 ? '-' : ''}${format(value)}`; });
 
-  function settlement(commission) {
+  function settlement(expense) {
     document.querySelectorAll('[data-dealer-settlement]').forEach(card => {
+      // 收支的傭金支出含已結算台數獎金；台數獎金另外發放、不扣應收，結算卡只扣其餘傭金（T-203）。
+      const commission = expense - toAmount(card.dataset.settlementBonus);
       const total = toAmount(card.dataset.settlementBase) - commission;
       setText(card.querySelectorAll('[data-settlement-term="commission"]'), commission);
       const direction = total > 0 ? 'collect' : total < 0 ? 'pay' : 'none';

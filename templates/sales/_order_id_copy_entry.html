@@ -1,0 +1,9 @@
+{% load id_crop_tags screen_access %}{% comment %}T-208（使用者 2026-11-17）：單張訂單的身分證影本入口；自然人且有證件照片才顯示。{% endcomment %}
+{% with label=order|id_copy_label %}{% if label %}{% if_access 'order_id_copy' order.pk %}
+<section class="section-block positioned-print-panel" id="id-copy-entry">
+  <div class="section-title"><div><h2>{{ label }}影本</h2><small>每頁 5 組版面，正反面並排、右側可寫備註；先預覽、可調整裁切，再列印。</small></div></div>
+  <div class="document-template-actions">
+    <a class="button secondary" href="{% url 'order_id_copy' order.pk %}" target="_blank" rel="noopener">列印{{ label }}影本</a>
+  </div>
+</section>
+{% endif_access %}{% endif %}{% endwith %}

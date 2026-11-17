@@ -4,6 +4,7 @@
   if (!root) return;
   const KEY = "dmis-form-print-v1";
   const FORMS = ["envelope", "tax_declaration", "receipt", "ev_delivery", "tax_consent", "id_copy"];
+  const ID_COPY_PER_PAGE = 5;  // 身分證影本每頁 5 組（T-208，同 form_print.ID_ROWS）
   const trayForm = root.querySelector("[data-tray-form]");
   const list = root.querySelector("[data-list]");
   const template = document.querySelector("[data-item-template]");
@@ -27,7 +28,7 @@
     if (!state[pk]) {
       state[pk] = {
         number: row.dataset.number, name: row.dataset.name, vehicle: row.dataset.vehicle,
-        forms: {}, note: row.dataset.note || "", address: row.dataset.address || "", seq: ++seq,
+        forms: {}, note: row.dataset.note || "", address: row.dataset.address || "", idNote: row.dataset.idNote || "", seq: ++seq,
       };
     }
     return state[pk];
@@ -87,6 +88,12 @@
       address.name = `address_${pk}`;
       note.value = entry.note || "";
       address.value = entry.address || "";
+      // 身分證影本備註（T-208）：預設車行／平台名稱與車主電話，可改；只跟著這次預覽與列印送出。
+      const idCopy = node.querySelector("[data-item-id-copy]");
+      const idNote = node.querySelector("[data-item-id-note]");
+      idCopy.hidden = !entry.forms.id_copy;
+      idNote.name = `idnote_${pk}`;
+      idNote.value = entry.idNote ?? "";
       list.append(node);
     });
     const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
@@ -99,7 +106,8 @@
     root.querySelector("[data-empty]").hidden = total > 0;
     // 信封出 Word 檔（原稿自訂紙張），聲明書與簽收單出 A4 PDF。
     const envelopes = counts.envelope;
-    const a4 = total - envelopes;
+    // 身分證影本每 5 組併成一頁（T-208），按鈕上的頁數以實際頁數為準。
+    const a4 = total - envelopes - counts.id_copy + Math.ceil(counts.id_copy / ID_COPY_PER_PAGE);
     const envelopeButton = trayForm.querySelector("[data-submit-envelope]");
     envelopeButton.disabled = envelopes === 0;
     envelopeButton.textContent = envelopes ? `下載信封 Word 檔（${envelopes} 張）` : "下載信封 Word 檔";
@@ -136,7 +144,7 @@
     const envelopeButton = dialog.querySelector("[data-preview-envelope]");
     const envelopePdfButton = dialog.querySelector("[data-preview-envelope-pdf]");
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const FIELD = /^(?:note|address)_(\d+)$/;
+    const FIELD = /^(?:note|address|idnote)_(\d+)$/;
     let request = null;
     let trigger = null;
     let pages = [];
@@ -148,17 +156,20 @@
     const fill = (pk) => {
       form.querySelectorAll("input:not([name='csrfmiddlewaretoken'])").forEach((input) => input.remove());
       const counts = { a4: 0, envelope: 0 };
+      let idCopies = 0;
       for (const [name, value] of new FormData(trayForm)) {
         if (name === "csrfmiddlewaretoken") continue;
         const owner = name === "job" ? String(value).split(":")[0] : (name.match(FIELD) || [])[1];
         if (pk && owner && owner !== pk) continue;
-        if (name === "job") counts[String(value).endsWith(":envelope") ? "envelope" : "a4"] += 1;
+        if (name === "job" && String(value).endsWith(":id_copy")) idCopies += 1;
+        else if (name === "job") counts[String(value).endsWith(":envelope") ? "envelope" : "a4"] += 1;
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = name;
         input.value = value;
         form.append(input);
       }
+      counts.a4 += Math.ceil(idCopies / ID_COPY_PER_PAGE);
       return counts;
     };
 
@@ -447,6 +458,7 @@
     if (!item || !state[item.dataset.order]) return;
     if (event.target.matches("[data-item-note]")) state[item.dataset.order].note = event.target.value;
     if (event.target.matches("[data-item-address]")) state[item.dataset.order].address = event.target.value;
+    if (event.target.matches("[data-item-id-note]")) state[item.dataset.order].idNote = event.target.value;
     save();
   });
 

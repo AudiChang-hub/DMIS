@@ -26,12 +26,18 @@
     return data;
   }
 
-  // 只重新產生這張訂單的身分證影本頁，換掉畫面上那一頁與左側縮圖，捲動位置不變。
+  // 只重新產生這一頁身分證影本（同一頁的各組與備註照舊，T-208），換掉畫面上那一頁與左側縮圖，捲動位置不變。
   async function refreshPage(button) {
     const page = button.closest("[data-page]");
     const payload = new FormData();
     payload.append("csrfmiddlewaretoken", csrf());
-    payload.append("job", `${button.dataset.order}:id_copy`);
+    let jobs = [];
+    try { jobs = JSON.parse(page?.dataset.idJobs || "[]"); } catch (_) { jobs = []; }
+    if (!jobs.length) jobs = [{order: button.dataset.order, note: null}];
+    jobs.forEach(job => {
+      payload.append("job", `${job.order}:id_copy`);
+      if (job.note !== null && job.note !== undefined) payload.append(`idnote_${job.order}`, job.note);
+    });
     const response = await fetch(tray.dataset.previewUrl, {
       method: "POST", body: payload, credentials: "same-origin", headers: {"X-Requested-With": "XMLHttpRequest"},
     });

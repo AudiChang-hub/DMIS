@@ -10,7 +10,7 @@
       <span>{{ section.total }} {{ section.unit }}</span>
     </header>
     {% for page in section.pages %}
-    <figure class="print-preview__page print-preview__page--{{ section.key }}" data-page data-label="{{ page.label }}・{{ page.name }}" style="--i: {{ forloop.counter0 }}">
+    <figure class="print-preview__page print-preview__page--{{ section.key }}" data-page data-label="{{ page.label }}・{{ page.name }}"{% if page.id_jobs %} data-id-jobs="{{ page.id_jobs }}"{% endif %} style="--i: {{ forloop.counter0 }}">
       <figcaption>
         <span class="print-preview__index">{{ forloop.counter }}</span>
         <span class="print-preview__who"><strong>{{ page.label }}</strong><small>{{ page.name }}・{{ page.number }}</small></span>

@@ -8,6 +8,7 @@ A4（聲明書、簽收單）：用 `form_print.build_forms_pdf` 產生和「產
 電車信封已存的車控密碼不在預覽解密（解密會留處理紀錄），改顯示「下載時帶入」。
 """
 import base64
+import json
 import math
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -247,17 +248,27 @@ def id_card_hotspots(job):
 
 def build_preview(jobs, *, group_by_form=True):
     """jobs：form_print.PrintJob（含信封）。依實際輸出的順序回傳 A4 與信封兩區的頁面。"""
-    a4_jobs = form_print.ordered_jobs([job for job in jobs if job.form != "envelope"], group_by_form=group_by_form)
+    a4_jobs = [job for job in jobs if job.form != "envelope"]
     envelope_orders = [job.order for job in jobs if job.form == "envelope"]
     sections = []
     if a4_jobs:
+        # 身分證影本每 5 組併成一頁（T-208），頁數以實際輸出的頁為準。
+        groups = form_print.page_groups(a4_jobs, group_by_form=group_by_form)
         pages = render_pages(form_print.build_forms_pdf(a4_jobs, group_by_form=group_by_form))
-        for page, job in zip(pages, a4_jobs):
-            page.update(_caption(job.order, form_print.form_values(job.order), form_print.FORM_BY_KEY[job.form].label))
-            page["paper"] = "A4"
+        for page, group in zip(pages, groups):
+            job = group[0]
+            label = form_print.FORM_BY_KEY[job.form].label
             if job.form == "id_copy":
-                page["id_cards"] = id_card_hotspots(job)
-        sections.append({"key": "a4", "title": "A4 PDF", "unit": "頁", "total": len(a4_jobs), "pages": pages})
+                names = [form_print.form_values(item.order)["owner_name"] or "（未填車主）" for item in group]
+                page.update({"number": "、".join(item.order.number for item in group),
+                             "name": "、".join(names) if len(group) <= 2 else f"{names[0]} 等 {len(group)} 組", "label": label})
+                page["id_cards"] = [card for item in group for card in id_card_hotspots(item)]
+                # 點卡片調整後只重畫這一頁：帶同一頁的各組與備註重算（備註不保存）。
+                page["id_jobs"] = json.dumps([{"order": item.order.pk, "note": item.id_note} for item in group], ensure_ascii=False)
+            else:
+                page.update(_caption(job.order, form_print.form_values(job.order), label))
+            page["paper"] = "A4"
+        sections.append({"key": "a4", "title": "A4 PDF", "unit": "頁", "total": len(groups), "pages": pages})
     if envelope_orders:
         pages = render_pages(build_envelope_preview_pdf(envelope_orders[:MAX_PAGES]))
         for page, order in zip(pages, envelope_orders):

@@ -99,6 +99,7 @@ register("work", "form_print_envelope_pdf", "export")  # T-173：直接列印信
 register("work", "form_print_preview", "export")
 register("work", "form_print_id_crop", "operate")  # T-190：套表預覽調整證件裁切，存回訂單
 register("work", "order_owner_declaration_pdf", "export")
+register("work", "order_id_copy", "export")  # T-208：單張訂單的身分證影本頁（預覽與列印同套表列印權限）
 register("operations", "operations_report")
 register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")

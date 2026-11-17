@@ -27,7 +27,7 @@
           </ul>
           <div class="form-print__empty" data-empty>
             <strong>還沒有勾選</strong>
-            <p>在訂單表格勾選要印的套表。簽收單的備註與交車住址可以在這裡逐張修改。</p>
+            <p>在訂單表格勾選要印的套表。簽收單的備註與交車住址、身分證影本的備註，可以在這裡逐張修改。</p>
           </div>
           <ol class="form-print__list" data-list></ol>
           <fieldset class="form-print__order-by">
@@ -93,7 +93,7 @@
           {% for row in rows %}
           <tr data-order="{{ row.order.pk }}" data-number="{{ row.order.number }}" data-name="{{ row.values.owner_name }}"
               data-vehicle="{{ row.values.model_number }}{% if row.values.color %}・{{ row.values.color }}{% endif %}"
-              data-note="{{ row.receipt_note }}" data-address="{{ row.values.delivery_address }}">
+              data-note="{{ row.receipt_note }}" data-address="{{ row.values.delivery_address }}" data-id-note="{{ row.id_copy_note }}">
             <td class="form-print__pick-col" data-label="勾選">
               <label class="form-print__row-pick"><input type="checkbox" data-row-pick aria-label="勾選 {{ row.order.number }} 建議的套表"><span aria-hidden="true"></span></label>
             </td>
@@ -164,6 +164,9 @@
     <div class="form-print__receipt" data-item-receipt hidden>
       <label>簽收單備註<textarea class="form-control" rows="2" maxlength="300" data-item-note placeholder="例：■期望送達時間：週一、二全天可"></textarea></label>
       <label>交車住址<input type="text" maxlength="120" data-item-address placeholder="沒有就留白，現場手寫"></label>
+    </div>
+    <div class="form-print__receipt" data-item-id-copy hidden>{# T-208：印在影本該組右側，只跟著這次列印，不保存。 #}
+      <label>影本備註<textarea class="form-control" rows="2" maxlength="80" data-item-id-note placeholder="例：車行名稱、車主電話"></textarea></label>
     </div>
   </li>
 </template>

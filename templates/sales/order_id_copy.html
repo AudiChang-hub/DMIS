@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% load static %}
+{% comment %}單張訂單的身分證影本（T-208，使用者 2026-11-17）：版面同套表列印（每頁 5 組、卡寬 82.7 mm、右側備註）。
+預覽與列印走套表列印同一份 PDF；點卡片調整裁切會存回訂單；備註當場填、不保存。{% endcomment %}
+{% block title %}{{ label }}影本｜{{ order.number }}｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'order_detail' order.pk as order_url %}{% include "sales/_page_back.html" with fallback_url=order_url label="返回訂單" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">列印與簽署文件</p>
+    <h1>{{ label }}影本</h1>
+    <p class="muted">{{ values.owner_name|default:"（未填車主）" }}・{{ order.number }}。卡片印成 {{ print_size }}，正面在左、反面在右，右側印備註；點預覽裡的證件可以調整裁切。</p>
+  </div>
+</section>
+
+<div class="id-copy-page">
+  <section class="id-copy-desk" aria-labelledby="id-copy-preview-title" aria-busy="true">
+    <h2 class="visually-hidden" id="id-copy-preview-title">列印預覽</h2>
+    <div class="id-copy-desk__content" data-preview-content>
+      <div class="print-preview__ghost" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <form class="section-block id-copy-panel" method="post" action="{% url 'form_print_pdf' %}" target="_blank" data-id-copy-form
+        data-preview-url="{% url 'form_print_preview' %}" data-id-crop-save-url="{% url 'form_print_id_crop' 0 %}" data-id-crop-detect-url="{% url 'id_card_crop_detect' %}">
+    {% csrf_token %}
+    <input type="hidden" name="job" value="{{ order.pk }}:id_copy">
+    <div class="id-copy-panel__field">
+      <label for="id-copy-note">備註<small>印在反面右側，只用在這次列印，不會存進訂單</small></label>
+      <textarea class="form-control" id="id-copy-note" name="idnote_{{ order.pk }}" rows="4" maxlength="{{ note_max }}" data-id-copy-note aria-describedby="id-copy-note-hint">{{ note }}</textarea>
+      <div class="id-copy-panel__meta" id="id-copy-note-hint">
+        <span>字多時自動從 16 pt 縮到 12 pt，還放不下會以「…」截斷。</span>
+        <span class="id-copy-panel__count" data-note-count aria-live="polite">{{ note|length }} / {{ note_max }}</span>
+      </div>
+      <button class="button ghost small" type="button" data-note-reset>恢復預設備註</button>
+    </div>
+    {% if warnings %}<p class="id-copy-panel__warn" role="note">缺：{{ warnings|join:"、" }}，那一格會留白。</p>{% endif %}
+    <p class="id-copy-panel__status" data-preview-summary aria-live="polite"></p>
+    <div class="form-actions id-copy-panel__actions">
+      <button class="button primary" type="submit">列印</button>
+    </div>
+    <p class="form-print__hint">會在新分頁開啟 A4 PDF。列印時縮放請選「實際大小」（100%），不要選「符合頁面」，卡片才會是 {{ print_size }}。</p>
+  </form>
+</div>
+<script src="{% static 'js/id-crop-editor.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/form-print-id-copy.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-id-copy.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

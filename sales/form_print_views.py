@@ -7,12 +7,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from sales.models import OrderEvent, SalesOrder
-from sales.services import form_print, order_tabs
+from sales.services import form_print, id_copy_note, order_tabs
 from sales.services import form_print_preview as preview_service
 from sales.services.order_intake import scoped_orders
 from sales.services.order_search import build_order_search_query
@@ -62,7 +62,7 @@ def log_id_copy_prints(request, jobs):
     for order in {job.order.pk: job.order for job in jobs if job.form == "id_copy"}.values():
         label = form_print.id_copy_document_label(order)
         OrderEvent.objects.create(order=order, event_type="identity_copy_printed",
-                                  description=f"套表列印{label}影本（實際尺寸）", actor_name=actor)
+                                  description=f"套表列印{label}影本（每頁 5 組）", actor_name=actor)
 
 
 @login_required
@@ -117,6 +117,7 @@ def _row(order):
             for spec in form_print.FORMS
         ],
         "receipt_note": form_print.default_receipt_note(values),
+        "id_copy_note": form_print.default_id_copy_note(order),
     }
 
 
@@ -188,14 +189,20 @@ def _picked_orders(request, forms):
 
 
 def _print_jobs(request, found):
-    """勾選項目轉成 PrintJob；簽收單帶入列印清單裡逐張改過的備註與交車住址。預覽與列印共用。"""
+    """勾選項目轉成 PrintJob；簽收單帶入列印清單裡逐張改過的備註與交車住址。預覽與列印共用。
+
+    身分證影本的備註（T-208 方案 A）只跟著這次預覽／列印送出，不保存；沒送這個欄位時用預設備註。
+    """
     jobs = []
     for order, form in found:
-        note = address = ""
+        note = address = id_note = ""
         if form == "receipt":
             note = request.POST.get(f"note_{order.pk}", "").strip()[: form_print.NOTE_MAX_CHARS]
             address = request.POST.get(f"address_{order.pk}", "").strip()[: form_print.ADDRESS_MAX_CHARS]
-        jobs.append(form_print.PrintJob(order, form, note=note, address=address))
+        if form == "id_copy":
+            raw = request.POST.get(f"idnote_{order.pk}")
+            id_note = (form_print.default_id_copy_note(order) if raw is None else raw.strip())[:id_copy_note.NOTE_MAX_CHARS]
+        jobs.append(form_print.PrintJob(order, form, note=note, address=address, id_note=id_note))
     return jobs
 
 
@@ -243,6 +250,28 @@ def form_print_preview(request):
     response = render(request, "sales/_form_print_preview.html", {"sections": sections})
     response["Cache-Control"] = "private, no-store, max-age=0"
     return response
+
+
+@login_required
+def order_id_copy(request, pk):
+    """單張訂單的身分證影本（T-208）：訂單頁「列印與簽署文件」進來。
+
+    預覽與列印走套表列印同一份 PDF（form_print_preview／form_print_pdf，權限相同）；
+    點卡片調整裁切存回訂單（form_print_id_crop）；備註預設車行／平台名稱與車主電話，當場改、不保存。
+    """
+    order = get_object_or_404(_orders(request.user), pk=pk)
+    if not form_print.id_copy_applies(order):
+        raise Http404("這張訂單不適用身分證影本")
+    values = form_print.form_values(order)
+    return render(request, "sales/order_id_copy.html", {
+        "order": order,
+        "values": values,
+        "label": form_print.id_copy_document_label(order),
+        "note": form_print.default_id_copy_note(order),
+        "note_max": id_copy_note.NOTE_MAX_CHARS,
+        "warnings": form_print.form_warnings(order, values)["id_copy"],
+        "print_size": f"{form_print.ID_CARD_W:.1f} × {form_print.ID_CARD_H:.1f} mm",
+    })
 
 
 @login_required

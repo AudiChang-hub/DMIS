@@ -42,6 +42,7 @@ urlpatterns = [
     path("orders/forms-print/envelopes.pdf", form_print_views.form_print_envelope_pdf, name="form_print_envelope_pdf"),
     path("orders/forms-print/preview/", form_print_views.form_print_preview, name="form_print_preview"),
     path("orders/<int:pk>/owner-declaration.pdf", form_print_views.order_owner_declaration_pdf, name="order_owner_declaration_pdf"),
+    path("orders/<int:pk>/id-copy/", form_print_views.order_id_copy, name="order_id_copy"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),

@@ -18,3 +18,11 @@ def id_card_view(instance, field_name, model_name="order"):
     from sales.services.id_card_crop import card_view
 
     return card_view(instance, model_name, field_name)
+
+
+@register.filter
+def id_copy_label(order):
+    """訂單頁「列印與簽署文件」的影本入口（T-208）：適用時回傳「身分證」或「居留證」，不適用回傳空字串。"""
+    from sales.services import form_print
+
+    return form_print.id_copy_document_label(order) if form_print.id_copy_applies(order) else ""

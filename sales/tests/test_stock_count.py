@@ -300,3 +300,24 @@ class StockCountTests(TestCase):
         self.assertIn("  .stock-qty-toggle, .stock-vehicle__link, .stock-detail-more { min-height: 44px; }", css)
         self.assertIn("@container (max-width: 300px)", css)
         self.assertIn(".inventory-table.stock-count-table .stock-loc-col { display: none; }", css)
+
+    def test_card_title_shows_model_name_large_and_code_small(self):
+        """T-221：卡片標題品名在上、大字；原廠型號在下、小字。品名和型號相同時只顯示一行大字。"""
+        import re
+        html = self.client.get(reverse("inventory_stock_count")).content.decode()
+        heads = {re.search(r"<h3 [^>]*>([^<]*)</h3>", head).group(1): head
+                 for head in re.findall(r'<header class="stock-model__head">(.*?)</header>', html, re.S)}
+        uc = heads["Address 125"]
+        self.assertRegex(uc, r'^<h3 id="stock-model-\d+-\d+" class="stock-model__title">Address 125</h3><small id="stock-model-\d+-\d+-code">UC125DA</small><p ')
+        self.assertRegex(heads["GSX-R150"], r'</h3><p ', "品名＝型號時只顯示一行，不重複小字")
+        # 卡片與表格的無障礙名稱仍包含型號：品名＋型號。
+        labels = re.findall(r'aria-labelledby="(stock-model-\d+-\d+)(?: (stock-model-\d+-\d+-code))?"', html)
+        self.assertTrue(any(code == name + "-code" for name, code in labels))
+        self.assertTrue(all(code in ("", name + "-code") for name, code in labels))
+
+    def test_card_title_css_large_name_small_code(self):
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "stock-count.css").read_text(encoding="utf-8")
+        self.assertIn(".stock-model__title { grid-column: 1; margin: 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }", css)
+        self.assertIn(".stock-model__head small { grid-column: 1; color: var(--muted); font-size: var(--text-xs); font-weight: 700; }", css)
+        self.assertNotIn("stock-model__code", css)
+        self.assertIn(".stock-model__head > small { overflow-wrap: anywhere; }", css, "型號沒有空格，太長也要能換行")

@@ -46,10 +46,10 @@
   {% if block.visible_groups %}
   <div class="stock-block__grid">
     {% for group in block.visible_groups %}
-    <article class="stock-model{% if not group.total %} is-empty{% endif %}" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
-      <header class="stock-model__head"><h3 id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="stock-model__code">{{ group.code }}</h3>{% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}<p class="stock-model__sum{% if group.total %} has-stock{% endif %}"><b>{{ group.total }}</b>{% if group.dealer %}<small>車行 {{ group.dealer }}</small>{% endif %}<span class="visually-hidden"> 台小計</span></p></header>
+    <article class="stock-model{% if not group.total %} is-empty{% endif %}" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}{% if group.subtitle %} stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}-code{% endif %}">
+      <header class="stock-model__head"><h3 id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="stock-model__title">{{ group.subtitle|default:group.code }}</h3>{% if group.subtitle %}<small id="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}-code">{{ group.code }}</small>{% endif %}<p class="stock-model__sum{% if group.total %} has-stock{% endif %}"><b>{{ group.total }}</b>{% if group.dealer %}<small>車行 {{ group.dealer }}</small>{% endif %}<span class="visually-hidden"> 台小計</span></p></header>
       <div class="inventory-table-wrap stock-model__wrap">
-      <table class="inventory-table inventory-table--fit stock-count-table" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+      <table class="inventory-table inventory-table--fit stock-count-table" aria-labelledby="stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}{% if group.subtitle %} stock-model-{{ forloop.parentloop.counter }}-{{ forloop.counter }}-code{% endif %}">
         <thead><tr><th scope="col">顏色</th><th scope="col" class="is-number">數量</th><th scope="col" class="is-number">車行</th><th scope="col" class="stock-loc-col">庫位</th></tr></thead>
         <tbody>
           {% for row in group.visible_rows %}{% with block_index=forloop.parentloop.parentloop.counter|stringformat:"d" group_index=forloop.parentloop.counter|stringformat:"d" row_index=forloop.counter|stringformat:"d" %}

@@ -36,7 +36,10 @@
     return b.map((value, index) => value / a[index][index]);
   }
 
+  // 原圖快照（縮到 SOURCE_MAX）。圖片還沒下載完（例如草稿自動儲存後預覽改載伺服器網址，
+  // 尺寸已知但 complete 為 false）時 drawImage 畫不出東西，不拍快照也不快取，回傳 null（T-207）。
   function sourceOf(image) {
+    if (!image?.complete || !image.naturalWidth) return null;
     const cached = sourceCache.get(image);
     if (cached && cached.src === image.currentSrc) return cached;
     const scale = Math.min(1, SOURCE_MAX / Math.max(image.naturalWidth, image.naturalHeight));
@@ -88,8 +91,9 @@
 
   // 依參數把原圖（<img>，需已載入）畫成卡片到 canvas；canvas 大小由呼叫端決定。
   function renderCard(image, params, canvas) {
-    if (!image?.naturalWidth || !params) return false;
-    const {data, canvas: source} = sourceOf(image);
+    const entry = params ? sourceOf(image) : null;
+    if (!entry) return false;
+    const {data, canvas: source} = entry;
     const pixels = warpPixels(data.data, source.width, source.height, params, canvas.width, canvas.height);
     if (!pixels) return false;
     const context = canvas.getContext("2d");
@@ -248,6 +252,8 @@
     const photo = dialog.querySelector("[data-crop-photo]");
     const canvas = dialog.querySelector("[data-crop-canvas]");
     const image = state.image;
+    const source = sourceOf(image);
+    if (!source) return;  // 圖片下載完會再觸發 load（見 open），屆時重排
     const pad = 24;  // 留給把手超出照片邊緣的空間
     // 照片區高度跟著照片比例，橫拍照片不留一大片空白；上限約半個畫面高。
     const width = stage.getBoundingClientRect().width;
@@ -263,7 +269,7 @@
     const ratio = window.devicePixelRatio || 1;
     canvas.width = Math.round(photoWidth * ratio);
     canvas.height = Math.round(photoHeight * ratio);
-    canvas.getContext("2d").drawImage(sourceOf(image).canvas, 0, 0, canvas.width, canvas.height);
+    canvas.getContext("2d").drawImage(source.canvas, 0, 0, canvas.width, canvas.height);
     const preview = dialog.querySelector("[data-crop-preview]");
     const previewWidth = Math.max(1, Math.round(preview.getBoundingClientRect().width * ratio));
     preview.width = previewWidth;
@@ -352,7 +358,9 @@
   // 放大鏡：拖曳時在照片角落放大顯示游標附近，手指不會擋住要對齊的邊。
   function loupe(index) {
     const node = dialog.querySelector("[data-crop-loupe]");
-    const {canvas: source} = sourceOf(state.image);
+    const entry = sourceOf(state.image);
+    if (!entry) return;
+    const {canvas: source} = entry;
     const [x, y] = state.params.corners[index];
     const zoom = 3;
     const size = node.width;
@@ -418,6 +426,7 @@
   function close() {
     if (!dialog?.open) return;
     dialog.close();
+    state?.image?.removeEventListener?.("load", state.onImageLoad);
     document.documentElement.classList.remove("has-id-crop-dialog");
     state?.returnFocus?.focus?.({preventScroll: true});
     state = null;
@@ -433,7 +442,10 @@
       ...options,
       params: valid ? params : (parse(options.autoParams) || fullParams(image, "full")),
       autoParams: parse(options.autoParams),
+      // 視窗開著時預覽圖可能換網址重新下載（草稿自動儲存）；下載完重畫原圖與預覽。
+      onImageLoad: () => { if (dialog.open) layout(); },
     };
+    image.addEventListener("load", state.onImageLoad);
     dialog.querySelector("[data-crop-title]").textContent = options.title || "調整證件照片";
     dialog.querySelector("[data-crop-apply-ocr]").hidden = options.canRerun === false;
     status("");

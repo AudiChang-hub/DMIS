@@ -112,7 +112,10 @@ class ReportActiveFilterTests(TestCase):
         response = self.client.get(url, {"legacy_source": ["車行", "網路平台"], "months": ["2026-09", "2026-10"]})
         chips = self.chips(response)
         self.assertEqual(chips["銷售來源"]["value"], "車行、網路平台")
-        self.assertEqual(chips["領牌年月"]["value"], "2026/09、2026/10")
+        # T-212：2026 年可選的月份（夾具只有 9、10 月）全勾，標籤寫「2026 全年」；只勾部分仍逐月列出。
+        self.assertEqual(chips["領牌年月"]["value"], "2026 全年")
+        chips = self.chips(self.client.get(url, {"legacy_source": ["車行", "網路平台"], "months": ["2026-10"]}))
+        self.assertEqual(chips["領牌年月"]["value"], "2026/10")
 
     def test_long_multiselect_is_summarised_with_full_title(self):
         extra = [SalesSource.objects.create(name=name, source_type="dealer") for name in ("丙車行", "丁車行", "戊車行")]

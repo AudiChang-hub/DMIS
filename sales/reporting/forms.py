@@ -255,6 +255,40 @@ class FilterForm(forms.Form):
     def advanced_count(self):
         return sum(bool(field.value()) for field in self.advanced_fields())
 
+    def month_tree(self):
+        """領牌年月樹狀（T-212）：年 → 月，最新年份在上；月份仍是 name="months" 的勾選框，送出參數不變。"""
+        if "months" not in self.fields:
+            return []
+        selected = {str(value) for value in (self["months"].value() or [])}
+        years = {}
+        for value, label in self.fields["months"].choices:
+            years.setdefault(str(value)[:4], []).append({
+                "value": value, "label": label, "month": str(label).split("年", 1)[-1].strip(), "checked": value in selected,
+            })
+        tree = []
+        for year, months in years.items():
+            checked = sum(month["checked"] for month in months)
+            state = "true" if checked == len(months) else "mixed" if checked else "false"
+            tree.append({"year": year, "months": months, "checked": checked, "state": state})
+        return tree
+
+    def month_chip_values(self, values):
+        """已選月份的標籤文字（T-212）：某年可選的月份全勾就寫「2026 全年」，其餘照原本逐月 2026/09。"""
+        by_year = {}
+        for choice, _label in self.fields["months"].choices:
+            by_year.setdefault(str(choice)[:4], set()).add(str(choice))
+        chosen = {str(value) for value in values}
+        result, done = [], set()
+        for value in map(str, values):
+            year = value[:4]
+            if by_year.get(year) and by_year[year] <= chosen:
+                if year not in done:
+                    result.append(f"{year} 全年")
+                    done.add(year)
+                continue
+            result.append(value.replace("-", "/"))
+        return result
+
     def active_filters(self, extra=None, tree=None):
         """目前套用的讀者篩選（T-142）：每項附移除網址，其餘條件與圖表連動保留。
 
@@ -305,7 +339,7 @@ class FilterForm(forms.Form):
                 continue
             choices = dict((str(key), text) for key, text in getattr(self.fields[name], "choices", []))
             if name == "months":
-                values = [str(item).replace("-", "/") for item in value]
+                values = self.month_chip_values(value)
             elif isinstance(value, (list, tuple)):
                 values = [choices.get(str(item), str(item)) for item in value]
             else:

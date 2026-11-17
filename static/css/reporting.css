@@ -504,3 +504,28 @@
   .report-card-hint, .report-reader-shell .report-reader-main > .report-selection-controls { display: none !important; }
   .report-kpis__list, .report-reader-shell .report-reader-main .report-grid > .report-chart { box-shadow: none; }
 }
+/* 領牌年月樹狀（T-212）：年 → 月，年份三態勾選、預設收合；勾選框外觀比照車型樹（report-tree）。 */
+.report-month-tree { display: grid; gap: 2px; }
+.report-month-tree__year + .report-month-tree__year { border-top: 1px solid var(--line-soft, var(--line)); }
+.report-month-tree__head { display: flex; align-items: center; gap: var(--space-1); min-height: 44px; }
+.report-month-tree__toggle { display: grid; flex: 0 0 32px; place-items: center; width: 32px; height: 32px; padding: 0; color: var(--muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.report-month-tree__toggle svg { transition: transform var(--dur-2) var(--ease-out); }
+.report-month-tree__toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.report-month-tree__toggle:hover { color: var(--action-text); background: var(--surface-soft); }
+.report-month-tree__check { display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-3); min-width: 0; min-height: 40px; padding: var(--space-2); color: var(--ink); background: transparent; border: 0; border-radius: var(--radius-sm); font: inherit; font-weight: 750; text-align: left; cursor: pointer; }
+.report-month-tree__check:hover { background: var(--surface-soft); }
+.report-month-tree__toggle:focus-visible, .report-month-tree__check:focus-visible { outline: 3px solid var(--forest); outline-offset: 1px; }
+.report-month-tree__box { display: grid; flex: 0 0 18px; place-items: center; width: 18px; height: 18px; box-sizing: border-box; border: 1.5px solid var(--line-strong); border-radius: var(--radius-xs); background: var(--surface); color: var(--on-accent); transition: background-color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
+.report-month-tree__check:hover .report-month-tree__box { border-color: var(--forest); }
+.report-month-tree__check:is([aria-checked="true"], [aria-checked="mixed"]) .report-month-tree__box { background: var(--forest); border-color: var(--forest); }
+.report-month-tree__tick, .report-month-tree__dash { opacity: 0; transition: opacity var(--dur-1) var(--ease-out); }
+.report-month-tree__check[aria-checked="true"] .report-month-tree__tick, .report-month-tree__check[aria-checked="mixed"] .report-month-tree__dash { opacity: 1; }
+.report-month-tree__name { flex: 1 1 auto; white-space: nowrap; }
+.report-month-tree__count { white-space: nowrap; padding: 2px var(--space-2); color: var(--muted); background: var(--surface-soft); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 650; font-variant-numeric: tabular-nums; }
+.report-month-tree__months { padding: 0 0 var(--space-2) calc(32px + var(--space-1)); }
+.report-month-tree__months[hidden], .report-month-tree__year[hidden] { display: none; }
+/* 800px 以下複選面板原本與欄位同寬（約 200px），年月樹放不下：只有這個控制項改為靠右對齊、最寬 320px，不超出視窗。 */
+@media (max-width: 800px) {
+  .report-multiselect[data-month-tree-control] > .report-multi-options { left: auto; right: 0; width: min(320px, calc(100vw - 32px)); }
+}
+@media (prefers-reduced-motion: reduce) { .report-month-tree__toggle svg, .report-month-tree__box, .report-month-tree__tick, .report-month-tree__dash { transition: none; } }

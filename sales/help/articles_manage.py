@@ -74,7 +74,7 @@ SOMETIMES = (
         rules=("出廠年月不可晚於本月；同一批不能有重複的號碼。", "超過幾個月自動優先配車，可在配車規則調整（預設 3 個月）。"),
         related=("allocate",), routes=("inventory_list", "inventory_quick_create", "inventory_stock_count", "transfer_signoff_create", "inventory_create", "inventory_edit", "inventory_allocation_priority"),
         replaces=("inventory",), access=("inventory_list",), open_route="inventory_list", open_label="打開車輛庫存",
-        depends=("sales/inventory_list.html", "sales/inventory_quick_form.html", "sales/stock_count.html"), verified="2.15.0",
+        depends=("sales/inventory_list.html", "sales/inventory_quick_form.html", "sales/stock_count.html"), verified="2.21.2",
     ),
     Article(
         slug="order-deletion", title="刪除訂單與還原", group="sometimes",

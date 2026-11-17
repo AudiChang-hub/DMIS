@@ -5459,6 +5459,11 @@ class SubsidyItemForm(forms.ModelForm):
         self.fields["item_name"].widget.attrs.update(
             {"list": "subsidy-name-suggestions", "autocomplete": "off", "placeholder": "例如：工業局購車補助"}
         )
+        # T-216：狀態是「未申請」時下拉紅底標示；切換時由 subsidy-items.js 即時換 class。
+        unsubmitted = (self["status"].value() or SubsidyItem.Status.NOT_SUBMITTED) == SubsidyItem.Status.NOT_SUBMITTED
+        self.fields["status"].widget.attrs.update(
+            {"class": "subsidy-status" + (" is-unsubmitted" if unsubmitted else ""), "data-subsidy-status": ""}
+        )
 
     def clean_category(self):
         # 只填名稱與金額就能儲存；沒選類別視為「其他」。

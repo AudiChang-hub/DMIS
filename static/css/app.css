@@ -2635,6 +2635,14 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .dynamic-detail-row label { display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .dynamic-detail-row input, .dynamic-detail-row select { width: 100%; }
+/* T-216：補助申請項目的狀態是「未申請」時實心紅底（不用半透明，避免被列底色蓋掉）；改成已申請即恢復一般下拉。
+   只設 background-color，保留全站下拉的箭頭圖；focus 外框與邊框沿用全站規則。 */
+[data-subsidy-items] select.subsidy-status.is-unsubmitted {
+  --select-chevron: var(--on-status); color: var(--on-status); background-color: var(--red); border-color: var(--red); font-weight: 800;
+}
+[data-subsidy-items] select.subsidy-status.is-unsubmitted:hover:not(:disabled) { background-color: var(--red-ink); }
+/* Windows Chrome 的展開清單會沿用下拉本身的顏色：選項維持一般底色，不整片變紅。 */
+[data-subsidy-items] select.subsidy-status.is-unsubmitted option { color: var(--ink); background-color: var(--surface); font-weight: 400; }
 .delete-detail-control { align-self: end; display: flex !important; align-items: center; min-height: 44px; gap: var(--space-2); color: var(--danger) !important; }
 .delete-detail-control input { width: auto; }
 .subsidy-document-list { margin-top: 0; }

@@ -174,6 +174,12 @@ document.addEventListener("DOMContentLoaded", () => {
     list.lastElementChild?.querySelector("input:not([type=hidden]), select")?.focus({preventScroll: true});
     refreshTotal();
   });
+  // T-216：狀態下拉是「未申請」時紅底，切到已申請恢復原樣（初始 class 由伺服器輸出）。
+  list.addEventListener("change", event => {
+    if (event.target.matches("select[data-subsidy-status]")) {
+      event.target.classList.toggle("is-unsubmitted", event.target.value === "not_submitted");
+    }
+  });
   list.addEventListener("change", event => {
     if (!event.target.matches("input[name$='-DELETE']")) return;
     event.target.closest("[data-form-row]")?.classList.toggle("is-deleted", event.target.checked);

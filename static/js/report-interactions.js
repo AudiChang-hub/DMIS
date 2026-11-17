@@ -275,8 +275,23 @@ function reportAutoSubmitFilters(form) {
     pendingMulti = null; queue.schedule(null, 0);
   }, true);
 }
+// 來源訂單明細面板：記下打開它的元素；面板內換頁、跳頁不覆蓋，關閉時焦點才能還回去。
+function reportDetailTrigger(element, panel, previous) {
+  if (!element || panel.contains(element)) return previous;
+  const card = element.closest("[data-chart-index]")?.dataset.chartIndex ?? null;
+  return {element, card, selector: element.matches("a[data-report-open-detail]") ? "a[data-report-open-detail]" : null};
+}
+// 關閉時要還焦點的位置：原元素 → 報表重新整理後同卡片的同一個連結 → 被選的那一列 → 面板所在區塊。
+function reportDetailReturnTarget(trigger, root) {
+  if (trigger?.element?.isConnected) return trigger.element;
+  if (trigger?.selector && trigger.card !== null) {
+    const same = root.querySelector(`[data-chart-index="${trigger.card}"] ${trigger.selector}`);
+    if (same) return same;
+  }
+  return root.querySelector(".report-row-selected a") || root.querySelector("[data-report-exploration]");
+}
 if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
-if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError, reportMultiSummary});
+if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError, reportMultiSummary, reportDetailTrigger, reportDetailReturnTarget});
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -597,7 +612,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
   });
   const panel = document.querySelector("[data-inline-detail]");
   if (!panel) { reportAutoSubmitFilters(document.querySelector('.report-filter')); return; }
-  let controller, sequence = 0, currentUrl = null;
+  let controller, sequence = 0, currentUrl = null, detailTrigger = null;
   const body = panel.querySelector("[data-detail-body]");
   const status = panel.querySelector("[data-detail-status]");
   const selection = panel.querySelector("[data-detail-selection]");
@@ -783,7 +798,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
     const link = event.target.closest("a[data-report-drill],a[data-detail-page],a[data-report-open-detail]");
     if (!link || event.altKey || event.button || (!link.matches('[data-report-drill]') && (event.ctrlKey || event.metaKey || event.shiftKey))) return;
     event.preventDefault();
-    if (link.matches("[data-report-open-detail]")) { loadDetail(link.href, "目前篩選的來源訂單"); return; }
+    if (link.matches("[data-report-open-detail]")) { detailTrigger = reportDetailTrigger(link, panel, detailTrigger); loadDetail(link.href, "目前篩選的來源訂單"); return; }
     if (link.matches("[data-report-drill]")) {
       if (link.closest('[data-chart-index]')?.dataset.crossFilter === 'off') return;
       if (updateStatus) {
@@ -812,13 +827,17 @@ if (typeof document !== "undefined") initReportVisuals(document);
       document.querySelectorAll(".report-row-selected").forEach(row => row.classList.remove("report-row-selected"));
       const row = link.closest("[data-point-label]") || link.closest(".report-stack-row");
       row?.classList.add("report-row-selected");
+      detailTrigger = reportDetailTrigger(link, panel, detailTrigger);
       loadDetail(link.href, `已選取：${row?.dataset.pointLabel || link.getAttribute("aria-label") || link.textContent.trim()}`);
     } else loadDetail(new URL(link.getAttribute("href"), currentUrl).href, selection.textContent);
   });
   panel.querySelector("[data-detail-clear]").addEventListener("click", () => {
     ++sequence; controller?.abort(); panel.hidden = true; body.replaceChildren();
     document.querySelector("[data-report-exploration]").classList.remove("has-detail");
-    const selected = document.querySelector(".report-row-selected"); selected?.querySelector("a")?.focus(); selected?.classList.remove("report-row-selected");
+    const target = reportDetailReturnTarget(detailTrigger, document); detailTrigger = null;
+    if (target?.matches("[data-report-exploration]") && !target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target?.focus();
+    document.querySelector(".report-row-selected")?.classList.remove("report-row-selected");
   });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) panel.querySelector('[data-detail-clear]').click(); });
 })();

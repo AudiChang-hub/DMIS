@@ -2,7 +2,7 @@
 {% block title %}{% if restore %}還原{% else %}刪除{% endif %}訂單｜車輛銷售管理{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">{{ order.number }}</p><h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1><p class="muted">{{ order.owner_name }} · {{ order.vehicle_model }}／{{ order.color.name }} · {{ order.get_status_display }}</p></div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">{{ order.number }}</p><h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1><p class="muted">{{ order.owner_name }} · {{ order.vehicle_model }}／{{ order.color.label }} · {{ order.get_status_display }}</p></div></section>
 <section class="section-block confirm-panel">
   <div class="section-title"><h2>{% if restore %}還原後會怎樣{% else %}刪除後會怎樣{% endif %}</h2>{% if order.deletion_requested_at and not restore %}<span class="status-pill status-deletion_pending">刪除確認中</span>{% endif %}</div>
   <div class="section-body confirm-panel__body">

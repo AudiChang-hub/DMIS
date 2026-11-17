@@ -143,7 +143,7 @@ def record_cells(order, columns):
         "legacy_source_name": str((mapped.get("dealer_name_raw") if legacy else order.source.name if order.source else '') or '').strip() or '馭盛',
         "model_number": mapped.get("model_number") if legacy else order.vehicle_model.model_number or order.vehicle_model.name,
         "identifier": identifier or (legacy.vehicle_identifier if legacy else "") or "尚未填寫",
-        "energy": order.vehicle_model.get_energy_type_display(), "color": order.color.name, "owner_name": order.owner_name,
+        "energy": order.vehicle_model.get_energy_type_display(), "color": order.color.label, "owner_name": order.owner_name,
         "subsidy": order.subsidy_type or "未填寫",
         "payment_confirmed": ("已收款" if operations.payment_confirmed else "未收款") if operations else "待補收支資料",
         "total_received": str(operations.total_received) if operations else "待補收支資料",

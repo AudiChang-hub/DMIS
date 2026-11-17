@@ -63,7 +63,7 @@ def vehicle_snapshot(vehicles):
             "id": vehicle.pk,
             "model": vehicle.vehicle_model.name,
             "model_number": vehicle.vehicle_model.model_number or "",
-            "color": vehicle.color.name,
+            "color": vehicle.color.label,
             "engine_number": vehicle.engine_number or "",
             "frame_number": vehicle.frame_number or "",
             "location": vehicle.actual_location_label,

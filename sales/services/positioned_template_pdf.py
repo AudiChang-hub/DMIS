@@ -89,7 +89,7 @@ def order_print_values(order, today=None):
         "vehicle_brand_model": f"{model.brand} {model.name}".strip(),
         "vehicle_model_number": model.model_number,
         "vehicle_year": str(model.model_year or ""),
-        "vehicle_color": order.color.name,
+        "vehicle_color": order.color.label,
         "vehicle_identifier": vehicle.identifier if vehicle else "",
         "manufactured_year_month": vehicle.manufactured_year_month if vehicle else "",
         "plate_number": order.final_plate_number,

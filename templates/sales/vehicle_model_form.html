@@ -45,6 +45,7 @@
       <div class="master-color-row" data-color-row>
         {{ color_form.id }}
         <div>{% include "sales/_field.html" with field=color_form.name %}</div>
+        <div>{% include "sales/_field.html" with field=color_form.code %}</div>
         <div>{% include "sales/_field.html" with field=color_form.active %}</div>
         <span hidden>{{ color_form.DELETE }}</span>
         {% if color_form.is_used %}
@@ -59,6 +60,7 @@
       <div class="master-color-row" data-color-row>
         {{ color_formset.empty_form.id }}
         <div>{% include "sales/_field.html" with field=color_formset.empty_form.name %}</div>
+        <div>{% include "sales/_field.html" with field=color_formset.empty_form.code %}</div>
         <div>{% include "sales/_field.html" with field=color_formset.empty_form.active %}</div>
         <span hidden>{{ color_formset.empty_form.DELETE }}</span>
         <button type="button" class="button danger-outline small" data-delete-color>移除此列</button>

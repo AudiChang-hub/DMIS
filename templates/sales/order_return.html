@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">訂單例外處理 · admin</p>
     <h1>交車後退車</h1>
-    <p class="muted">{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% if order.final_plate_number %} · {{ order.final_plate_number }}{% endif %}</p>
+    <p class="muted">{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.label }}{% if order.final_plate_number %} · {{ order.final_plate_number }}{% endif %}</p>
   </div>
 </section>
 

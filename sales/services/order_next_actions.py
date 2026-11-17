@@ -340,7 +340,7 @@ def build_order_next_actions(
                 key="inventory-entry",
                 title="先建立符合的進車資料",
                 description=(
-                    f"目前沒有符合「{order.vehicle_model}／{order.color.name}」"
+                    f"目前沒有符合「{order.vehicle_model}／{order.color.label}」"
                     "的可售庫存。"
                 ),
                 action_label="前往快速進車",

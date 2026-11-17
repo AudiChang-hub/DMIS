@@ -272,7 +272,7 @@ def build_summary(form, formset, fee_formset, draft):
         vehicle_rows.append((form.fields["vehicle_model"].label, "／".join(part for part in parts if part)))
     color = form.cleaned_data.get("color")
     if color:
-        vehicle_rows.append((form.fields["color"].label, color.name))
+        vehicle_rows.append((form.fields["color"].label, color.label))
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
          "rows": vehicle_rows + _rows(form, ("transaction_type", "source_type", "source")) + payment_rows},

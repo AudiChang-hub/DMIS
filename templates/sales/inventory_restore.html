@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">車輛庫存維護 · admin</p>
     <h1>改回現有庫存</h1>
-    <p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.color.name }} · {{ vehicle.identifier }}</p>
+    <p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.color.label }} · {{ vehicle.identifier }}</p>
   </div>
 </section>
 
@@ -28,7 +28,7 @@
       </div>
     </div>
     <dl class="confirm-facts">
-      <div><dt>車型／車色</dt><dd>{{ vehicle.vehicle_model.name }}／{{ vehicle.color.name }}</dd></div>
+      <div><dt>車型／車色</dt><dd>{{ vehicle.vehicle_model.name }}／{{ vehicle.color.label }}</dd></div>
       <div><dt>引擎／車身號碼</dt><dd>{{ vehicle.identifier }}</dd></div>
       <div><dt>進車日期</dt><dd>{{ vehicle.received_on|date:"Y/m/d" }}</dd></div>
       <div><dt>實際位置</dt><dd>{{ vehicle.actual_location_label }}</dd></div>

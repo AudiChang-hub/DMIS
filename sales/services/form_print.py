@@ -179,7 +179,7 @@ def form_values(order, *, reveal_secrets=False):
         "brand": brand,
         "maker": MAKER_NAMES.get(brand.upper(), brand),
         "model_number": _text(model.model_number) or _text(model.name),
-        "color": _text(order.color.name if order.color_id else ""),
+        "color": _text(order.color.label if order.color_id else ""),
         "identifier": _identifier(order),
         "identifier_label": "車身號碼" if order.is_electric_vehicle else "引擎號碼",
         "plate": _text(order.final_plate_number),

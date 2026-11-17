@@ -62,7 +62,7 @@
       {% elif tab == "images" %}
       <form method="post" action="{% url 'official_catalog_fill_images' link.pk %}" data-confirm="確定要把勾選的官網圖片補到這些車色嗎？只會填入目前沒有圖片的車色。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
         <fieldset class="catalog-color-grid"><legend class="help-text">勾選要補上的圖片；系統車色已有圖片的不會列出，也不會被覆蓋。</legend>
-        {% for color, official in row.fillable %}<label class="catalog-color-card"><input type="checkbox" name="color" value="{{ color.pk }}" checked><span class="catalog-color-visual"><img src="{{ official.image_url }}" alt="{{ official.name }}" loading="lazy" referrerpolicy="no-referrer"></span><strong>{{ color.name }}</strong><small>官網：{{ official.name }}</small></label>{% endfor %}
+        {% for color, official in row.fillable %}<label class="catalog-color-card"><input type="checkbox" name="color" value="{{ color.pk }}" checked><span class="catalog-color-visual"><img src="{{ official.image_url }}" alt="{{ official.name }}" loading="lazy" referrerpolicy="no-referrer"></span><strong>{{ color.label }}</strong><small>官網：{{ official.name }}</small></label>{% endfor %}
         </fieldset>
         <div class="form-actions"><button class="button primary">補上勾選的圖片</button></div>
       </form>

@@ -412,7 +412,7 @@ def _create_year(base, target_year, effective_from, datasets, extras, activate, 
     if "colors" in extras:
         for color in base.colors.filter(active=True).order_by("name"):
             VehicleColor.objects.create(
-                vehicle_model=new_model, name=color.name,
+                vehicle_model=new_model, name=color.name, code=color.code,
                 catalog_image=color.catalog_image.name if color.catalog_image else "",
             )
     if "catalog" in extras:

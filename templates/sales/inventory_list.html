@@ -146,7 +146,7 @@
           </td>
           {% endif %}
           <td data-label="品牌">{{ vehicle.vehicle_model.brand|default:"—" }}</td>
-          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
+          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.label }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="車行調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>{% if vehicle.pk in deletion_review_ids %}<small class="inventory-review-flag" title="刪單時已領牌，等 admin 判斷是否改回現有庫存">刪單待確認</small>{% endif %}</td>
           {% if selected.scope == 'sold' %}

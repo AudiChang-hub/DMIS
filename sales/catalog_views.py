@@ -211,12 +211,12 @@ class CatalogForm(forms.ModelForm):
         self.catalog_colors = list(self.instance.vehicle_model.colors.filter(active=True).order_by("name", "pk"))
         self.fields["main_image_color"].queryset = self.instance.vehicle_model.colors.filter(active=True)
         for color in self.catalog_colors:
-            self.fields[f"color_image_{color.pk}"] = forms.ImageField(label=f"{color.name} · 車色圖片", required=False,
+            self.fields[f"color_image_{color.pk}"] = forms.ImageField(label=f"{color.label} · 車色圖片", required=False,
                 widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}))
-            self.fields[f"color_url_{color.pk}"] = forms.CharField(label=f"{color.name} · 圖片連結", required=False,
+            self.fields[f"color_url_{color.pk}"] = forms.CharField(label=f"{color.label} · 圖片連結", required=False,
                 max_length=2000, widget=forms.URLInput(attrs={"placeholder": "https://…/圖片.jpg", "inputmode": "url",
                                                              "autocomplete": "off", "spellcheck": "false"}))
-            self.fields[f"color_remove_{color.pk}"] = forms.BooleanField(label=f"移除 {color.name} 的展示圖片（保留備份檔）", required=False)
+            self.fields[f"color_remove_{color.pk}"] = forms.BooleanField(label=f"移除 {color.label} 的展示圖片（保留備份檔）", required=False)
         # 原始媒體 URL 不作為對外預覽；僅經 catalog_image 讀取。
         self.fields["image"].widget = forms.FileInput(
             attrs={"accept": "image/jpeg,image/png,image/webp"}

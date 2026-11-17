@@ -181,7 +181,7 @@ def _payout_orders():
 
 
 def order_vehicle_label(order):
-    return f"{order.vehicle_model.name} {order.color.name}".strip()
+    return f"{order.vehicle_model.name} {order.color.label}".strip()
 
 
 def deduction_amount(order, amount):

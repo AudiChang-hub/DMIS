@@ -96,7 +96,7 @@
           {# 尚未確認領牌的單（車行獎勵預先觸發，T-176）列訂單成立日並註明。 #}
           {% with day=row.order.reward_basis_date %}<time datetime="{{ day|date:'Y-m-d' }}">{{ day|date:'m/d' }}<small>{% if row.order.registration_completed_at %}{{ day|date:'Y' }}{% else %}訂單日{% endif %}</small></time>{% endwith %}
           <div>
-            <p class="payout-order__vehicle">{{ row.order.vehicle_model.name }} <span>{{ row.order.color.name }}</span></p>
+            <p class="payout-order__vehicle">{{ row.order.vehicle_model.name }} <span>{{ row.order.color.label }}</span></p>
             <p class="payout-order__ref">{% if can_open_orders %}<a href="{% url 'order_detail' row.order.pk %}">{{ row.order.number }}</a>{% else %}{{ row.order.number }}{% endif %} · {{ row.order.owner_name }}</p>
           </div>
         </header>

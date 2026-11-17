@@ -15,7 +15,7 @@ def selection_data(model, color, payment_type, option=None):
     version = resolve_vehicle_price_version(model.pk, timezone.localdate())
     price, label = recommended_vehicle_price(version, payment_type)
     return {
-        "model": model.pk, "color": color.pk, "model_label": str(model), "color_label": color.name,
+        "model": model.pk, "color": color.pk, "model_label": str(model), "color_label": color.label,
         "payment_type": payment_type, "price": str(price) if price is not None else None,
         "price_label": label, "price_version": version.pk if version else None,
         "option": option.pk if option else None,

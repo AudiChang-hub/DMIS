@@ -371,7 +371,7 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
             p("<b>車型／車色</b>"),
             p(
                 f"{safe(order.vehicle_model.brand)} "
-                f"{safe(order.vehicle_model.name)}／{safe(order.color.name)}"
+                f"{safe(order.vehicle_model.name)}／{safe(order.color.label)}"
             ),
             p("<b>交車方式</b>"),
             p(
@@ -438,7 +438,7 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
         [
             p("車價"),
             p(safe(order.vehicle_model)),
-            p(safe(order.color.name)),
+            p(safe(order.color.label)),
             p("1", center_style),
             p(money(order.vehicle_price), right_style),
             p(money(order.vehicle_price), right_style),

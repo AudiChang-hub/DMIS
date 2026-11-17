@@ -18,7 +18,7 @@
     {% for vehicle in vehicles %}
     <li>
       <span class="transfer-sign__index" aria-hidden="true">{{ forloop.counter }}</span>
-      <span class="transfer-sign__model"><strong>{{ vehicle.vehicle_model.name }}</strong><small>{{ vehicle.color.name }}</small></span>
+      <span class="transfer-sign__model"><strong>{{ vehicle.vehicle_model.name }}</strong><small>{{ vehicle.color.label }}</small></span>
       <span class="transfer-sign__ids">{% if vehicle.engine_number %}<span><small>引擎</small>{{ vehicle.engine_number }}</span>{% endif %}{% if vehicle.frame_number %}<span><small>車身</small>{{ vehicle.frame_number }}</span>{% endif %}</span>
     </li>
     {% endfor %}

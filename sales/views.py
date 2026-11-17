@@ -4105,7 +4105,7 @@ def _inventory_values(vehicle):
             vehicle.acquisition_label,
         ),
         "vehicle_model": (vehicle.vehicle_model_id, str(vehicle.vehicle_model)),
-        "color": (vehicle.color_id, vehicle.color.name),
+        "color": (vehicle.color_id, vehicle.color.label),
         "engine_number": (vehicle.engine_number or "", vehicle.engine_number or "未填寫"),
         "frame_number": (vehicle.frame_number or "", vehicle.frame_number or "未填寫"),
         "current_dealer": (
@@ -4799,7 +4799,7 @@ def operations_report_export(request):
             order.vehicle_model.model_number,
             order.vehicle_model.get_model_code_display()
             if order.vehicle_model.model_code else "",
-            order.color.name,
+            order.color.label,
             order.allocated_vehicle.identifier if order.allocated_vehicle else "",
             order.owner_name, order.final_plate_number, order.vehicle_price,
             op("actual_disbursement", 0), op("vehicle_cost", 0),
@@ -8752,6 +8752,7 @@ def inventory_list(request):
             | Q(vehicle_model__model_number__icontains=keyword)
             | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(color__name__icontains=keyword)
+            | Q(color__code__icontains=keyword)
             | Q(current_dealer__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
             | Q(transfer_source_name__icontains=keyword)
@@ -10649,9 +10650,10 @@ def vehicle_colors(request):
     model_id = request.GET.get("model")
     colors = VehicleColor.objects.filter(
         vehicle_model_id=model_id, active=True
-    ).values("id", "name")
+    ).order_by("name", "pk")
+    # 下拉選單顯示「名稱 色碼」（T-223）；前端只讀 id 與 name。
     return JsonResponse(
-        {"results": list(colors)}
+        {"results": [{"id": color.pk, "name": color.label} for color in colors]}
     )
 
 

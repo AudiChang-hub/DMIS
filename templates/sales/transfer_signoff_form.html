@@ -70,13 +70,13 @@
       {% if candidates %}
       <ul class="transfer-pick__list" data-transfer-list>
         {% for vehicle in candidates %}
-        <li data-transfer-item data-model="{{ vehicle.vehicle_model.name }}" data-color="{{ vehicle.color.name }}" data-location="{{ vehicle.actual_location_label }}" data-search="{{ vehicle.vehicle_model.name|lower }} {{ vehicle.vehicle_model.model_number|default:''|lower }} {{ vehicle.color.name|lower }} {{ vehicle.engine_number|default:''|lower }} {{ vehicle.frame_number|default:''|lower }} {{ vehicle.actual_location_label|lower }}">
+        <li data-transfer-item data-model="{{ vehicle.vehicle_model.name }}" data-color="{{ vehicle.color.name }}" data-location="{{ vehicle.actual_location_label }}" data-search="{{ vehicle.vehicle_model.name|lower }} {{ vehicle.vehicle_model.model_number|default:''|lower }} {{ vehicle.color.label|lower }} {{ vehicle.engine_number|default:''|lower }} {{ vehicle.frame_number|default:''|lower }} {{ vehicle.actual_location_label|lower }}">
           <label class="transfer-pick__card">
             <input type="checkbox" name="vehicles" value="{{ vehicle.pk }}"{% if vehicle.pk in selected_ids %} checked{% endif %}>
             <span class="transfer-pick__check" aria-hidden="true"></span>
             <span class="transfer-pick__body">
               <strong>{{ vehicle.vehicle_model.name }}</strong>
-              <small>{{ vehicle.color.name }}・出廠 {{ vehicle.manufactured_year_month|default:"未填寫" }}</small>
+              <small>{{ vehicle.color.label }}・出廠 {{ vehicle.manufactured_year_month|default:"未填寫" }}</small>
               <span class="inventory-identifier">{{ vehicle.identifier }}</span>
               <span class="transfer-pick__tags"><span>{{ vehicle.actual_location_label }}</span>{% if vehicle.status == 'condition_issue' %}<span class="is-warning">車況異常</span>{% endif %}</span>
             </span>

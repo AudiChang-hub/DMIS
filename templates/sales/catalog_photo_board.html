@@ -56,22 +56,22 @@
       <ul class="photo-board__cells" role="list">
         {% for item in row.cells %}{% with color=item.color %}
         <li class="photo-cell" data-photo-cell data-has-photo="{{ item.has_photo|yesno:'1,0' }}" data-state="idle"
-            data-save-url="{% url 'catalog_photo_save' color.pk %}" data-expected="{{ color.catalog_image.name }}" data-name="{{ model.name }} · {{ color.name }}">
-          <div class="photo-cell__media" tabindex="0" data-photo-drop aria-label="{{ color.name }}：{% if item.has_photo %}已有圖片，拖入或貼上可換圖{% else %}缺圖，拖入圖片或貼上連結即可儲存{% endif %}">
-            {% if item.has_photo %}<img src="{{ item.thumb }}" alt="{{ model.name }} · {{ color.name }}" loading="lazy" decoding="async" data-photo-img>{% else %}<img alt="{{ model.name }} · {{ color.name }}" decoding="async" data-photo-img hidden>{% endif %}
+            data-save-url="{% url 'catalog_photo_save' color.pk %}" data-expected="{{ color.catalog_image.name }}" data-name="{{ model.name }} · {{ color.label }}">
+          <div class="photo-cell__media" tabindex="0" data-photo-drop aria-label="{{ color.label }}：{% if item.has_photo %}已有圖片，拖入或貼上可換圖{% else %}缺圖，拖入圖片或貼上連結即可儲存{% endif %}">
+            {% if item.has_photo %}<img src="{{ item.thumb }}" alt="{{ model.name }} · {{ color.label }}" loading="lazy" decoding="async" data-photo-img>{% else %}<img alt="{{ model.name }} · {{ color.label }}" decoding="async" data-photo-img hidden>{% endif %}
             <span class="photo-cell__empty" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="photo-cell__hint-pointer">拖入或點此選圖</span><span class="photo-cell__hint-touch">點此選圖</span></span>
             <span class="photo-cell__progress" aria-hidden="true"></span>
           </div>
           <div class="photo-cell__meta">
-            <strong>{{ color.name }}</strong>
+            <strong>{{ color.label }}</strong>
             <span class="photo-cell__badge" data-photo-badge>{% if item.has_photo %}已有圖{% else %}缺圖{% endif %}</span>
           </div>
           <div class="photo-cell__actions">
-            <label class="photo-cell__action"><input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file aria-label="{{ color.name }}：選擇圖片檔"><span data-photo-file-label>{% if item.has_photo %}換圖{% else %}選檔{% endif %}</span></label>
+            <label class="photo-cell__action"><input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" data-photo-file aria-label="{{ color.label }}：選擇圖片檔"><span data-photo-file-label>{% if item.has_photo %}換圖{% else %}選檔{% endif %}</span></label>
             <button class="photo-cell__action" type="button" data-photo-link-toggle aria-expanded="false">貼連結</button>
           </div>
           <form class="photo-cell__link" data-photo-link-form hidden>
-            <label class="visually-hidden" for="photo-url-{{ color.pk }}">{{ color.name }} 圖片連結</label>
+            <label class="visually-hidden" for="photo-url-{{ color.pk }}">{{ color.label }} 圖片連結</label>
             <input id="photo-url-{{ color.pk }}" type="url" inputmode="url" placeholder="https://…/圖片.jpg" autocomplete="off" spellcheck="false" required data-photo-url>
             <button class="button primary small" type="submit">儲存</button>
           </form>

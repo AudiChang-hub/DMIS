@@ -16,7 +16,7 @@
     <div class="deletion-review-card__order">
       <p class="deletion-review-card__number">{{ order.number }}</p>{% order_origin_badge order %}
       <h2>{{ order.owner_name|default:"未填車主" }}</h2>
-      <p class="deletion-review-card__vehicle">{{ order.vehicle_model|default:"未選車型" }}{% if order.color %}<span aria-hidden="true">・</span>{{ order.color.name }}{% endif %}</p>
+      <p class="deletion-review-card__vehicle">{{ order.vehicle_model|default:"未選車型" }}{% if order.color %}<span aria-hidden="true">・</span>{{ order.color.label }}{% endif %}</p>
       <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
     </div>
     <figure class="deletion-review-card__reason">

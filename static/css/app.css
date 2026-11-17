@@ -4365,7 +4365,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .master-model-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .master-color-rows { display: grid; }
 .master-color-row {
-  display: grid; padding: var(--space-4) var(--space-5); grid-template-columns: minmax(220px, 1fr) 180px 220px;
+  display: grid; padding: var(--space-4) var(--space-5); grid-template-columns: minmax(200px, 1fr) 140px 160px 220px;
   align-items: end; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line);
 }
 .master-color-row .field { padding: 0; }

@@ -225,7 +225,7 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
         ("原廠型號", _factory_model_code_text(order.vehicle_model)),
         ("動力類型", order.vehicle_model.get_energy_type_display()),
         ("排氣量", order.vehicle_model.displacement_cc),
-        ("車色", order.color.name),
+        ("車色", order.color.label),
     )
     vehicle = order.allocated_vehicle
     if vehicle:
@@ -371,7 +371,7 @@ def build_order_search_payload(order, *, include_private=True):
         ("原廠型號", _factory_model_code_text(order.vehicle_model)),
         ("動力類型", order.vehicle_model.get_energy_type_display()),
         ("排氣量", order.vehicle_model.displacement_cc),
-        ("車色", order.color.name),
+        ("車色", order.color.label),
     )
     vehicle = order.allocated_vehicle
     if vehicle:

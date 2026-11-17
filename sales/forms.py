@@ -2254,7 +2254,7 @@ def existing_vehicle_message(vehicle):
     return format_html(
         '此號碼已存在：{}／{}，狀態「{}」{}。{}<span class="field-error__actions">'
         '<a class="button ghost compact" href="{}">查看這台車</a>{}</span>',
-        vehicle.vehicle_model, vehicle.color.name, vehicle.get_status_display(), order_part, hint,
+        vehicle.vehicle_model, vehicle.color.label, vehicle.get_status_display(), order_part, hint,
         reverse("inventory_edit", args=[vehicle.pk]), order_link,
     )
 
@@ -2352,7 +2352,7 @@ class VehicleInventoryForm(forms.ModelForm):
         self.fields["vehicle_model"].label_from_instance = lambda model: (
             f"{model.model_number or model.name}／{model.model_year or '年份待補'}"
         )
-        self.fields["color"].label_from_instance = lambda color: color.name
+        self.fields["color"].label_from_instance = lambda color: color.label
         self.fields["vehicle_model"].widget.attrs.update(
             {
                 "data-searchable-select": "1",
@@ -3108,13 +3108,19 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
 class VehicleColorMasterForm(forms.ModelForm):
     class Meta:
         model = VehicleColor
-        fields = ["name", "active"]
+        fields = ["name", "code", "active"]
         labels = {"name": "顏色"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        # 原廠色碼選填；有填時各畫面顯示「名稱 色碼」，例如「帕瑪森白 W17」（T-223）。
+        self.fields["code"].widget.attrs.update({"placeholder": "例如 W17", "autocapitalize": "characters",
+                                                 "spellcheck": "false", "autocomplete": "off", "maxlength": "20"})
+
+    def clean_code(self):
+        return "".join((self.cleaned_data.get("code") or "").split()).upper()
 
     def has_changed(self):
         # 官網預填色名未修改時，表單值與預填相同；新列有色名仍須建立。
@@ -4450,7 +4456,7 @@ class QuickInventoryEntryForm(forms.Form):
             {"data-searchable-select": "1", "data-search-placeholder": "請先選擇車型"}
         )
         # 驗證失敗重畫時與前端載入的一樣只顯示車色名稱，不重複整串車型。
-        self.fields["color"].label_from_instance = lambda color: color.name
+        self.fields["color"].label_from_instance = lambda color: color.label
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -4602,7 +4608,7 @@ class AllocationVehicleChoiceField(forms.ModelChoiceField):
 
     def label_from_instance(self, vehicle):
         # 下拉同時列出車種名稱與車色，選車時不必另外對照（使用者 2026-10-12）。
-        parts = [vehicle.vehicle_model.name, vehicle.color.name, vehicle.identifier,
+        parts = [vehicle.vehicle_model.name, vehicle.color.label, vehicle.identifier,
                  f"出廠 {vehicle.manufactured_year_month or '未填寫'}"]
         if vehicle.registered_plate_number:
             parts.append(f"車牌 {vehicle.registered_plate_number}")

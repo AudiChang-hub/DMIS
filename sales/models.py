@@ -2986,8 +2986,16 @@ class VehicleColor(TimeStampedModel):
         verbose_name="車型",
     )
     name = models.CharField("車色", max_length=80)
+    # 原廠色碼（T-223），例如台鈴「帕瑪森白」的 W17；畫面以 label 顯示「名稱 色碼」。資料庫預設空字串，部署期間舊版照常寫入。
+    code = models.CharField("色碼", max_length=20, blank=True, default="", db_default="")
     catalog_image = models.ImageField("車色展示圖片", upload_to="catalog/colors/%Y/%m/", blank=True)
     active = models.BooleanField("啟用中", default=True)
+
+    @property
+    def label(self):
+        """顯示用：有色碼時「帕瑪森白 W17」，沒有就只顯示名稱。"""
+        code = (self.code or "").strip()
+        return f"{self.name} {code}" if code else self.name
 
     class Meta:
         ordering = ["vehicle_model", "name"]
@@ -3269,7 +3277,7 @@ class VehicleInventory(TimeStampedModel):
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.vehicle_model} {self.color.name}／{self.identifier}"
+        return f"{self.vehicle_model} {self.color.label}／{self.identifier}"
 
 
 class VehicleInventoryHistory(TimeStampedModel):

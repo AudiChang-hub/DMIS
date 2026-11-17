@@ -31,7 +31,7 @@
         {% for vehicle in vehicles %}
         <tr>
           <td data-label="進車日期">{{ vehicle.received_on|date:"Y/m/d" }}</td>
-          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
+          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.label }}</span></td>
           <td data-label="引擎／車身號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           <td data-label="來源">{{ vehicle.acquisition_label }}</td>

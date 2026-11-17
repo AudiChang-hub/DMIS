@@ -45,6 +45,8 @@
 {% if not editing_order %}
 <div class="order-compact-anchor" data-order-compact-anchor>
   <div class="order-compact-bar" data-order-compact-bar aria-hidden="true" inert>
+    {# T-214：捲動時也能返回；與麵包屑同一目的地，data-return-to 由 ui-navigation.js 帶回列表的篩選、排序與捲動位置。 #}
+    <a class="order-compact-bar__back" href="{{ order_list_url }}" data-return-to aria-label="回到全部訂單"><span class="order-compact-bar__back-arrow" aria-hidden="true">←</span><span class="order-compact-bar__back-text">全部訂單</span></a>
     <strong class="order-compact-bar__name">{{ order.owner_name }}</strong>
     <span class="status-pill status-{{ order.display_status_code }}" data-compact-status>{{ order.display_status }}</span>
     <span class="order-compact-bar__number">{{ order.number }}</span>

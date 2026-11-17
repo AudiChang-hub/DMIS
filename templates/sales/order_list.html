@@ -77,7 +77,7 @@
     <span>點擊欄位追加排序，再點切換方向；可逐項移除或調整順位，不影響其他條件。</span>
     <a href="{% querystring sort='' page=None %}" data-sort-clear>全部清除</a>
     <div class="order-sort-mobile">{% for column in sort_columns %}{% if not column.locked %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} · {{ column.direction_label }}（第 {{ column.rank }} 順位）{% else %} · 排序{% endif %}</a>{% endif %}{% endfor %}</div>
-    <p aria-live="polite">目前排序：{% if not sort_value %}預設（訂單版本日期由新到舊）{% endif %}</p>
+    <p aria-live="polite">目前排序：{% if not sort_value %}預設（{{ default_sort_label }}）{% endif %}</p>
     <ol class="sort-chip-list" aria-label="排序條件與優先順序">{% for column in sort_active %}<li>
       <a href="{{ column.url }}" data-order-sort-key="{{ column.key }}" aria-label="切換{{ column.label }}排序方向">{{ column.rank }}. {{ column.label }}：{{ column.direction_label }}</a>
       {% if column.up_url %}<a href="{{ column.up_url }}" aria-label="提前{{ column.label }}排序順位">提前</a>{% endif %}

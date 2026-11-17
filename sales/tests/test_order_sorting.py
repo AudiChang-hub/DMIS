@@ -177,3 +177,55 @@ class OrderSortingTests(TestCase):
         # 1.75.1：搜尋表單不帶目前頁籤，從預設「進行中」搜已結案訂單也找得到。
         search_form = response.content.decode().split('order-filter-bar', 1)[1].split('</form>', 1)[0]
         self.assertNotIn('name="tab"', search_form)
+
+    def test_default_sort_by_registration_then_established_per_tab(self):
+        # T-204（使用者 2026-11-17）：進行中／已交車／已結案沒指定排序時，
+        # 領牌日期新→舊（未領牌排最前）→ 訂單成立日期新→舊 → pk；已取消維持訂單版本日期。
+        from django.utils import timezone
+        template = self.orders[0]
+        # 共用的 4 張單日期都放到最舊，只比對前 5 張。
+        SalesOrder.objects.update(registration_date=date(2000, 1, 1), order_date=date(2000, 1, 1))
+
+        def make(name, registered, established, order_day, **fields):
+            order = SalesOrder.objects.create(
+                owner_name=name, owner_phone=template.owner_phone, owner_address=template.owner_address,
+                owner_id_number=template.owner_id_number, vehicle_model=template.vehicle_model,
+                color=template.color, established_on=established, **fields)
+            SalesOrder.objects.filter(pk=order.pk).update(registration_date=registered, order_date=order_day)
+            return order
+
+        old_reg = make('OldReg', date(2026, 1, 5), date(2026, 1, 1), date(2026, 3, 1))
+        new_reg = make('NewReg', date(2026, 2, 5), date(2025, 12, 1), date(2026, 1, 1))
+        no_reg_old = make('NoRegOld', None, date(2026, 1, 10), date(2026, 3, 9))
+        no_reg_new = make('NoRegNew', None, date(2026, 2, 10), date(2026, 1, 9))
+        tie_a = make('TieA', date(2026, 2, 5), date(2025, 12, 1), date(2026, 2, 1))
+        expected = [no_reg_new, no_reg_old, tie_a, new_reg, old_reg]
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.context['order_tab'], 'open')
+        self.assertEqual(list(response.context['orders'])[:5], expected)
+        self.assertEqual(response.context['sort_value'], '')
+        self.assertContains(response, '目前排序：預設（領牌日期由新到舊 → 訂單成立日期由新到舊）')
+
+        for tab, status, closed in [('delivered', SalesOrder.Status.COMPLETED, None),
+                                    ('closed', SalesOrder.Status.COMPLETED, timezone.now())]:
+            with self.subTest(tab=tab):
+                SalesOrder.objects.update(status=status, closed_at=closed)
+                rows = self.client.get(reverse('order_list'), {'tab': tab})
+                self.assertEqual(list(rows.context['orders'])[:5], expected)
+                self.assertContains(rows, '目前排序：預設（領牌日期由新到舊 → 訂單成立日期由新到舊）')
+
+        # 已取消不動：仍是訂單版本日期新→舊。
+        SalesOrder.objects.update(status=SalesOrder.Status.CANCELLED, closed_at=None)
+        cancelled = self.client.get(reverse('order_list'), {'tab': 'cancelled'})
+        self.assertEqual(list(cancelled.context['orders'])[:5], [no_reg_old, old_reg, tie_a, no_reg_new, new_reg])
+        self.assertContains(cancelled, '目前排序：預設（訂單版本日期由新到舊）')
+
+        # 使用者自己點的排序不受預設影響。
+        SalesOrder.objects.update(status=SalesOrder.Status.ALLOCATION_PENDING)
+        custom = self.client.get(reverse('order_list'), {'sort': 'owner_name'})
+        self.assertEqual(custom.context['sort_value'], 'owner_name')
+        self.assertEqual([o.owner_name for o in custom.context['orders']],
+                         ['AlphaSort', 'AlphaSort', 'BetaSort', 'GammaSort', 'NewReg', 'NoRegNew', 'NoRegOld', 'OldReg', 'TieA'])
+        self.assertNotContains(custom, '目前排序：預設')

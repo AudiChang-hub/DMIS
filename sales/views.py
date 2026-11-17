@@ -4318,11 +4318,12 @@ def order_list(request):
                            "url": f"{reverse('order_list')}?{params.urlencode()}", "active": key == order_tab})
     if order_tab != "all":
         orders = orders.filter(tab_rules.tab_filter(order_tab))
-    from sales.services.order_sorting import parse_sort, sort_context, sort_orders
+    from sales.services.order_sorting import default_sort, parse_sort, sort_context, sort_orders
     sort_tokens = parse_sort(request.GET.get("sort", ""))
     if not profit_visible:
         sort_tokens = [token for token in sort_tokens if token.lstrip("-") != "profit"]
-    orders = sort_orders(orders, sort_tokens)
+    default_tokens, default_sort_label = default_sort(order_tab)
+    orders = sort_orders(orders, sort_tokens or default_tokens)
     # 訂單編號下方的來源標記（手動開單／Excel 匯入／已修改）用子查詢一起取出，不逐張查詢。
     from sales.services.order_origin import with_order_origin
     orders = with_order_origin(orders)
@@ -4360,6 +4361,7 @@ def order_list(request):
             "draft_count": draft_rows.count(), "show_drafts": show_drafts,
             "order_tabs": order_tabs, "order_tab": order_tab,
             **sort_context(request.GET, sort_tokens, profit_unlocked=profit_visible),
+            "default_sort_label": default_sort_label,
         },
     )
 

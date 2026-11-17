@@ -16,6 +16,19 @@ FIELDS = dict(owner_name='owner_name', number='number', machine='_sort_machine',
               profit='_sort_profit', source='_sort_source', status='_sort_status', note='note')
 
 
+# 沒指定排序時的預設（T-204，使用者 2026-11-17）：進行中／已交車／已結案先依領牌日期新→舊
+# （未領牌排最前，同使用者點選的規則），再依訂單成立日期新→舊；已取消與不分頁籤時維持訂單版本日期。
+DATE_DEFAULT_TABS = ('open', 'delivered', 'closed')
+DATE_DEFAULT_TOKENS = ('-registration_date', '-established_on')
+
+
+def default_sort(tab):
+    """回傳 (排序 tokens, 提示文字)；tokens 只用來排序，不寫進網址與排序標籤。"""
+    if tab in DATE_DEFAULT_TABS:
+        return list(DATE_DEFAULT_TOKENS), '領牌日期由新到舊 → 訂單成立日期由新到舊'
+    return [], '訂單版本日期由新到舊'
+
+
 def parse_sort(raw):
     result, seen = [], set()
     for token in raw[:500].split(','):

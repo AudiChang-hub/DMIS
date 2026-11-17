@@ -89,6 +89,95 @@
     return out;
   }
 
+  // ---------- 亮度／清晰度（T-220，與伺服器 id_card_crop.adjust 同算法，照身分證排版工具） ----------
+  const MIN_BRIGHTNESS = -50;
+  const MAX_BRIGHTNESS = 50;
+  const MAX_SHARPNESS = 100;
+  const CROP_WIDTH = 1012;
+  const clampInt = (value, low, high) => Math.min(Math.max(Math.round(Number(value) || 0), low), high);
+
+  // L 通道的 gamma 查表：+50 → 中間調 128 變 172；-50 → 77。黑白兩端不動。
+  function brightnessTable(brightness) {
+    const gamma = 2 ** (-brightness / 50 * 0.8);
+    return Array.from({length: 256}, (_, i) => Math.min(Math.max(Math.round(255 * (i / 255) ** gamma), 0), 255));
+  }
+
+  // sRGB ↔ CIE Lab（D65，常數同 OpenCV 8 位元轉換），只改 L，色相不變。
+  const LINEAR = Array.from({length: 256}, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  const XN = 0.950456;
+  const ZN = 1.088754;
+  const labF = t => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const labFInverse = f => (f > 0.206893 ? f * f * f : (f - 16 / 116) / 7.787);
+  const toSrgb = v => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.max(v, 0) ** (1 / 2.4) - 0.055);
+
+  function brighten(pixels, brightness) {
+    const table = brightnessTable(brightness);
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = LINEAR[pixels[i]];
+      const g = LINEAR[pixels[i + 1]];
+      const b = LINEAR[pixels[i + 2]];
+      const fx = labF((0.412453 * r + 0.357580 * g + 0.180423 * b) / XN);
+      const y = 0.212671 * r + 0.715160 * g + 0.072169 * b;
+      const fy = labF(y);
+      const fz = labF((0.019334 * r + 0.119193 * g + 0.950227 * b) / ZN);
+      const lightness = y > 0.008856 ? 116 * fy - 16 : 903.3 * y;
+      const shifted = table[Math.min(Math.max(Math.round(lightness * 255 / 100), 0), 255)] * 100 / 255;
+      const ny = shifted > 7.9996 ? ((shifted + 16) / 116) ** 3 : shifted / 903.3;
+      const nfy = shifted > 7.9996 ? (shifted + 16) / 116 : 7.787 * ny + 16 / 116;
+      const x = labFInverse(nfy + (fx - fy)) * XN;
+      const z = labFInverse(nfy - (fy - fz)) * ZN;
+      pixels[i] = toSrgb(3.240479 * x - 1.53715 * ny - 0.498535 * z);
+      pixels[i + 1] = toSrgb(-0.969256 * x + 1.875991 * ny + 0.041556 * z);
+      pixels[i + 2] = toSrgb(0.055648 * x - 0.204043 * ny + 1.057311 * z);
+    }
+  }
+
+  // unsharp mask：src + amount × (src − GaussianBlur(src))；半徑依圖寬換算，預覽和 1012 px 輸出看起來一致。
+  function sharpen(pixels, width, height, sharpness) {
+    const sigma = Math.max(0.5, 1.4 * width / CROP_WIDTH);
+    const amount = sharpness / 100 * 1.5;
+    const radius = (Math.round(sigma * 3 * 2 + 1) | 1) >> 1;
+    const kernel = Array.from({length: radius * 2 + 1}, (_, k) => Math.exp(-((k - radius) ** 2) / (2 * sigma * sigma)));
+    const total = kernel.reduce((sum, value) => sum + value, 0);
+    for (let k = 0; k < kernel.length; k += 1) kernel[k] /= total;
+    const reflect = (index, size) => {  // OpenCV 預設邊界 BORDER_REFLECT_101
+      if (size === 1) return 0;
+      let i = index;
+      while (i < 0 || i >= size) i = i < 0 ? -i : 2 * size - 2 - i;
+      return i;
+    };
+    const pass = (input, horizontal) => {
+      const output = new Float32Array(input.length);
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          for (let c = 0; c < 3; c += 1) {
+            let sum = 0;
+            for (let k = -radius; k <= radius; k += 1) {
+              const sx = horizontal ? reflect(x + k, width) : x;
+              const sy = horizontal ? y : reflect(y + k, height);
+              sum += input[(sy * width + sx) * 4 + c] * kernel[k + radius];
+            }
+            output[(y * width + x) * 4 + c] = sum;
+          }
+        }
+      }
+      return output;
+    };
+    const blur = pass(pass(pixels, true), false);
+    for (let i = 0; i < pixels.length; i += 4) {
+      for (let c = 0; c < 3; c += 1) pixels[i + c] = pixels[i + c] * (1 + amount) - Math.round(blur[i + c]) * amount;
+    }
+  }
+
+  // RGBA 像素（Uint8ClampedArray）原地套用亮度與清晰度；兩者都是 0 時不動。
+  function adjustPixels(pixels, width, height, brightness = 0, sharpness = 0) {
+    const b = clampInt(brightness, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
+    const s = clampInt(sharpness, 0, MAX_SHARPNESS);
+    if (b) brighten(pixels, b);
+    if (s) sharpen(pixels, width, height, s);
+    return pixels;
+  }
+
   // 依參數把原圖（<img>，需已載入）畫成卡片到 canvas；canvas 大小由呼叫端決定。
   function renderCard(image, params, canvas) {
     const entry = params ? sourceOf(image) : null;
@@ -96,6 +185,7 @@
     const {data, canvas: source} = entry;
     const pixels = warpPixels(data.data, source.width, source.height, params, canvas.width, canvas.height);
     if (!pixels) return false;
+    adjustPixels(pixels, canvas.width, canvas.height, params.brightness, params.sharpness);
     const context = canvas.getContext("2d");
     const output = context.createImageData(canvas.width, canvas.height);
     output.data.set(pixels);
@@ -199,8 +289,25 @@
             <section class="id-crop-group">
               <h3>方向</h3>
               <div class="id-crop-buttons">
+                <button type="button" class="button ghost id-crop-buttons__wide" data-crop-turn="2"><span aria-hidden="true">⇅</span> 轉 180°（上下顛倒時）</button>
                 <button type="button" class="button ghost" data-crop-turn="1"><span aria-hidden="true">↺</span> 向左轉 90°</button>
                 <button type="button" class="button ghost" data-crop-turn="3"><span aria-hidden="true">↻</span> 向右轉 90°</button>
+              </div>
+            </section>
+            <section class="id-crop-group">
+              <h3>影像</h3>
+              <div class="id-crop-slider">
+                <label for="id-crop-brightness">亮度</label>
+                <input type="range" id="id-crop-brightness" min="${MIN_BRIGHTNESS}" max="${MAX_BRIGHTNESS}" step="1" value="0" data-crop-adjust="brightness">
+                <output for="id-crop-brightness" data-crop-adjust-value="brightness">0</output>
+              </div>
+              <div class="id-crop-slider">
+                <label for="id-crop-sharpness">清晰度</label>
+                <input type="range" id="id-crop-sharpness" min="0" max="${MAX_SHARPNESS}" step="1" value="0" data-crop-adjust="sharpness">
+                <output for="id-crop-sharpness" data-crop-adjust-value="sharpness">0</output>
+              </div>
+              <div class="id-crop-buttons">
+                <button type="button" class="button ghost id-crop-buttons__wide" data-crop-adjust-reset>亮度與清晰度恢復原樣</button>
               </div>
             </section>
             <p class="id-crop-status" data-crop-status role="status" aria-live="polite"></p>
@@ -224,15 +331,27 @@
       if (event.target.closest("[data-crop-apply]")) apply(false);
       if (event.target.closest("[data-crop-apply-ocr]")) apply(true);
       if (event.target.closest("[data-crop-full]")) {
-        update({...fullParams(state.image), corners: [[0, 0], [1, 0], [1, 1], [0, 1]]});
+        update(keepAdjust({...fullParams(state.image), corners: [[0, 0], [1, 0], [1, 1], [0, 1]]}));
         status("已改用整張圖片。");
       }
       const turnButton = event.target.closest("[data-crop-turn]");
       if (turnButton) {
         update({...state.params, turn: (state.params.turn + Number(turnButton.dataset.cropTurn)) % 4, mode: "manual", by_ocr: false});
-        status(turnButton.dataset.cropTurn === "1" ? "已向左轉 90°。" : "已向右轉 90°。");
+        status({1: "已向左轉 90°。", 2: "已轉 180°。", 3: "已向右轉 90°。"}[turnButton.dataset.cropTurn]);
       }
       if (event.target.closest("[data-crop-detect]")) detect();
+      if (event.target.closest("[data-crop-adjust-reset]")) {
+        update({...state.params, brightness: 0, sharpness: 0});
+        syncSliders();
+        status("亮度與清晰度已恢復原樣。");
+      }
+    });
+    // 拖滑桿即時更新預覽；亮度與清晰度不改裁切範圍，所以不把參數改成「手動調整」。
+    dialog.addEventListener("input", event => {
+      const slider = event.target.closest("[data-crop-adjust]");
+      if (!slider) return;
+      update({...state.params, [slider.dataset.cropAdjust]: Number(slider.value)});
+      syncSliders();
     });
     dialog.querySelectorAll("[data-crop-handle]").forEach(handle => {
       handle.addEventListener("pointerdown", startDrag);
@@ -305,6 +424,29 @@
   function update(params) {
     state.params = params;
     draw();
+  }
+
+  // 換裁切範圍（自動偵測、整張圖片）時保留目前的亮度與清晰度。
+  function keepAdjust(params) {
+    return {...params, brightness: state.params.brightness || 0, sharpness: state.params.sharpness || 0};
+  }
+
+  function syncSliders() {
+    for (const key of ["brightness", "sharpness"]) {
+      const value = Number(state.params[key]) || 0;
+      dialog.querySelector(`[data-crop-adjust="${key}"]`).value = String(value);
+      dialog.querySelector(`[data-crop-adjust-value="${key}"]`).textContent = key === "brightness" && value > 0 ? `+${value}` : String(value);
+    }
+  }
+
+  // 存回的參數：0 不存（與伺服器 clean_params 相同），舊參數不多出欄位。
+  function withAdjust(params) {
+    const result = {...params};
+    for (const [key, low, high] of [["brightness", MIN_BRIGHTNESS, MAX_BRIGHTNESS], ["sharpness", 0, MAX_SHARPNESS]]) {
+      const value = clampInt(result[key], low, high);
+      if (value) result[key] = value; else delete result[key];
+    }
+    return result;
   }
 
   function convex(corners) {
@@ -393,7 +535,7 @@
   async function detect() {
     const button = dialog.querySelector("[data-crop-detect]");
     if (state.autoParams) {
-      update({...state.autoParams});
+      update(keepAdjust({...state.autoParams}));
       status("已套用自動偵測的範圍。");
       return;
     }
@@ -403,7 +545,7 @@
     try {
       const params = await state.detect();
       state.autoParams = params;
-      update({...params});
+      update(keepAdjust({...params}));
       status(params.mode === "full" ? "找不到卡片邊緣，先使用整張圖片；可手動拖曳四角。" : "已套用自動偵測的範圍。");
     } catch (error) {
       status(error.message || "自動偵測失敗，請手動拖曳四角。", true);
@@ -414,10 +556,10 @@
 
   function apply(rerun) {
     // 按「套用」就是使用者確認過這個範圍：改為手動（選了整張圖片的保留 full），提醒消失（T-200）。
-    const params = {
+    const params = withAdjust({
       ...state.params, src_w: state.image.naturalWidth, src_h: state.image.naturalHeight,
       mode: state.params.mode === "full" ? "full" : "manual", needs_review: false, by_ocr: false,
-    };
+    });
     const callback = state.onApply;
     close();
     callback(params, {rerun});
@@ -449,13 +591,14 @@
     dialog.querySelector("[data-crop-title]").textContent = options.title || "調整證件照片";
     dialog.querySelector("[data-crop-apply-ocr]").hidden = options.canRerun === false;
     status("");
+    syncSliders();
     dialog.showModal();
     document.documentElement.classList.add("has-id-crop-dialog");
     layout();
     dialog.querySelector(`[data-crop-handle="${state.params.turn}"]`).focus({preventScroll: true});
   }
 
-  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, cardState, recropPlan, needsReview};
+  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, adjustPixels, brightnessTable, cardState, recropPlan, needsReview};
   if (typeof window !== "undefined") window.dmisIdCrop = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

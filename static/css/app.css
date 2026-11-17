@@ -1976,6 +1976,12 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .id-crop-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .id-crop-buttons .button { min-height: 44px; }
+.id-crop-buttons__wide { grid-column: 1 / -1; }
+/* 亮度／清晰度（T-220）：名稱、滑桿、數值一列；滑桿高度 44px 方便觸控。 */
+.id-crop-slider { display: grid; grid-template-columns: 4em minmax(0, 1fr) 3ch; align-items: center; gap: var(--space-2); }
+.id-crop-slider label { font-size: var(--text-sm); font-weight: 700; }
+.id-crop-slider input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--forest); cursor: pointer; }
+.id-crop-slider output { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; }
 .id-crop-status { min-height: 1.4em; margin: 0; color: var(--green-ink); font-size: var(--text-sm); }
 .id-crop-status.is-error { color: var(--red); }
 .id-crop-dialog .theme-dialog__footer > small { color: var(--muted); }

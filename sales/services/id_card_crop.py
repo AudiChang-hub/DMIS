@@ -143,7 +143,7 @@ def clean_params(raw, size):
     if not cv2.isContourConvex(pixel.astype(np.int32)):
         return None
     mode = raw.get("mode") if raw.get("mode") in MODES else "manual"
-    return {
+    params = {
         "v": PARAMS_VERSION,
         "corners": [[round(x, 5), round(y, 5)] for x, y in corners],
         "turn": turn,
@@ -154,6 +154,16 @@ def clean_params(raw, size):
         # 使用者手動調整（或在視窗按「套用」）過就不再提醒。
         "needs_review": bool(raw.get("needs_review")) and mode != "manual",
     }
+    # 亮度／清晰度（T-220，照身分證排版工具）：選填，0 不存，舊參數照舊。
+    for key, low, high in (("brightness", MIN_BRIGHTNESS, MAX_BRIGHTNESS), ("sharpness", 0, MAX_SHARPNESS)):
+        try:
+            value = int(round(float(raw.get(key) or 0)))
+        except (TypeError, ValueError, OverflowError):
+            value = 0
+        value = min(max(value, low), high)
+        if value:
+            params[key] = value
+    return params
 
 
 def params_from_pixels(corners, turn, size, mode):
@@ -274,9 +284,38 @@ def stored_or_auto_params(file_field, saved, side=None, image=None):
 
 
 def apply_crop(image, params, width=CROP_WIDTH, height=CROP_HEIGHT):
-    """依參數把原圖透視校正成卡片（預設 1012×638）。"""
+    """依參數把原圖透視校正成卡片（預設 1012×638），再套用亮度與清晰度（T-220）。"""
     warped = warp(np.asarray(image), pixel_corners(params), params["turn"], width, height)
-    return Image.fromarray(warped)
+    return Image.fromarray(adjust(warped, params.get("brightness", 0), params.get("sharpness", 0)))
+
+
+# ---------- 亮度／清晰度（C# ImageOps.AdjustMat，T-220） ----------
+
+MIN_BRIGHTNESS, MAX_BRIGHTNESS, MAX_SHARPNESS = -50, 50, 100
+
+
+def brightness_table(brightness):
+    """L 通道的 gamma 查表：+50 → 中間調 128 變 172；-50 → 77。黑白兩端不動，調亮時白底不過曝。"""
+    gamma = 2 ** (-brightness / 50.0 * 0.8)
+    return np.array([min(max(round(255.0 * (i / 255.0) ** gamma), 0), 255) for i in range(256)], dtype=np.uint8)
+
+
+def adjust(rgb, brightness=0, sharpness=0):
+    """RGB 8 位元卡片圖套用亮度（LAB 的 L 通道 gamma）與清晰度（unsharp mask）；兩者都是 0 時原樣回傳。"""
+    brightness = min(max(int(brightness or 0), MIN_BRIGHTNESS), MAX_BRIGHTNESS)
+    sharpness = min(max(int(sharpness or 0), 0), MAX_SHARPNESS)
+    out = rgb
+    if brightness:
+        lab = cv2.cvtColor(out, cv2.COLOR_RGB2LAB)
+        lab[:, :, 0] = cv2.LUT(lab[:, :, 0], brightness_table(brightness))
+        out = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+    if sharpness:
+        # 半徑依圖寬換算，縮小的預覽和 1012 px 的正式輸出看起來一致。
+        sigma = max(0.5, 1.4 * out.shape[1] / CROP_WIDTH)
+        amount = sharpness / 100.0 * 1.5
+        blur = cv2.GaussianBlur(out, (0, 0), sigma)
+        out = cv2.addWeighted(out, 1 + amount, blur, -amount, 0)
+    return out
 
 
 # ---------- 偵測四角（C# DetectCard） ----------

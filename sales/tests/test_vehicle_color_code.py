@@ -275,6 +275,22 @@ class ApplyColorCodesTests(TestCase):
                          ("盛夏白", "W13", "更新"))
         self.assertEqual(SalesOrder.objects.get(pk=order.pk).color.label, "盛夏白 W13")
 
+    def test_same_ad_color_split_by_catalog_name(self):
+        """盧卡綠兩個年式色碼不同：用「盧卡綠（年式代號）」分成兩個車色，既有的盧卡綠不動（使用者 2026-11-17）。"""
+        luca = VehicleColor.objects.create(vehicle_model=self.sui, name="盧卡綠")
+        first = self.legacy_order(self.sui, luca, "DL05-1")
+        second = self.legacy_order(self.sui, luca, "DL05-2")
+        mapping = self.mapping([
+            ["SUZUKI SUI 125", "DL05-1", "T94", "盧卡綠（UC125D）", "", "UC125D"],
+            ["SUZUKI SUI 125", "DL05-2", "N34", "盧卡綠（UC125D2）", "", "UC125D2.D3"],
+        ])
+        self.run_command(mapping, "--apply")
+        self.assertEqual(SalesOrder.objects.get(pk=first.pk).color.label, "盧卡綠（UC125D） T94")
+        self.assertEqual(SalesOrder.objects.get(pk=second.pk).color.label, "盧卡綠（UC125D2） N34")
+        self.assertFalse(VehicleColor.objects.get(vehicle_model=self.sui, name="盧卡綠（UC125D）").active)
+        luca.refresh_from_db()
+        self.assertEqual((luca.code, luca.active), ("", True))
+
     def test_model_mismatch_is_skipped(self):
         order = self.legacy_order(self.sui, self.white, "DL03-1")
         mapping = self.mapping([["SUZUKI Saluto 125", "DL03-1", "C11", "卡拉拉白", "", ""]])

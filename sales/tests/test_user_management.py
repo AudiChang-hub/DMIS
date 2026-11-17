@@ -45,7 +45,7 @@ class UserManagementTests(TestCase):
         self.assertContains(response, 'class="account-overview"')
         self.assertContains(response, 'css/account-overview.css')
         self.assertNotContains(response, 'js/account-overview.js')
-        for field in ("search", "status"):
+        for field in ("search", "role"):  # T-209：狀態改成頁籤，下拉只篩角色與登入
             self.assertContains(response, f'class="form-control" id="account-{field}"')
         for field in ("kind", "source"):
             self.assertNotContains(response, f'id="account-{field}"')

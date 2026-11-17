@@ -13,6 +13,7 @@
   <div><strong>不要直接覆蓋舊價格</strong><span>舊版本是過去訂單的價格依據；請設定新生效日期。</span></div>
 </section>
 
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看售價版本" active_label="啟用中版本" inactive_label="已停用版本" %}
 {% if editing or not versions or request.GET.new or request.method == 'POST' %}
 <div class="price-version-layout">
   <section class="card master-model-section price-version-editor" id="version-editor">
@@ -49,13 +50,13 @@
 <div class="price-version-layout price-version-layout--history-only">
 {% endif %}
 
-  <section class="card master-model-section price-version-history">
+  <section class="card master-model-section price-version-history" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中版本,已停用版本">
     <div class="section-heading">
       <div><p class="eyebrow">歷史與目前價格</p><h2>全部版本</h2></div>
-      <div class="price-version-history__actions"><span class="muted">共 {{ versions|length }} 筆</span>{% if versions and not request.GET.new %}<a class="button primary small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}?new=1#version-editor">＋ 新增版本</a>{% endif %}</div>
+      <div class="price-version-history__actions"><span class="muted">共 {{ listed_versions|length }} 筆</span>{% if versions and not request.GET.new %}<a class="button primary small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}?new=1#version-editor">＋ 新增版本</a>{% endif %}</div>
     </div>
     <div class="price-version-list">
-      {% for version in versions %}
+      {% for version in listed_versions %}
       <article class="price-version-item{% if editing.pk == version.pk %} is-editing{% endif %}">
         <div class="price-version-item__head">
           <div><strong>{{ version.effective_from|date:"Y/m/d" }} 起</strong><span>{% if version.effective_to %}至 {{ version.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
@@ -70,10 +71,10 @@
         </dl>
         {% if version.display_state == "superseded" %}<p class="price-version-item__explanation">{% site_text 'vehicle_model_price_versions.bcd8f217ae1d' %}</p>{% endif %}
         {% if version.source_note %}<p class="price-version-item__note">{{ version.source_note }}</p>{% endif %}
-        <a class="button ghost small" href="?edit={{ version.pk }}">編輯此版本</a>
+        <a class="button ghost small" href="?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ version.pk }}">編輯此版本</a>
       </article>
       {% empty %}
-      <div class="empty-state"><strong>尚未建立售價版本</strong><p>{% site_text 'vehicle_model_price_versions.796cad144516' %}</p></div>
+      <div class="empty-state">{% if status_tabs.status == 'inactive' %}<strong>沒有已停用的售價版本</strong><p>停用的版本會收在這裡。</p>{% else %}<strong>尚未建立售價版本</strong><p>{% site_text 'vehicle_model_price_versions.796cad144516' %}</p>{% endif %}</div>
       {% endfor %}
     </div>
   </section>

@@ -247,6 +247,7 @@ from .services.order_search import (
     build_order_search_query,
 )
 from .services.customer_receivable import PLATE_INCOME_FIELDS
+from .status_tabs import item_status_counts, keep_status, queryset_status_counts, requested_status, status_tabs
 from .services.operations_sync import sync_order_operations
 from .services.registration_edit import apply_registration_edit, finish_registration
 from .services.operations_sync import refresh_payment_confirmation
@@ -1213,10 +1214,25 @@ def price_list_distribution_sync(request, pk):
     return redirect(f"{reverse('price_list_distribution')}?month={distribution.month:%Y-%m}")
 
 
+USER_ROLE_FILTERS = {"admins": "系統管理者", "never_login": "尚未登入"}
+
+
 @superuser_required
 def user_management(request):
     query = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "all")
+    # 「使用中／已停用」頁籤（T-209，使用者 11-17 決定），預設使用中；管理者、尚未登入改成頁籤底下的篩選。
+    # 舊網址 status=all／admins／never_login 導到使用中頁籤（後兩者帶入對應篩選）。
+    legacy = request.GET.get("status", "")
+    if legacy in {"all", "admins", "never_login"}:
+        params = request.GET.copy()
+        params["status"] = "active"
+        if legacy != "all":
+            params["role"] = legacy
+        return redirect(f"{reverse('user_management')}?{params.urlencode()}")
+    status = requested_status(request.GET)
+    role = request.GET.get("role", "")
+    role = role if role in USER_ROLE_FILTERS else ""
+    all_users = get_user_model().objects.all()
     users = get_user_model().objects.select_related("security_profile", "order_account__source")
     if query:
         users = users.filter(
@@ -1224,16 +1240,15 @@ def user_management(request):
             | Q(first_name__icontains=query)
             | Q(last_name__icontains=query)
         )
-    if status == "active":
-        users = users.filter(is_active=True)
-    elif status == "inactive":
-        users = users.filter(is_active=False)
-    elif status == "admins":
+    users = users.filter(is_active=status == "active")
+    role_counts = {
+        "admins": users.filter(is_superuser=True).count(),
+        "never_login": users.filter(last_login__isnull=True).count(),
+    }
+    if role == "admins":
         users = users.filter(is_superuser=True)
-    elif status == "never_login":
+    elif role == "never_login":
         users = users.filter(last_login__isnull=True)
-    else:
-        status = "all"
 
     users = list(users.order_by("-is_active", "-is_superuser", "username"))
     from .access.services import unconfigured_accounts
@@ -1243,7 +1258,6 @@ def user_management(request):
         account.must_change_password = bool(profile and profile.must_change_password)
         account.access_unconfigured = account.pk in unconfigured_ids
 
-    all_users = get_user_model().objects.all()
     return render(
         request,
         "sales/user_management.html",
@@ -1251,12 +1265,12 @@ def user_management(request):
             "accounts": users,
             "query": query,
             "status": status,
-            "counts": {
-                "all": all_users.count(),
+            "role": role,
+            "roles": [(key, label, role_counts[key]) for key, label in USER_ROLE_FILTERS.items()],
+            "status_tabs": status_tabs(request, status, {
                 "active": all_users.filter(is_active=True).count(),
                 "inactive": all_users.filter(is_active=False).count(),
-                "admins": all_users.filter(is_superuser=True).count(),
-            },
+            }),
             "audit_logs": UserAccountAuditLog.objects.select_related("actor", "target")[:20],
         },
     )
@@ -1654,12 +1668,15 @@ def brand_registration_fee_rule_list(request):
     if request.method == "POST" and form.is_valid():
         rule = form.save()
         messages.success(request, f"已儲存 {rule.brand} 的牌險計算規則。")
-        return redirect("brand_registration_fee_rule_list")
+        return redirect(keep_status(reverse("brand_registration_fee_rule_list"), request))
+    status = requested_status(request.GET)
+    rules = BrandRegistrationFeeRule.objects.all()
     return render(
         request,
         "sales/brand_registration_fee_rule_list.html",
         {
-            "rules": BrandRegistrationFeeRule.objects.all(),
+            "rules": rules.filter(active=status == "active"),
+            "status_tabs": status_tabs(request, status, queryset_status_counts(rules)),
             "form": form,
             "editing": editing,
         },
@@ -1678,11 +1695,13 @@ def brand_registration_fee_rule_delete(request, pk):
 
 @login_required
 def positioned_template_list(request):
+    status = requested_status(request.GET)
     return render(
         request,
         "sales/positioned_template_list.html",
         {
-            "templates": PositionedPrintTemplate.objects.prefetch_related("fields"),
+            "templates": PositionedPrintTemplate.objects.filter(active=status == "active").prefetch_related("fields"),
+            "status_tabs": status_tabs(request, status, queryset_status_counts(PositionedPrintTemplate.objects.all())),
         },
     )
 
@@ -2343,15 +2362,18 @@ def vehicle_brand_list(request):
             )
         else:
             messages.success(request, f"已儲存品牌：{brand.name}。")
-            return redirect("vehicle_brand_list")
+            return redirect(keep_status(reverse("vehicle_brand_list"), request))
     brands = list(VehicleBrand.objects.select_related("parent").all())
     brands.sort(key=brand_tree_sort_key)
+    status = requested_status(request.GET)
+    tabs = status_tabs(request, status, item_status_counts(brands))
+    brands = [brand for brand in brands if brand.active == (status == "active")]
     for brand in brands:
         brand.is_used = vehicle_brand_is_used(brand.name)
     return render(
         request,
         "sales/vehicle_brand_list.html",
-        {"brands": brands, "form": form, "editing": editing},
+        {"brands": brands, "form": form, "editing": editing, "status_tabs": tabs},
     )
 
 
@@ -2977,15 +2999,17 @@ def installment_company_list(request):
     if request.method == "POST" and form.is_valid():
         company = form.save()
         messages.success(request, f"已儲存分期公司：{company.name}。")
-        return redirect("installment_company_list")
+        return redirect(keep_status(reverse("installment_company_list"), request))
+    status = requested_status(request.GET)
     return render(
         request,
         "sales/installment_company_list.html",
         {
-            "companies": InstallmentCompany.objects.annotate(
+            "companies": InstallmentCompany.objects.filter(active=status == "active").annotate(
                 option_count=Count("plan_options", distinct=True),
                 order_count=Count("orders", distinct=True),
             ),
+            "status_tabs": status_tabs(request, status, queryset_status_counts(InstallmentCompany.objects.all())),
             "form": form,
             "editing": editing,
             "show_editor": show_editor,
@@ -3101,7 +3125,7 @@ def vehicle_installment_plan_list(request, model_pk):
         messages.success(request, "分期方案版本已儲存。")
         return redirect(
             f"{reverse('vehicle_installment_plan_list', args=[vehicle_model.pk])}"
-            f"?edit={plan.pk}&saved=1"
+            f"?{'' if plan.active else 'status=inactive&'}edit={plan.pk}&saved=1"
         )
     plans = list(
         vehicle_model.installment_plan_versions.prefetch_related(
@@ -3109,6 +3133,7 @@ def vehicle_installment_plan_list(request, model_pk):
         )
     )
     current_plan = resolve_installment_plan_version(vehicle_model.pk, today)
+    status = requested_status(request.GET)
     editing_options = list(editing.options.select_related("company")) if editing else []
     editing_lifecycle = None
     if editing:
@@ -3148,6 +3173,9 @@ def vehicle_installment_plan_list(request, model_pk):
         {
             "vehicle_model": vehicle_model,
             "plans": plans,
+            # 歷史版本分「啟用中／已停用」頁籤（T-209）；版面判斷仍看全部版本。
+            "listed_plans": [plan for plan in plans if plan.active == (status == "active")],
+            "status_tabs": status_tabs(request, status, item_status_counts(plans)),
             "form": form,
             "option_formset": option_formset,
             "editing": editing,
@@ -3172,6 +3200,12 @@ def dealer_volume_bonus_list(request):
         )
         .prefetch_related("tiers", "brands", "vehicle_models", "periods", "dealer_links__dealer")
     )
+    # 規則管理分「啟用中／已停用」頁籤（T-209）；台數試算照舊列出全部規則。
+    status = requested_status(request.GET)
+    rule_tabs = None
+    if tab == "rules":
+        rule_tabs = status_tabs(request, status, queryset_status_counts(rules))
+        rules = rules.filter(active=status == "active")
     rows = []
     hidden_count = 0
     for rule in rules:
@@ -3197,6 +3231,7 @@ def dealer_volume_bonus_list(request):
         {
             "rows": rows,
             "tab": tab,
+            "status_tabs": rule_tabs,
             "show_all": show_all,
             "hidden_count": hidden_count,
         },
@@ -3246,7 +3281,8 @@ def dealer_volume_bonus_form(request, pk=None):
         if not form.conditions_locked:
             tier_formset.save()
         messages.success(request, "車行台數獎金規則已儲存。")
-        return redirect(f"{reverse('dealer_volume_bonus_list')}?tab=rules#bonus-rule-{rule.pk}")
+        status_query = "" if rule.active else "&status=inactive"  # 停用的規則在「已停用」頁籤（T-209）
+        return redirect(f"{reverse('dealer_volume_bonus_list')}?tab=rules{status_query}#bonus-rule-{rule.pk}")
     return render(
         request,
         "sales/dealer_volume_bonus_form.html",
@@ -9230,6 +9266,10 @@ def vehicle_model_list(request):
         status_urls[value] = (
             f"{reverse('vehicle_model_list')}?{status_query.urlencode()}"
         )
+    vehicle_model_status_counts = {
+        "active": VehicleModel.objects.filter(active=True).count(),
+        "inactive": VehicleModel.objects.filter(active=False).count(),
+    }
 
     return render(
         request,
@@ -9240,10 +9280,9 @@ def vehicle_model_list(request):
             "vehicle_model_version_count": len(models),
             "energy_types": VehicleModel.EnergyType.choices,
             "status_urls": status_urls,
-            "vehicle_model_status_counts": {
-                "active": VehicleModel.objects.filter(active=True).count(),
-                "inactive": VehicleModel.objects.filter(active=False).count(),
-            },
+            "vehicle_model_status_counts": vehicle_model_status_counts,
+            # 狀態頁籤共用 _status_tabs.html（T-209）。
+            "status_tabs": {"status": status, "counts": vehicle_model_status_counts, "urls": status_urls},
             "filters_applied": filters_applied,
             # 沿用建立與批次調整都會寫入，只有機種操作權限才顯示入口。
             "can_model_tools": policy_for(request).route("vehicle_model_copy", "POST"),
@@ -9419,7 +9458,7 @@ def accessory_category_list(request):
                 label = category.name
                 category.delete()
                 messages.success(request, f"已刪除配件類別：{label}。")
-        return redirect("accessory_category_list")
+        return redirect(keep_status(reverse("accessory_category_list"), request))
     form = AccessoryCategoryForm(request.POST or None, instance=editing)
     if request.method == "POST" and form.is_valid():
         created = form.instance.pk is None
@@ -9428,10 +9467,14 @@ def accessory_category_list(request):
         _log_accessory_category(request, category, ADDITION if created else CHANGE,
                                 "新增配件類別" if created else "修改配件類別：" + "、".join(form.fields[name].label for name in changed))
         messages.success(request, f"已{'新增' if created else '儲存'}配件類別：{category.name}。")
-        return redirect("accessory_category_list")
+        return redirect(keep_status(reverse("accessory_category_list"), request))
     # 分組查詢不會套用模型預設排序，要明確指定，否則改名後的類別會照 id 排。
     categories = AccessoryCategory.objects.annotate(product_count=Count("category_products", distinct=True)).order_by("sort_order", "name")
-    return render(request, "sales/accessory_category_list.html", {"form": form, "categories": categories, "editing": editing},
+    status = requested_status(request.GET)
+    tabs = status_tabs(request, status, queryset_status_counts(AccessoryCategory.objects.all()))
+    categories = categories.filter(active=status == "active")
+    return render(request, "sales/accessory_category_list.html", {"form": form, "categories": categories, "editing": editing,
+                                                                  "status_tabs": tabs},
                   status=400 if request.method == "POST" else 200)
 
 
@@ -9906,7 +9949,8 @@ def vehicle_model_edit(request, pk):
 @login_required
 def settlement_cost_rule_list(request):
     keyword = request.GET.get("q", "").strip()
-    rules = VehicleSettlementCostRule.objects.select_related("vehicle_model")
+    status = requested_status(request.GET)
+    rules = VehicleSettlementCostRule.objects.select_related("vehicle_model").filter(active=status == "active")
     if keyword:
         rules = rules.filter(
             vehicle_brand_search_q(keyword, "vehicle_model__brand")
@@ -9931,7 +9975,8 @@ def settlement_cost_rule_list(request):
         {
             "rules": page.object_list,
             "page_obj": page,
-            "selected": {"q": keyword},
+            "selected": {"q": keyword, "status": status},
+            "status_tabs": status_tabs(request, status, queryset_status_counts(VehicleSettlementCostRule.objects.all())),
             "today": timezone.localdate(),
             # T-205：比照「機種與售價」的批次按鈕，另需能操作結算成本才顯示。
             "can_batch_costs": policy.route("vehicle_model_batch", "POST") and policy.screen("costs", "operate"),
@@ -10046,13 +10091,17 @@ def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, dele
             request,
             f"已{'更新' if editing else '建立'}{noun}：{rule.effective_from:%Y/%m/%d} 起",
         )
-        return redirect(tab_url)
+        return redirect(tab_url if rule.active else f"{tab_url}?status=inactive")
     rule_rows = list(rules)
     for rule in rule_rows:
         rule.display_status, rule.display_status_label = rule.lifecycle_status
+    # 歷史版本分「啟用中／已停用」頁籤（T-209）；版面判斷仍看全部版本。
+    status = requested_status(request.GET)
     return render(request, template, {
         "vehicle_model": vehicle_model,
         "rules": rule_rows,
+        "listed_rules": [rule for rule in rule_rows if rule.active == (status == "active")],
+        "status_tabs": status_tabs(request, status, item_status_counts(rule_rows)),
         "form": form,
         "editing": editing,
         "tab_url": tab_url,
@@ -10223,9 +10272,11 @@ def vehicle_model_price_versions(request, model_pk):
         version.vehicle_model = vehicle_model
         version.save()
         messages.success(request, f"已{'更新' if editing else '新增'}售價版本。")
-        return redirect("vehicle_model_price_versions", model_pk=vehicle_model.pk)
+        list_url = reverse("vehicle_model_price_versions", kwargs={"model_pk": vehicle_model.pk})
+        return redirect(list_url if version.active else f"{list_url}?status=inactive")
     today = timezone.localdate()
     current_version = resolve_vehicle_price_version(vehicle_model.pk, today)
+    status = requested_status(request.GET)
     version_rows = list(versions)
     for version in version_rows:
         if not version.active:
@@ -10259,6 +10310,9 @@ def vehicle_model_price_versions(request, model_pk):
         {
             "vehicle_model": vehicle_model,
             "versions": version_rows,
+            # 歷史版本分「啟用中／已停用」頁籤（T-209）；版面判斷仍看全部版本。
+            "listed_versions": [version for version in version_rows if version.active == (status == "active")],
+            "status_tabs": status_tabs(request, status, item_status_counts(version_rows)),
             "form": form,
             "editing": editing,
             "current_version": current_version,

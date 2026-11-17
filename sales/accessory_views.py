@@ -22,8 +22,9 @@ from django.views.decorators.http import require_http_methods
 
 from .forms import AccessoryProductBulkForm
 from .models import AccessoryCategory, AccessoryProduct
+from .status_tabs import STATUSES, queryset_status_counts, requested_status
 
-LIST_PARAMS = ("q", "active", "category", "page")
+LIST_PARAMS = ("q", "status", "category", "page")
 BULK_FIELDS = ("name", "categories", "sale_price", "labor_fee", "cost", "active")
 
 
@@ -32,9 +33,13 @@ def _sorted_categories():
 
 
 def _filters(params):
+    # 狀態改用「啟用中／已停用」頁籤（T-209），預設啟用中；舊網址 active=no 視同已停用頁籤。
+    status = requested_status(params)
+    if not params.get("status") and params.get("active") == "no":
+        status = "inactive"
     return {
         "q": (params.get("q") or "").strip(),
-        "active": params.get("active") if params.get("active") in {"yes", "no"} else "",
+        "status": status,
         "category": (params.get("category") or "").strip(),
         "page": params.get("page") or "",
     }
@@ -44,6 +49,8 @@ def _list_url(selected, **overrides):
     query = {key: selected.get(key, "") for key in LIST_PARAMS}
     query.update(overrides)
     query = {key: value for key, value in query.items() if value}
+    if query.get("status") == "active":
+        del query["status"]  # 預設頁籤不帶參數，網址維持原樣
     return reverse("accessory_product_list") + (f"?{urlencode(query)}" if query else "")
 
 
@@ -71,10 +78,7 @@ def _list_context(selected, bound_forms=None):
     base = AccessoryProduct.objects.all()
     if selected["q"]:
         base = base.filter(Q(name__icontains=selected["q"]) | Q(note__icontains=selected["q"]))
-    if selected["active"] == "yes":
-        base = base.filter(active=True)
-    elif selected["active"] == "no":
-        base = base.filter(active=False)
+    base = base.filter(active=selected["status"] == "active")
     tabs = _category_tabs(selected, base)
     products = base
     if selected["category"] == "none":
@@ -106,6 +110,12 @@ def _list_context(selected, bound_forms=None):
             for category in categories
         ]
     current_tab = next(tab for tab in tabs if tab["active"])
+    edit = "1" if selected.get("edit") else ""
+    status_tabs = {
+        "status": selected["status"],
+        "counts": queryset_status_counts(AccessoryProduct.objects.all()),
+        "urls": {value: _list_url(selected, status=value, page="", edit=edit) for value in STATUSES},
+    }
     return {
         "rows": rows,
         "page_obj": page,
@@ -113,7 +123,8 @@ def _list_context(selected, bound_forms=None):
         "current_tab": current_tab,
         "selected": selected,
         "categories": categories,
-        "clear_url": _list_url({"category": selected["category"]}, edit=selected.get("edit", "")),
+        "status_tabs": status_tabs,
+        "clear_url": _list_url({"category": selected["category"], "status": selected["status"]}, edit=selected.get("edit", "")),
         "edit_url": _list_url(selected, edit="1"),
         "view_url": _list_url(selected),
         "return_query": urlencode({key: selected[key] for key in LIST_PARAMS if selected.get(key)}),

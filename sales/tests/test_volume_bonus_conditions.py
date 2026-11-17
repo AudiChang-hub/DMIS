@@ -193,9 +193,13 @@ class VolumeBonusConditionsTests(TestCase):
         preview.assert_not_called()
         self.assertContains(response, 'data-bonus-view="rules"')
         self.assertContains(response, 'aria-current="page">規則管理')
-        self.assertContains(response, named.name)
         self.assertContains(response, unnamed.display_name)
         self.assertContains(response, self.b.name)
+        # T-209：停用的規則收在「已停用」頁籤。
+        with patch('sales.views.volume_bonus_group_preview') as preview:
+            response = self.client.get(reverse('dealer_volume_bonus_list'), {'status': 'inactive'})
+        preview.assert_not_called()
+        self.assertContains(response, named.name)
         self.assertContains(response, reverse('dealer_volume_bonus_edit', args=[named.pk]))
         unnamed.refresh_from_db()
         self.assertEqual(unnamed.name, '')

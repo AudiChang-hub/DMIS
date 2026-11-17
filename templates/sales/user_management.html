@@ -16,35 +16,28 @@
   <div class="account-actions">{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
 </section>
 
-<section class="account-summary" aria-label="帳號統計">
-  <a href="?status=all"><span>全部帳號</span><strong>{{ counts.all }}</strong></a>
-  <a href="?status=active"><span>使用中</span><strong>{{ counts.active }}</strong></a>
-  <a href="?status=inactive"><span>已停用</span><strong>{{ counts.inactive }}</strong></a>
-  <a href="?status=admins"><span>管理者</span><strong>{{ counts.admins }}</strong></a>
-</section>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依帳號狀態查看帳號" active_label="使用中帳號" inactive_label="已停用帳號" %}
 
 <form class="account-filter card" method="get">
+  <input type="hidden" name="status" value="{{ status }}">
   <div>
     <label for="account-search">搜尋姓名或帳號</label>
     <input class="form-control" id="account-search" name="q" value="{{ query }}" placeholder="例如 〔人員〕、〔人員〕">
   </div>
   <div>
-    <label for="account-status">帳號狀態</label>
-    <select class="form-control" id="account-status" name="status">
-      <option value="all"{% if status == 'all' %} selected{% endif %}>全部帳號</option>
-      <option value="active"{% if status == 'active' %} selected{% endif %}>使用中</option>
-      <option value="inactive"{% if status == 'inactive' %} selected{% endif %}>已停用</option>
-      <option value="admins"{% if status == 'admins' %} selected{% endif %}>系統管理者</option>
-      <option value="never_login"{% if status == 'never_login' %} selected{% endif %}>尚未登入</option>
+    <label for="account-role">角色與登入</label>
+    <select class="form-control" id="account-role" name="role">
+      <option value="">全部</option>
+      {% for value, label, count in roles %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="account-filter__actions">
-    <a class="button ghost" href="{% url 'user_management' %}">清除</a>
+    <a class="button ghost" href="{% url 'user_management' %}{% if status == 'inactive' %}?status=inactive{% endif %}">清除</a>
     <button class="button primary" type="submit">套用</button>
   </div>
 </form>
 
-<section class="account-panel">
+<section class="account-panel" data-status-tab="{{ status }}" data-status-tab-labels="使用中帳號,已停用帳號">
   <header class="account-panel__header">
     <div><p class="eyebrow">店內人員</p><h2>帳號清單</h2></div>
     <span>{{ accounts|length }} 筆結果</span>

@@ -17,20 +17,14 @@
     <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
   </div>
 </section>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看配件" active_label="啟用中配件" inactive_label="已停用配件" %}
 <form method="get" class="master-filters accessory-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
   <input type="hidden" name="category" value="{{ selected.category }}">
   {% if selected.edit %}<input type="hidden" name="edit" value="1">{% endif %}
   <div class="inventory-filter master-search">
     <label for="accessory-q">搜尋</label>
     <input id="accessory-q" type="search" name="q" value="{{ selected.q }}" placeholder="配件名稱或內部備註">
-  </div>
-  <div class="inventory-filter">
-    <label for="accessory-active">狀態</label>
-    <select id="accessory-active" name="active">
-      <option value="">全部狀態</option>
-      <option value="yes" {% if selected.active == 'yes' %}selected{% endif %}>啟用中</option>
-      <option value="no" {% if selected.active == 'no' %}selected{% endif %}>已停用</option>
-    </select>
   </div>
   <div class="inventory-filter-actions">
     <a class="button ghost" href="{{ clear_url }}">清除</a>
@@ -44,7 +38,7 @@
     <b>{{ tab.count }}</b>
   </a>{% endfor %}
 </nav>
-<section class="inventory-list-panel accessory-panel">
+<section class="inventory-list-panel accessory-panel" data-status-tab="{{ selected.status }}" data-status-tab-labels="啟用中配件,已停用配件">
   <div class="inventory-list-summary"><strong>{% if current_tab.key %}{{ current_tab.label }}・{% endif %}共 {{ page_obj.paginator.count }} 項配件</strong>{% if selected.q %}<span>符合「{{ selected.q }}」</span>{% endif %}</div>
   {% if selected.edit and not screen_read_only %}
   <form method="post" class="accessory-bulk" data-accessory-bulk>
@@ -127,7 +121,7 @@
             {% endif %}{% endif %}
           </div></td>
         </tr>
-        {% endwith %}{% empty %}<tr><td colspan="8"><div class="empty-state"><strong>{% if selected.q or selected.active %}沒有符合條件的配件{% elif current_tab.key %}這個類別還沒有配件{% else %}尚未建立配件{% endif %}</strong></div></td></tr>{% endfor %}
+        {% endwith %}{% empty %}<tr><td colspan="8"><div class="empty-state"><strong>{% if selected.q %}沒有符合條件的配件{% elif selected.status == 'inactive' %}沒有已停用的配件{% elif current_tab.key %}這個類別還沒有配件{% else %}尚未建立配件{% endif %}</strong></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

@@ -34,6 +34,7 @@ from .models import (
 )
 from .services.campaign_conditions import campaigns_for_vehicle_model, condition_summary, vehicle_matches
 from .services.vehicle_brands import vehicle_brand_search_q
+from .status_tabs import queryset_status_counts, requested_status, status_tabs
 
 STATUS_FILTERS = {
     "paused": "已暫停（未選通路）",
@@ -318,17 +319,23 @@ def _catalog_entry(item):
 def dealer_reward_campaign_list(request):
     keyword = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
-    status = status if status in STATUS_FILTERS else ""
+    # 「啟用中／已停用」頁籤（T-209，比照原廠獎勵 T-166 用 tab 參數）；舊網址的「已停用」篩選改為停用頁籤。
+    tab = requested_status(request.GET, "tab")
+    if status == "inactive":
+        tab, status = "inactive", ""
+    status = status if status in INCENTIVE_STATUS_FILTERS else ""
     campaigns = DealerRewardCampaign.objects.prefetch_related("vehicle_models", "dealers", "items").annotate(
         order_count=Count("order_lines__order", distinct=True),
     )
-    campaigns = _search(campaigns, keyword).order_by("-active", "-effective_from", "-id")
-    page = Paginator(_status_filtered(campaigns, status), 100).get_page(request.GET.get("page"))
+    tabs = status_tabs(request, tab, queryset_status_counts(DealerRewardCampaign.objects.all()), param="tab")
+    campaigns = _search(campaigns, keyword).filter(active=tab == "active").order_by("-active", "-effective_from", "-id")
+    page = Paginator(_status_filtered(campaigns, status if tab == "active" else ""), 100).get_page(request.GET.get("page"))
     return render(request, "sales/dealer_reward_campaign_list.html", {
         "campaigns": page.object_list,
         "page_obj": page,
-        "statuses": STATUS_FILTERS.items(),
-        "selected": {"q": keyword, "status": status},
+        "statuses": INCENTIVE_STATUS_FILTERS.items(),
+        "status_tabs": tabs,
+        "selected": {"q": keyword, "status": status, "tab": tab},
     })
 
 

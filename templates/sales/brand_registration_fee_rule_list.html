@@ -9,7 +9,7 @@
   <div><p class="eyebrow">{% site_text 'brand_registration_fee_rule_list.f3f2dfff0f97' %}</p><h1>領牌與強制險</h1><p class="muted">{% site_text 'brand_registration_fee_rule_list.5043197c5f07' %}</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">車輛品牌</a></div>
 </section>
 <section class="section-block">
-  <div class="section-title"><h2>{% if editing %}編輯規則{% else %}新增規則{% endif %}</h2>{% if editing %}<a href="{% url 'brand_registration_fee_rule_list' %}">取消編輯</a>{% endif %}</div>
+  <div class="section-title"><h2>{% if editing %}編輯規則{% else %}新增規則{% endif %}</h2>{% if editing %}<a href="{% url 'brand_registration_fee_rule_list' %}{% if status_tabs.status == 'inactive' %}?status=inactive{% endif %}">取消編輯</a>{% endif %}</div>
   <form method="post" class="form-grid compact-grid" id="registration-fee-rule-form">
     {% csrf_token %}
     {% for field in form %}<div class="rule-field rule-field--{{ field.name }}{% if field.name == 'note' %} field-span-2{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
@@ -17,7 +17,8 @@
     <div><button class="button primary" type="submit">套用規則</button></div>
   </form>
 </section>
-<section class="section-block registration-rule-panel">
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看領牌與強制險規則" active_label="啟用中規則" inactive_label="已停用規則" %}
+<section class="section-block registration-rule-panel" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中規則,已停用規則">
   <div class="section-title registration-rule-panel__heading">
     <div><h2>已設定規則</h2><p>{% site_text 'brand_registration_fee_rule_list.2b441934d1c7' %}</p></div>
     <span>{{ rules|length }} 筆</span>
@@ -85,7 +86,7 @@
             {% if rule.note %}<span>備註</span><p>{{ rule.note }}</p>{% else %}<p>目前沒有備註</p>{% endif %}
           </div>
           <div class="registration-rule-card__actions">
-            <a class="button ghost small" href="?edit={{ rule.pk }}">編輯規則</a>
+            <a class="button ghost small" href="?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ rule.pk }}">編輯規則</a>
             <details class="registration-rule-more">
               <summary class="button ghost small">更多</summary>
               <div class="registration-rule-more__menu">
@@ -99,7 +100,7 @@
         </footer>
       </article>
     {% empty %}
-      <div class="empty-state"><strong>尚未建立品牌特殊規則</strong><p>{% site_text 'brand_registration_fee_rule_list.4f35150585bd' %}</p></div>
+      <div class="empty-state">{% if status_tabs.status == 'inactive' %}<strong>沒有已停用的規則</strong><p>停用的規則會收在這裡。</p>{% else %}<strong>尚未建立品牌特殊規則</strong><p>{% site_text 'brand_registration_fee_rule_list.4f35150585bd' %}</p>{% endif %}</div>
     {% endfor %}
   </div>
 </section>

@@ -18,22 +18,25 @@
 </section>
 {% include "sales/_dealer_reward_tabs.html" with current="campaign" %}
 
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看車行獎勵活動" active_label="啟用中活動" inactive_label="已停用活動" %}
 <form method="get" class="master-filters campaign-filters">
+  <input type="hidden" name="tab" value="{{ selected.tab }}">
   <div class="inventory-filter master-search">
     <label for="reward-campaign-q">搜尋</label>
     <input id="reward-campaign-q" type="search" name="q" value="{{ selected.q }}" placeholder="活動名稱、品牌、車型或備註">
   </div>
-  <div class="inventory-filter">
+  {# 狀態只分啟用中的活動；停用頁籤不顯示，但保留原值，切回啟用中時照舊套用（同原廠獎勵 T-166）。 #}
+  {% if selected.tab == 'active' %}<div class="inventory-filter">
     <label for="reward-campaign-status">狀態</label>
     <select id="reward-campaign-status" name="status"><option value="">全部</option>{% for value, label in statuses %}<option value="{{ value }}"{% if selected.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-  </div>
+  </div>{% elif selected.status %}<input type="hidden" name="status" value="{{ selected.status }}">{% endif %}
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'dealer_reward_campaign_list' %}">清除</a>
+    <a class="button ghost" href="{% url 'dealer_reward_campaign_list' %}?tab={{ selected.tab }}">清除</a>
     <button class="button primary" type="submit">搜尋</button>
   </div>
 </form>
 
-<section class="inventory-list-panel">
+<section class="inventory-list-panel" data-status-tab="{{ selected.tab }}" data-status-tab-labels="啟用中活動,已停用活動">
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table campaign-table">

@@ -22,18 +22,7 @@
 </section>
 {% include "sales/_vehicle_model_tabs.html" with current="models" %}
 
-<nav class="source-status-switch" aria-label="依使用狀態查看機種與售價">
-  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
-    <span>目前使用</span>
-    <strong>啟用中機種</strong>
-    <b data-status-count="active">{{ vehicle_model_status_counts.active }}</b>
-  </a>
-  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
-    <span>歷史收納</span>
-    <strong>已停用機種</strong>
-    <b data-status-count="inactive">{{ vehicle_model_status_counts.inactive }}</b>
-  </a>
-</nav>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看機種與售價" active_label="啟用中機種" inactive_label="已停用機種" %}
 
 <form method="get" class="master-filters">
   <input type="hidden" name="status" value="{{ selected.status }}">

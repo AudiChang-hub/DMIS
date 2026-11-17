@@ -45,6 +45,18 @@
     note.textContent = `重新整理後移到「${enabled ? activeLabel : inactiveLabel}」`;
   };
 
+  // 伺服器沒有回傳筆數時（T-209 各清單），頁籤筆數由前端各加減 1。
+  const adjustStatusCounts = (enabled) => {
+    const step = (key, delta) => {
+      document.querySelectorAll(`[data-status-count="${key}"]`).forEach((node) => {
+        const current = Number.parseInt(node.textContent, 10);
+        if (!Number.isNaN(current)) node.textContent = Math.max(0, current + delta);
+      });
+    };
+    step("active", enabled ? 1 : -1);
+    step("inactive", enabled ? -1 : 1);
+  };
+
   const submitToggle = async (form) => {
     const button = form.querySelector("button[role='switch']");
     const stateInput = form.querySelector("input[name='active']");
@@ -82,6 +94,8 @@
             node.textContent = value;
           });
         });
+      } else if (Boolean(payload.active) !== previousEnabled) {
+        adjustStatusCounts(Boolean(payload.active));
       }
       window.dispatchEvent(new CustomEvent("activequicktoggle:changed", { detail: payload }));
     } catch (error) {

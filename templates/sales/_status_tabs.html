@@ -1,0 +1,13 @@
+{% comment %}「啟用中／已停用」狀態頁籤（T-209，比照機種與售價）。tabs 由 sales/status_tabs.py 產生；
+aria_label、active_label、inactive_label 依頁面帶入。清單外層要加 data-status-tab，Switch 停用後才會提示移動。{% endcomment %}<nav class="source-status-switch" aria-label="{{ aria_label }}">
+  <a href="{{ tabs.urls.active }}" class="{% if tabs.status == 'active' %}is-active{% endif %}" {% if tabs.status == 'active' %}aria-current="page"{% endif %}>
+    <span>目前使用</span>
+    <strong>{{ active_label|default:"啟用中" }}</strong>
+    <b data-status-count="active">{{ tabs.counts.active }}</b>
+  </a>
+  <a href="{{ tabs.urls.inactive }}" class="{% if tabs.status == 'inactive' %}is-active is-inactive{% endif %}" {% if tabs.status == 'inactive' %}aria-current="page"{% endif %}>
+    <span>歷史收納</span>
+    <strong>{{ inactive_label|default:"已停用" }}</strong>
+    <b data-status-count="inactive">{{ tabs.counts.inactive }}</b>
+  </a>
+</nav>

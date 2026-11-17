@@ -103,13 +103,14 @@
 </dialog>
 {% endif %}
 
-<section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>歷史版本</strong><span>共 {{ plans|length }} 個版本</span></div>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看分期方案版本" active_label="啟用中版本" inactive_label="已停用版本" %}
+<section class="inventory-list-panel" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中版本,已停用版本">
+  <div class="inventory-list-summary"><strong>歷史版本</strong><span>共 {{ listed_plans|length }} 個版本</span></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table">
       <thead><tr><th>有效期間</th><th>期數方案</th><th>狀態</th><th></th></tr></thead>
       <tbody>
-      {% for plan in plans %}
+      {% for plan in listed_plans %}
         <tr{% if editing and plan.pk == editing.pk %} class="installment-history-row--selected"{% endif %}>
           <td data-label="有效期間"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>至 {{ plan.effective_to|date:'Y/m/d'|default:'無限期' }}</span>{% if editing and plan.pk == editing.pk %}<span class="installment-history-current">目前編輯</span>{% endif %}</td>
           <td data-label="期數方案">
@@ -126,9 +127,9 @@
               {% endif %}
             </div>
           </td>
-          <td><a class="button ghost small" href="?edit={{ plan.pk }}">編輯</a></td>
+          <td><a class="button ghost small" href="?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ plan.pk }}">編輯</a></td>
         </tr>
-      {% empty %}<tr><td colspan="4">尚無分期方案版本</td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="4">{% if status_tabs.status == 'inactive' %}沒有已停用的分期方案版本{% else %}尚無分期方案版本{% endif %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

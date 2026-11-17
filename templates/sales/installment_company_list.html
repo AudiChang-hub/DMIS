@@ -24,17 +24,18 @@
   <form method="post" class="stacked-form">{% csrf_token %}
     <div class="form-grid installment-company-form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
     <div class="form-actions">
-      <a class="button ghost" href="{% url 'installment_company_list' %}">取消</a>
+      <a class="button ghost" href="{% url 'installment_company_list' %}{% if status_tabs.status == 'inactive' %}?status=inactive{% endif %}">取消</a>
       <button class="button primary" type="submit">{% if editing %}套用修改{% else %}新增公司{% endif %}</button>
     </div>
   </form>
 </section>
 {% endif %}
 
-<section class="inventory-list-panel installment-company-list">
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看分期公司" active_label="啟用中公司" inactive_label="已停用公司" %}
+<section class="inventory-list-panel installment-company-list" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中公司,已停用公司">
   <div class="inventory-list-summary">
     <div><strong>既有分期公司</strong><span>共 {{ companies|length }} 家</span></div>
-    {% if show_editor %}<a class="button ghost small" href="{% url 'installment_company_list' %}">收起表單</a>{% endif %}
+    {% if show_editor %}<a class="button ghost small" href="{% url 'installment_company_list' %}{% if status_tabs.status == 'inactive' %}?status=inactive{% endif %}">收起表單</a>{% endif %}
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table installment-company-table">
@@ -47,9 +48,9 @@
           <td data-label="分期方案">{{ item.option_count }} 筆</td>
           <td data-label="使用訂單">{{ item.order_count }} 張</td>
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="installment-company" pk=item.pk is_active=item.active item_name=item.name %}</td>
-          <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#company-form">編輯</a></td>
+          <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ item.pk }}#company-form">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立分期公司</strong><p>{% site_text 'installment_company_list.4b00ab3ebcea' %}</p></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="6"><div class="empty-state small">{% if status_tabs.status == 'inactive' %}<strong>沒有已停用的分期公司</strong><p>停用的分期公司會收在這裡。</p>{% else %}<strong>尚未建立分期公司</strong><p>{% site_text 'installment_company_list.4b00ab3ebcea' %}</p>{% endif %}</div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

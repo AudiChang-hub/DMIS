@@ -13,6 +13,7 @@
     <p class="muted">訂單上先選類別再選配件。類別可以自行新增、改名、調整排序或停用；配件要放進哪些類別，到配件的「編輯」勾選（可複選）。</p>
   </div>
 </section>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看配件類別" active_label="啟用中類別" inactive_label="已停用類別" %}
 <div class="master-layout source-category-layout accessory-category-layout">
   {% if not screen_read_only %}
   <section class="form-section static-section">
@@ -20,13 +21,13 @@
     <form method="post" class="stacked-form">{% csrf_token %}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="form-actions">
-        {% if editing %}<a class="button ghost" href="{% url 'accessory_category_list' %}">取消修改</a>{% endif %}
+        {% if editing %}<a class="button ghost" href="{% url 'accessory_category_list' %}{% if status_tabs.status == 'inactive' %}?status=inactive{% endif %}">取消修改</a>{% endif %}
         <button class="button primary" type="submit">{% if editing %}套用修改{% else %}新增類別{% endif %}</button>
       </div>
     </form>
   </section>
   {% endif %}
-  <section class="inventory-list-panel accessory-category-panel">
+  <section class="inventory-list-panel accessory-category-panel" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中類別,已停用類別">
     <div class="inventory-list-summary"><div><strong>既有類別</strong><span>共 {{ categories|length }} 個</span></div></div>
     <div class="inventory-table-wrap">
       <table class="inventory-table inventory-table--fit">
@@ -40,12 +41,12 @@
             <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-category" pk=item.pk is_active=item.active item_name=item.name %}</td>
             {% if not screen_read_only %}<td data-label="操作" class="inventory-row-action">
               <span class="row-action-buttons">
-                <a class="button ghost small" href="?edit={{ item.pk }}">編輯</a>
+                <a class="button ghost small" href="?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ item.pk }}">編輯</a>
                 {% if not item.product_count %}<form method="post" data-confirm="確定刪除沒有配件的類別「{{ item.name }}」嗎？">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="{{ item.pk }}"><button class="button danger-outline small" type="submit">刪除</button></form>{% endif %}
               </span>
             </td>{% endif %}
           </tr>
-          {% empty %}<tr><td colspan="5"><div class="empty-state"><strong>尚未建立配件類別</strong><p>在左邊「新增類別」建立第一個類別。</p></div></td></tr>{% endfor %}
+          {% empty %}<tr><td colspan="5"><div class="empty-state">{% if status_tabs.status == 'inactive' %}<strong>沒有已停用的類別</strong><p>停用的類別會收在這裡。</p>{% else %}<strong>尚未建立配件類別</strong><p>在左邊「新增類別」建立第一個類別。</p>{% endif %}</div></td></tr>{% endfor %}
         </tbody>
       </table>
     </div>

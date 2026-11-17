@@ -14,11 +14,12 @@
   <a href="{{ list_url }}?tab=rules"{% if tab == 'rules' %} aria-current="page"{% endif %}>規則管理</a>
   <a href="{{ list_url }}?tab=trial"{% if tab == 'trial' %} aria-current="page"{% endif %}>台數試算</a>
 </nav>
+{% if tab == 'rules' %}{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看台數獎金規則" active_label="啟用中規則" inactive_label="已停用規則" %}{% endif %}
 <div class="bonus-list-heading">
   <h2>{% if tab == 'rules' %}全部規則 <small>{{ rows|length }} 筆</small>{% else %}{% if show_all %}全部試算結果{% else %}有銷售的規則{% endif %}{% endif %}</h2>
   {% if tab == 'trial' %}<a class="button ghost small" href="{{ list_url }}?tab=trial{% if not show_all %}&amp;show=all{% endif %}">{% if show_all %}只看有銷售的規則{% else %}包含無銷售規則{% if hidden_count %}（{{ hidden_count }} 筆）{% endif %}{% endif %}</a>{% endif %}
 </div>
-<div class="bonus-rule-list" data-bonus-view="{{ tab }}">
+<div class="bonus-rule-list" data-bonus-view="{{ tab }}"{% if tab == 'rules' %} data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中規則,已停用規則"{% endif %}>
 {% for row in rows %}
   <section class="inventory-list-panel bonus-rule-card" id="bonus-rule-{{ row.rule.pk }}">
     <div class="bonus-rule-heading">
@@ -30,7 +31,7 @@
         <a class="button ghost bonus-delete-link" href="{% url 'dealer_volume_bonus_delete' row.rule.pk %}">刪除規則</a>
       {% else %}
         {% if not row.rule.active %}<span class="muted">已停用</span>{% endif %}
-        <a class="button ghost small" href="{{ list_url }}?tab=rules#bonus-rule-{{ row.rule.pk }}">查看規則</a>
+        <a class="button ghost small" href="{{ list_url }}?tab=rules{% if not row.rule.active %}&amp;status=inactive{% endif %}#bonus-rule-{{ row.rule.pk }}">查看規則</a>
       {% endif %}
       </div>
     </div>
@@ -51,7 +52,8 @@
   </section>
 {% empty %}
   <section class="form-section static-section bonus-empty">
-  {% if tab == 'rules' %}<h2>尚未建立獎金規則</h2><p>{% site_text 'dealer_volume_bonus_list.bd098199f5fa' %}</p>
+  {% if tab == 'rules' and status_tabs.status == 'inactive' %}<h2>沒有已停用的獎金規則</h2><p>停用的規則會收在這裡。</p>
+  {% elif tab == 'rules' %}<h2>尚未建立獎金規則</h2><p>{% site_text 'dealer_volume_bonus_list.bd098199f5fa' %}</p>
   {% else %}<h2>目前沒有{% if not show_all %}符合條件的{% endif %}試算結果</h2><p>{% site_text 'dealer_volume_bonus_list.a2a0e29770a6' %}</p><a class="button ghost" href="{{ list_url }}?tab=rules">前往規則管理</a>{% endif %}
   </section>
 {% endfor %}

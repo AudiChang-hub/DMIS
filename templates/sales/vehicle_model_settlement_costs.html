@@ -9,6 +9,7 @@
   {% if_access 'settlement_cost_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">查看全部機種的成本</a></div>{% endif_access %}
 </header>
 
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看結算成本版本" active_label="啟用中版本" inactive_label="已停用版本" %}
 {% if editing or not rules or request.GET.new or request.method == 'POST' %}
 <div class="price-version-layout model-rule-layout">
   <section class="card master-model-section price-version-editor" id="rule-editor" aria-labelledby="rule-editor-title">
@@ -38,13 +39,13 @@
 {% else %}
 <div class="price-version-layout price-version-layout--history-only model-rule-layout">
 {% endif %}
-  <section class="card master-model-section price-version-history" aria-labelledby="rule-history-title">
+  <section class="card master-model-section price-version-history" aria-labelledby="rule-history-title" data-status-tab="{{ status_tabs.status }}" data-status-tab-labels="啟用中版本,已停用版本">
     <div class="section-heading">
       <div><p class="eyebrow">歷史與目前成本</p><h2 id="rule-history-title">全部版本</h2></div>
-      <div class="price-version-history__actions"><span class="muted">共 {{ rules|length }} 筆</span>{% if rules and not request.GET.new %}<a class="button primary small" href="{{ tab_url }}?new=1#rule-editor">＋ 新增版本</a>{% endif %}</div>
+      <div class="price-version-history__actions"><span class="muted">共 {{ listed_rules|length }} 筆</span>{% if rules and not request.GET.new %}<a class="button primary small" href="{{ tab_url }}?new=1#rule-editor">＋ 新增版本</a>{% endif %}</div>
     </div>
     <div class="price-version-list">
-      {% for rule in rules %}
+      {% for rule in listed_rules %}
       <article class="price-version-item{% if editing.pk == rule.pk %} is-editing{% endif %}">
         <div class="price-version-item__head">
           <div><strong>{{ rule.effective_from|date:"Y/m/d" }} 起</strong><span>{% if rule.effective_to %}至 {{ rule.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
@@ -58,10 +59,10 @@
           <div><dt>公告日期</dt><dd>{{ rule.announced_on|date:"Y/m/d" }}</dd></div>
         </dl>
         {% if rule.note %}<p class="price-version-item__note">{{ rule.note }}</p>{% endif %}
-        <a class="button ghost small" href="{{ tab_url }}?edit={{ rule.pk }}#rule-editor">編輯此版本</a>
+        <a class="button ghost small" href="{{ tab_url }}?{% if status_tabs.status == 'inactive' %}status=inactive&amp;{% endif %}edit={{ rule.pk }}#rule-editor">編輯此版本</a>
       </article>
       {% empty %}
-      <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未建立結算成本</h3><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p></div>
+      <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span>{% if status_tabs.status == 'inactive' %}<h3>沒有已停用的成本版本</h3><p>停用的版本會收在這裡。</p>{% else %}<h3>尚未建立結算成本</h3><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p>{% endif %}</div>
       {% endfor %}
     </div>
   </section>

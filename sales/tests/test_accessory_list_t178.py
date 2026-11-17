@@ -41,24 +41,25 @@ class AccessoryListT178Tests(TestCase):
     def test_tabs_list_all_and_each_category_with_counts(self):
         response = self.client.get(self.url)
         counts = self.tab_counts(response)
-        self.assertEqual(counts["全部"], 4)
-        self.assertEqual(counts["安全帽"], 2)
+        # T-209 起預設停在「啟用中」狀態頁籤，類別筆數只算啟用中的配件。
+        self.assertEqual(counts["全部"], 3)
+        self.assertEqual(counts["安全帽"], 1)
         self.assertEqual(counts["手機架"], 1)
         self.assertEqual(counts["未分類"], 1)
         self.assertEqual(counts["其他"], 0)  # 啟用中的類別即使沒有配件也列出
         self.assertContains(response, 'class="inventory-scope-tabs accessory-tabs"')
 
     def test_tab_filters_list_and_keeps_search_and_status(self):
-        response = self.client.get(self.url, {"category": self.helmet.pk, "active": "yes"})
+        response = self.client.get(self.url, {"category": self.helmet.pk, "status": "inactive"})
         names = [row["product"].name for row in response.context["rows"]]
-        self.assertEqual(names, ["輕便安全帽"])
+        self.assertEqual(names, ["全罩安全帽"])
         counts = self.tab_counts(response)
-        self.assertEqual((counts["全部"], counts["安全帽"]), (3, 1))  # 筆數套用狀態篩選
+        self.assertEqual((counts["全部"], counts["安全帽"]), (1, 1))  # 筆數套用狀態頁籤（T-209）
         holder_tab = next(tab for tab in response.context["tabs"] if tab["label"] == "手機架")
-        self.assertIn("active=yes", holder_tab["url"])
+        self.assertIn("status=inactive", holder_tab["url"])
         self.assertIn(f"category={self.holder.pk}", holder_tab["url"])
         # 搜尋在頁籤內作用
-        response = self.client.get(self.url, {"category": self.helmet.pk, "q": "全罩"})
+        response = self.client.get(self.url, {"category": self.helmet.pk, "q": "全罩", "status": "inactive"})
         self.assertEqual([row["product"].name for row in response.context["rows"]], ["全罩安全帽"])
         self.assertEqual(self.tab_counts(response)["全部"], 1)
 
@@ -127,9 +128,9 @@ class AccessoryListT178Tests(TestCase):
             self.row_data(self.five, sale_price="1500", labor_fee="300"),
             self.row_data(self.loose, categories=[str(self.helmet.pk)], name="防風鏡"),
             self.row_data(self.full, active="on"),
-            return_query=f"category={self.helmet.pk}&active=yes",
+            return_query=f"category={self.helmet.pk}&status=inactive",
         )
-        self.assertRedirects(response, f"{self.url}?active=yes&category={self.helmet.pk}", fetch_redirect_response=False)
+        self.assertRedirects(response, f"{self.url}?status=inactive&category={self.helmet.pk}", fetch_redirect_response=False)
         self.five.refresh_from_db()
         self.loose.refresh_from_db()
         self.full.refresh_from_db()

@@ -19,18 +19,20 @@
 </section>
 {% include "sales/_vehicle_model_tabs.html" with current="costs" %}
 
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看車輛結算成本" active_label="啟用中成本" inactive_label="已停用成本" %}
 <form method="get" class="master-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
   <div class="inventory-filter master-search">
     <label for="cost-q">搜尋</label>
     <input id="cost-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、車型、型號或備註">
   </div>
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">清除</a>
+    <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}{% if status_tabs.status == 'inactive' %}?status=inactive{% endif %}">清除</a>
     <button class="button primary" type="submit">套用</button>
   </div>
 </form>
 
-<section class="inventory-list-panel">
+<section class="inventory-list-panel" data-status-tab="{{ selected.status }}" data-status-tab-labels="啟用中成本,已停用成本">
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 筆成本版本</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table settlement-cost-table">
@@ -49,7 +51,7 @@
         </tr>
         {% endwith %}
         {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立車輛結算成本</strong><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p></div></td></tr>
+        <tr><td colspan="7"><div class="empty-state">{% if status_tabs.status == 'inactive' %}<strong>沒有已停用的成本版本</strong><p>停用的成本版本會收在這裡。</p>{% else %}<strong>尚未建立車輛結算成本</strong><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p>{% endif %}</div></td></tr>
         {% endfor %}
       </tbody>
     </table>

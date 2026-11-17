@@ -151,6 +151,8 @@ def build_plan(mapping, lock=False):
         if not entries:
             row["skip"] = "車型與對應表不符"
             continue
+        # 號碼更正過的單可能同時對到舊號碼的空白列與新號碼的有效列；有有效列就不看空白列。
+        entries = {entry for entry in entries if entry[1] and entry[2]} or entries
         targets = {(code, name) for _, code, name in entries}
         if len(targets) > 1:
             row["skip"] = "對應表同一號碼有多種色碼：" + "、".join(sorted(f"{n} {c}".strip() for c, n in targets))

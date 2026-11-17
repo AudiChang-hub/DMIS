@@ -241,6 +241,18 @@ class ApplyColorCodesTests(TestCase):
         coded.refresh_from_db()
         self.assertEqual(coded.code, "G27")
 
+    def test_corrected_identifier_uses_filled_row_over_blank_old_row(self):
+        order = self.legacy_order(self.fun, self.fun_white, "RFDEV062TMT000176")
+        LegacyImportRow.objects.filter(sales_snapshot__order=order).update(mapped_data={"identifier": "RFDEV062TNT000176"})
+        mapping = self.mapping([
+            ["eReady Fun", "RFDEV062TNT000176", "", "", "", ""],
+            ["eReady Fun", "RFDEV062TMT000176", "W13", "盛夏白", "AutoDMS（車牌）＋網站色表", "EV062"],
+        ])
+        _, preview = self.run_command(mapping, "--apply")
+        self.assertEqual((preview[order.pk]["新車色"], preview[order.pk]["色碼"], preview[order.pk]["結果"]),
+                         ("盛夏白", "W13", "更新"))
+        self.assertEqual(SalesOrder.objects.get(pk=order.pk).color.label, "盛夏白 W13")
+
     def test_model_mismatch_is_skipped(self):
         order = self.legacy_order(self.sui, self.white, "DL03-1")
         mapping = self.mapping([["SUZUKI Saluto 125", "DL03-1", "C11", "卡拉拉白", "", ""]])

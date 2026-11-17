@@ -94,6 +94,7 @@
   --red-border: #e7bdb8;
   --red-border-strong: #cf8d86;
   --red-ink: #842e25;
+  --coral-soft: #faece7;
   --coral-ink: #712b13;
   --coral-border: #d85a30;
   --identity-sym-soft: #efcbc7;
@@ -193,7 +194,8 @@ html[data-theme="night-blue"] {
   --red-border: #6a3432;
   --red-border-strong: #a4544e;
   --red-ink: #f5aaa4;
-  --coral-ink: #f4a585;
+  --coral-soft: #712b13;
+  --coral-ink: #fbe0d4;
   --coral-border: #d8643a;
   --identity-sym-soft: #4a2724;
   --identity-sym-ink: #f6c9c3;
@@ -300,7 +302,8 @@ html[data-theme="night-blue"] {
     --red-border: #6a3432;
     --red-border-strong: #a4544e;
     --red-ink: #f5aaa4;
-    --coral-ink: #f4a585;
+    --coral-soft: #712b13;
+    --coral-ink: #fbe0d4;
     --coral-border: #d8643a;
     --identity-sym-soft: #4a2724;
     --identity-sym-ink: #f6c9c3;
@@ -1468,8 +1471,16 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-owner-line .payment-chip--cash { color: var(--green-ink); background: color-mix(in srgb, var(--green) 10%, var(--surface)); border-color: color-mix(in srgb, var(--green) 45%, transparent); }
 .order-owner-line .payment-chip--installment { color: var(--surface); background: var(--blue-ink); border-color: var(--blue-ink); }
 .order-owner-line .payment-chip--card { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border-strong); }
-/* 汰舊換新標籤（T-211 樣式 B）：與付款方式同尺寸的方角標籤，只有珊瑚色外框、底透明，和現金綠底、分期深藍底、補助待完成黃字分開。 */
-.order-owner-line .trade-in-chip { display: inline-flex; flex: none; width: fit-content; margin: 0; padding: 1px var(--space-2); color: var(--coral-ink); background: transparent; border: 1px solid var(--coral-border); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; line-height: 1.6; letter-spacing: .04em; white-space: nowrap; }
+/* 汰舊換新標籤（T-211 樣式 B，使用者 11-17 改實心底）：與付款方式同尺寸的方角標籤，淡珊瑚底＋珊瑚外框；
+   和現金綠底、分期深藍底、補助待完成黃字分開，也不會被列的 hover／選取底色蓋掉。全部訂單與套表列印共用。 */
+.trade-in-chip, .owner-same-chip {
+  display: inline-flex; flex: none; width: fit-content; margin: 0; padding: 1px var(--space-2); border: 1px solid; border-radius: var(--radius-sm);
+  font-size: var(--text-xs); font-weight: 800; line-height: 1.6; letter-spacing: .04em; white-space: nowrap;
+}
+.trade-in-chip { color: var(--coral-ink); background: var(--coral-soft); border-color: var(--coral-border); }
+/* 新舊車主是否同一人（T-211，只在套表列印、有汰舊時顯示）：紫色系與珊瑚分開；「不同車主」要另印聲明書，用實心深紫較醒目。 */
+.owner-same-chip { color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet); }
+.owner-same-chip--different { color: var(--surface); background: var(--violet-ink); border-color: var(--violet-ink); }
 /* 已交車但補助未完成：狀態下方的琥珀提示（訂單仍在「已交車」頁籤，補助完成才結案）。 */
 /* 全部訂單列表：結案時領牌還沒完成，仍是「已結案」，另標出來（T-139）。 */
 .order-subsidy-pending, .order-registration-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }

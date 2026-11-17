@@ -99,7 +99,7 @@
             </td>
             <td data-label="訂單">
               <div class="form-print__order">
-                <strong>{{ row.values.owner_name|default:"（未填車主）" }}</strong>
+                <span class="form-print__owner-line"><strong>{{ row.values.owner_name|default:"（未填車主）" }}</strong>{% include "sales/_trade_in_chip.html" with order=row.order %}{% include "sales/_owner_same_chip.html" with order=row.order %}</span>
                 <small><a href="{% url 'order_detail' row.order.pk %}" target="_blank" rel="noopener">{{ row.order.number }}</a>・{{ row.order.order_date|date:"Y/m/d" }}{% if row.values.dealer %}・{{ row.values.dealer }}{% endif %}</small>
               </div>
             </td>

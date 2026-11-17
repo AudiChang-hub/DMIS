@@ -28,8 +28,9 @@
           <input type="hidden" name="id_front_crop" id="id-front-crop" value="{{ document_source.id_front_crop|crop_json }}" data-id-crop-input="id_front">
           <button type="button" class="id-card-view" data-id-crop-editor="id_front" aria-label="調整正面照片的裁切與旋轉" hidden>
             <canvas class="id-card-view__card" data-id-card-canvas aria-hidden="true"></canvas>
-            <span class="id-card-view__badge" data-id-card-badge></span>
-            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span>
+            {# T-219：標籤與按鈕放在卡片下方一列，不疊在證件上（疊在卡片上會遮住證號等文字）。 #}
+            <span class="id-card-view__bar"><span class="id-card-view__badge" data-id-card-badge></span>
+            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span></span>
           </button>
           <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="證件正面預覽">
           {% if document_source.id_front %}
@@ -54,8 +55,9 @@
           <input type="hidden" name="id_back_crop" id="id-back-crop" value="{{ document_source.id_back_crop|crop_json }}" data-id-crop-input="id_back">
           <button type="button" class="id-card-view" data-id-crop-editor="id_back" aria-label="調整反面照片的裁切與旋轉" hidden>
             <canvas class="id-card-view__card" data-id-card-canvas aria-hidden="true"></canvas>
-            <span class="id-card-view__badge" data-id-card-badge></span>
-            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span>
+            {# T-219：標籤與按鈕放在卡片下方一列，不疊在證件上（疊在卡片上會遮住證號等文字）。 #}
+            <span class="id-card-view__bar"><span class="id-card-view__badge" data-id-card-badge></span>
+            <span class="id-card-view__action"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"></path><path d="M18 22V8a2 2 0 0 0-2-2H2"></path></svg>調整裁切／旋轉</span></span>
           </button>
           <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="證件反面預覽">
           {% if document_source.id_back %}

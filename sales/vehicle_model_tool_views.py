@@ -318,6 +318,7 @@ def vehicle_model_batch(request):
 
     if action == "commit":
         return _batch_commit(request, operable)
+    origin = _batch_origin(source)
 
     dataset = source.get("dataset") if source.get("dataset") in visible else (visible[0] if visible else "")
     payload = _load_token(request.POST.get("token"), BATCH_SALT) if action == "back" else None
@@ -376,7 +377,7 @@ def vehicle_model_batch(request):
                 if not changes:
                     errors.append("沒有任何變更：請勾選列並輸入與目前不同的新值。")
                 else:
-                    return _batch_preview(request, dataset, effective_from, changes, models, filters)
+                    return _batch_preview(request, dataset, effective_from, changes, models, filters, origin)
 
     result = request.session.pop("vehicle_model_batch_result", None) if request.GET.get("result") else None
     fields = batch.dataset_fields(dataset) if dataset else ()
@@ -388,6 +389,7 @@ def vehicle_model_batch(request):
         "dataset_note": batch.DATASETS[dataset][4] if dataset else "",
         "immediate": bool(dataset and batch.is_immediate(dataset)),
         "can_operate": dataset in operable,
+        "origin": origin,
         "dataset_tabs": _tool_tabs(policy, filters, effective_from),
         "fields": fields,
         "rows": rows,
@@ -455,7 +457,16 @@ def _signed_amount(raw, operation):
     return value
 
 
-def _batch_preview(request, dataset, effective_from, changes, models, filters):
+def _batch_origin(source):
+    """從〈車輛結算成本〉進來（T-205）時帶 from=costs，返回列回到結算成本頁；其他值一律忽略。"""
+    return "costs" if source.get("from") == "costs" else ""
+
+
+def _with_origin(query, origin):
+    return {**query, "from": origin} if origin else query
+
+
+def _batch_preview(request, dataset, effective_from, changes, models, filters, origin=""):
     immediate = batch.is_immediate(dataset)
     payload = {"dataset": dataset, "date": None if immediate else effective_from.isoformat(), "changes": changes}
     lines = batch.describe_changes(dataset, changes)
@@ -473,19 +484,22 @@ def _batch_preview(request, dataset, effective_from, changes, models, filters):
         "token": signing.dumps(payload, salt=BATCH_SALT),
         "listed_ids": [model.pk for model in models],
         "filters": filters,
+        "origin": origin,
     })
 
 
 def _batch_commit(request, operable):
     payload = _load_token(request.POST.get("token"), BATCH_SALT)
+    origin = _batch_origin(request.POST)
     back_url = reverse("vehicle_model_batch")
+    origin_url = f"{back_url}?{urlencode(_with_origin({}, origin))}" if origin else back_url
     if not payload:
         messages.error(request, "預覽已過期或內容不完整，資料尚未寫入；請重新預覽。")
-        return redirect(back_url)
+        return redirect(origin_url)
     dataset = payload["dataset"]
     if dataset not in operable:
         messages.error(request, "你沒有這項資料的操作權限，資料尚未寫入。")
-        return redirect(back_url)
+        return redirect(origin_url)
     day = date.fromisoformat(payload["date"]) if payload.get("date") else timezone.localdate()
     try:
         results = batch.commit_changes(dataset=dataset, changes=payload["changes"], effective_from=day,
@@ -493,7 +507,7 @@ def _batch_commit(request, operable):
     except (ValidationError, IntegrityError) as exc:
         detail = "；".join(exc.messages) if isinstance(exc, ValidationError) else "資料剛被其他人變更"
         messages.error(request, f"批次調整未完成，未寫入任何資料：{detail}")
-        return redirect(f"{back_url}?{urlencode({'dataset': dataset, 'effective_from': day.isoformat()})}")
+        return redirect(f"{back_url}?{urlencode(_with_origin({'dataset': dataset, 'effective_from': day.isoformat()}, origin))}")
     immediate = batch.is_immediate(dataset)
     route = {"price": "vehicle_model_price_versions", "commission": "vehicle_model_commission",
              "cost": "vehicle_model_settlement_costs"}[dataset]
@@ -512,7 +526,7 @@ def _batch_commit(request, operable):
     }
     when = "已立即生效" if immediate else f"將於 {day:%Y/%m/%d} 起生效"
     messages.success(request, f"已調整 {len(results)} 個年式的{batch.DATASETS[dataset][0]}，{when}。")
-    return redirect(f"{back_url}?{urlencode({'dataset': dataset, 'result': 1})}")
+    return redirect(f"{back_url}?{urlencode(_with_origin({'dataset': dataset, 'result': 1}, origin))}")
 
 
 # ---------------------------------------------------------------------------

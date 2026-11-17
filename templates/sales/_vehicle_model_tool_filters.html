@@ -1,6 +1,7 @@
 <form method="get" class="inventory-filters model-tool-filters{% if show_date %} model-tool-filters--dated{% endif %}" aria-label="篩選年式" data-model-tool-filters>
   {% if mode %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %}
   {% if dataset %}<input type="hidden" name="dataset" value="{{ dataset }}">{% endif %}
+  {% if origin %}<input type="hidden" name="from" value="{{ origin }}">{% endif %}
   <div class="inventory-filter">
     <label for="tool-brand">品牌</label>
     <select id="tool-brand" name="brand" data-tool-brand>

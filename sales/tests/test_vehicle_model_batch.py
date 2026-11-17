@@ -210,6 +210,49 @@ class BatchAdjustTests(TestCase):
         self.assertContains(response, reverse("vehicle_model_copy"))
 
 
+    def test_cost_list_entry_preselects_cost_and_returns_to_cost_list(self):
+        # T-205：〈車輛結算成本〉頁首「批次調整」預選結算成本，整個流程的返回都回到結算成本頁。
+        cost_url = reverse("settlement_cost_rule_list")
+        entry = f"{BATCH_URL}?dataset=cost&amp;from=costs"
+        self.assertContains(self.client.get(cost_url), f'<a class="button ghost" href="{entry}">批次調整</a>', html=True)
+        page = self.client.get(BATCH_URL, {"dataset": "cost", "from": "costs"})
+        self.assertEqual(page.context["dataset"], "cost")
+        self.assertContains(page, f'href="{cost_url}" data-return-to aria-label="回到車輛結算成本"')
+        # 編輯表單與篩選表單各帶一次；篩選的「清除」也保留入口。
+        self.assertContains(page, '<input type="hidden" name="from" value="costs">', count=2)
+        self.assertContains(page, f'{BATCH_URL}?dataset=cost&amp;from=costs')
+        filtered = self.client.get(BATCH_URL, {"dataset": "cost", "from": "costs", "brand": "SUZUKI"})
+        self.assertContains(filtered, 'aria-label="回到車輛結算成本"')
+        applied = self.post("apply", "cost", {}, selected={self.a.pk}, op="add", op_value="1000", op_round="1",
+                            op_field="amount", **{"from": "costs"})
+        self.assertContains(applied, 'aria-label="回到車輛結算成本"')
+        preview = self.post("preview", "cost", {(self.a.pk, "amount"): "57000"}, **{"from": "costs"})
+        self.assertEqual(preview.context["stage"], "preview")
+        self.assertContains(preview, 'aria-label="回到車輛結算成本"')
+        self.assertContains(preview, '<input type="hidden" name="from" value="costs">', count=2)
+        back = self.client.post(BATCH_URL, {"action": "back", "token": preview.context["token"], "from": "costs",
+                                            "row": [self.a.pk, self.b.pk, self.c.pk]})
+        self.assertContains(back, 'aria-label="回到車輛結算成本"')
+        done = self.client.post(BATCH_URL, {"action": "commit", "token": preview.context["token"], "from": "costs"})
+        self.assertEqual(done.url, f"{BATCH_URL}?dataset=cost&result=1&from=costs")
+        self.assertContains(self.client.get(done.url), 'aria-label="回到車輛結算成本"')
+        self.assertEqual(VehicleSettlementCostRule.objects.get(vehicle_model=self.a, effective_from=self.day).amount, 57000)
+
+    def test_batch_page_without_cost_entry_keeps_model_list_back_link(self):
+        for params in ({}, {"dataset": "price"}, {"dataset": "cost"}, {"dataset": "commission", "from": "other"}):
+            with self.subTest(params=params):
+                page = self.client.get(BATCH_URL, params)
+                self.assertContains(page, f'href="{reverse("vehicle_model_list")}" data-return-to aria-label="回到機種與售價"')
+                self.assertNotContains(page, 'name="from"')
+                self.assertNotContains(page, "回到車輛結算成本")
+        preview = self.post("preview", "price", {(self.a.pk, "cash_price"): "69000"})
+        done = self.client.post(BATCH_URL, {"action": "commit", "token": preview.context["token"]})
+        self.assertEqual(done.url, f"{BATCH_URL}?dataset=price&result=1")
+        for url in (reverse("vehicle_model_copy"), reverse("vehicle_model_installment_batch")):
+            with self.subTest(url=url):
+                self.assertNotContains(self.client.get(url), 'name="from"')
+
+
 class BatchPermissionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -249,3 +292,16 @@ class BatchPermissionTests(TestCase):
     def test_without_models_screen_denied(self):
         self.make_user("costs-only", {"costs": True})
         self.assertEqual(self.client.get(BATCH_URL).status_code, 403)
+
+    def test_cost_list_batch_button_needs_model_and_cost_operate(self):
+        # T-205：比照「機種與售價」的批次按鈕（機種操作權限），另外要能操作結算成本才顯示。
+        cost_url = reverse("settlement_cost_rule_list")
+        entry = f"{BATCH_URL}?dataset=cost&amp;from=costs"
+        for name, grants, shown in (("both-operate", {"models": True, "costs": True}, True),
+                                    ("models-view", {"models": False, "costs": True}, False),
+                                    ("costs-view", {"models": True, "costs": False}, False)):
+            with self.subTest(name=name):
+                self.make_user(name, grants)
+                page = self.client.get(cost_url)
+                self.assertEqual(page.status_code, 200)
+                (self.assertContains if shown else self.assertNotContains)(page, entry)

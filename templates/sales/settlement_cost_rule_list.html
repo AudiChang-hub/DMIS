@@ -11,7 +11,10 @@
     <h1>車輛結算成本</h1>
     <p class="muted">{% site_text 'settlement_cost_rule_list.7a65e761c113' %}</p>
   </div>
-  <a class="button primary" href="{% url 'settlement_cost_rule_create' %}">＋ 新增成本版本</a>
+  <div class="hero-actions">
+    {% if can_batch_costs %}<a class="button ghost" href="{% url 'vehicle_model_batch' %}?dataset=cost&amp;from=costs">批次調整</a>{% endif %}
+    <a class="button primary" href="{% url 'settlement_cost_rule_create' %}">＋ 新增成本版本</a>
+  </div>
 </section>
 
 <form method="get" class="master-filters">

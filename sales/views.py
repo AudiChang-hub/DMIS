@@ -9923,6 +9923,8 @@ def settlement_cost_rule_list(request):
     )
     paginator = Paginator(rules, 100)
     page = paginator.get_page(request.GET.get("page"))
+    from .access.services import policy_for
+    policy = policy_for(request)
     return render(
         request,
         "sales/settlement_cost_rule_list.html",
@@ -9931,6 +9933,8 @@ def settlement_cost_rule_list(request):
             "page_obj": page,
             "selected": {"q": keyword},
             "today": timezone.localdate(),
+            # T-205：比照「機種與售價」的批次按鈕，另需能操作結算成本才顯示。
+            "can_batch_costs": policy.route("vehicle_model_batch", "POST") and policy.screen("costs", "operate"),
         },
     )
 

@@ -3,8 +3,8 @@
 {% block page_class %}page-shell--wide model-tool-page{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
-{% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}
+{% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}{% url 'settlement_cost_rule_list' as cost_url %}
+{% if origin == "costs" %}{% include "sales/_page_back.html" with fallback_url=cost_url label="車輛結算成本" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}{% else %}{% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}{% endif %}
 <section class="hero-row compact-hero model-tool-hero">
   <div>
     <p class="eyebrow">機種與售價</p>
@@ -42,9 +42,9 @@
       </table>
     </div>
   </div>
-  <form id="batch-back" method="post">{% csrf_token %}<input type="hidden" name="action" value="back"><input type="hidden" name="token" value="{{ token }}">{% for pk in listed_ids %}<input type="hidden" name="row" value="{{ pk }}">{% endfor %}{% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}</form>
+  <form id="batch-back" method="post">{% csrf_token %}<input type="hidden" name="action" value="back"><input type="hidden" name="token" value="{{ token }}">{% if origin %}<input type="hidden" name="from" value="{{ origin }}">{% endif %}{% for pk in listed_ids %}<input type="hidden" name="row" value="{{ pk }}">{% endfor %}{% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}</form>
   <form method="post" class="confirm-panel__form" data-confirm="確定{% if immediate %}立即更新{% else %}建立{% endif %} {{ change_count }} 個年式的{{ dataset_label }}？">
-    {% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
+    {% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">{% if origin %}<input type="hidden" name="from" value="{{ origin }}">{% endif %}
     <div class="form-actions confirm-panel__actions">
       <button class="button ghost" type="submit" form="batch-back">返回修改</button>
       <button class="button primary" type="submit">{% if immediate %}確認更新 {{ change_count }} 個年式{% else %}確認建立 {{ change_count }} 筆新版本{% endif %}</button>
@@ -74,11 +74,12 @@
 </nav>
 
 {% url 'vehicle_model_batch' as batch_url %}
-{% include "sales/_vehicle_model_tool_filters.html" with show_date=True clear_url=batch_url|add:"?dataset="|add:dataset %}
+{% if origin %}{% include "sales/_vehicle_model_tool_filters.html" with show_date=True clear_url=batch_url|add:"?dataset="|add:dataset|add:"&from="|add:origin %}{% else %}{% include "sales/_vehicle_model_tool_filters.html" with show_date=True clear_url=batch_url|add:"?dataset="|add:dataset %}{% endif %}
 
 <form method="post" class="model-batch" data-batch-editor data-immediate="{{ immediate|yesno:'true,false' }}">
   {% csrf_token %}
   <input type="hidden" name="dataset" value="{{ dataset }}">
+  {% if origin %}<input type="hidden" name="from" value="{{ origin }}">{% endif %}
   <input type="hidden" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}">
   {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
   {% for row in rows %}<input type="hidden" name="row" value="{{ row.model.pk }}">{% endfor %}

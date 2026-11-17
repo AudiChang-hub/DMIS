@@ -19,18 +19,8 @@
   </div>
 </section>
 
-<nav class="source-status-switch" aria-label="依使用狀態查看車行">
-  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
-    <span>目前使用</span>
-    <strong>啟用中車行</strong>
-    <b data-source-status-count="active">{{ source_status_counts.active }}</b>
-  </a>
-  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
-    <span>歷史收納</span>
-    <strong>已停用車行</strong>
-    <b data-source-status-count="inactive">{{ source_status_counts.inactive }}</b>
-  </a>
-</nav>
+{# 狀態頁籤共用 _status_tabs.html（T-210）；停用後整列移除、各分區筆數跟著減，由下方 removeMovedSourceRow 處理。 #}
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看車行" active_label="啟用中車行" inactive_label="已停用車行" %}
 
 <form method="get" class="master-filters sales-source-filters">
   <input type="hidden" name="status" value="{{ selected.status }}">
@@ -227,7 +217,7 @@
         }
       }
       Object.entries(statusCounts || {}).forEach(([status, count]) => {
-        const target = document.querySelector(`[data-source-status-count="${status}"]`);
+        const target = document.querySelector(`[data-status-count="${status}"]`);
         if (target) target.textContent = String(count);
       });
     };

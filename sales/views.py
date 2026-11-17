@@ -2088,6 +2088,11 @@ def sales_source_list(request):
     active_status_url = f"{reverse('sales_source_list')}?{status_query.urlencode()}"
     status_query["status"] = "inactive"
     inactive_status_url = f"{reverse('sales_source_list')}?{status_query.urlencode()}"
+    source_status_counts = {
+        "active": SalesSource.objects.filter(source_type=SalesSource.SourceType.DEALER, active=True).count(),
+        "inactive": SalesSource.objects.filter(source_type=SalesSource.SourceType.DEALER, active=False).count(),
+    }
+    status_urls = {"active": active_status_url, "inactive": inactive_status_url}
     return render(
         request,
         "sales/sales_source_list.html",
@@ -2105,18 +2110,10 @@ def sales_source_list(request):
                 holiday_gift=True,
                 active=True,
             ).count(),
-            "source_status_counts": {
-                "active": SalesSource.objects.filter(
-                    source_type=SalesSource.SourceType.DEALER, active=True
-                ).count(),
-                "inactive": SalesSource.objects.filter(
-                    source_type=SalesSource.SourceType.DEALER, active=False
-                ).count(),
-            },
-            "status_urls": {
-                "active": active_status_url,
-                "inactive": inactive_status_url,
-            },
+            "source_status_counts": source_status_counts,
+            "status_urls": status_urls,
+            # 狀態頁籤共用 _status_tabs.html（T-210）。
+            "status_tabs": {"status": status, "counts": source_status_counts, "urls": status_urls},
             "selected": {
                 "q": keyword,
                 "status": status,
@@ -2311,8 +2308,9 @@ def master_record_set_active(request, resource, pk):
                 "message": message,
             }
             if resource == "sales-source":
+                # 依這筆通路自己的類型計算（T-210）：本店人員、網路平台頁的頁籤筆數不會被車行數字蓋掉。
                 status_totals = SalesSource.objects.filter(
-                    source_type=SalesSource.SourceType.DEALER
+                    source_type=record.source_type
                 ).aggregate(
                     active_count=Count("id", filter=Q(active=True)),
                     inactive_count=Count("id", filter=Q(active=False)),
@@ -2411,6 +2409,10 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
     for value in ("active", "inactive"):
         status_query["status"] = value
         status_urls[value] = f"{reverse(route_name)}?{status_query.urlencode()}"
+    source_status_counts = {
+        "active": SalesSource.objects.filter(source_type=source_type, active=True).count(),
+        "inactive": SalesSource.objects.filter(source_type=source_type, active=False).count(),
+    }
     return render(
         request,
         "sales/sales_source_simple_list.html",
@@ -2423,14 +2425,9 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
             "create_kind": source_type,
             "selected": {"q": keyword, "status": status},
             "status_urls": status_urls,
-            "source_status_counts": {
-                "active": SalesSource.objects.filter(
-                    source_type=source_type, active=True
-                ).count(),
-                "inactive": SalesSource.objects.filter(
-                    source_type=source_type, active=False
-                ).count(),
-            },
+            "source_status_counts": source_status_counts,
+            # 狀態頁籤共用 _status_tabs.html（T-210）。
+            "status_tabs": {"status": status, "counts": source_status_counts, "urls": status_urls},
             "is_platform_list": source_type == SalesSource.SourceType.PLATFORM,
             "is_staff_list": source_type == SalesSource.SourceType.STORE,
         },
@@ -9504,9 +9501,7 @@ def accessory_product_edit(request, pk):
 def dealer_reward_catalog_list(request):
     keyword = request.GET.get("q", "").strip()
     reward_type = request.GET.get("reward_type", "")
-    status = request.GET.get("status", "active")
-    if status not in {"active", "inactive"}:
-        status = "active"
+    status = requested_status(request.GET)
     items = DealerRewardCatalogItem.objects.annotate(
         plan_usage_count=Count("plan_items", distinct=True)
     ).prefetch_related(
@@ -9521,10 +9516,6 @@ def dealer_reward_catalog_list(request):
     if reward_type:
         items = items.filter(reward_type=reward_type)
     items = items.filter(active=status == "active").order_by("reward_type", "name", "unit")
-    status_counts = DealerRewardCatalogItem.objects.aggregate(
-        active_count=Count("id", filter=Q(active=True)),
-        inactive_count=Count("id", filter=Q(active=False)),
-    )
     page = Paginator(items, 100).get_page(request.GET.get("page"))
     today = timezone.localdate()
     for item in page.object_list:
@@ -9536,11 +9527,8 @@ def dealer_reward_catalog_list(request):
             "items": page.object_list,
             "page_obj": page,
             "reward_types": DealerVehicleRewardItem.RewardType.choices,
-            "status_counts": status_counts,
-            "status_urls": {
-                "active": reverse("dealer_reward_catalog_list"),
-                "inactive": f"{reverse('dealer_reward_catalog_list')}?status=inactive",
-            },
+            # 狀態頁籤共用 _status_tabs.html（T-210），切換時保留搜尋與類型。
+            "status_tabs": status_tabs(request, status, queryset_status_counts(DealerRewardCatalogItem.objects.all())),
             "selected": {
                 "q": keyword,
                 "reward_type": reward_type,

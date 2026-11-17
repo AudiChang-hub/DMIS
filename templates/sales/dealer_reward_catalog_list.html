@@ -15,14 +15,7 @@
 </section>
 {% include "sales/_dealer_reward_tabs.html" with current="catalog" %}
 
-<nav class="source-status-switch" aria-label="依使用狀態查看車行獎勵品項">
-  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
-    <span>目前使用</span><strong>啟用中品項</strong><b>{{ status_counts.active_count }}</b>
-  </a>
-  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
-    <span>歷史收納</span><strong>已停用品項</strong><b>{{ status_counts.inactive_count }}</b>
-  </a>
-</nav>
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看車行獎勵品項" active_label="啟用中品項" inactive_label="已停用品項" %}
 
 <form method="get" class="master-filters customer-filters">
   <input type="hidden" name="status" value="{{ selected.status }}">
@@ -43,7 +36,7 @@
   </div>
 </form>
 
-<section class="inventory-list-panel">
+<section class="inventory-list-panel" data-status-tab="{{ selected.status }}" data-status-tab-labels="啟用中品項,已停用品項">
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個品項</strong><span>成本依生效日期保留版本，不會覆蓋已保存的方案快照。</span></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table">

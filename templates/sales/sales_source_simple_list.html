@@ -17,14 +17,7 @@
   </div>
 </section>
 
-<nav class="source-status-switch" aria-label="依使用狀態查看{{ page_title }}">
-  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
-    <span>目前使用</span><strong>啟用中</strong><b>{{ source_status_counts.active }}</b>
-  </a>
-  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
-    <span>歷史收納</span><strong>已停用</strong><b>{{ source_status_counts.inactive }}</b>
-  </a>
-</nav>
+{% with aria="依使用狀態查看"|add:page_title %}{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label=aria %}{% endwith %}
 
 <form method="get" class="master-filters sales-source-simple-filters">
   <input type="hidden" name="status" value="{{ selected.status }}">
@@ -38,7 +31,7 @@
   </div>
 </form>
 
-<section class="inventory-list-panel">
+<section class="inventory-list-panel" data-status-tab="{{ selected.status }}" data-status-tab-labels="啟用中,已停用">
   <div class="inventory-list-summary source-list-summary">
     <div class="source-list-summary__copy">
       <strong>{% if selected.status == 'inactive' %}共 {{ page_obj.paginator.count }} 筆已停用資料{% else %}共 {{ page_obj.paginator.count }} 筆啟用中資料{% endif %}</strong>

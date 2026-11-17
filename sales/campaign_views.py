@@ -142,6 +142,9 @@ def incentive_campaign_list(request):
         "kinds": IncentiveCampaign.Kind.choices,
         "statuses": INCENTIVE_STATUS_FILTERS.items(),
         "tabs": tabs,
+        # 狀態頁籤共用 _status_tabs.html（T-210）；筆數照舊套用搜尋與類型。
+        "status_tabs": {"status": tab, "counts": {item["key"]: item["count"] for item in tabs},
+                        "urls": {item["key"]: item["url"] for item in tabs}},
         "selected": {"q": keyword, "kind": kind, "status": status, "tab": tab},
     }
     template = ("sales/_incentive_campaign_results.html"

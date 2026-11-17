@@ -553,8 +553,9 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, 'data-source-name="汐止分區車行"')
         self.assertContains(response, "activequicktoggle:changed")
         self.assertContains(response, "removeMovedSourceRow(form, payload.status_counts);")
-        self.assertContains(response, 'data-source-status-count="active"')
-        self.assertContains(response, 'data-source-status-count="inactive"')
+        # T-210 起頁籤用共用 _status_tabs.html，筆數節點是 data-status-count。
+        self.assertContains(response, 'data-status-count="active"')
+        self.assertContains(response, 'data-status-count="inactive"')
 
     def test_dealer_list_does_not_mix_staff_or_platform_sources(self):
         staff = SalesSource.objects.create(

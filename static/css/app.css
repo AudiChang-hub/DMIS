@@ -5252,6 +5252,9 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .sales-source-table tr[data-source-row] > td { grid-column: 1 / -1; }
   .sales-source-table .source-identity__label, .sales-source-table .source-identity > span { grid-column: 2; }
   .sales-source-table .source-status-cell { align-items: flex-start; }
+  /* 車輛結算成本（T-210）：半欄放不下日期與狀態開關，窄寬度每格整列，值的多行內容都靠右欄。 */
+  .settlement-cost-table tr > td { grid-column: 1 / -1; }
+  .settlement-cost-table td:not(.inventory-row-action) > * { grid-column: 2; }
   .source-active-toggle { min-height: 40px; }
   .inventory-table td[colspan] { display: block; grid-column: 1 / -1; }
   .inventory-table tbody th { display: block; grid-column: 1 / -1; padding: var(--space-2) 0; border: 0; }

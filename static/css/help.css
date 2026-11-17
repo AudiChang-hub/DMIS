@@ -4,9 +4,6 @@
 .help-hero .muted { max-width: 640px; margin-top: var(--space-2); font-size: var(--text-base); line-height: 1.7; }
 
 /* 從畫面帶來的「這頁怎麼用」 */
-.help-context { align-items: center; }
-.help-context > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.help-context p { margin: 0; }
 
 /* 搜尋 */
 .help-search { display: grid; gap: var(--space-3); padding: var(--card-pad); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); box-shadow: var(--shadow-soft); }

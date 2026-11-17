@@ -24,14 +24,6 @@
   </a>
   {% endif %}
 
-  {% if context_article %}
-  <div class="callout callout--info help-context" role="note">
-    <span class="callout__icon" aria-hidden="true">?</span>
-    <div><p>你剛才在「{{ context_article.title }}」相關的畫面。這頁怎麼用，直接看這一篇。</p>
-      <a class="button secondary small" href="{% url 'help_article' context_article.slug %}">{{ context_article.title }}怎麼用</a></div>
-  </div>
-  {% endif %}
-
   <section class="help-search" role="search">
     <label for="help-q">搜尋說明</label>
     <div class="help-search__row">

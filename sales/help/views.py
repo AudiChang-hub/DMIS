@@ -7,7 +7,7 @@ from django.urls import NoReverseMatch, reverse
 from config.release_notes import CURRENT_VERSION, RELEASES
 from sales.access.services import policy_for
 
-from . import article_for_legacy_topic, article_for_route, grouped, search_index, start_stops, tips_for, visible_article, visible_articles
+from . import article_for_legacy_topic, grouped, search_index, start_stops, tips_for, visible_article, visible_articles
 from .articles import GROUPS, START_HERE
 
 
@@ -29,14 +29,12 @@ def help_home(request):
             return redirect("help_article", slug=article.slug)
         return redirect("user_guide")
     articles = visible_articles(policy)
-    from_route = request.GET.get("from", "")
     return render(request, "help/home.html", {
         "groups": grouped(articles),
         "index": search_index(articles),
         "tips": tips_for(policy),
         "release": RELEASES[0],
         "release_version": CURRENT_VERSION,
-        "context_article": article_for_route(policy, from_route),
         "start_visible": any(item["article"] for item in start_stops(policy)),
     })
 

@@ -8,6 +8,8 @@ from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings, tag
 from django.urls import reverse
 
+from sales.help import BY_ROUTE
+
 from config.middleware import RequestIdMiddleware
 from sales import views
 from sales.models import UserAppearancePreference
@@ -42,23 +44,14 @@ class ProductExperienceTests(TestCase):
     def test_navigation_opens_context_help_without_leaving_work(self):
         self.client.force_login(self.user)
 
-        # T-197：各畫面的「使用說明」直接開到那個畫面的文章（另開分頁）
+        # T-206：選單的「使用說明」不管在哪個畫面都開說明首頁（另開分頁，不離開目前資料）
         dashboard = self.client.get(reverse("dashboard"))
-        self.assertContains(dashboard, reverse("help_article", args=["home"]))
+        self.assertEqual(dashboard.context["context_help_url"], reverse("user_guide"))
         self.assertContains(dashboard, 'target="_blank"')
         self.assertContains(dashboard, "不會離開目前資料")
-
-        inventory = self.client.get(reverse("inventory_list"))
-        self.assertContains(inventory, reverse("help_article", args=["inventory"]))
-
-        dealers = self.client.get(reverse("sales_source_list"))
-        self.assertContains(dealers, reverse("help_article", args=["sales-sources"]))
-
-        platforms = self.client.get(reverse("sales_source_platform_list"))
-        self.assertContains(platforms, reverse("help_article", args=["sales-sources"]))
-
-        distribution = self.client.get(reverse("price_list_distribution"))
-        self.assertContains(distribution, reverse("help_article", args=["price-list"]))
+        for route in ("inventory_list", "sales_source_list", "sales_source_platform_list", "price_list_distribution"):
+            with self.subTest(route=route):
+                self.assertEqual(self.client.get(reverse(route)).context["context_help_url"], reverse("user_guide"))
 
     def test_data_navigation_exposes_common_maintenance_without_extra_detour(self):
         self.client.force_login(self.user)
@@ -576,7 +569,9 @@ class ProductExperienceTests(TestCase):
             with self.subTest(route=route):
                 response = self.client.get(route)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, reverse("help_article", args=[slug]))
+                # T-206：選單開說明首頁；這些畫面的文章仍由路由對應表登記（?topic= 轉址、搜尋用）
+                self.assertEqual(response.context["context_help_url"], reverse("user_guide"))
+                self.assertEqual(BY_ROUTE[response.resolver_match.url_name], slug)
 
     def test_every_maintenance_landing_page_has_a_clear_return_path(self):
         self.client.force_login(self.user)

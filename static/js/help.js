@@ -11,7 +11,7 @@
   const list = home.querySelector("[data-help-results-list]");
   const count = home.querySelector("[data-help-results-count]");
   const empty = home.querySelector("[data-help-empty]");
-  const browse = [...home.querySelectorAll("[data-help-groups], .help-discover, .help-start, .help-context")];
+  const browse = [...home.querySelectorAll("[data-help-groups], .help-discover, .help-start")];
 
   const normalize = (value) => (value || "").toLocaleLowerCase("zh-Hant").replace(/\s+/g, " ").trim();
   const articleUrl = (slug, hash = "") => home.dataset.helpArticleUrl.replace("SLUG", slug) + hash;

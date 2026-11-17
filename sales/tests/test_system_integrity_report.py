@@ -59,7 +59,7 @@ class SystemIntegrityReportTests(TestCase):
         self.client.force_login(self.admin)
 
         response = self.client.get(reverse("system_integrity_report"))
-        self.assertContains(response, reverse("help_article", args=["system"]))
+        self.assertEqual(response.context["context_help_url"], reverse("user_guide"))  # T-206：選單一律開說明首頁
 
         guide = self.client.get(reverse("help_article", args=["system"]))
         self.assertContains(guide, "系統完整性報告")
@@ -89,6 +89,6 @@ class IntegrityHelpButtonsTests(TestCase):
         self.client.force_login(user)
         report = self.client.get(reverse("system_integrity_report"))
         self.assertEqual(report.status_code, 200)
-        # 只有完整性報告權限的人，從報告頁開說明也會到〈系統狀態、公告與說明文字〉
-        self.assertContains(report, reverse("help_article", args=["system"]))
+        # 只有完整性報告權限的人也看得到〈系統狀態、公告與說明文字〉，說明首頁也列得出這篇
+        self.assertContains(self.client.get(reverse("user_guide")), reverse("help_article", args=["system"]))
         self.assertContains(self.client.get(reverse("help_article", args=["system"])), "系統完整性報告")

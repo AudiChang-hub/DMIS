@@ -66,7 +66,7 @@ class UserManagementTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url, follow=True)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, reverse("help_article", args=["accounts"]))
+                self.assertEqual(response.context["context_help_url"], reverse("user_guide"))  # T-206
 
         guide = self.client.get(reverse("help_article", args=["accounts"]))
         self.assertContains(guide, "臨時密碼只顯示這一次")

@@ -74,12 +74,11 @@ class HelpPageTests(TestCase):
 
     def test_home_lists_groups_start_here_search_and_tips(self):
         self.client.force_login(self.admin)
-        response = self.client.get(reverse("user_guide"), {"from": "form_print"})
+        response = self.client.get(reverse("user_guide"))
         self.assertContains(response, "你要完成什麼事？")
         self.assertContains(response, reverse("help_start"))
         self.assertContains(response, "data-help-search")
         self.assertContains(response, "你可能不知道")
-        self.assertContains(response, "套表列印怎麼用")  # 從套表列印頁進來，直接指到那一篇
         index = json.loads(response.content.decode().split('id="help-index" type="application/json">', 1)[1].split("</script>", 1)[0])
         self.assertEqual({item["slug"] for item in index}, {article.slug for article in ARTICLES})
 
@@ -114,7 +113,7 @@ class HelpPageTests(TestCase):
 
 
 class HelpSwitchTests(TestCase):
-    """/help/ 是新版：舊連結轉址、各畫面的「使用說明」直接開到新文章；舊版 /help/legacy/ 已移除，網址轉到新版。"""
+    """/help/ 是新版：舊連結轉址；姓名選單與手機「更多」的「使用說明」一律開說明首頁（T-206）；舊版 /help/legacy/ 轉到新版。"""
 
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser("admin", password="help-test-pass")
@@ -129,9 +128,28 @@ class HelpSwitchTests(TestCase):
                              reverse("help_article", args=["inventory"]))
         self.assertRedirects(self.client.get(reverse("user_guide"), {"topic": "no-such-topic"}), reverse("user_guide"))
 
-    def test_screen_help_link_opens_the_article_for_that_screen(self):
-        self.assertContains(self.client.get(reverse("order_list")), reverse("help_article", args=["find-order"]))
-        self.assertContains(self.client.get(reverse("operations_report")), reverse("help_article", args=["operations"]))
+    def test_menu_help_link_always_opens_the_help_home(self):
+        """T-206：使用者「每次點進去都不一樣，很怪」——不管在哪個畫面，選單的「使用說明」都到 /help/。"""
+        home = reverse("user_guide")
+        for route in ("dashboard", "order_list", "operations_report", "inventory_list", "form_print", "data_maintenance"):
+            with self.subTest(route=route):
+                page = self.client.get(reverse(route))
+                self.assertEqual(page.context["context_help_url"], home)
+                body = page.content.decode()
+                self.assertRegex(body, r'class="account-menu__item" href="/help/"')
+                self.assertRegex(body, r'<a href="/help/" target="_blank" rel="noopener"><span aria-hidden="true">\?</span><strong>使用說明</strong>')
+        # 頁首「這頁做什麼」提示（T-201）照舊連到那一頁的文章
+        self.assertContains(self.client.get(reverse("form_print")), reverse("help_article", args=["form-print"]))
+
+    def test_help_home_looks_the_same_wherever_you_came_from(self):
+        """說明首頁不再依來源頁多出「你剛才在…」的區塊，每次長一樣。"""
+        plain = self.client.get(reverse("user_guide")).content.decode()
+        for source in ("form_print", "order_list", "inventory_list"):
+            with self.subTest(source=source):
+                page = self.client.get(reverse("user_guide"), {"from": source})
+                self.assertNotContains(page, "你剛才在")
+                self.assertNotContains(page, "help-context")
+        self.assertNotIn("你剛才在", plain)
 
     def test_legacy_guide_url_redirects_to_the_new_guide(self):
         self.assertRedirects(self.client.get(reverse("user_guide_legacy")), reverse("user_guide"))

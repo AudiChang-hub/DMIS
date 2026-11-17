@@ -85,10 +85,9 @@ def app_version(request):
     access_policy = policy_for(request)
     route_name = getattr(getattr(request, "resolver_match", None), "url_name", None)
     screen_key = ROUTES.get(route_name, (None,))[0]
-    # T-197：這個畫面有對應文章（且看得到）就直接開那一篇，否則開說明首頁。
-    from sales.help import article_for_route
-    help_article = article_for_route(access_policy, route_name)
-    context_help_url = reverse("help_article", args=[help_article.slug]) if help_article else reverse("user_guide")
+    # T-206：姓名選單與手機「更多」的「使用說明」一律開說明首頁（使用者：「每次點進去都不一樣，很怪」）。
+    # 「這頁怎麼用」改由各頁頁首提示（help_page_tip）連到對應文章。
+    context_help_url = reverse("user_guide")
     ui_theme = DEFAULT_THEME
     mobile_quick_link_context = {
         "mobile_quick_links": [],

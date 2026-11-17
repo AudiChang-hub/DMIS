@@ -4244,14 +4244,6 @@ def dashboard(request):
 
 
 @login_required
-def user_guide(request):
-    """提供不含技術術語、可搜尋與列印的 End User 使用說明。"""
-    from sales.services.audience_content import help_context
-    from sales.access.services import policy_for
-    return render(request, "help/user_guide.html", help_context(policy_for(request)))
-
-
-@login_required
 @transaction.atomic
 def registration_fee_variance_confirm(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)

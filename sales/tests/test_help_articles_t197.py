@@ -3,7 +3,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.core.management import CommandError, call_command
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, tag
 from django.urls import reverse
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
@@ -114,29 +114,48 @@ class HelpPageTests(TestCase):
 
 
 class HelpSwitchTests(TestCase):
-    """/help/ 切到新版：舊連結轉址、各畫面的「使用說明」直接開到新文章、舊版保留在 /help/legacy/。"""
+    """/help/ 是新版：舊連結轉址、各畫面的「使用說明」直接開到新文章；舊版 /help/legacy/ 已移除，網址轉到新版。"""
 
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser("admin", password="help-test-pass")
         self.client.force_login(self.admin)
 
-    def test_old_topic_links_go_to_the_rewritten_article_or_the_legacy_section(self):
+    def test_old_topic_links_go_to_the_rewritten_article(self):
         self.assertRedirects(self.client.get(reverse("user_guide"), {"topic": "ocr"}),
                              reverse("help_article", args=["id-photo"]))
         self.assertRedirects(self.client.get(reverse("user_guide"), {"topic": "create-order-current"}),
                              reverse("help_article", args=["create-order"]))
-        response = self.client.get(reverse("user_guide"), {"topic": "inventory"})
-        self.assertRedirects(response, f"{reverse('user_guide_legacy')}?topic=inventory")
+        self.assertRedirects(self.client.get(reverse("user_guide"), {"topic": "inventory"}),
+                             reverse("help_article", args=["inventory"]))
+        self.assertRedirects(self.client.get(reverse("user_guide"), {"topic": "no-such-topic"}), reverse("user_guide"))
 
     def test_screen_help_link_opens_the_article_for_that_screen(self):
         self.assertContains(self.client.get(reverse("order_list")), reverse("help_article", args=["find-order"]))
         self.assertContains(self.client.get(reverse("operations_report")), reverse("help_article", args=["operations"]))
 
-    def test_legacy_guide_says_it_is_being_rewritten(self):
-        legacy = self.client.get(reverse("user_guide_legacy"))
-        self.assertContains(legacy, "這是舊版說明")
-        self.assertContains(legacy, f'href="{reverse("user_guide")}"')
-        self.assertContains(self.client.get(reverse("user_guide")), reverse("user_guide_legacy"))
+    def test_legacy_guide_url_redirects_to_the_new_guide(self):
+        self.assertRedirects(self.client.get(reverse("user_guide_legacy")), reverse("user_guide"))
+        self.assertRedirects(self.client.get(reverse("user_guide_legacy"), {"topic": "account-management"}),
+                             reverse("help_article", args=["accounts"]))
+        self.assertNotContains(self.client.get(reverse("user_guide")), reverse("user_guide_legacy"))
+
+    def test_every_old_topic_has_an_article(self):
+        """舊版的 59 個主題都對到新文章，舊版才能移除。"""
+        from sales.help import BY_LEGACY_TOPIC
+        old_topics = {
+            "account-management", "allocation", "announcement-admin", "announcement-inline", "announcements", "cancel-refund",
+            "catalog-accounts", "catalog-manage", "command-center-update", "create-order", "custom-discount", "customer-documents",
+            "dashboard", "dealer-sales-programs", "dealer-volume-bonus", "delivery", "first-setup", "gift-accessories",
+            "gift-distribution", "glossary", "home-favorites", "import-data", "inventory", "master-data", "mobile-shortcuts",
+            "multi-payment", "news", "ocr", "official-catalog", "operations", "order-attachments", "order-deletion",
+            "order-pricing", "order-recycle-bin", "order-sorting", "order-work", "order-workspace", "order-workspace-finance",
+            "personal", "price-list-distribution", "print-company", "print-company-admin", "print-templates", "profit-access",
+            "quick-start", "reconciliation", "reconciliation-entry", "registration", "reports", "sales-sources", "search-orders",
+            "security", "single-order-access", "site-copy", "subsidy", "system-integrity", "troubleshooting", "vehicle-colors",
+            "vehicle-model-tools",
+        }
+        self.assertEqual(len(old_topics), 59)
+        self.assertEqual(sorted(old_topics - set(BY_LEGACY_TOPIC)), [])
 
     def test_articles_are_grouped_by_frequency_without_roles(self):
         home = self.client.get(reverse("user_guide"))
@@ -149,3 +168,26 @@ class SeedHelpDemoGuardTests(TestCase):
     def test_refuses_the_project_database_and_unconfirmed_runs(self):
         with self.assertRaises(CommandError):
             call_command("seed_help_demo", admin_password="x")
+
+
+@tag("docs")
+class UserManualSyncTests(SimpleTestCase):
+    """USER_MANUAL.md 由文章資料產生（T-197 第二批）；改了 articles 卻沒重新產生時要擋下。"""
+
+    def test_manual_matches_the_articles(self):
+        from sales.help.manual import manual_text, render_manual
+        self.assertEqual(manual_text(), render_manual(),
+                         "docs/USER_MANUAL.md 與 sales/help/articles.py 不同步，請執行 python manage.py build_user_manual")
+
+    def test_manual_lists_every_article_with_its_screenshots(self):
+        from sales.help.articles import ARTICLES
+        from sales.help.manual import render_manual
+        from sales.help.schema import article_figures
+        manual = render_manual()
+        for article in ARTICLES:
+            with self.subTest(article=article.slug):
+                self.assertIn(f". {article.title}\n", manual)
+                for figure in article_figures(article):
+                    self.assertIn(f"../static/help/screens/{figure.src}", manual)
+        self.assertNotIn("[[", manual)
+

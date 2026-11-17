@@ -165,11 +165,11 @@ class ProfitPrivacyTests(TestCase):
         self.assertNotContains(response, "車行帳號管理重整")
         self.assertEqual(self.client.get(reverse("data_maintenance")).status_code, 403)
         self.assertEqual(self.client.get(reverse("catalog")).status_code, 403)
-        guide = self.client.get(reverse("user_guide_legacy"))
-        self.assertContains(guide, "訂單進度與查詢")
+        guide = self.client.get(reverse("user_guide"))
+        self.assertContains(guide, "找一張訂單")
         self.assertNotContains(guide, "開通車行帳號")
-        self.assertNotContains(guide, "建立新同仁帳號")
-        self.assertNotContains(guide, "原廠獎勵與補助")
+        self.assertNotContains(guide, "帳號與權限")
+        self.assertNotContains(guide, "原廠獎勵、補助方案與結算成本")
         for entry in RELEASES:
             for group in entry["changes"]:
                 self.assertEqual(len(RELEASE_RULES[(entry["version"], group["kind"])]), len(group["items"]))

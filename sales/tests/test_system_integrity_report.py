@@ -59,13 +59,10 @@ class SystemIntegrityReportTests(TestCase):
         self.client.force_login(self.admin)
 
         response = self.client.get(reverse("system_integrity_report"))
-        self.assertContains(
-            response,
-            f'{reverse("user_guide")}?topic=system-integrity',
-        )
+        self.assertContains(response, reverse("help_article", args=["system"]))
 
-        guide = self.client.get(reverse("user_guide_legacy"))
-        self.assertContains(guide, 'id="system-integrity"')
+        guide = self.client.get(reverse("help_article", args=["system"]))
+        self.assertContains(guide, "系統完整性報告")
 
     def test_report_does_not_render_known_secret_or_customer_markers(self):
         self.client.force_login(self.admin)
@@ -90,6 +87,8 @@ class IntegrityHelpButtonsTests(TestCase):
         UserAccessState.objects.create(user=user, configured=True)
         ScreenAccessGrant.objects.create(user=user, screen_key="integrity", view=True)
         self.client.force_login(user)
-        self.assertEqual(self.client.get(reverse("system_integrity_report")).status_code, 200)
-        guide = self.client.get(reverse("user_guide_legacy"))
-        self.assertContains(guide, f'href="{reverse("system_integrity_report")}"')
+        report = self.client.get(reverse("system_integrity_report"))
+        self.assertEqual(report.status_code, 200)
+        # 只有完整性報告權限的人，從報告頁開說明也會到〈系統狀態、公告與說明文字〉
+        self.assertContains(report, reverse("help_article", args=["system"]))
+        self.assertContains(self.client.get(reverse("help_article", args=["system"])), "系統完整性報告")

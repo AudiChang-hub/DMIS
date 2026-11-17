@@ -83,9 +83,10 @@
   </div>
 
   <section class="help-group help-group--muted">
-    <header><h2>找不到要的說明？</h2><span>其他功能改寫中</span></header>
+    <header><h2>找不到要的說明？</h2><span>先用上方搜尋</span></header>
     <ul>
-      <li><a href="{% url 'user_guide_legacy' %}"><strong>舊版完整說明</strong><small>還沒改寫成新格式的功能，例如庫存、資料維護、帳號權限，先看這裡。</small><em>›</em></a></li>
+      <li><a href="{% url 'help_article' 'troubleshooting' %}"><strong>畫面出現看不懂的訊息</strong><small>錯誤頁、權限不足、沒有網路、交車按不下去時先看這裡。</small><em>›</em></a></li>
+      <li><a href="{% url 'help_article' 'glossary' %}"><strong>名詞表</strong><small>分期外應收、尾款、抵扣應收這類用語的白話解釋。</small><em>›</em></a></li>
     </ul>
   </section>
 </div>

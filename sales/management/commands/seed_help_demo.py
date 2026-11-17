@@ -62,10 +62,18 @@ class Command(BaseCommand):
                             help="示範 admin 的密碼；只在暫存資料庫使用，不要用真實密碼。")
         parser.add_argument("--confirm-demo-database", action="store_true",
                             help="確認目前資料庫是說明截圖專用的暫存資料庫。")
+        parser.add_argument("--manage", action="store_true",
+                            help="只補「設定與管理」篇用的資料；在日常篇截圖拍完後才執行，不改變日常篇的畫面與數字。")
 
     def handle(self, *args, **options):
         self.guard(options)
         random.seed(197)  # 只影響示範客戶的生日
+        if options["manage"]:  # 不重設 admin 密碼：截圖程式的登入狀態要繼續有效
+            admin = get_user_model().objects.get(username="admin")
+            models = list(VehicleModel.objects.filter(name__in=("SUI 125", "示範 150", "示範 Jet")).order_by("pk"))
+            self.manage_data(admin, models, options["admin_password"])
+            self.stdout.write(self.style.SUCCESS("設定與管理篇的合成資料完成。"))
+            return
         admin = self.admin(options["admin_password"])
         models = self.master_data()
         made = self.orders(admin, models)
@@ -137,7 +145,8 @@ class Command(BaseCommand):
             SalesSource.objects.get_or_create(source_type="dealer", name=name)
         SalesSource.objects.get_or_create(source_type="platform", name="示範網路平台")
         SubsidyProgram.objects.get_or_create(name="示範新購補助")
-        PrintCompany.objects.get_or_create(key="home", defaults=dict(
+        # 遷移時就建好的本店公司資料是真實抬頭；截圖一律換成合成公司（只改暫存資料庫）
+        PrintCompany.objects.update_or_create(key="home", defaults=dict(
             legal_name="示範機車行", tax_id="12345678", address="示範市示範路 1 號", phone="02-0000-0000"))
         return models
 
@@ -180,6 +189,48 @@ class Command(BaseCommand):
         paying.update(deposit_amount="3000", deposit_date="2026-11-12", deposit_method="cash", owner_name="示範客戶32")
         self.submit(client, paying, "示範客戶32")
         return made
+
+    # ── 設定與管理類篇章（T-197 第二批）：同事帳號、通路、刪除申請、公告、官網比對、假日 ─────────
+    def manage_data(self, admin, models, password):
+        from sales.models import (
+            BusinessHoliday, OfficialCatalogCheck, OfficialCatalogModel, SalesSourceCooperationProfile, SystemAnnouncement,
+        )
+        users = {}
+        for username, name in (("demo.sales", "示範業務"), ("demo.finance", "示範會計")):
+            user, _ = get_user_model().objects.get_or_create(username=username, defaults={"first_name": name})
+            user.set_password(password)  # 只存在暫存資料庫；和示範 admin 同一組隨機密碼
+            user.save()
+            users[username] = user
+        SalesSource.objects.get_or_create(source_type="store", name="示範業務", defaults=dict(
+            staff_stores=["yusheng"], staff_commission=D(500)))
+        for name in ("示範車行甲", "示範車行乙", "示範車行丙"):
+            dealer = SalesSource.objects.get(source_type="dealer", name=name)
+            if not dealer.address:
+                SalesSource.objects.filter(pk=dealer.pk).update(address="新北市示範區示範路 100 號", holiday_gift=True)
+            SalesSourceCooperationProfile.objects.get_or_create(source=dealer, cooperation_scope="suzuki_gas", defaults=dict(
+                cooperates=True, relationship_type="general"))
+        # 〈刪除訂單與還原〉：示範業務送出的刪除申請（還沒領牌、沒有收款）。
+        if not SalesOrder.all_objects.filter(owner_name="示範客戶33").exists():
+            client = Client(HTTP_HOST="127.0.0.1")
+            client.force_login(admin)
+            dup = self.order_data(33, models[0], models[0].colors.order_by("pk").first(), "store", "", "cash", 72000)
+            self.submit(client, dup, "示範客戶33")
+            SalesOrder.objects.filter(owner_name="示範客戶33").update(
+                deletion_requested_at=timezone.now(), deletion_requested_by=users["demo.sales"], deletion_request_reason="重複建單")
+        if not SystemAnnouncement.objects.exists():
+            SystemAnnouncement.objects.create(
+                title="12/1 起 SUI 125 現金價調整", body="（合成資料）12/1 起 SUI 125 現金價調整為 73,000，分期總價不變。",
+                published=True, pinned=True, audience="all", ends_at=timezone.make_aware(datetime(2026, 12, 31, 23, 59)),
+                updated_by="admin")
+        BusinessHoliday.objects.get_or_create(date=date(2027, 1, 1), defaults=dict(name="中華民國開國紀念日", source="manual"))
+        if not OfficialCatalogModel.objects.exists():
+            check = OfficialCatalogCheck.objects.create(brand="sym", status="succeeded", started_at=timezone.now(),
+                                                        finished_at=timezone.now(), entries_found=1, pages_total=1, pages_done=1)
+            data = {"name": "示範 Jet SR", "year_hint": 2027, "displacement_cc": 125, "main_image_url": "", "price": 86000,
+                    "colors": [{"name": "亮白", "code": "", "stem": "", "image_url": ""}]}
+            OfficialCatalogModel.objects.create(
+                brand="sym", source_key="demo-jet-sr", source_url="https://example.com/demo-jet-sr", name="示範 Jet SR",
+                data=data, content_hash="demo", last_seen_at=timezone.now(), last_check=check)
 
     def register_through_flow(self, owner_name, registered, i):
         """配車＋確認領牌，和畫面上按「確認配車並鎖定」「確認完成並鎖定」相同：傭金固定、會算台數獎金。"""

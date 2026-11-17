@@ -16,7 +16,6 @@ HERO_EXEMPT = {
     "errors/500.html",
     "registration/login.html",
     "registration/password_change_required.html",
-    "help/user_guide.html",
     "sales/announcement_detail.html",
     "sales/permissions/fixed.html",
     "sales/permissions/orders.html",

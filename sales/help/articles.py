@@ -2,12 +2,15 @@
 
 範例一律用合成資料：客人王小明、示範客戶、示範車行甲乙丙、車牌 ABC-1234。數字必須是系統實際顯示的值。
 """
+from .articles_basics import BASICS
+from .articles_manage import MANAGE, SOMETIMES
 from .schema import Article, Example, Faq, Figure, Group, Step, Stop, Tip
 
 # 依使用頻率分組（使用者 2026-11-16：不分角色）；組內順序＝功能盤點的頻率順序。
 GROUPS = (
+    Group("basics", "剛開始用", "登入、首頁、看不懂的訊息與名詞"),
     Group("daily", "每天會用", "接單、配車、領牌、交車與收款"),
-    Group("sometimes", "偶爾用", "補助、取消、對帳、報表與車行結算"),
+    Group("sometimes", "偶爾用", "車行結算、補助、取消、對帳與庫存"),
     Group("manage", "設定與管理", "主檔、權限與系統設定"),
 )
 
@@ -332,8 +335,9 @@ ARTICLES = (
             Faq("搜得到哪些欄位？", "訂單本身的文字、日期、金額，車的來源、廠牌、車型、車色、引擎／車身號碼，以及配件、費用、文件、收款與處理紀錄。"),
             Faq("每頁顯示幾筆？", "預設 50 筆，可改 25、75、100。"),
             Faq("淨利欄寫「未授權」？", "沒有「查看淨利」權限時不顯示，也不能依淨利排序；請洽 admin。"),
+            Faq("要看同一位客人買過哪些車？", "資料維護區「客戶查詢」：用姓名、電話或證件號碼搜尋，點客人看他所有訂單（依訂單日期由新到舊）。"),
         ),
-        routes=("order_list",), replaces=("search-orders", "order-sorting"), access=("order_list",),
+        routes=("order_list", "customer_list", "customer_detail"), replaces=("search-orders", "order-sorting"), access=("order_list",),
         open_route="order_list", open_label="打開全部訂單",
         depends=("sales/order_list.html",), verified="2.14.0",
     ),
@@ -576,9 +580,16 @@ ARTICLES = (
 )
 
 # 首頁與文章側欄的排序＝功能盤點的頻率順序（車行傭金與台數獎金依使用者要求排在「偶爾用」最前面）。
-ORDER = ("create-order", "id-photo", "find-order", "sign", "edit-order", "allocate", "registration", "delivery", "payments",
-         "operations", "dealer-payouts", "form-print", "subsidy", "multi-payment", "drafts", "order-finance", "cancel", "close",
-         "report-ranking")
+ORDER = (
+    "first-use", "home", "troubleshooting", "glossary", "security",
+    "create-order", "id-photo", "find-order", "sign", "edit-order", "allocate", "registration", "delivery", "payments",
+    "operations",
+    "dealer-payouts", "form-print", "subsidy", "multi-payment", "drafts", "order-finance", "cancel", "close",
+    "report-ranking", "reconciliation", "inventory", "order-pricing", "order-deletion", "price-list",
+    "vehicle-models", "accessories", "dealer-rules", "sales-sources", "accounts", "installment-rules", "incentives", "catalog-photos",
+    "official-catalog", "report-design", "print-templates", "import", "system", "rebuild",
+)
+ARTICLES = ARTICLES + BASICS + SOMETIMES + MANAGE
 ARTICLES = tuple(sorted(ARTICLES, key=lambda article: ORDER.index(article.slug)))
 
 START_HERE = (

@@ -142,9 +142,9 @@ urlpatterns = [
         name="legacy_odoo_vehicle_models",
     ),
     path("", views.dashboard, name="dashboard"),
-    # T-197 新版使用說明；還沒改寫的主題暫留舊版（help/legacy/），?topic= 會自動轉到對應的新文章或舊版段落。
+    # T-197 新版使用說明；舊連結 ?topic= 與 help/legacy/ 會轉到對應的新文章。
     path("help/", help_views.help_home, name="user_guide"),
-    path("help/legacy/", views.user_guide, name="user_guide_legacy"),
+    path("help/legacy/", help_views.help_legacy, name="user_guide_legacy"),  # 舊版說明已移除；保留網址轉到新版
     path("help/start/", help_views.help_start, name="help_start"),
     path("help/<slug:slug>/", help_views.help_article, name="help_article"),
     path(

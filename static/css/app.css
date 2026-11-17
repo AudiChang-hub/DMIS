@@ -6044,77 +6044,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .busy-status__spinner, .button.is-submitting::before, button.is-submitting::before { animation-duration: 2.4s; }
 }
 
-.guide-page { padding-top: var(--space-6); }
-.guide-hero { align-items: center; }
-.guide-hero p:last-child { max-width: 760px; color: var(--muted); }
-.guide-search-panel {
-  position: relative; z-index: 2; margin-bottom: var(--stack-gap-sm); padding: var(--inset-pad);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow);
-}
-.guide-search-panel > label { display: block; margin-bottom: var(--space-2); font-weight: 900; }
-.guide-search-row {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
-  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle);
-}
-.guide-search-row > span { padding-left: var(--space-4); color: var(--action-text); font-size: var(--text-xl); }
-.guide-search-row input {
-  width: 100%; min-height: 50px; padding: 0 var(--space-4) 0 var(--space-2); background: transparent;
-  border: 0; outline: 0;
-}
-.guide-search-row:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 14%, transparent); }
-.guide-search-panel > small { display: block; margin-top: var(--space-2); color: var(--muted); }
-.guide-context { margin: var(--space-3) 0 0; color: var(--muted); font-weight: 700; }
-.guide-context a { margin-left: var(--space-1); color: var(--action-text); font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
-.guide-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: var(--stack-gap); align-items: start; }
-.guide-toc {
-  position: sticky; top: 92px; display: grid; max-height: calc(100vh - 112px); padding: var(--inset-pad);
-  gap: 3px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius-lg); box-shadow: var(--shadow);
-}
-.guide-toc > strong { padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--text-xs); letter-spacing: .08em; }
-.guide-toc a { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); font-size: var(--text-sm-plus); font-weight: 750; }
-.guide-toc a:hover, .guide-toc a:focus-visible { color: var(--action-text); background: var(--mint); }
-.guide-content { display: grid; min-width: 0; gap: var(--stack-gap); }
-.guide-empty { padding: var(--space-6); text-align: center; background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius-lg); }
-.guide-topic {
-  scroll-margin-top: 92px; padding: var(--card-pad); overflow: hidden;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
-}
-.guide-topic--featured { border-top: 5px solid var(--gold); }
-.guide-topic-heading { display: flex; margin-bottom: var(--stack-gap-sm); align-items: center; gap: var(--space-3); }
-.guide-topic-heading > span {
-  display: grid; min-width: 44px; height: 44px; padding: 0 var(--space-2); place-items: center;
-  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-md); font-size: var(--text-sm-plus); font-weight: 900;
-}
-.guide-topic-heading .eyebrow { margin-bottom: 2px; }
-.guide-topic-heading h2 { font-size: clamp(1.25rem, 2.5vw, 1.65rem); }
-.guide-topic h3 { margin-bottom: var(--space-2); font-size: var(--text-base); }
-.guide-topic li + li { margin-top: var(--space-2); }
-.guide-lead { font-size: var(--text-md); font-weight: 700; }
-.guide-screen-map {
-  margin: var(--stack-gap) 0; overflow: hidden; color: var(--ink); background: var(--surface-soft);
-  border: 1px solid var(--line); border-radius: var(--radius-lg);
-}
-.guide-screen-bar, .guide-screen-footer { display: flex; padding: var(--space-3) var(--space-4); align-items: center; gap: var(--stack-gap-sm); }
-.guide-screen-bar { color: var(--on-accent); background: var(--forest); }
-.guide-screen-bar b { margin-right: auto; }
-.guide-screen-body { display: grid; min-height: 140px; padding: var(--card-pad); grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-.guide-screen-body > * { padding: var(--inset-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.guide-screen-body b { grid-column: 1 / -1; }
-.guide-screen-footer { justify-content: space-around; background: var(--surface); border-top: 1px solid var(--line); }
-.guide-screen-footer b { color: var(--action-text); }
-.guide-steps { display: grid; margin: var(--stack-gap-sm) 0; padding: 0; gap: var(--space-3); list-style: none; counter-reset: guide-step; }
-.guide-steps > li {
-  position: relative; min-height: 46px; padding: var(--space-3) var(--space-4) var(--space-3) var(--space-7);
-  background: var(--surface-soft); border-radius: var(--radius-md); counter-increment: guide-step;
-}
-.guide-steps > li::before {
-  content: counter(guide-step); position: absolute; top: 10px; left: 13px;
-  display: grid; width: 28px; height: 28px; place-items: center;
-  color: var(--on-accent); background: var(--forest-2); border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 900;
-}
-.guide-steps strong, .guide-steps span { display: block; }
-.guide-steps span { margin-top: 2px; color: var(--muted); }
+/* 舊版說明頁已移除（T-197）；.guide-tip 仍用在系統狀態檢查頁。 */
 .guide-tip, .guide-example, .guide-exception {
   margin-top: var(--stack-gap-sm); padding: var(--inset-pad); border: 1px solid var(--green-border); border-radius: var(--radius-md);
 }
@@ -6123,43 +6053,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .guide-exception { background: var(--amber-soft); border-color: var(--amber-border); }
 .guide-tip > strong, .guide-example > strong, .guide-exception > strong { display: block; margin-bottom: var(--space-1); }
 .guide-tip p, .guide-tip span, .guide-example p, .guide-exception p { margin-bottom: 0; }
-.guide-two-column { display: grid; margin: var(--stack-gap-sm) 0; grid-template-columns: 1fr 1fr; gap: var(--stack-gap-sm); }
-.guide-two-column > section { padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.guide-two-column ul, .guide-two-column ol { margin-bottom: 0; padding-left: var(--space-5); }
-.guide-flow {
-  display: flex; margin: var(--stack-gap-sm) 0 var(--stack-gap-sm); padding: var(--inset-pad); align-items: center; justify-content: center;
-  gap: var(--space-3); background: var(--surface-soft); border-radius: var(--radius-md);
-}
-.guide-flow:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
-.guide-flow span { display: flex; min-height: 42px; padding: var(--space-2) var(--space-3); align-items: center; gap: var(--space-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); font-weight: 800; }
-.guide-flow span b { display: grid; width: 24px; height: 24px; place-items: center; color: var(--on-accent); background: var(--forest); border-radius: var(--radius-xs); font-size: var(--text-xs); }
-.guide-flow i { color: var(--muted); font-style: normal; }
-.guide-identity-map {
-  display: grid; margin: var(--stack-gap-sm) 0 var(--stack-gap-sm); padding: var(--inset-pad); grid-template-columns: 1fr auto 1fr;
-  gap: var(--stack-gap-sm); align-items: center; background: var(--surface-soft); border-radius: var(--radius-md);
-}
-.guide-identity-map > div { display: grid; min-height: 82px; padding: var(--inset-pad); align-content: center; gap: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.guide-identity-map div:nth-of-type(3), .guide-identity-map div:nth-of-type(4) { margin-top: 2px; }
-.guide-identity-map span { color: var(--muted); font-size: var(--text-sm); }
-.guide-identity-map i { color: var(--blue); font-size: var(--text-sm); font-style: normal; font-weight: 900; }
-.guide-parallel-flow { display: grid; margin: var(--stack-gap-sm) 0; grid-template-columns: 150px 1fr; gap: var(--space-3); align-items: stretch; }
-.guide-parallel-flow > b { display: grid; place-items: center; color: var(--on-accent); background: var(--forest); border-radius: var(--radius-md); }
-.guide-parallel-flow > div { display: grid; gap: var(--space-2); }
-.guide-parallel-flow span { padding: var(--space-3) var(--space-4); background: var(--surface-soft); border-left: 4px solid var(--gold); border-radius: var(--radius-sm); font-weight: 750; }
-.guide-equation { display: flex; margin: var(--stack-gap-sm) 0 var(--stack-gap-sm); padding: var(--inset-pad); align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--space-2); background: var(--surface-soft); border-radius: var(--radius-md); }
-.guide-equation span, .guide-equation strong { padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-.guide-equation strong { color: var(--on-accent); background: var(--forest); border-color: var(--forest); }
-.guide-troubleshooting { display: grid; grid-template-columns: 1fr 1fr; gap: var(--stack-gap-sm); }
-.guide-troubleshooting > div { padding: var(--space-4) var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md); }
-.guide-troubleshooting strong, .guide-troubleshooting span { display: block; }
-.guide-troubleshooting span { margin-top: 3px; color: var(--muted); }
-.guide-checklist { display: grid; padding: 0; gap: var(--space-2); list-style: none; }
-.guide-checklist li { position: relative; padding: var(--space-3) var(--space-4) var(--space-3) var(--space-7); background: var(--surface-soft); border-radius: var(--radius-md); }
-.guide-checklist li::before { content: "✓"; position: absolute; top: 10px; left: 14px; color: var(--forest-2); font-size: var(--text-lg); font-weight: 900; }
-.guide-glossary { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
-.guide-glossary > div { padding: var(--space-3) var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md); }
-.guide-glossary dt { font-weight: 900; }
-.guide-glossary dd { margin: 3px 0 0; color: var(--muted); }
 
 /* 歷史 Excel 匯入：以「上傳、處理、確認」為主軸，避免呈現成除錯報表。 */
 .button.danger-outline { color: var(--red); background: var(--surface); border: 1px solid var(--red-border); }
@@ -6357,48 +6250,16 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .import-decision-field ul { align-items: stretch; flex-direction: column; }
 }
 
-@media (max-width: 1000px) {
-  .guide-layout { grid-template-columns: 1fr; }
-  .guide-toc {
-    position: static; display: flex; max-height: none; padding: var(--space-3); overflow-x: auto;
-    gap: var(--space-1); scroll-snap-type: x proximity;
-  }
-  .guide-toc > strong { display: none; }
-  .guide-toc a { flex: 0 0 auto; white-space: nowrap; scroll-snap-align: start; }
-}
-
 @media (max-width: 860px) {
   .connectivity-banner { top: 72px; }
 }
 
 @media (max-width: 640px) {
-  .guide-page { padding-top: var(--space-4); }
-  .guide-hero { align-items: stretch; }
-  .guide-print-actions .button { width: 100%; }
-  .guide-search-panel { padding: var(--inset-pad); }
-  .guide-topic { padding: var(--card-pad); }
-  .guide-topic-heading { align-items: flex-start; }
-  .guide-screen-bar span { display: none; }
-  .guide-screen-body { grid-template-columns: 1fr; }
-  .guide-screen-body b { grid-column: auto; }
-  .guide-two-column, .guide-troubleshooting, .guide-glossary { grid-template-columns: 1fr; }
-  .guide-flow { justify-content: flex-start; overflow-x: auto; }
-  .guide-flow span { flex: 0 0 auto; }
-  .guide-identity-map { grid-template-columns: 1fr; }
-  .guide-identity-map i { text-align: center; }
-  .guide-parallel-flow { grid-template-columns: 1fr; }
-  .guide-parallel-flow > b { min-height: 50px; }
   .connectivity-banner { right: 12px; left: 12px; width: auto; transform: none; }
 }
 
 @media print {
-  .guide-page { width: 100%; max-width: none; padding: 0; }
-  .guide-hero .guide-print-actions, .guide-search-panel, .guide-toc, .connectivity-banner { display: none !important; }
-  .guide-layout { display: block; }
-  .guide-content { display: block; }
-  .guide-topic { margin: 0 0 var(--stack-gap); break-inside: avoid; box-shadow: none; }
-  .guide-topic[hidden] { display: block !important; }
-  .guide-topic-heading { break-after: avoid; }
+  .connectivity-banner { display: none !important; }
 }
 /* 歷史匯入：同頁補齊車型與通路主檔 */
 .import-validation-action {

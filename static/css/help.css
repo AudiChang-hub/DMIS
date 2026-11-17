@@ -21,7 +21,9 @@
 /* 角色篩選：分段切換，不是第二層導覽 */
 
 /* 任務分組 */
-.help-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: var(--stack-gap); align-items: start; }
+/* 四組長短差很多：用直欄由上往下排，避免短的組下方留大片空白 */
+.help-groups { column-width: 380px; column-gap: var(--stack-gap); }
+.help-groups > .help-group { display: block; break-inside: avoid; margin-bottom: var(--stack-gap); }
 .help-version { white-space: nowrap; }
 .help-group { padding: var(--card-pad); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
 .help-group header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--line-soft); }

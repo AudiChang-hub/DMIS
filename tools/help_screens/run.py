@@ -27,7 +27,7 @@ from cards import make_cards  # noqa: E402
 
 PORT = 8796
 SCREENS = ROOT / "static" / "help" / "screens"
-GROUPS = ("reports", "create_order", "mainline", "topics")  # reports 先拍（只含 seed 的 30 張）；mainline、topics 接著 create_order 建好的訂單
+GROUPS = ("reports", "create_order", "mainline", "topics", "basics", "manage")  # reports 先拍（只含 seed 的 30 張）；mainline、topics 接著 create_order 建好的訂單；basics、manage 前先補管理類資料
 
 SETTINGS = '''from config.settings import *  # noqa: F401,F403
 DATABASES = {{"default": {{"ENGINE": "django.db.backends.sqlite3", "NAME": r"{db}"}}}}
@@ -70,7 +70,7 @@ def main(groups):
     password = secrets.token_urlsafe(18)  # 只存在這次執行的暫存資料庫
     env = prepare(work, password)
     base = f"http://127.0.0.1:{PORT}"
-    facts = {}
+    facts = {"_password": password}  # 示範業務等合成帳號也用這組；底線開頭的不印出
     with open(work / "server.log", "wb") as log:
         server = start_server(env, log)
         try:
@@ -89,7 +89,11 @@ def main(groups):
                     needs_wang = name == "create_order" and ({"mainline", "topics"} & set(groups))
                     if name not in groups and not needs_wang:
                         continue
-                    if name == "topics":
+                    if name in {"basics", "manage"} and not facts.get("manage_seeded"):
+                        subprocess.run([sys.executable, "manage.py", "seed_help_demo", "--confirm-demo-database", "--manage"],
+                                       cwd=ROOT, env=env, check=True)
+                        facts["manage_seeded"] = True
+                    if name in {"topics", "basics", "manage"}:
                         out = SCREENS  # 各篇自己建資料夾、清舊圖
                     else:
                         out = SCREENS / name.replace("_", "-")
@@ -102,7 +106,7 @@ def main(groups):
                     page.on("dialog", lambda dialog: dialog.accept())
                     facts[name] = importlib.import_module(f"scenarios.{name}").run(page, base, out, work / "assets", facts)
                     context.close()
-                    print(f"{name}: {len(list(out.rglob('*.jpg')) if name == 'topics' else list(out.glob('*.jpg')))} 張 → {out.relative_to(ROOT)}")
+                    print(f"{name}: {len(list(out.rglob('*.jpg')) if out == SCREENS else list(out.glob('*.jpg')))} 張 → {out.relative_to(ROOT)}")
                 browser.close()
         finally:
             server.terminate()
@@ -115,4 +119,5 @@ if __name__ == "__main__":
     if unknown:
         sys.exit(f"不認得的組：{', '.join(sorted(unknown))}；可用 {', '.join(GROUPS)}")
     for key, value in main(chosen).items():
-        print(key, value)
+        if not key.startswith("_"):
+            print(key, value)

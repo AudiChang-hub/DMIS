@@ -66,11 +66,10 @@ class UserManagementTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url, follow=True)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, f'{reverse("user_guide")}?topic=account-management')
+                self.assertContains(response, reverse("help_article", args=["accounts"]))
 
-        guide = self.client.get(reverse("user_guide_legacy"))
-        self.assertContains(guide, 'id="account-management"')
-        self.assertContains(guide, "管理者看不到任何人的既有密碼")
+        guide = self.client.get(reverse("help_article", args=["accounts"]))
+        self.assertContains(guide, "臨時密碼只顯示這一次")
 
     def test_password_reset_uses_padded_sections_for_long_account_name(self):
         self.user.first_name = "這是一個需要在窄螢幕完整顯示的很長使用者名稱"

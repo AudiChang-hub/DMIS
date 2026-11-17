@@ -60,7 +60,7 @@ class Article:
     rules: tuple = ()
     related: tuple = ()
     routes: tuple = ()  # 「這頁怎麼用」：從哪些路由開說明會直接到這篇
-    access: tuple = ()  # 與 audience_content.permitted 相同的規則；空白＝登入就看得到
+    access: tuple = ()  # 與 audience_content.permitted 相同的規則（每項都要符合；寫成 tuple 的項目任一符合即可）；空白＝登入就看得到
     depends: tuple = ()  # 這篇依賴的模板，發版時用來提醒要不要重拍截圖或改文字
     open_route: str = ""  # 頁首「打開○○」按鈕要去的路由（不需參數）
     open_label: str = ""

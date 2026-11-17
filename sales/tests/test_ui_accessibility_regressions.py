@@ -54,10 +54,6 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
             css,
         )
         self.assertIn(
-            ".guide-flow:focus-visible { outline: 3px solid var(--focus-ring);",
-            css,
-        )
-        self.assertIn(
             ".inventory-table-wrap:focus-visible { "
             "outline: 3px solid var(--focus-ring);",
             css,
@@ -77,21 +73,6 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
         self.assertIn('</option><option value="a">Alpha 測試車型</option>', fixture)
         self.assertIn("native.tabIndex === -1", script)
         self.assertIn("Alpha 選項可搜尋並寫回原欄位", script)
-
-    def test_guide_flow_is_a_named_focusable_region(self):
-        template = Path("templates/help/user_guide.html").read_text(encoding="utf-8")
-
-        self.assertIn(
-            'class="guide-flow" role="region" aria-label="建立訂單七個步驟" tabindex="0"',
-            template,
-        )
-        self.assertIn('id="system-integrity"', template)
-        self.assertIn("「系統狀態檢查」", template)
-        self.assertIn("「系統完整性報告」", template)
-        self.assertIn("只有管理者與 admin 指定的人員可以查看", template)
-        self.assertIn("報告不代表「全部安全」", template)
-        self.assertIn("{% if access_routes.system_integrity_report %}", template)
-
 
 class UiAccessibilityRenderedPageTests(TestCase):
     @classmethod

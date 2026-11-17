@@ -23,11 +23,11 @@ def help_home(request):
     policy = policy_for(request)
     topic = request.GET.get("topic", "")
     if topic:
-        # 舊連結 /help/?topic=…：已改寫的轉到新文章，其餘轉到舊版的同一段。
+        # 舊連結 /help/?topic=…：轉到改寫後的文章；看不到或對不到就留在說明首頁。
         article = article_for_legacy_topic(policy, topic)
         if article:
             return redirect("help_article", slug=article.slug)
-        return redirect(f"{reverse('user_guide_legacy')}?{request.GET.urlencode()}")
+        return redirect("user_guide")
     articles = visible_articles(policy)
     from_route = request.GET.get("from", "")
     return render(request, "help/home.html", {
@@ -39,6 +39,13 @@ def help_home(request):
         "context_article": article_for_route(policy, from_route),
         "start_visible": any(item["article"] for item in start_stops(policy)),
     })
+
+
+@login_required
+def help_legacy(request):
+    """舊版說明（/help/legacy/）已由新文章取代：書籤與舊連結轉到對應文章或說明首頁。"""
+    article = article_for_legacy_topic(policy_for(request), request.GET.get("topic", ""))
+    return redirect("help_article", slug=article.slug) if article else redirect("user_guide")
 
 
 @login_required

@@ -9,8 +9,12 @@ BY_LEGACY_TOPIC = {topic: article.slug for article in ARTICLES for topic in arti
 
 
 def _permitted(policy, article):
+    """access 每一項都要符合；某一項寫成 tuple 時，其中任一個有權限即可。"""
     from sales.services.audience_content import permitted
-    return permitted(policy, article.access) if article.access else policy.active
+    if not article.access:
+        return policy.active
+    return all(any(permitted(policy, (option,)) for option in rule) if isinstance(rule, tuple) else permitted(policy, (rule,))
+               for rule in article.access)
 
 
 def visible_articles(policy):

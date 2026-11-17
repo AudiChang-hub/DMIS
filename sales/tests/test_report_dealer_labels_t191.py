@@ -99,6 +99,7 @@ class DealerLabelPageTests(TestCase):
 
 class UserGuideTests(TestCase):
     def test_guide_uses_current_screen_names(self):
-        guide = (Path(settings.BASE_DIR) / "templates" / "help" / "user_guide.html").read_text(encoding="utf-8")
+        # T-197：說明與手冊都由 sales/help/articles.py 產生
+        guide = (Path(settings.BASE_DIR) / "docs" / "USER_MANUAL.md").read_text(encoding="utf-8")
         self.assertNotIn(OLD, guide)
-        self.assertIn("「車行／平台」分類（只算車行的頁面顯示「車行」、只算網路平台的顯示「平台」）", guide)
+        self.assertIn("「車行／平台台數排行」", guide)

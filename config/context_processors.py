@@ -8,97 +8,6 @@ from sales.services.order_intake import order_scope_label
 from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, THEME_VALUES
 
 
-HELP_TOPIC_BY_ROUTE = {
-    "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-manage", "catalog_edit": "catalog-manage", "official_catalog": "official-catalog",
-    "order_delete": "order-recycle-bin", "order_restore": "order-recycle-bin", "order_recycle_bin": "order-recycle-bin",
-    "home_favorites": "home-favorites",
-    "announcement_manage": "announcements", "announcement_edit": "announcements",
-    "report_center": "reports", "report_display": "reports", "report_detail": "reports", "dealer_payout_list": "reports",
-    "report_manage": "reports", "report_create": "reports", "report_edit": "reports",
-    "dashboard": "dashboard",
-    "system_diagnostics": "system-integrity",
-    "order_list": "search-orders",
-    "order_create": "create-order",
-    "order_start": "create-order", "order_submitted": "create-order", "intake_drafts": "create-order",
-    "order_delete": "order-deletion", "order_deletion_queue": "order-deletion", "order_recycle_bin": "order-deletion",
-    "order_edit": "create-order",
-    "order_detail": "order-work",
-    "allocate_vehicle": "allocation",
-    "reallocate_vehicle": "allocation",
-    "order_operations": "operations",
-    "operations_report": "operations",
-    "reconciliation_list": "reconciliation",
-    "inventory_list": "inventory",
-    "inventory_create": "inventory",
-    "inventory_quick_create": "inventory",
-    "inventory_edit": "inventory",
-    "inventory_allocation_priority": "inventory",
-    "customer_list": "master-data",
-    "customer_detail": "master-data",
-    "vehicle_model_list": "master-data",
-    "vehicle_model_create": "master-data",
-    "vehicle_model_edit": "master-data",
-    "dealer_sales_program_list": "dealer-sales-programs",
-    "vehicle_model_commission": "dealer-sales-programs",
-    "accessory_product_list": "master-data",
-    "accessory_product_create": "master-data",
-    "accessory_product_edit": "master-data",
-    "accessory_category_list": "master-data",
-    "dealer_reward_catalog_list": "dealer-sales-programs",
-    "dealer_reward_catalog_create": "dealer-sales-programs",
-    "dealer_reward_catalog_edit": "dealer-sales-programs",
-    "data_maintenance": "master-data",
-    "legacy_import_list": "import-data",
-    "legacy_import_detail": "import-data",
-    "historical_date_change": "import-data",
-    "historical_buyer_replacement": "import-data",
-    "positioned_template_list": "print-templates",
-    "positioned_template_create": "print-templates",
-    "positioned_template_edit": "print-templates",
-    "sales_source_list": "sales-sources",
-    "sales_source_staff_list": "sales-sources",
-    "sales_source_platform_list": "sales-sources",
-    "sales_source_holiday_gift_manage": "sales-sources",
-    "sales_source_create": "sales-sources",
-    "sales_source_edit": "sales-sources",
-    "gift_distribution": "gift-distribution-current",
-    "gift_distribution_detail": "gift-distribution-current",
-    "site_copy_manage": "site-copy-current",
-    "release_history": "news-current",
-    "announcement_detail": "news-current",
-    "price_list_distribution": "price-list-distribution",
-    "price_list_distribution_assignments": "price-list-distribution",
-    "installment_company_list": "master-data",
-    "subsidy_program_list": "master-data",
-    "vehicle_installment_plan_list": "master-data",
-    "dealer_volume_bonus_list": "dealer-volume-bonus",
-    "dealer_volume_bonus_create": "dealer-volume-bonus",
-    "dealer_volume_bonus_edit": "dealer-volume-bonus",
-    "dealer_volume_bonus_delete": "dealer-volume-bonus",
-    "dealer_volume_bonus_detail": "dealer-volume-bonus",
-    "business_holiday_list": "master-data",
-    "brand_registration_fee_rule_list": "master-data",
-    "settlement_cost_rule_list": "master-data",
-    "settlement_cost_rule_create": "master-data",
-    "settlement_cost_rule_edit": "master-data",
-    "incentive_rule_list": "master-data",
-    "incentive_rule_create": "master-data",
-    "incentive_rule_edit": "master-data",
-    "incentive_campaign_create": "master-data",
-    "incentive_campaign_edit": "master-data",
-    "dealer_reward_campaign_list": "dealer-sales-programs",
-    "dealer_reward_campaign_create": "dealer-sales-programs",
-    "dealer_reward_campaign_edit": "dealer-sales-programs",
-    "user_management": "account-management",
-    "permission_workspace": "account-management",
-    "system_integrity_report": "system-integrity",
-    "user_account_create": "account-management",
-    "user_account_edit": "account-management",
-    "user_account_reset_password": "account-management",
-    "password_change_required": "account-management",
-}
-
-
 DATA_MAINTENANCE_ROUTES = {
     "permission_workspace",
     "gift_distribution", "gift_distribution_detail", "site_copy_manage", "announcement_action",
@@ -176,17 +85,10 @@ def app_version(request):
     access_policy = policy_for(request)
     route_name = getattr(getattr(request, "resolver_match", None), "url_name", None)
     screen_key = ROUTES.get(route_name, (None,))[0]
-    topic = HELP_TOPIC_BY_ROUTE.get(route_name, "quick-start")
-    from sales.services.audience_content import help_context, LEGACY_HELP_RULES, permitted
-    visible_topics = {item["id"] for item in help_context(access_policy)["scoped_help"]}
-    if topic in visible_topics:
-        topic += "-current"
-    elif not permitted(access_policy, LEGACY_HELP_RULES.get(topic, ("root",))):
-        topic = "personal-current"
-    # T-197：已改寫成新文章的畫面直接開那一篇；其餘照舊帶 topic（/help/ 會轉到舊版對應段落）。
+    # T-197：這個畫面有對應文章（且看得到）就直接開那一篇，否則開說明首頁。
     from sales.help import article_for_route
     help_article = article_for_route(access_policy, route_name)
-    context_help_url = reverse("help_article", args=[help_article.slug]) if help_article else f"{reverse('user_guide')}?topic={topic}"
+    context_help_url = reverse("help_article", args=[help_article.slug]) if help_article else reverse("user_guide")
     ui_theme = DEFAULT_THEME
     mobile_quick_link_context = {
         "mobile_quick_links": [],

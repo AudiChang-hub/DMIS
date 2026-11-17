@@ -29,53 +29,36 @@ class ProductExperienceTests(TestCase):
         )
 
         self.client.force_login(self.user)
-        response = self.client.get(reverse("user_guide_legacy"))
+        response = self.client.get(reverse("user_guide"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "現在想做什麼？從任務開始找")
-        self.assertContains(response, 'data-guide-search')
-        self.assertContains(response, 'id="create-order-current"')
-        self.assertContains(response, 'id="ocr"')
-        self.assertContains(response, 'id="inventory"')
-        self.assertContains(response, 'id="mobile-shortcuts"')
-        self.assertContains(response, 'id="sales-sources"')
-        self.assertContains(response, 'id="price-list-distribution"')
-        self.assertRegex(response.content.decode(), r"最後更新：\d{4}/\d{2}/\d{2}")
-        self.assertNotContains(response, 'id="reports"')
-        self.assertNotContains(response, 'href="#reports"')
-        self.assertNotContains(response, "報表中心與報表設計管理")
-        self.assertContains(response, 'id="dealer-sales-programs"')
-        self.assertContains(response, 'id="dealer-volume-bonus"')
-        self.assertContains(response, 'href="#dealer-volume-bonus"')
-        self.assertContains(response, "訂單列表與排序")
-        self.assertContains(response, "每月最後一天會建立隔月清單")
-        self.assertContains(response, "分配與排序")
-        self.assertContains(response, "我的車行／同事／未分配／全部")
-        self.assertNotContains(response, 'id="troubleshooting"')
-        self.assertNotContains(response, "LicenseWatcher 尚未啟用")
-        self.assertContains(response, 'data-print-guide')
+        self.assertContains(response, "從這裡開始")
+        self.assertContains(response, "data-help-search")
+        for slug in ("first-use", "home", "troubleshooting", "glossary", "find-order"):
+            self.assertContains(response, reverse("help_article", args=[slug]))
+        # 一般帳號看不到只有 admin 用的設計與帳號管理篇
+        for slug in ("report-design", "accounts", "official-catalog"):
+            self.assertNotContains(response, reverse("help_article", args=[slug]))
 
     def test_navigation_opens_context_help_without_leaving_work(self):
         self.client.force_login(self.user)
 
+        # T-197：各畫面的「使用說明」直接開到那個畫面的文章（另開分頁）
         dashboard = self.client.get(reverse("dashboard"))
-        self.assertContains(dashboard, f'{reverse("user_guide")}?topic=personal-current')
+        self.assertContains(dashboard, reverse("help_article", args=["home"]))
         self.assertContains(dashboard, 'target="_blank"')
         self.assertContains(dashboard, "不會離開目前資料")
 
         inventory = self.client.get(reverse("inventory_list"))
-        self.assertContains(inventory, f'{reverse("user_guide")}?topic=inventory')
+        self.assertContains(inventory, reverse("help_article", args=["inventory"]))
 
         dealers = self.client.get(reverse("sales_source_list"))
-        self.assertContains(dealers, f'{reverse("user_guide")}?topic=sales-sources')
+        self.assertContains(dealers, reverse("help_article", args=["sales-sources"]))
 
         platforms = self.client.get(reverse("sales_source_platform_list"))
-        self.assertContains(platforms, f'{reverse("user_guide")}?topic=sales-sources')
+        self.assertContains(platforms, reverse("help_article", args=["sales-sources"]))
 
         distribution = self.client.get(reverse("price_list_distribution"))
-        self.assertContains(
-            distribution,
-            f'{reverse("user_guide")}?topic=price-list-distribution',
-        )
+        self.assertContains(distribution, reverse("help_article", args=["price-list"]))
 
     def test_data_navigation_exposes_common_maintenance_without_extra_detour(self):
         self.client.force_login(self.user)
@@ -578,22 +561,22 @@ class ProductExperienceTests(TestCase):
     def test_maintenance_help_opens_the_most_relevant_topic(self):
         self.client.force_login(self.user)
 
-        expected_topics = {
+        expected_articles = {
             reverse("sales_source_list"): "sales-sources",
             reverse("sales_source_staff_list"): "sales-sources",
             reverse("sales_source_platform_list"): "sales-sources",
-            reverse("price_list_distribution"): "price-list-distribution",
-            reverse("dealer_sales_program_list"): "dealer-sales-programs",
-            reverse("dealer_reward_catalog_list"): "dealer-sales-programs",
-            reverse("dealer_volume_bonus_list"): "dealer-volume-bonus",
-            reverse("business_holiday_list"): "master-data",
-            reverse("brand_registration_fee_rule_list"): "master-data",
+            reverse("price_list_distribution"): "price-list",
+            reverse("dealer_sales_program_list"): "dealer-rules",
+            reverse("dealer_reward_catalog_list"): "dealer-rules",
+            reverse("dealer_volume_bonus_list"): "dealer-rules",
+            reverse("business_holiday_list"): "installment-rules",
+            reverse("brand_registration_fee_rule_list"): "installment-rules",
         }
-        for route, topic in expected_topics.items():
+        for route, slug in expected_articles.items():
             with self.subTest(route=route):
                 response = self.client.get(route)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, f'{reverse("user_guide")}?topic={topic}')
+                self.assertContains(response, reverse("help_article", args=[slug]))
 
     def test_every_maintenance_landing_page_has_a_clear_return_path(self):
         self.client.force_login(self.user)
@@ -847,9 +830,9 @@ class ProductExperienceTests(TestCase):
 class UserDocumentationTests(TestCase):
     def test_end_user_manual_is_current_django_workflow(self):
         manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")
-        self.assertIn("首頁、搜尋與公告", manual)
-        self.assertIn("訂單建立後的工作台", manual)
-        self.assertIn("首次建立基本資料", manual)
-        self.assertIn("營運、淨利與對帳", manual)
+        self.assertIn("首頁、常用功能與公告", manual)
+        self.assertIn("建立後修改訂單", manual)
+        self.assertIn("系統清空後重建資料", manual)
+        self.assertIn("分期與平台撥款對帳", manual)
         self.assertNotIn("Odoo 16", manual)
         self.assertNotIn("8069", manual)

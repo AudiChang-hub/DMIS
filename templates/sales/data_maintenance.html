@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}{% load screen_access %}
+{% extends "base.html" %}{% load site_copy %}{% load screen_access help_tags %}
 {% block title %}資料維護區｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -9,6 +9,7 @@
     <p class="eyebrow">集中管理基礎資料</p>
     <h1>資料維護區</h1>
     <p class="muted">{% site_text 'data_maintenance.df8d4de7e06b' %}</p>
+    {% help_page_tip %}
   </div>
 </section>
 {% include "sales/_side_nav.html" with nav_key="data" nav_title="資料維護區" nav_handle="資料目錄" %}

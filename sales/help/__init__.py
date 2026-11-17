@@ -1,7 +1,7 @@
 """使用說明（T-197）：文章資料在 articles.py，格式在 schema.py。"""
 from datetime import date
 
-from .articles import ARTICLES, GROUPS, START_HERE, TIPS
+from .articles import ARTICLES, GROUPS, PAGE_TIPS, START_HERE, TIPS
 
 BY_SLUG = {article.slug: article for article in ARTICLES}
 BY_ROUTE = {route: article.slug for article in ARTICLES for route in article.routes}
@@ -79,6 +79,13 @@ def tips_for(policy, today=None, count=4):
     return picked
 
 
+def page_tip(policy, route_name):
+    """功能頁頁首的一行提示；文章看不到就不顯示（T-201）。"""
+    tip = PAGE_TIPS.get(route_name or "")
+    article = visible_article(policy, tip.article) if tip else None
+    return {"tip": tip, "article": article} if article else None
+
+
 def start_stops(policy):
     stops = []
     for number, stop in enumerate(START_HERE, 1):
@@ -86,5 +93,5 @@ def start_stops(policy):
     return stops
 
 
-__all__ = ["ARTICLES", "GROUPS", "START_HERE", "TIPS", "article_for_legacy_topic", "article_for_route", "grouped",
-           "plain", "search_index", "start_stops", "tips_for", "visible_article", "visible_articles"]
+__all__ = ["ARTICLES", "GROUPS", "PAGE_TIPS", "START_HERE", "TIPS", "article_for_legacy_topic", "article_for_route", "grouped",
+           "page_tip", "plain", "search_index", "start_stops", "tips_for", "visible_article", "visible_articles"]

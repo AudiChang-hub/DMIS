@@ -1,11 +1,11 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load static help_tags %}
 {% block title %}套表列印｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'order_list' as orders_url %}{% include "sales/_page_back.html" with fallback_url=orders_url label="返回全部訂單" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表：信封下載成 Word 檔、用 Word 列印，聲明書與簽收單產生 A4 PDF。換頁或重新搜尋都會保留已勾選的項目。</p></div>
+  <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表：信封下載成 Word 檔、用 Word 列印，聲明書與簽收單產生 A4 PDF。換頁或重新搜尋都會保留已勾選的項目。</p>{% help_page_tip %}</div>
   <div class="hero-actions"><a class="button ghost" href="#form-print-fields">欄位對照</a></div>
 </section>
 

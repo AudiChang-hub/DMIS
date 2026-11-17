@@ -1,9 +1,10 @@
-{% extends "base.html" %}{% load site_copy %}{% load pagination_tags screen_access %}
+{% extends "base.html" %}{% load site_copy %}{% load pagination_tags screen_access help_tags %}
 {% block title %}首頁｜車輛銷售管理{% endblock %}
 {% block page_class %}system-home{% endblock %}
 {% block content %}
 {% now "G" as current_hour %}{% now "Y 年 n 月 j 日 l" as today_label %}
 <section class="hero-row compact-hero home-hero"><div><p class="eyebrow">{{ today_label }}</p><h1>{% if current_hour|add:0 < 11 %}早安{% elif current_hour|add:0 < 18 %}午安{% else %}晚安{% endif %}，{{ user.get_full_name|default:user.username }}</h1><p class="muted">{% site_text 'dashboard.710cd31a0032' %}</p></div>{% if_access 'announcement_manage' %}<div class="hero-actions"><a class="button ghost" href="{% url 'announcement_manage' %}">管理系統公告</a></div>{% endif_access %}</section>
+{% help_start_card %}
 <section class="home-tasks" aria-label="待處理工作">
   {% if_access 'order_deletion_queue' %}<a class="home-task{% if deletion_pending_count %} is-pending{% endif %}" href="{% url 'order_deletion_queue' %}" aria-label="待刪除審核：{{ deletion_pending_count }} 筆，查看刪除申請"><span class="home-task__label">待刪除審核</span><strong class="home-task__count">{{ deletion_pending_count }}<small>筆</small></strong><span class="home-task__hint">{% site_text 'dashboard.4ec07225adc7' %}</span><span class="home-task__go">查看刪除申請<span aria-hidden="true">→</span></span></a>{% endif_access %}
   {% if unread_notification_count %}<a class="home-task is-pending" href="{% url 'notification_list' %}" aria-label="未讀通知：{{ unread_notification_count }} 則，查看通知"><span class="home-task__label">未讀通知</span><strong class="home-task__count">{{ unread_notification_count }}<small>則</small></strong><span class="home-task__hint">取消、退款結算、分期核貸與帳務差額等需要跟進的事件。</span><span class="home-task__go">查看通知<span aria-hidden="true">→</span></span></a>{% endif %}

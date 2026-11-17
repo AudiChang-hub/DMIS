@@ -87,6 +87,14 @@ class Stop:
 
 
 @dataclass(frozen=True)
+class PageTip:
+    """功能頁頁首的一行提示（T-201）：這頁做什麼、下一步去哪，連到對應文章。"""
+    article: str
+    does: str
+    next: str = ""
+
+
+@dataclass(frozen=True)
 class Tip:
     title: str
     text: str

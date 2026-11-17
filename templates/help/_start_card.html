@@ -1,0 +1,9 @@
+{% load static %}{% if start_visible %}<section class="home-start-card" aria-labelledby="home-start-card-title" data-help-start-card hidden>
+  <a class="home-start-card__link" href="{% url 'help_start' %}">
+    <span class="home-start-card__badge">第一次用？</span>
+    <span class="home-start-card__body"><b id="home-start-card-title">從這裡開始：跟著範例走完一張單</b><span>建立訂單 → 配車 → 領牌 → 交車收尾款 → 套表列印 → 結案，每站都有截圖和範例數字。</span></span>
+    <span class="home-start-card__go" aria-hidden="true">→</span>
+  </a>
+  <button class="home-start-card__close" type="button" data-help-start-close aria-label="關閉「第一次用？從這裡開始」，之後在使用說明首頁仍找得到">×</button>
+</section>
+<script src="{% static 'js/help-start-card.js' %}" defer></script>{% endif %}

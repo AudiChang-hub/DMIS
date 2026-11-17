@@ -4,7 +4,7 @@
 """
 from .articles_basics import BASICS
 from .articles_manage import MANAGE, SOMETIMES
-from .schema import Article, Example, Faq, Figure, Group, Step, Stop, Tip
+from .schema import Article, Example, Faq, Figure, Group, PageTip, Step, Stop, Tip
 
 # 依使用頻率分組（使用者 2026-11-16：不分角色）；組內順序＝功能盤點的頻率順序。
 GROUPS = (
@@ -613,6 +613,18 @@ START_HERE = (
          Figure("mainline/06-delivered.jpg", "訂單頁顯示已交車／待結案"), "約 1 分鐘（補助另計）",
          open_route="order_list", open_hint="打開要處理的訂單"),
 )
+
+# 功能頁頁首的「這頁做什麼、下一步去哪」（T-201）；鍵是路由名稱，只在這幾頁出現。
+PAGE_TIPS = {
+    "form_print": PageTip("form-print", "勾訂單、選每張要印的套表，一次產生信封 Word 檔與 A4 PDF。",
+                          "印完回訂單頁補齊文件、確認結案。"),
+    "report_center": PageTip("report-ranking", "選一份報表、設定期間；點圖表的長條或區塊，同頁其他圖表會一起篩選。",
+                             "要看明細就按圖表上的「資料與明細入口」。"),
+    "report_display": PageTip("report-ranking", "選一份報表、設定期間；點圖表的長條或區塊，同頁其他圖表會一起篩選。",
+                              "要看明細就按圖表上的「資料與明細入口」。"),
+    "data_maintenance": PageTip("rebuild", "主檔與規則的入口：機種售價、庫存、車行、分期、獎勵與帳號都在這裡。",
+                                "第一次建資料，照〈系統清空後重建資料〉的順序做。"),
+}
 
 TIPS = (
     Tip("訂單頁按 O", "打開「訂單總覽」，每一欄都能一鍵複製。"),

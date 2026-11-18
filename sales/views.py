@@ -5052,6 +5052,9 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         )
     # 建單填了訂金就算已收妥（使用者 2026-10-20 T-29 方案 A）：實收＝訂金，確認人記建單者。
     _confirm_intake_deposit(request, order)
+    # 獎勵依訂單成立日預先觸發（T-176）：建單當下就和改單一樣重算原廠獎勵、車行獎勵（T-225）。
+    from .services.financial_refresh import refresh_unlocked_financials
+    refresh_unlocked_financials(order.pk)
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())

@@ -10,7 +10,7 @@ from sales.models import PaymentRecord, SalesOrder
 # 從全部訂單頁帶過來、會影響範圍的參數；其餘（分頁、每頁筆數）一律不帶。
 SCOPE_KEYS = (
     "q", "status", "tab", "sort", "risk", "date_basis", "date_from", "date_to", "energy_type",
-    "payment_status", "attention", "business_only", "include_cancelled",
+    "payment_status", "registered", "attention", "business_only", "include_cancelled",
 )
 
 
@@ -79,6 +79,7 @@ def scope_labels(params, tab):
         "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款"}),
         "energy_type": ("能源別", None),
         "payment_status": ("收款確認", {"confirmed": "已確認", "pending": "待確認"}),
+        "registered": ("領牌", {"yes": "已領牌", "no": "未領牌"}),
         "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認"}),
         "business_only": ("成交範圍", {"1": "排除取消／退款", "0": "包含取消／退款"}),
     }

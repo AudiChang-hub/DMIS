@@ -174,6 +174,18 @@ class OrderExportTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         self.assertEqual(record.scope["params"], {"q": "陳大華"})
         self.assertNotIn(str(first.pk), record.baseline)
 
+    def test_scope_includes_registration_filter(self):
+        # 2.23.0 T-233 全部訂單新增「領牌」篩選，匯出照樣帶入。
+        self.login_admin()
+        registered, _ = self.make_order()
+        self.make_order()
+        SalesOrder.objects.filter(pk=registered.pk).update(registration_date=timezone.localdate(),
+                                                           registration_completed_at=timezone.now())
+        self.download(["owner_name"], registered="yes", tab="all")
+        record = OrderExportRecord.objects.get()
+        self.assertEqual(list(record.baseline), [str(registered.pk)])
+        self.assertIn(["領牌", "已領牌"], record.scope["labels"])
+
     def test_over_limit_is_rejected_without_record(self):
         self.login_admin()
         self.make_order()

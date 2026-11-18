@@ -21,7 +21,7 @@
   <div class="holiday-gift-toolbar">
     <div class="inventory-filter holiday-gift-search">
       <label for="holiday-gift-search">快速尋找車行</label>
-      <input id="holiday-gift-search" type="search" placeholder="輸入車行名稱、代碼、地址或電話" autocomplete="off" data-gift-search>
+      <input id="holiday-gift-search" type="search" placeholder="輸入車行名稱、地址或電話" autocomplete="off" data-gift-search>
     </div>
     <div class="holiday-gift-toolbar-actions" aria-label="批次勾選操作">
       <button class="button ghost small" type="button" data-gift-select-visible>勾選目前顯示</button>
@@ -37,11 +37,11 @@
         <thead><tr><th>列入名單</th><th>車行</th><th>地址／電話</th><th>狀態</th></tr></thead>
         <tbody>
           {% for dealer in dealers %}
-            <tr data-gift-row data-search="{{ dealer.name }} {{ dealer.code }} {{ dealer.address }} {{ dealer.phone }}">
+            <tr data-gift-row data-search="{{ dealer.name }} {{ dealer.address }} {{ dealer.phone }}">
               <td data-label="列入名單">
                 <input class="holiday-gift-checkbox" id="gift-source-{{ dealer.pk }}" type="checkbox" name="source_ids" value="{{ dealer.pk }}" form="holiday-gift-bulk-form" {% if dealer.holiday_gift %}checked{% endif %} data-gift-checkbox>
               </td>
-              <td data-label="車行"><label for="gift-source-{{ dealer.pk }}"><strong>{{ dealer.name }}</strong><span>{{ dealer.code|default:"未設定代碼" }}</span></label></td>
+              <td data-label="車行"><label for="gift-source-{{ dealer.pk }}"><strong>{{ dealer.name }}</strong></label></td>
               <td data-label="地址／電話">{{ dealer.address|default:"未填地址" }}<span>{{ dealer.phone|default:"未填電話" }}</span></td>
               <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=dealer.pk is_active=dealer.active item_name=dealer.name %}</td>
             </tr>

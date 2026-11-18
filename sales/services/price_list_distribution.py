@@ -78,7 +78,6 @@ def dealer_snapshot_rows():
             source.pk,
             {
                 "dealer": source,
-                "dealer_code": source.code,
                 "dealer_name": source.name,
                 "city": source.city,
                 "district": source.district,

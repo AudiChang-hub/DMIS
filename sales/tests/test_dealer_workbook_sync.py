@@ -59,6 +59,7 @@ class DealerWorkbookSyncTests(TestCase):
         self.assertTrue(SalesSource.objects.filter(pk=preserved.pk).exists())
 
         oil_and_electric = SalesSource.objects.get(name="油電車行")
+        self.assertEqual(oil_and_electric.code, "", "T-238：同步新增的車行不再產生代碼")
         profiles = {
             item.cooperation_scope: item
             for item in oil_and_electric.cooperation_profiles.all()

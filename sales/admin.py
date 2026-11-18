@@ -143,7 +143,7 @@ class SalesSourceAdmin(ReadOnlyOperationalAdmin):
     list_filter = (
         "category", "source_type", "city", "district", "holiday_gift", "has_line_group", "active",
     )
-    search_fields = ("name", "code", "responsible_person", "phone", "mobile", "address", "city", "district")
+    search_fields = ("name", "responsible_person", "phone", "mobile", "address", "city", "district")
     inlines = [SalesSourcePlatformContactInline]
 
     def get_inlines(self, request, obj):

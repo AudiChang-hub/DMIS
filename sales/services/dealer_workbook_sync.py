@@ -5,9 +5,7 @@ Excel 的車行。同步可重跑，且台鈴欄位依現行營運語意拆成�
 """
 
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
-import re
 
 from django.db import transaction
 from django.db.models import Q
@@ -155,27 +153,6 @@ def _dealer_category():
     return category
 
 
-def next_dealer_code(relationship_type, used_codes, today=None):
-    today = today or date.today()
-    prefix = "S" if relationship_type == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE else "N"
-    stem = f"{prefix}{today:%y%m%d}"
-    suffixes = []
-    for code in used_codes:
-        match = re.fullmatch(rf"{re.escape(stem)}(\d{{2}})", code or "")
-        if match:
-            suffixes.append(int(match.group(1)))
-    for suffix in range(max(suffixes, default=0) + 1, 100):
-        candidate = f"{stem}{suffix:02d}"
-        if candidate not in used_codes:
-            used_codes.add(candidate)
-            return candidate
-    raise ValueError(f"{stem} 當日車行代碼已用盡。")
-
-
-# 保留舊名稱供既有匯入流程與外部呼叫相容。
-_next_dealer_code = next_dealer_code
-
-
 def _profile_values(row):
     return {
         SalesSourceBrandPolicy.CooperationScope.SYM: (
@@ -228,7 +205,6 @@ def sync_dealer_workbook(path, *, apply=False):
     category = _dealer_category()
     dealers = list(SalesSource.objects.filter(source_type=SalesSource.SourceType.DEALER))
     by_name = {dealer.name.casefold(): dealer for dealer in dealers}
-    used_codes = set(SalesSource.objects.exclude(code="").values_list("code", flat=True))
     workbook_names = set()
 
     for row in rows:
@@ -240,7 +216,6 @@ def sync_dealer_workbook(path, *, apply=False):
                 source_type=SalesSource.SourceType.DEALER,
                 name=row.canonical_name,
                 category=category,
-                code=next_dealer_code(row.sym_relationship, used_codes),
             )
             result.created += 1
             by_name[source.name.casefold()] = source

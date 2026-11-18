@@ -56,7 +56,7 @@ class FormPrintServiceTests(TestCase):
 
         values = form_print.form_values(order)
 
-        self.assertEqual(values["dealer"], "PC")
+        self.assertEqual(values["dealer"], self.source.name, "T-238：車行一律印名稱，不印代碼")
         self.assertEqual(values["model_number"], "UQ125DA")
         self.assertEqual(values["identifier"], self.vehicle.engine_number)
         self.assertEqual(values["identifier_label"], "引擎號碼")
@@ -144,7 +144,7 @@ class FormPrintServiceTests(TestCase):
         self.assertIn('w:top="2268" w:right="1134" w:bottom="1134"', sections[0])
         self.assertIn('w:top="2098" w:right="1134" w:bottom="851"', sections[1])
         text = docx_text(document)
-        self.assertIn("PC 王&lt;小明&gt;", text)
+        self.assertIn(f"{self.source.name} 王&lt;小明&gt;", text)  # T-238：車行印名稱
         self.assertIn("車型：UQ125DA", text)
         self.assertIn("車型：EV076SZV", text)
         self.assertIn("車控密碼：0912345678", text)

@@ -1,5 +1,4 @@
 import importlib
-from datetime import date
 from unittest.mock import patch
 
 from django.apps import apps
@@ -9,33 +8,16 @@ from sales.models import SalesSource
 
 
 class SalesSourceCodeTests(TestCase):
-    def test_new_platform_gets_next_general_source_code(self):
-        SalesSource.objects.create(
-            name="同日既有來源",
-            source_type=SalesSource.SourceType.DEALER,
-            code="N26083101",
-        )
-        expected_code = SalesSource.next_general_source_code(
-            code_date=date(2026, 8, 31)
-        )
+    def test_new_sources_get_no_code(self):
+        """T-238（使用者 2026-11-18）：來源代碼全面取消，車行、網路平台、本店來源存檔都不再自動編碼。"""
+        for source_type in SalesSource.SourceType.values:
+            with self.subTest(source_type=source_type):
+                source = SalesSource.objects.create(name=f"新來源-{source_type}", source_type=source_type)
+                source.refresh_from_db()
+                self.assertEqual(source.code, "")
+        self.assertFalse(hasattr(SalesSource, "next_general_source_code"))
 
-        with patch("sales.models.timezone.localdate", return_value=date(2026, 8, 31)):
-            platform = SalesSource.objects.create(
-                name="新網路平台",
-                source_type=SalesSource.SourceType.PLATFORM,
-            )
-
-        self.assertEqual(platform.code, expected_code)
-
-    def test_platform_keeps_existing_source_code(self):
-        platform = SalesSource.objects.create(
-            name="既有代碼平台",
-            source_type=SalesSource.SourceType.PLATFORM,
-            code="N26042808",
-        )
-
-        self.assertEqual(platform.code, "N26042808")
-
+    # 以下測的是歷史 migration（0106），下一版刪欄位時一併移除。
     def test_data_migration_fills_only_missing_platform_codes(self):
         preserved = SalesSource.objects.create(
             name="保留既有平台",

@@ -285,7 +285,6 @@
     {% if source %}
       <dl>
         <div><dt>資料編號</dt><dd>#{{ source.pk }}</dd></div>
-        <div><dt>來源代碼</dt><dd>{{ source.code|default:"尚未設定" }}</dd></div>
         <div><dt>最後更新</dt><dd>{{ source.updated_at|date:"Y/m/d H:i" }}</dd></div>
       </dl>
     {% else %}

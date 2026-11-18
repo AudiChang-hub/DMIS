@@ -65,7 +65,6 @@ from .services.document_signing import (
     render_first_copy_previews,
     sign_documents,
 )
-from .services.dealer_workbook_sync import next_dealer_code
 from .forms import (
     AccessoryCategoryForm,
     AccessoryProductForm,
@@ -786,7 +785,6 @@ def price_list_distribution(request):
     if query:
         items = items.filter(
             Q(dealer_name__icontains=query)
-            | Q(dealer_code__icontains=query)
             | Q(address__icontains=query)
             | Q(note__icontains=query)
             | Q(assigned_to_name__icontains=query)
@@ -1065,7 +1063,6 @@ def price_list_distribution_assignments(request, pk):
     if query:
         items = items.filter(
             Q(dealer_name__icontains=query)
-            | Q(dealer_code__icontains=query)
             | Q(address__icontains=query)
             | Q(assigned_to_name__icontains=query)
         )
@@ -1814,7 +1811,6 @@ def sales_source_list(request):
     if keyword:
         keyword_filter = (
             Q(name__icontains=keyword)
-            | Q(code__icontains=keyword)
             | Q(address__icontains=keyword)
             | Q(city__icontains=keyword)
             | Q(district__icontains=keyword)
@@ -2397,7 +2393,6 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
     if keyword:
         sources = sources.filter(
             Q(name__icontains=keyword)
-            | Q(code__icontains=keyword)
             | Q(responsible_person__icontains=keyword)
             | Q(phone__icontains=keyword)
             | Q(phone_secondary__icontains=keyword)
@@ -2603,30 +2598,13 @@ def sales_source_form(request, pk=None):
             platform_contact_formset.save()
         desired_states = {}
         if source.source_type == SalesSource.SourceType.DEALER:
-            has_exclusive = False
             for section in cooperation_sections:
                 profile = section["form"].save(commit=False)
                 profile.source = source
                 profile.cooperation_scope = section["scope"]
                 profile.save()
                 desired_states[section["scope"]] = profile.cooperates
-                has_exclusive = has_exclusive or (
-                    profile.cooperates
-                    and profile.relationship_type
-                    == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
-                )
             _sync_sales_source_cooperation_scopes(source, desired_states)
-            if not source.code:
-                used_codes = set(
-                    SalesSource.objects.exclude(code="").values_list("code", flat=True)
-                )
-                relationship_type = (
-                    SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
-                    if has_exclusive
-                    else SalesSourceCooperationProfile.RelationshipType.GENERAL
-                )
-                source.code = next_dealer_code(relationship_type, used_codes)
-                source.save(update_fields=["code", "updated_at"])
         messages.success(
             request,
             f"已儲存{source.category.name if source.category_id else source.get_source_type_display()}：{source.name}。",

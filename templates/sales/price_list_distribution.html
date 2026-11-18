@@ -29,7 +29,7 @@
 </section>
 
 <form class="master-filters price-distribution-filters" method="get" id="distribution-filters" data-distribution-filters>
-  <div class="inventory-filter master-search"><label for="distribution-search">搜尋車行</label><div class="price-distribution-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="distribution-search" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址、備註" autocomplete="off" enterkeyhint="search" data-distribution-quick-search></div></div>
+  <div class="inventory-filter master-search"><label for="distribution-search">搜尋車行</label><div class="price-distribution-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="distribution-search" type="search" name="q" value="{{ query }}" placeholder="車行名稱、地址、備註" autocomplete="off" enterkeyhint="search" data-distribution-quick-search></div></div>
   <button class="price-distribution-filter-toggle" type="button" aria-expanded="false" aria-controls="distribution-filter-fields" data-distribution-filter-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span>篩選</span><b data-distribution-filter-count hidden></b></button>
   <p class="price-distribution-search-status" data-distribution-search-status aria-live="polite" hidden></p>
   <div class="price-distribution-filter-fields" id="distribution-filter-fields">
@@ -59,10 +59,10 @@
 
 <section class="price-distribution-list" aria-label="價格表分發車行">
   {% for item in items %}
-  <article class="price-distribution-card{% if item.completed %} is-completed{% endif %}" data-distribution-item="{{ item.pk }}" data-search="{{ item.dealer_code }} {{ item.dealer_name }} {{ item.contact_phone }} {{ item.assigned_to_name }}">
+  <article class="price-distribution-card{% if item.completed %} is-completed{% endif %}" data-distribution-item="{{ item.pk }}" data-search="{{ item.dealer_name }} {{ item.contact_phone }} {{ item.assigned_to_name }}">
     <div class="price-distribution-card__main">
       <div class="price-distribution-card__identity">
-        <h2>{% if item.dealer_code %}<small>{{ item.dealer_code }}</small>{% endif %}<span>{{ item.dealer_name }}</span></h2>
+        <h2><span>{{ item.dealer_name }}</span></h2>
         {% if item.display_address %}<p>{{ item.display_address }}</p>{% endif %}
         {% if item.contact_phone or item.google_maps_url %}
         <div class="price-distribution-card__actions" aria-label="{{ item.dealer_name }}的聯絡與導航">

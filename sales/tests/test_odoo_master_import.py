@@ -108,14 +108,14 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(summary["sources_create"], 1)
         self.assertEqual(summary["models_create"], 1)
         self.assertEqual(summary["legacy_transactions_not_imported"], 1614)
-        self.assertFalse(SalesSource.objects.filter(code="D010").exists())
+        self.assertFalse(SalesSource.objects.filter(name="測試車行").exists())
         self.assertEqual(VehicleModel.objects.count(), 0)
 
     def test_apply_is_idempotent_and_imports_business_rules(self):
         first = import_odoo_master_data(self.payload(), apply=True)
         second = import_odoo_master_data(self.payload(), apply=True)
 
-        source = SalesSource.objects.get(code="D010")
+        source = SalesSource.objects.get(name="測試車行")
         model = VehicleModel.objects.get(model_number="UQ125DA")
         policy = SalesSourceBrandPolicy.objects.get(
             source=source, brand="SUZUKI", effective_from=date(2026, 1, 1)
@@ -150,7 +150,7 @@ class OdooMasterImportTests(TestCase):
         )
         self.assertEqual(first["installment_lines_review_required"], 1)
         self.assertEqual(second["sources_update"], 1)
-        self.assertEqual(SalesSource.objects.filter(code="D010").count(), 1)
+        self.assertEqual(SalesSource.objects.filter(name="測試車行").count(), 1)
         self.assertEqual(VehicleModel.objects.count(), 1)
 
     def test_import_preserves_real_note_and_removes_legacy_marker(self):
@@ -159,7 +159,7 @@ class OdooMasterImportTests(TestCase):
 
         import_odoo_master_data(payload, apply=True)
 
-        source = SalesSource.objects.get(code="D010")
+        source = SalesSource.objects.get(name="測試車行")
         self.assertTrue(source.note.startswith("請先電話聯絡\n"))
         self.assertIn("歷史聯絡資料：〔聯絡人〕（負責人）", source.note)
         self.assertNotIn("遷移 ID:", source.note)
@@ -202,7 +202,7 @@ class OdooMasterImportTests(TestCase):
 
         import_odoo_master_data(payload, apply=True)
 
-        source = SalesSource.objects.get(code="STAFF-01")
+        source = SalesSource.objects.get(name="文傑")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category.name, "店內員工")
         self.assertEqual(

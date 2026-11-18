@@ -139,18 +139,12 @@ def _source_for_legacy(dealer, summary, apply):
         if store_type == "店內員工"
         else SalesSource.SourceType.DEALER
     )
-    code = (dealer.get("code") or "").strip()
     name = (dealer.get("name") or "").strip()
     if not name:
         summary["skipped_invalid_sources"] += 1
         return None
-    existing = None
-    if code:
-        existing = SalesSource.objects.filter(code=code).first()
-    if not existing:
-        existing = SalesSource.objects.filter(
-            source_type=source_type, name=name
-        ).first()
+    # T-238：來源代碼取消，只依類型與名稱比對、不寫入代碼。
+    existing = SalesSource.objects.filter(source_type=source_type, name=name).first()
     if not apply:
         summary["sources_update" if existing else "sources_create"] += 1
         return existing
@@ -172,7 +166,6 @@ def _source_for_legacy(dealer, summary, apply):
         "source_type": source_type,
         "category": category,
         "name": name,
-        "code": code,
         "phone": (dealer.get("phone_1") or dealer.get("phone") or "").strip(),
         "fax": (dealer.get("mobile_fax") or "").strip(),
         "address": (dealer.get("address") or "").strip(),

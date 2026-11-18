@@ -62,7 +62,7 @@ FORM_BY_KEY = {form.key: form for form in FORMS}
 
 # 原 Word 合併欄位 → 系統來源（文件與測試共用，改來源時一併更新）。
 FORM_FIELD_SOURCES = {
-    "車行": "車行的來源代碼（沒有代碼用名稱）；本店、平台單空白",
+    "車行": "車行名稱；本店、平台單空白",
     "車主名稱": "訂單車主姓名／公司名稱",
     "車種型號": "機種的純型號（沒有時用車型名稱）",
     "顏色": "訂單車色",
@@ -167,7 +167,7 @@ def form_values(order, *, reveal_secrets=False):
     source = order.source if order.source_id else None
     dealer = ""
     if source and source.source_type == source.SourceType.DEALER:
-        dealer = _text(source.code) or _text(source.name)
+        dealer = _text(source.name)  # T-238：來源代碼取消，車行一律印名稱
     installment_info, service_phone = _installment_lines(order, profile)
     brand = _text(model.brand)
     return {

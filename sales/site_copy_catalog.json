@@ -1573,7 +1573,7 @@
   },
   "sales_source_form.6db444b56919": {
     "page": "共通畫面說明",
-    "default": "建立後才會顯示資料編號；網路平台的來源代碼會由系統自動配置。",
+    "default": "建立後才會顯示資料編號。",
     "template": "templates/sales/sales_source_form.html"
   },
   "sales_source_form.9a216cf845d5": {

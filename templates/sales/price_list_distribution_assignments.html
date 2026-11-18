@@ -52,7 +52,7 @@
     <p>{% site_text 'price_list_distribution_assignments.a1d2208a8f58' %}</p>
   </div>
   <form method="get" class="master-filters price-assignment-filters">
-    <div class="inventory-filter master-search"><label for="assignment-q">搜尋車行</label><input id="assignment-q" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址或負責人"></div>
+    <div class="inventory-filter master-search"><label for="assignment-q">搜尋車行</label><input id="assignment-q" type="search" name="q" value="{{ query }}" placeholder="車行名稱、地址或負責人"></div>
     <div class="inventory-filter"><label for="assignment-owner">目前負責人</label><select id="assignment-owner" name="owner">
       <option value="all"{% if selected_owner == 'all' %} selected{% endif %}>不限負責人</option>
       <option value="unassigned"{% if selected_owner == 'unassigned' %} selected{% endif %}>未分配</option>
@@ -111,7 +111,7 @@
                 </button>
               </div>
             </td>
-            <td data-label="車行"><strong>{{ item.dealer_name }}</strong><small>{{ item.dealer_code }}</small></td>
+            <td data-label="車行"><strong>{{ item.dealer_name }}</strong></td>
             <td data-label="區域"><strong>{{ item.city }}{{ item.district }}</strong><small>{{ item.address }}</small></td>
             <td data-label="負責人">
               <div class="price-assignment-owner-control">

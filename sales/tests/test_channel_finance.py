@@ -656,7 +656,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         source = SalesSource.objects.get(name="LINE 測試車行")
         self.assertTrue(source.has_line_group)
-        self.assertRegex(source.code, r"^[NS]\d{8}$")
+        self.assertEqual(source.code, "", "T-238：來源代碼取消，存檔不再自動編碼")
         self.assertFalse(source.cooperation_profiles.filter(cooperates=True).exists())
 
         source.code = "D-LINE-01"
@@ -669,7 +669,8 @@ class ChannelFinanceTests(TestCase):
         self.assertNotContains(edit_response, "聯絡窗口")
         self.assertNotContains(edit_response, "contacts-TOTAL_FORMS")
         self.assertContains(edit_response, "系統資訊")
-        self.assertContains(edit_response, "D-LINE-01")
+        self.assertNotContains(edit_response, "D-LINE-01", msg_prefix="T-238：不再顯示來源代碼")
+        self.assertNotContains(edit_response, "來源代碼")
         self.assertNotContains(edit_response, 'name="code"')
         self.assertNotContains(edit_response, "群組特性")
 
@@ -899,15 +900,12 @@ class ChannelFinanceTests(TestCase):
         html = response.content.decode()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "N26032615")
+        self.assertNotContains(response, "N26032615", msg_prefix="T-238：不再顯示來源代碼")
         self.assertContains(response, "一般車行")
         self.assertContains(response, "送禮")
         self.assertNotContains(response, "可停 0 台")
-        cell_start = html.index("N26032615")
+        cell_start = html.index('class="source-identity"')
         identity_cell = html[cell_start : html.index("</td>", cell_start)]
-        self.assertLess(
-            identity_cell.index("N26032615"), identity_cell.index(self.dealer.name)
-        )
         self.assertLess(
             identity_cell.index(self.dealer.name), identity_cell.index("一般車行")
         )

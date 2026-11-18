@@ -544,22 +544,6 @@ class SalesSource(TimeStampedModel):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def next_general_source_code(cls, *, code_date=None):
-        """依既有 N + 日期 + 兩碼序號規則產生下一個一般來源代碼。"""
-        code_date = code_date or timezone.localdate()
-        stem = f"N{code_date:%y%m%d}"
-        used_suffixes = []
-        for code in cls.objects.filter(code__startswith=stem).values_list(
-            "code", flat=True
-        ):
-            match = re.fullmatch(rf"{re.escape(stem)}(\d{{2}})", code or "")
-            if match:
-                used_suffixes.append(int(match.group(1)))
-        for suffix in range(max(used_suffixes, default=0) + 1, 100):
-            return f"{stem}{suffix:02d}"
-        raise ValidationError({"code": f"{stem} 當日來源代碼已用盡。"})
-
     @property
     def staff_store_labels(self):
         labels = dict(self.StaffStore.choices)
@@ -587,20 +571,14 @@ class SalesSource(TimeStampedModel):
         from sales.services.taiwan_address import infer_taiwan_region
 
         category_changed = self._sync_category_with_source_type()
-        assigned_code = False
-        if self.source_type == self.SourceType.PLATFORM and not self.code:
-            self.code = self.next_general_source_code()
-            assigned_code = True
+        # T-238（使用者 2026-11-18）：來源代碼全面取消，不再自動編碼；欄位下一版刪除。
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
         else:
             self.city, self.district = infer_taiwan_region(self.address)
         if kwargs.get("update_fields") is not None:
-            extra = ({"code"} if assigned_code else set()) | (
-                {"category"} if category_changed else set()
-            )
-            if extra:
-                kwargs["update_fields"] = set(kwargs["update_fields"]) | extra
+            if category_changed:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"category"}
         return super().save(*args, **kwargs)
 
     def _sync_category_with_source_type(self):

@@ -2,7 +2,6 @@
   <tr id="sales-source-{{ item.pk }}" data-source-row="{{ item.pk }}">
     <td data-label="車行／平台／人員" class="source-identity">
       <div class="source-identity__label{% if item.has_line_group and selected.status == 'active' %} has-line-group source-identity__label--{{ item.line_group_marker.tone }}{% endif %}"{% if item.has_line_group and selected.status == 'active' %} aria-label="{{ item.name }}；{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"{% endif %}>
-        {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
         <strong>{{ item.name }}</strong>
       </div>
       <span>{{ item.list_type_label }}</span>

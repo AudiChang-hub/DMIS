@@ -17,7 +17,6 @@
   <div class="section-body confirm-panel__body">
     <dl class="confirm-facts">
       <div><dt>車行名稱</dt><dd>{{ source.name }}</dd></div>
-      <div><dt>來源代碼</dt><dd>{{ source.code|default:"尚未設定" }}</dd></div>
     </dl>
     {% if can_delete %}
       <div class="callout callout--success"><span class="callout__icon" aria-hidden="true">✓</span><div><h3>檢查完成，可以永久刪除</h3><p>{% site_text 'sales_source_confirm_delete.a37cb3dc30d1' %}</p></div></div>

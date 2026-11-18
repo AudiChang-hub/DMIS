@@ -102,7 +102,8 @@ class CommandCenterTests(TestCase):
             order = self.make_order(status=status, profit=12345)
             response = self.client.get(reverse('order_list'), {'status':status})
             self.assertNotContains(response, '待補領牌日')
-            self.assertNotContains(response, '未領牌')
+            # 篩選區有「領牌：未領牌」選項（T-233），只檢查訂單列表區。
+            self.assertNotIn('未領牌', response.content.decode().split('data-order-results', 1)[1])
             self.assertNotContains(response, '12,345')
             self.assertContains(response, '取消訂單不列入成交淨利')
             self.assertContains(response, f'status-pill status-{status}')

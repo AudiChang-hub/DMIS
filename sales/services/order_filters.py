@@ -6,7 +6,7 @@ from django.utils.dateparse import parse_date
 from sales.models import VehicleModel, registration_confirmed_q
 from .sales_metrics import CANCELLED_STATUSES, filter_payment_risk
 
-FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "business_only", "include_cancelled", "attention", "drafts")
+FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts")
 
 
 def plate_fee_variance_q():
@@ -48,6 +48,12 @@ def filter_order_analysis(rows, params, *, business_default=False):
     elif params.get("payment_status") == "pending":
         # 與「風險：未收」同口徑：已取消類的單沒有待收款（使用者 2026-11-06，T-113）。
         rows = rows.exclude(operations__payment_confirmed=True).exclude(status__in=CANCELLED_STATUSES)
+    # 領牌（T-233，使用者 2026-11-18）：沿用 registration_confirmed_q，按過確認完成且有領牌日才算已領牌；
+    # 只填預計日的單算未領牌。日期起訖依實際領牌日期，所以「未領牌」加日期範圍不會有結果。
+    if params.get("registered") == "yes":
+        rows = rows.filter(registration_confirmed_q())
+    elif params.get("registered") == "no":
+        rows = rows.exclude(registration_confirmed_q())
     field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at__date"}.get(params.get("date_basis"), "registration_date")
     dates = {}
     for key, lookup in (("date_from", "gte"), ("date_to", "lte")):

@@ -594,7 +594,7 @@ logger = logging.getLogger(__name__)
 
 ORDER_LIST_PAGE_SIZE_OPTIONS = (25, 50, 75, 100)
 ORDER_LIST_DEFAULT_PAGE_SIZE = 50
-ORDER_LIST_FILTER_KEYS = ("risk", "date_from", "date_to", "energy_type", "payment_status", "attention", "business_only")
+ORDER_LIST_FILTER_KEYS = ("risk", "date_from", "date_to", "energy_type", "payment_status", "registered", "attention", "business_only")
 DRAFT_PRESENCE_TIMEOUT = timedelta(seconds=90)
 ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 

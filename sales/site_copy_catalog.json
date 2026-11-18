@@ -1118,7 +1118,7 @@
   },
   "order_list.f73efc30a7cd": {
     "page": "全部訂單",
-    "default": "日期起訖依實際領牌日期。",
+    "default": "日期起訖依實際領牌日期；未領牌的單沒有領牌日期，選日期範圍時不會列出。",
     "template": "templates/sales/order_list.html"
   },
   "order_list.53c85242b009": {

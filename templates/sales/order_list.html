@@ -16,12 +16,13 @@
   <label class="order-filter-search">全欄位搜尋
     <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…" enterkeyhint="search">
   </label>
-  {# T-233（使用者 2026-11-18）：篩選只留日期起訖、能源別、收款確認，直接顯示不摺疊。 #}
+  {# T-233（使用者 2026-11-18）：篩選只留日期起訖（固定依實際領牌日期）、能源別、收款確認、領牌，直接顯示不摺疊。 #}
   {# 日期依據、收款風險、作業提醒、成交範圍不在畫面上，但營運總表等連結帶來的網址參數照舊有效，以隱藏欄位帶著走。 #}
   <label class="order-filter-date">日期起<input type="date" name="date_from" value="{{ request.GET.date_from }}"></label>
   <label class="order-filter-date">日期迄<input type="date" name="date_to" value="{{ request.GET.date_to }}"></label>
   <label class="order-filter-choice">能源別<select name="energy_type"><option value="">全部</option>{% for value,label in energy_types %}<option value="{{ value }}"{% if request.GET.energy_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
   <label class="order-filter-choice">收款確認<select name="payment_status"><option value="">全部</option><option value="confirmed"{% if request.GET.payment_status == 'confirmed' %} selected{% endif %}>已確認</option><option value="pending"{% if request.GET.payment_status == 'pending' %} selected{% endif %}>待確認</option></select></label>
+  <label class="order-filter-choice">領牌<select name="registered"><option value="">全部</option><option value="no"{% if request.GET.registered == 'no' %} selected{% endif %}>未領牌</option><option value="yes"{% if request.GET.registered == 'yes' %} selected{% endif %}>已領牌</option></select></label>
   <label class="order-filter-status">狀態
     <select name="status" onchange="this.form.submit()">
       <option value="">全部狀態</option>

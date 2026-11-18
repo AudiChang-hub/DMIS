@@ -132,8 +132,9 @@
 .save-chip[data-state="saving"] { --chip-tone: var(--forest); }
 .save-chip[data-state="saving"] .save-chip__mark {
   border-color: color-mix(in srgb, var(--forest) 22%, transparent); border-top-color: var(--forest);
-  animation: save-chip-spin .8s linear infinite;
 }
+/* 只在送出存檔時轉圈；打字後等待自動儲存的期間停著（T-241：無限動畫每一幀都重算樣式，打字會卡）。 */
+.save-chip[data-state="saving"][data-sending] .save-chip__mark { animation: save-chip-spin .8s linear infinite; }
 .save-chip[data-state="saved"] { --chip-tone: var(--green); }
 .save-chip[data-state="saved"] .save-chip__mark { background: var(--green); border-color: var(--green); }
 .save-chip[data-state="saved"] .save-chip__check { animation: save-chip-draw .42s cubic-bezier(.3, .7, .2, 1) .05s forwards; }
@@ -294,6 +295,6 @@
   .lock-confirm__actions .button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .save-chip[data-state="saving"] .save-chip__mark, .save-alert, .save-alert.is-attention, .lock-confirm[open], .is-save-flash { animation: none; }
+  .save-chip[data-state="saving"][data-sending] .save-chip__mark, .save-alert, .save-alert.is-attention, .lock-confirm[open], .is-save-flash { animation: none; }
   .save-chip[data-state="saved"] .save-chip__check { animation: none; stroke-dashoffset: 0; }
 }

@@ -16,8 +16,9 @@
       tip.style.top = (y < 8 ? event.clientY + 16 : y) + "px";
     }
 
+    // 捲動時每個事件都會呼叫：已經隱藏就不再寫 hidden，否則每次都觸發整頁樣式重算（T-241 量到 120 幀 373 次）。
     function hide() {
-      tip.hidden = true;
+      if (!tip.hidden) tip.hidden = true;
     }
 
     root.addEventListener("pointermove", function (event) {

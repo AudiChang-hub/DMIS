@@ -95,7 +95,15 @@
     if (area.value !== field.value) area.value = field.value;
     lastSaved = area.value;
     markEmpty(box);
-    fit(area);
+    // 沒在編輯便條時高度由 CSS 限制三行（focusout 已清掉 style.height），不需要 fit()。
+  }
+
+  // 在「訂車與配件」的備註欄打字時，便條同一個畫面更新週期只同步一次：
+  // fit() 要讀 scrollHeight，每個鍵都同步呼叫會強制重排整頁（T-241 量到打字卡頓的主因）。
+  let pullFrame = 0;
+  function pullSoon(box) {
+    if (pullFrame) return;
+    pullFrame = requestAnimationFrame(() => { pullFrame = 0; pull(box); });
   }
 
   document.addEventListener("input", (event) => {
@@ -106,7 +114,7 @@
       fit(event.target);
       mirror(box, false);
     } else if (!mirroring && event.target === target(box)) {
-      pull(box);
+      pullSoon(box);
     }
   });
 

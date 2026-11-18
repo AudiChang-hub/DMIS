@@ -74,22 +74,44 @@
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
   const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
   const behavior = () => reduceMotion.matches ? 'instant' : 'smooth';
-  function indicators() {
+  // 只在值真的變了才寫回 DOM：重複寫入同樣的屬性也會讓整頁重算樣式，打字時每個鍵都會觸發（T-241）。
+  const setHidden = (node, hidden) => { if (node.hidden !== hidden) node.hidden = hidden; };
+  // 各表單有未儲存修改的步驟；打字時只重算正在輸入的那張表單（訂單頁 8 張表單、近 200 個欄位，T-241）。
+  const changedSteps = new Map();
+  function measureForm(form) {
+    const names = new Set(changedNames(form).filter(name => !name.endsWith('revision')));
+    const steps = new Set();
+    fields(form).forEach(f => { if (names.has(f.name)) steps.add(stepOf(f)); });
+    changedSteps.set(form, steps);
+  }
+  function indicators(only) {
+    (only || forms).forEach(measureForm);
     const changed = new Set();
-    forms.forEach(form => {
-      const names = new Set(changedNames(form).filter(name => !name.endsWith('revision')));
-      fields(form).forEach(f => { if (names.has(f.name)) changed.add(stepOf(f)); });
-    });
+    changedSteps.forEach(steps => steps.forEach(key => changed.add(key)));
     root.querySelectorAll('[data-step-key]').forEach(step => {
       const marker = step.querySelector(':scope > .order-step__header [data-dirty-indicator]');
-      if (marker) marker.hidden = !changed.has(step.dataset.stepKey);
+      if (marker) setHidden(marker, !changed.has(step.dataset.stepKey));
     });
     stepLinks.forEach(link => {
       const marker = link.querySelector('[data-dirty-indicator]');
-      if (marker) marker.hidden = !changed.has(link.dataset.stepLink);
-      link.title = changed.has(link.dataset.stepLink) ? '有未儲存修改' : '';
+      if (marker) setHidden(marker, !changed.has(link.dataset.stepLink));
+      const title = changed.has(link.dataset.stepLink) ? '有未儲存修改' : '';
+      if (link.title !== title) link.title = title;
     });
   }
+  // 打字（input 事件）時同一個畫面更新週期只算一次未儲存標記；change、存檔結果等仍立即更新（T-241）。
+  let indicatorFrame = 0;
+  const staleForms = new Set();
+  const indicatorsSoon = form => {
+    staleForms.add(form);
+    if (indicatorFrame) return;
+    indicatorFrame = requestAnimationFrame(() => {
+      indicatorFrame = 0;
+      const only = [...staleForms];
+      staleForms.clear();
+      indicators(only);
+    });
+  };
   const panelOf = key => steps.find(step => step.dataset.stepKey === key);
   // 分頁列可橫向捲動時，兩側淡出提示還有其他分頁。
   function updateOverflow() {
@@ -571,15 +593,19 @@
     const state = failures.size ? 'error' : saving ? 'saving' : lastSaved ? 'saved' : 'idle';
     const text = {error: '有修改沒存到', saving: '儲存中…', saved: `已儲存 ${lastSaved}`, idle: '自動儲存'}[state];
     chips.forEach(chip => {
-      chip.dataset.state = state;
+      if (chip.dataset.state !== state) chip.dataset.state = state;
+      // 轉圈只在真的送出存檔時：打字後等待 1 秒的期間不轉，無限動畫會讓每一幀都重算樣式（T-241）。
+      const sending = busy || queued.size > 0;
+      if (chip.hasAttribute('data-sending') !== sending) chip.toggleAttribute('data-sending', sending);
       const label = chip.querySelector('[data-save-chip-text]');
       if (label && label.textContent !== text) label.textContent = text;
-      chip.title = state === 'idle' ? '這一頁的修改會自動儲存' : text;
+      const title = state === 'idle' ? '這一頁的修改會自動儲存' : text;
+      if (chip.title !== title) chip.title = title;
     });
     if (!alertBar) return;
     const open = failures.size > 0;
     document.documentElement.classList.toggle('has-save-alert', open);
-    if (!open) { alertBar.hidden = true; leaveTarget = ''; return; }
+    if (!open) { if (!alertBar.hidden) alertBar.hidden = true; leaveTarget = ''; return; }
     const entries = [...failures];
     const sections = [...new Set(entries.map(([form]) => stepTitle(form)))];
     alertBar.querySelector('[data-save-alert-title]').textContent = sections.length === 1
@@ -679,8 +705,8 @@
   }
   function onAutosaveInput(form, event) {
     if (event.isTrusted) touched.add(form);
-    indicators();
-    event.target.removeAttribute('aria-invalid');
+    indicatorsSoon(form);
+    if (event.target.hasAttribute('aria-invalid')) event.target.removeAttribute('aria-invalid');
     clearFieldError(event.target);
     if (event.target.type !== 'file') schedule(form);
   }
@@ -736,7 +762,7 @@
   forms.forEach(form => {
     bases.set(form, capture(form));
     if (!autosaving(form)) {
-      form.addEventListener('input', indicators); form.addEventListener('change', indicators);
+      form.addEventListener('input', () => indicatorsSoon(form)); form.addEventListener('change', () => indicators());
     } else {
       form.noValidate = true;
       form.dataset.autosave = '';
@@ -764,6 +790,7 @@
         allowLeave = true; location.href = button.dataset.finishUrl; return;
       }
       busy = true;
+      renderSaveState();
       const text = button?.textContent;
       if (button) { button.disabled = true; button.textContent = '正在儲存…'; }
       if (auto) setStatus(form, '儲存中…', 'saving');

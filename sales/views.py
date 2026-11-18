@@ -43,6 +43,7 @@ from .services.document_preview import is_unpreviewable_pdf, preview_unavailable
 from .access.services import is_root
 from .services.inventory_history import change_rows
 from .services.home_stores import home_location_stores
+from .services.dealer_regions import region_label, region_order
 from .services.audit_note import discount_summary, note_or_summary, with_note
 from .services.inventory_restore import deletion_review_vehicle_ids, inventory_restore_summary
 from .services.order_attachments import (
@@ -8538,6 +8539,9 @@ def inventory_list(request):
     )
     for dealer in location_dealers:
         dealer.filter_count = location_counts.get(dealer.pk, 0)
+        # T-234：可搜尋多選依區域分組（沿用車行聯絡資料的縣市順序）。
+        dealer.region_label = region_label(dealer.city)
+        dealer.region_order = region_order(dealer.city)
     disposition_counts = {row["disposition"]: row["total"] for row in facet("disposition", "disposition")}
     disposition_choices = [
         (value, label, disposition_counts.get(value, 0))

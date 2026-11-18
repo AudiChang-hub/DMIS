@@ -90,6 +90,7 @@ from .services.registration_fee import (
 from .services.installment_plan import resolve_installment_plan_option
 from .services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
 from .services.home_stores import home_location_stores
+from .services.dealer_regions import option_attrs as dealer_option_attrs
 from .services.price_version import (
     recommended_price_from_snapshot,
     recommended_vehicle_price,
@@ -1518,6 +1519,17 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
 )
 
 
+class DealerRegionSelectMultiple(forms.SelectMultiple):
+    """車行多選依區域分組（T-234）：選項加縣市 data 屬性，可搜尋多選依車行聯絡資料的縣市順序分組；值不變。"""
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        instance = getattr(value, "instance", None)
+        if instance is not None:
+            option["attrs"].update(dealer_option_attrs(getattr(instance, "city", "")))
+        return option
+
+
 class BonusBrandSelectMultiple(forms.SelectMultiple):
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
@@ -1545,7 +1557,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
     name = forms.CharField(label="規則名稱", max_length=120, required=False,
         help_text="可留白，依目前品牌與能源自動命名；自行填寫時保留自訂名稱。",
         widget=forms.TextInput(attrs={"placeholder": "留白自動命名，或輸入自訂名稱"}))
-    dealers = forms.ModelMultipleChoiceField(label="適用車行", queryset=SalesSource.objects.none(), required=False)
+    dealers = forms.ModelMultipleChoiceField(label="適用車行", queryset=SalesSource.objects.none(), required=False, widget=DealerRegionSelectMultiple)
     brands = forms.MultipleChoiceField(label="品牌", required=False, widget=BonusBrandSelectMultiple)
     period_type = forms.ChoiceField(label="統計方式", choices=DealerVolumeBonusRule.PeriodType.choices, required=False, widget=forms.RadioSelect)
     period_year = forms.IntegerField(label="年份", min_value=1900, max_value=9999, required=False)
@@ -4200,7 +4212,7 @@ class IncentiveCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):
         ]
         widgets = {
             "kind": forms.RadioSelect,
-            "dealers": forms.SelectMultiple(),
+            "dealers": DealerRegionSelectMultiple(),
             "vehicle_models": CampaignVehicleModelSelectMultiple(),
             "announced_on": DateInput(),
             "effective_from": DateInput(),
@@ -4331,7 +4343,7 @@ class DealerRewardCampaignForm(CampaignConditionsFormMixin, forms.ModelForm):
                   "note", "active"]
         widgets = {
             "vehicle_models": CampaignVehicleModelSelectMultiple(),
-            "dealers": forms.SelectMultiple(),
+            "dealers": DealerRegionSelectMultiple(),
             "effective_from": DateInput(),
             "effective_to": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),

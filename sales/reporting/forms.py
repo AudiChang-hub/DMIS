@@ -468,6 +468,9 @@ class FilterForm(forms.Form):
             ("車行", "dealer", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.DEALER]),
             ("平台", "platform", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.PLATFORM]),
         ])
+        from sales.services.dealer_regions import dealer_city_by_pk
+        cities = dealer_city_by_pk()
+        self._group_dealer_regions("source", lambda value: cities.get(int(value)) if str(value).isdigit() else "")
 
     def _split_legacy_dealer(self, pairs):
         kinds = {}
@@ -486,6 +489,16 @@ class FilterForm(forms.Form):
             ("車行", "dealer", [(value, text) for value, text in choices if group.get(value) == "dealer"]),
             ("平台", "platform", [(value, text) for value, text in choices if group.get(value) == "platform"]),
         ])
+        from sales.services.dealer_regions import dealer_city_by_report_label, report_label_key
+        cities = dealer_city_by_report_label()
+        self._group_dealer_regions("legacy_dealer", lambda value: cities.get(report_label_key(value), ""))
+
+    def _group_dealer_regions(self, name, city_of):
+        """「車行」選擇器依區域分組（T-234）：沿用車行聯絡資料的縣市順序，對不到車行主檔的歸「未分區」。只改顯示，值不變。"""
+        from sales.services.dealer_regions import group_choices
+        for group in getattr(self[name], "split_groups", None) or []:
+            if group["id"].endswith("_dealer"):
+                group["regions"] = group_choices(group["choices"], city_of)
 
     def clean(self):
         data = super().clean()

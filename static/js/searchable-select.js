@@ -62,6 +62,10 @@
     const storageKey = `dmis-recent-select:${select.name}`;
     let activeIndex = -1;
     let suppressFocusOpen = false;
+    // 車行多選依區域分組（T-234）：選項有 data-region 才分組；收合狀態只在這頁有效。
+    const regionApi = typeof window !== "undefined" ? window.DMISRegionGroups : null;
+    const grouped = isMultiple && Boolean(regionApi) && [...select.options].some(option => "region" in option.dataset);
+    const collapsedRegions = new Set();
     const floating = window.DMISFloatingList.create(list, () => closeList({restore: true}));
 
     function availableOptions() {
@@ -175,8 +179,8 @@
             if (leftPinned && rightPinned) return left.index - right.index;
             return leftPinned ? -1 : 1;
           }
-          const leftIndex = recents.indexOf(left.value);
-          const rightIndex = recents.indexOf(right.value);
+          const leftIndex = grouped ? -1 : recents.indexOf(left.value);
+          const rightIndex = grouped ? -1 : recents.indexOf(right.value);
           if (leftIndex >= 0 || rightIndex >= 0) {
             if (leftIndex < 0) return 1;
             if (rightIndex < 0) return -1;
@@ -238,7 +242,7 @@
         list.append(empty);
         return;
       }
-      options.slice(0, 80).forEach((option, index) => {
+      const optionButton = (option, index) => {
         const button = document.createElement("button");
         button.type = "button";
         button.id = `${listId}-${index}`;
@@ -251,7 +255,78 @@
         button.textContent = option.textContent.trim();
         button.addEventListener("mousedown", event => event.preventDefault());
         button.addEventListener("click", () => choose(option));
-        list.append(button);
+        return button;
+      };
+      if (grouped) {
+        renderRegionGroups(options, needles.length > 0, optionButton);
+        return;
+      }
+      options.slice(0, 80).forEach((option, index) => list.append(optionButton(option, index)));
+    }
+
+    // 分組顯示：本店（data-pinned）固定最上面，其餘依區域分組；搜尋中有符合的區一律展開，沒有符合的區不顯示。
+    function renderRegionGroups(options, searching, optionButton) {
+      let index = 0;
+      const pinned = options.filter(option => option.dataset.pinned === "1");
+      pinned.forEach(option => list.append(optionButton(option, index++)));
+      const totals = new Map();
+      availableOptions().filter(option => option.value && option.dataset.pinned !== "1").forEach(option => {
+        const label = option.dataset.region || regionApi.UNASSIGNED;
+        totals.set(label, (totals.get(label) || 0) + 1);
+      });
+      const items = options.filter(option => option.value && option.dataset.pinned !== "1")
+        .map(option => ({option, region: option.dataset.region, order: option.dataset.regionOrder}));
+      regionApi.groupByRegion(items).forEach(group => {
+        const expanded = searching || !collapsedRegions.has(group.label);
+        const section = document.createElement("div");
+        section.className = "searchable-select__region";
+        section.setAttribute("role", "group");
+        section.setAttribute("aria-label", group.label);
+        const head = document.createElement("div");
+        head.className = "searchable-select__region-head";
+        const toggleRegion = document.createElement("button");
+        toggleRegion.type = "button";
+        toggleRegion.className = "searchable-select__region-toggle";
+        toggleRegion.setAttribute("aria-expanded", String(expanded));
+        const name = document.createElement("strong");
+        name.textContent = group.label;
+        const size = document.createElement("small");
+        size.textContent = regionApi.countLabel(group.items.length, totals.get(group.label) || group.items.length);
+        toggleRegion.append(name, size);
+        toggleRegion.addEventListener("mousedown", event => event.preventDefault());
+        toggleRegion.addEventListener("click", () => {
+          if (searching) return;
+          if (collapsedRegions.has(group.label)) collapsedRegions.delete(group.label);
+          else collapsedRegions.add(group.label);
+          renderOptions(input.value);
+          input.focus();
+        });
+        head.append(toggleRegion);
+        [["all", "全選此區"], ["none", "取消此區"]].forEach(([action, text]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "searchable-select__region-action";
+          button.dataset.regionSelect = action;
+          button.textContent = text;
+          button.addEventListener("mousedown", event => event.preventDefault());
+          button.addEventListener("click", () => {
+            group.items.forEach(item => {
+              item.option.selected = action === "all";
+              if (action === "all") remember(item.option);
+            });
+            // 與單點選項一致：有勾選就取消空白（全部）選項，全部取消時改回空白選項。
+            const anySelected = selectedOptions().length > 0;
+            [...select.options].forEach(item => { if (!item.value) item.selected = !anySelected; });
+            select.dispatchEvent(new Event("change", {bubbles: true}));
+            syncFromSelect();
+            renderOptions(input.value);
+            input.focus();
+          });
+          head.append(button);
+        });
+        section.append(head);
+        if (expanded) group.items.forEach(item => section.append(optionButton(item.option, index++)));
+        list.append(section);
       });
     }
 

@@ -27,6 +27,14 @@ class ItemForm(forms.ModelForm):
         widgets = {"note": forms.Textarea(attrs={"class": "form-control", "rows": 2})}
 
 
+def _source_regions():
+    """勾選名單的車行依區域分組（T-234），沿用車行聯絡資料的縣市順序。"""
+    from .services.dealer_regions import group_choices
+    sources = list(SalesSource.objects.filter(active=True, source_type="dealer").order_by("name"))
+    cities = {str(source.pk): source.city for source in sources}
+    return group_choices([(str(source.pk), source.name) for source in sources], cities.get)
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def manage(request, pk=None):
@@ -128,6 +136,7 @@ def manage(request, pk=None):
         "page_obj": Paginator(rows, 20).get_page(request.GET.get("page")),
         "sources": SalesSource.objects.filter(active=True, source_type="dealer").order_by("name") if activity else [],
         "home_stores": home_store_choices() if activity else [],
+        "source_regions": _source_regions() if activity else [],
         "events": activity.events.all()[:30] if activity else [], "history": request.GET.get("history") == "1"})
 
 

@@ -1789,6 +1789,45 @@ input[type="file"].form-control { padding: var(--space-3); }
 .searchable-select__list .searchable-select__bulk-toggle:disabled { opacity: .45; cursor: default; }
 .searchable-select__list .searchable-select__bulk-toggle[aria-checked] { background: transparent; }
 .searchable-select__list .searchable-select__bulk-toggle[aria-checked]:hover:not(:disabled) { background: var(--mint); }
+/* 車行多選依區域分組（T-234）：沿用車行聯絡資料的縣市順序；每區可收合，標題有區域、家數與「全選此區／取消此區」。 */
+.searchable-select__region + .searchable-select__region { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--line); }
+.searchable-select__region-head,
+.region-group__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.searchable-select__list .searchable-select__region-toggle,
+.region-group__toggle {
+  display: flex; flex: 1 1 auto; width: auto; min-width: 0; min-height: 40px; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2); color: var(--ink); background: transparent; border: 0; border-radius: var(--radius-sm);
+  cursor: pointer; font: inherit; font-weight: 850; text-align: left;
+}
+.searchable-select__list .searchable-select__region-toggle small,
+.region-group__toggle small { color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
+.searchable-select__region-toggle::before,
+.region-group__toggle::before {
+  flex: 0 0 7px; width: 7px; height: 7px; margin-right: var(--space-1); content: "";
+  border-right: 2px solid var(--select-chevron); border-bottom: 2px solid var(--select-chevron);
+  transform: rotate(-45deg); transition: transform .15s ease;
+}
+.searchable-select__region-toggle[aria-expanded="true"]::before,
+.region-group__toggle[aria-expanded="true"]::before { transform: rotate(45deg); }
+.searchable-select__list .searchable-select__region-action,
+.region-group__actions button {
+  width: auto; min-height: 34px; padding: var(--space-1) var(--space-2); color: var(--forest-2); background: var(--surface-soft);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-xs); font-weight: 850;
+}
+.searchable-select__list .searchable-select__region-action:hover,
+.region-group__actions button:hover,
+.region-group__toggle:hover { color: var(--action-text); background: var(--mint); }
+.region-group__toggle:focus-visible,
+.region-group__actions button:focus-visible { outline: 3px solid var(--forest); outline-offset: 2px; }
+.region-group__actions { display: flex; gap: var(--space-2); }
+.region-group__head { margin-bottom: var(--space-1); }
+.region-group { grid-column: 1 / -1; }
+.region-group + .region-group { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--line); }
+.recipient-options .region-group__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-3); }
+@media (prefers-reduced-motion: reduce) {
+  .searchable-select__region-toggle::before,
+  .region-group__toggle::before { transition: none; }
+}
 /* 複選已有勾選：已選摘要寫在框內（提示字改成正文色、加粗），框線帶主色，一眼看出哪幾欄在篩選。 */
 .searchable-select.has-selection .searchable-select__input {
   background: color-mix(in srgb, var(--mint) 55%, var(--surface));

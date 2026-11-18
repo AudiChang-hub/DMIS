@@ -82,6 +82,7 @@
   .order-hero { margin-inline: calc(-1 * var(--space-2)); padding: var(--space-2); }
   .order-compact-anchor { margin-inline: calc(-1 * var(--space-2)); }
   .order-compact-bar__number { display: none; }
+  .order-compact-bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (max-width: 600px) {
   .order-compact-bar { min-height: 52px; gap: var(--space-2); padding-inline: var(--space-2); }

@@ -57,6 +57,7 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-pill: 999px;
+  --control-h: 44px; /* T-226：手機欄位、下拉與按鈕共用高度 */
   --text-2xs: .6875rem;
   --text-xs: .75rem;
   --text-sm: .8125rem;
@@ -5045,7 +5046,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .operations-filters { grid-template-columns: 1fr 1fr; }
   .operations-filters .master-search, .operations-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .desktop-nav { display: none; }
-  .app-header { min-height: 62px; padding: env(safe-area-inset-top) var(--space-4) 0; }
+  .app-header { min-height: 62px; padding: env(safe-area-inset-top) var(--space-4) 0; background: linear-gradient(var(--header-surface), var(--header-surface)), var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .app-header-inner { min-height: 62px; }
   .brand { padding-right: var(--space-2); }
 
@@ -5098,12 +5099,12 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .inventory-filter--search, .inventory-filter-actions { grid-column: 1 / -1; }
   .inventory-filter-actions { justify-content: flex-end; }
   .inventory-list-panel, .inventory-table-wrap { width: 100%; max-width: 100%; }
-  .form-progress { top: 70px; }
+  .form-progress { top: 70px; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .accessory-row { grid-template-columns: 1fr 1fr; padding: var(--inset-pad); background: var(--surface-soft); border-radius: var(--radius-md); }
   .other-fee-row { grid-template-columns: 1fr; padding: var(--inset-pad); background: var(--surface-soft); border-radius: var(--radius-md); }
   .accessory-row .field:first-of-type, .accessory-row .field:last-child { grid-column: 1 / -1; }
   .desktop-save { display: none; }
-  .mobile-submit { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .mobile-submit { bottom: calc(70px + env(safe-area-inset-bottom)); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 @media (max-width: 600px) {
@@ -7570,13 +7571,13 @@ h3 { font-weight: 750; letter-spacing: -.01em; }
 /* 表格表頭：小字、加寬字距。 */
 .inventory-table th { color: var(--muted); font-size: var(--text-xs); letter-spacing: .04em; }
 
-/* 動態：換頁淡入、頁首區上浮；系統設定「減少動態」時關閉。 */
-@view-transition { navigation: auto; }
+/* 動態：換頁淡入、頁首區上浮；系統設定「減少動態」時關閉。手機（860px 以下）不做進場動畫與跨頁轉場，換頁直接顯示（T-226）。 */
+@media (min-width: 860.02px) { @view-transition { navigation: auto; } }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-2); }
 main { animation: page-fade var(--dur-3) var(--ease-out); }
 @keyframes page-fade { from { opacity: 0; } }
 @keyframes page-rise { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) {
+@media (prefers-reduced-motion: reduce), (max-width: 860px) {
   main, .hero-row { animation: none; }
   .button:active:not([disabled], [aria-disabled="true"]) { transform: none; }
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
@@ -7637,9 +7638,9 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .order-draft-summary > div { flex: 1 1 auto; }
 .order-draft-summary strong { font-family: var(--font-display); font-size: var(--text-md); }
 
-/* ===== 設計系統 2.0：手機底部選單（玻璃底、目前頁面墨黑膠囊）與窄螢幕卡片 ===== */
+/* ===== 設計系統 2.0：手機底部選單（不透明底、目前頁面墨黑膠囊）與窄螢幕卡片 ===== */
 @media (max-width: 1100px) {
-  .mobile-nav { background: var(--header-surface); -webkit-backdrop-filter: saturate(1.8) blur(16px); backdrop-filter: saturate(1.8) blur(16px); border-top: 1px solid var(--header-border); box-shadow: 0 -8px 24px color-mix(in srgb, var(--shadow-ink) 6%, transparent); }
+  .mobile-nav { background: linear-gradient(var(--header-surface), var(--header-surface)), var(--paper); border-top: 1px solid var(--header-border); box-shadow: 0 -8px 24px color-mix(in srgb, var(--shadow-ink) 6%, transparent); }
   .mobile-nav > a, .mobile-data-menu > summary { margin: 0 2px; border-radius: var(--radius-lg); transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out); }
   .mobile-nav .mobile-new span { border-color: var(--surface); box-shadow: 0 6px 16px color-mix(in srgb, var(--forest) 30%, transparent); }
 }
@@ -8141,3 +8142,20 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .home-start-card__go { transition: none; } }
 @media print { .home-start-card, .page-help-tip { display: none !important; } }
 
+/* ===== T-226：手機共用基礎（欄位字級與高度、按鈕群組、換行） =====
+   iOS 欄位字級低於 16px 點下去會放大畫面；欄位、下拉、按鈕同高；頁首按鈕群組每列等寬；標題平衡換行、短標籤不拆行。
+   全部只在 860px 以下生效，桌面版不變。 */
+@media (max-width: 860px) {
+  :is(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=color], [type=hidden], [type=submit], [type=button]), select, textarea) { font-size: var(--text-base) !important; } /* 各元件常以 font: inherit 繼承 13–14px 標籤字級，iOS 一律放大，所以手機強制 16px */
+  :is(.form-control:not(textarea), .inventory-filter :is(input, select), .order-filter-bar :is(input, select), .order-filter-submit) { min-height: var(--control-h); padding-block: var(--space-2); }
+  main :is(h1, h2, h3) { text-wrap: balance; }
+  main :is(p, li, dd) { text-wrap: pretty; }
+  .button { text-wrap: balance; }
+  .status-pill { white-space: nowrap; }
+}
+@media (max-width: 600px) {
+  /* 每顆至少半列寬；字太長放不下半列時自己佔一整列，所以每一列都是等寬兩顆或滿寬一顆。 */
+  :is(.hero-actions > .button, .hero-actions > form, .order-drilldown > a:not(.button), .order-drilldown > .button) { flex: 1 1 calc(50% - var(--space-3) / 2); min-height: var(--control-h); padding-inline: var(--space-3); justify-content: center; font-size: var(--text-sm-plus); white-space: nowrap; }
+  .hero-actions > form > .button { width: 100%; min-height: var(--control-h); }
+  .order-drilldown > strong { flex: 1 1 100%; }
+}

@@ -495,3 +495,48 @@ class MobileUatLayoutTests(SimpleTestCase):
         self.assertIn('getComputedStyle(element).position === "fixed"', script)
         self.assertIn('element.closest(".mobile-nav")', script)
         self.assertIn("頁面水平溢出", script)
+
+
+class MobileFoundationTests(SimpleTestCase):
+    """T-226：iPhone 操作卡頓與版面。共用規則只寫在 860px／600px 以下，桌面版不變。"""
+
+    app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")
+
+    def test_phone_inputs_never_trigger_ios_zoom(self):
+        """iOS 欄位字級低於 16px 點下去會放大畫面；元件常以 font: inherit 繼承 13–14px 標籤字級，所以手機強制 16px。"""
+        mobile = MobileUatLayoutTests.mobile_block(self.app)
+        self.assertIn("select, textarea) { font-size: var(--text-base) !important; }", mobile)
+
+    def test_phone_fields_and_buttons_share_control_height(self):
+        mobile = MobileUatLayoutTests.mobile_block(self.app)
+        self.assertIn("--control-h: 44px;", self.app.split("}", 1)[0])
+        self.assertIn(".order-filter-bar :is(input, select), .order-filter-submit) { min-height: var(--control-h);", mobile)
+
+    def test_phone_button_groups_fill_rows_evenly(self):
+        """頁首按鈕群組每顆至少半列寬，放不下半列就自己滿寬一列，不再依字數長短參差排列。"""
+        phone = MobileUatLayoutTests.mobile_block(self.app, "@media (max-width: 600px) {")
+        rule = re.search(r":is\(\.hero-actions > \.button, [^{]*\) \{([^}]*)\}", phone)
+        self.assertIsNotNone(rule)
+        self.assertIn("flex: 1 1 calc(50% - var(--space-3) / 2);", rule.group(1))
+        self.assertIn("min-height: var(--control-h);", rule.group(1))
+        self.assertIn("white-space: nowrap;", rule.group(1))
+
+    def test_phone_wrapping_rules(self):
+        mobile = MobileUatLayoutTests.mobile_block(self.app)
+        self.assertIn("main :is(h1, h2, h3) { text-wrap: balance; }", mobile)
+        self.assertIn("main :is(p, li, dd) { text-wrap: pretty; }", mobile)
+        self.assertNotIn("keep-all", self.app)  # 中文沒有空格，keep-all 會讓整句無法斷行
+
+    def test_phone_skips_glass_and_entry_motion(self):
+        """手機頁首、底部導覽、精靈底部列、訂單精簡列不用毛玻璃；換頁進場動畫與跨頁轉場只在桌面。"""
+        mobile = MobileUatLayoutTests.mobile_block(self.app)
+        for selector in (".app-header", ".form-progress", ".mobile-submit"):
+            rule = re.search(rf"\n  {re.escape(selector)} \{{([^}}]*)\}}", mobile)
+            self.assertIsNotNone(rule, selector)
+            self.assertIn("backdrop-filter: none;", rule.group(1))
+        self.assertNotRegex(self.app, r"\.mobile-nav \{[^}]*blur\(")
+        workspace = (CSS_DIR / "order-workspace.css").read_text(encoding="utf-8")
+        self.assertIn(".order-compact-bar { background: var(--paper); -webkit-backdrop-filter: none; backdrop-filter: none; }", MobileUatLayoutTests.mobile_block(workspace))
+        self.assertIn("@media (min-width: 860.02px) { @view-transition { navigation: auto; } }", self.app)
+        self.assertEqual(self.app.count("@view-transition"), 1)
+        self.assertIn("@media (prefers-reduced-motion: reduce), (max-width: 860px) {\n  main, .hero-row { animation: none; }", self.app)

@@ -33,7 +33,7 @@
         <span class="order-export-key is-editable">可改完匯回</span>
         <span class="order-export-key is-readonly">只能看</span>
         <span class="order-export-key is-order-page">只能在訂單頁改</span>
-        <p class="muted">預設勾選的是原本「匯出營運資料」那組欄位，不改直接匯出內容相同。「可改完匯回」的欄位在 Excel 是白底，改完可用「匯回改好的檔案」批次修改（這一版先開放非金額欄位）；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
+        <p class="muted">預設勾選的是原本「匯出營運資料」那組欄位，不改直接匯出內容相同。「可改完匯回」的欄位在 Excel 是白底，改完可用「匯回改好的檔案」批次修改；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
       </div>
       {% for row in groups %}
       <fieldset class="order-export-group{% if row.group.sensitive %} is-sensitive{% endif %}" data-export-group="{{ row.group.key }}"{% if not row.allowed %} disabled{% endif %}>

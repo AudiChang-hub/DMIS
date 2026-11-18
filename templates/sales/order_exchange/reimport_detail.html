@@ -67,12 +67,18 @@
         <thead><tr><th scope="col">欄位</th><th scope="col">系統現值</th><th scope="col">檔案值</th><th scope="col">處理</th></tr></thead>
         <tbody>{% for field in item.fields %}<tr class="{% if field.conflict %}is-conflict{% elif field.clear %}is-clear{% endif %}">
           <th scope="row" data-label="欄位">{{ field.label }}<small>{% for key, label in section_labels.items %}{% if key == field.section %}{{ label }}{% endif %}{% endfor %}</small></th>
-          <td data-label="系統現值">{{ field.current|default:"（空白）" }}</td>
-          <td data-label="檔案值">{{ field.new|default:"（清除）" }}</td>
-          <td data-label="處理">{% if field.conflict %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 以檔案為準</label><small>匯出時是「{{ field.base|default:"空白" }}」，之後有人改過；不勾就不覆蓋。</small>{% elif field.clear %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 確認清除</label>{% else %}會修改{% endif %}</td>
+          <td data-label="系統現值">{{ field.current_display|default:"（空白）" }}</td>
+          <td data-label="檔案值">{{ field.new_display|default:"（清除）" }}</td>
+          <td data-label="處理">{% if field.conflict %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 以檔案為準</label><small>匯出時是「{{ field.base_display|default:"空白" }}」，之後有人改過；不勾就不覆蓋。</small>{% elif field.clear %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 確認清除</label>{% else %}會修改{% endif %}</td>
         </tr>{% endfor %}</tbody>
       </table>
     </div>
+    {% if item.recalc %}
+    <div class="bulk-recalc" role="group" aria-label="第 {{ item.row }} 列跟著重算的金額">
+      <p class="bulk-recalc__title">跟著重算 <small>依目前勾選試算；勾了「以檔案為準」或「確認清除」，結果可能不同</small></p>
+      <dl>{% for metric in item.recalc %}<div><dt>{{ metric.label }}</dt><dd>{{ metric.before|default:"—" }} → <strong>{{ metric.after|default:"—" }}</strong></dd></div>{% endfor %}</dl>
+    </div>
+    {% endif %}
     {% if item.needs_correction %}<label class="check-row bulk-row__correction"><input type="checkbox" name="correction-{{ item.row }}"><span>這張已交車：我確認這是完成後修正，交付狀態不變；金額有變時會記應收差額。</span></label>{% endif %}
     {% endif %}
     {% if item.ignored %}

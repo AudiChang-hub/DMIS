@@ -1,11 +1,13 @@
-"""訂單回匯批次修改（T-232 第 3a 版：不牽涉金額的欄位）。
+"""訂單回匯批次修改（T-232 第 3a 版非金額欄位；第 3b 版開放金額欄位）。
 
 流程：上傳本系統匯出、改好的 xlsx → `read_workbook` 讀出每列的值 → `build_plan` 依「匯出時／系統現值／檔案值」
 三方比對並用訂單頁同一份表單驗證 → 使用者在預覽勾選衝突、清除、完成後修正與不匯入的列 → `apply_plan`
 在同一個交易裡逐張呼叫訂單頁自動儲存的同一段存檔流程（`services/order_save.py`），任何一張失敗整批退回。
 
-這一版只寫入第一批欄位（車主、交車與選號、備註、汰舊舊車主、舊車與報廢、車控電池帳號）。其他標成可回匯的
-金額欄位（3b）改了只列「下一版開放，已忽略」；車主證件號碼列「不可修改，已忽略」；只能看的欄位列「已忽略」。
+可寫入：車主、交車與選號、備註、汰舊舊車主、舊車與報廢、車控電池帳號（3a），以及成交車價、牌險與選號費、
+付款方式與分期、來源與指定歸屬車行、收支頁人工金額（3b）。車主證件號碼列「不可修改，已忽略」；只能看的欄位列「已忽略」。
+金額欄位逐張判斷：表單上停用（已入帳撥款、已結算台數獎金的歸屬等）列「已鎖定，已忽略」；多種付款方式的單
+改付款方式或車價列「請到訂單頁修改」。預覽對有金額修改的列在交易裡試存再整筆退回，列出跟著重算的金額。
 """
 import hashlib
 import json
@@ -26,13 +28,26 @@ MAX_ROWS = 200
 MAX_BYTES = 5 * 1024 * 1024
 EVENT = "bulk_update"
 
-CONTENT, SUBSIDY, OLD_VEHICLE, FULFILLMENT = "content", "subsidy", "old_vehicle", "fulfillment"
-SECTION_LABELS = {CONTENT: "訂車與配件", SUBSIDY: "汰舊補助資料", OLD_VEHICLE: "舊車與報廢", FULFILLMENT: "車控與電池"}
+CONTENT, SUBSIDY, OLD_VEHICLE, FULFILLMENT, FINANCE = "content", "subsidy", "old_vehicle", "fulfillment", "finance"
+SECTION_LABELS = {CONTENT: "訂車與配件", SUBSIDY: "汰舊補助資料", OLD_VEHICLE: "舊車與報廢", FULFILLMENT: "車控與電池",
+                  FINANCE: "收入與支出"}
 # 每個區段在訂單頁的自動儲存端點；寫入前用同一條路由檢查權限（與訂單頁相同）。
 SECTION_ROUTES = {CONTENT: "order_edit", SUBSIDY: "subsidy_data_update",
-                  OLD_VEHICLE: "order_operations", FULFILLMENT: "order_operations"}
+                  OLD_VEHICLE: "order_operations", FULFILLMENT: "order_operations", FINANCE: "order_operations"}
 # 訂單頁的中介層對這兩個端點的 POST 另外要求「訂單內部財務」修改權限（access/middleware.py），回匯照做。
 FINANCE_GUARDED_ROUTES = frozenset({"order_edit", "order_operations"})
+# 3b 金額欄位：訂車與配件表單裡的價格、付款與來源，以及收支頁人工可改的金額。
+PRICING_KEYS = (
+    "vehicle_price", "plate_insurance_fee", "plate_selection_fee", "payment_type", "installment_company",
+    "installment_periods", "installment_monthly", "installment_opening_fee", "source_type", "source",
+    "assigned_commission_recipient",
+)
+FINANCE_KEYS = tuple(column.key for column in cols.COLUMNS if column.group == "finance" and column.editable)
+MONEY_KEYS = frozenset(PRICING_KEYS) | frozenset(FINANCE_KEYS)
+# 車價與付款方式由付款明細推出（forms.SalesOrderForm._clean_payment_splits）：單一付款時改那一筆，多筆時不能改。
+SPLIT_KEYS = frozenset({"payment_type", "vehicle_price"})
+# 匯出欄位代碼與表單欄位名稱不同的。
+FORM_FIELD = {"assigned_commission_recipient": "commission_recipient"}
 FIELD_SECTION = {
     **{key: CONTENT for key in (
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date", "owner_address",
@@ -45,8 +60,10 @@ FIELD_SECTION = {
         "old_vehicle_manufactured_on", "scrapped_on", "recycled_on")},
     **{key: FULFILLMENT for key in (
         "vehicle_control_account", "battery_plan", "battery_activated_on", "battery_account", "battery_rate_plan")},
+    **{key: CONTENT for key in PRICING_KEYS},
+    **{key: FINANCE for key in FINANCE_KEYS},
 }
-SECTION_ORDER = (CONTENT, SUBSIDY, OLD_VEHICLE, FULFILLMENT)
+SECTION_ORDER = (CONTENT, SUBSIDY, OLD_VEHICLE, FULFILLMENT, FINANCE)
 # 與「用 Excel 更新既有訂單」相同：系統必填或有佔位值的欄位不能用 Excel 清空。
 NOT_CLEARABLE = frozenset({"owner_name", "owner_phone", "owner_address"})
 FORMULA_PREFIXES = ("=", "+", "-", "@")
@@ -54,7 +71,10 @@ DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d")
 
 IGNORED_READONLY = "只能看，已忽略"
 IGNORED_ORDER_PAGE = "不可修改，已忽略（請到訂單頁修改）"
-IGNORED_NEXT_VERSION = "金額類欄位下一版開放，已忽略"
+IGNORED_NEXT_VERSION = "這一欄還不能匯回，已忽略"
+IGNORED_MULTI_PAYMENT = "這張有多種付款方式，不能用匯回改付款方式或車價，已忽略；請到訂單頁修改"
+IGNORED_COMMISSION_LOCKED = "已結算台數獎金，歸屬車行已鎖定，已忽略"
+IGNORED_LOCKED = "這張訂單的這一欄已鎖定（由收款、對帳或系統同步），已忽略；請到訂單頁確認"
 
 
 class ReimportError(Exception):
@@ -121,6 +141,15 @@ def normalize_cell(value, column, *, formula=False):
     if column.choices and text not in column.choices:
         return text, "請從下拉清單選擇：" + "、".join(column.choices)
     return text, ""
+
+
+def _shown(column, text):
+    if column.kind == cols.MONEY and text:
+        try:
+            return f"{Decimal(text):,.0f}"
+        except InvalidOperation:
+            return text
+    return text or ""
 
 
 def _current(order, column):
@@ -240,6 +269,7 @@ def build_plan(batch, user, decisions=None):
             item["errors"].append("這張訂單不在這份匯出裡，請不要從別的檔案貼上整列。")
             continue
         base_values = baseline[str(order_id)].get("values", {})
+        forms_cache = {}
         for key, text in row["values"].items():
             column = cols.COLUMN_BY_KEY[key]
             current = _current(order, column)
@@ -267,10 +297,25 @@ def build_plan(batch, user, decisions=None):
             if clear and key in NOT_CLEARABLE:
                 item["errors"].append(f"「{label}」不能清空；要改請填新的值。")
                 continue
-            item["fields"].append({
+            field = {
                 "key": key, "label": label, "section": FIELD_SECTION[key], "current": current, "new": text,
                 "base": base, "conflict": base is not None and current != base, "clear": clear,
-            })
+                # 畫面顯示用（金額加千分位）；比對與寫入一律用上面的原始文字。
+                "current_display": _shown(column, current), "new_display": _shown(column, text),
+                "base_display": _shown(column, base),
+            }
+            if key in MONEY_KEYS:
+                lock = _money_lock(order, key, forms_cache)
+                if lock:
+                    item["ignored"].append({"label": label, "reason": lock})
+                    continue
+                if key in ("source", "assigned_commission_recipient") and text:
+                    reference, error = _reference(order, key, text, forms_cache, row["values"])
+                    if error:
+                        item["errors"].append(f"「{label}」{error}")
+                        continue
+                    field["form_value"] = reference
+            item["fields"].append(field)
         sections = [section for section in SECTION_ORDER if any(f["section"] == section for f in item["fields"])]
         item["sections"] = sections
         for section in sections:
@@ -377,13 +422,88 @@ def _formset_payload(formset):
 
 
 def _form_value(field):
-    """檔案值換成表單要的值：下拉選項的中文換回代碼。"""
+    """檔案值換成表單要的值：來源與車行已換成編號；下拉選項的中文換回代碼。"""
+    if "form_value" in field:
+        return field["form_value"]
     column = cols.COLUMN_BY_KEY[field["key"]]
     if column.choices and column.kind != cols.BOOL:
         model_field = SalesOrder._meta.get_field(field["key"])
         return {label: value for value, label in model_field.choices}.get(field["new"], field["new"])
     return field["new"]
 
+
+# ---------------------------------------------------------------- 金額欄位：逐張鎖定與名稱對應（3b）
+
+def _content_form(order, cache):
+    from sales.forms import OrderEditForm
+
+    if "content" not in cache:
+        cache["content"] = OrderEditForm(instance=order)
+    return cache["content"]
+
+
+def _finance_form(order, cache):
+    from sales.forms import OrderOperationsForm
+
+    if "finance" not in cache:
+        profile = OrderOperationsProfile.objects.filter(order=order).first() or OrderOperationsProfile(order=order)
+        cache["finance"] = OrderOperationsForm(instance=profile, prefix="operations", section=FINANCE)
+    return cache["finance"]
+
+
+def _money_lock(order, key, cache):
+    """這張訂單的這一欄能不能用回匯改；不能時回傳原因（列在「已忽略」）。依據是訂單頁同一份表單的停用狀態。"""
+    if key in SPLIT_KEYS and len(order.payment_splits or []) > 1:
+        return IGNORED_MULTI_PAYMENT
+    if FIELD_SECTION[key] == FINANCE:
+        field = _finance_form(order, cache).fields.get(key)
+        return IGNORED_LOCKED if field is None or field.disabled else ""
+    form = _content_form(order, cache)
+    field = form.fields.get(FORM_FIELD.get(key, key))
+    if field is None or field.disabled:
+        if key == "assigned_commission_recipient" and getattr(form, "commission_attribution_locked", False):
+            return IGNORED_COMMISSION_LOCKED
+        return IGNORED_LOCKED
+    return ""
+
+
+def _reference(order, key, text, cache, row_values):
+    """來源、指定歸屬車行在檔案裡是名稱；照訂單頁下拉選單的範圍找唯一一筆，換成編號。
+    來源的選單依來源類型篩選（forms.SalesOrderForm）：檔案同時改了來源類型時，用新的類型找。"""
+    from sales.models import SalesSource
+
+    if key == "source":
+        labels = {label: value for value, label in SalesOrder.SourceType.choices}
+        source_type = labels.get(row_values.get("source_type") or "", order.source_type)
+        queryset = SalesSource.objects.filter(active=True, source_type=source_type)
+    else:
+        queryset = _content_form(order, cache).fields[FORM_FIELD.get(key, key)].queryset
+    matches = list(queryset.filter(name=text).values_list("pk", flat=True)[:2])
+    if not matches:
+        return "", f"找不到名稱「{text}」，請照系統裡的名稱填寫，或到訂單頁選擇。"
+    if len(matches) > 1:
+        return "", f"有多筆名稱都是「{text}」，請到訂單頁選擇。"
+    return str(matches[0]), ""
+
+
+def _rewrite_split(data, keys):
+    """單一付款方式：車價與付款方式由那一筆付款明細推出（車價＝明細加總），所以改那一筆。多筆時比對時就擋下。"""
+    try:
+        splits = json.loads(data.get("payment_splits") or "[]")
+    except ValueError:
+        return
+    if not isinstance(splits, list) or len(splits) != 1 or not isinstance(splits[0], dict):
+        return
+    row = dict(splits[0])
+    if "payment_type" in keys and data.get("payment_type"):
+        row["method"] = data["payment_type"]
+    if "vehicle_price" in keys:
+        price = data.get("vehicle_price")
+        row["amount"] = int(Decimal(price)) if price not in (None, "") else None
+    data["payment_splits"] = json.dumps([row])
+
+
+# ---------------------------------------------------------------- 表單（與訂單頁同一份）
 
 def _content_forms(order, fields, decision, user, data=None):
     from sales.forms import OrderEditForm, OrderPageAccessoryFormSet, OrderPageOtherFeeFormSet
@@ -397,7 +517,15 @@ def _content_forms(order, fields, decision, user, data=None):
         data["_order_revision"] = str(order.revision)
         data["_workspace"] = "1"
         for field in fields:
-            data[field["key"]] = _form_value(field)
+            data[FORM_FIELD.get(field["key"], field["key"])] = _form_value(field)
+        keys = {field["key"] for field in fields}
+        if "assigned_commission_recipient" in keys:
+            if data.get("commission_recipient"):
+                data["assign_commission_to_other"] = "on"
+            else:
+                data.pop("assign_commission_to_other", None)
+        if keys & SPLIT_KEYS:
+            _rewrite_split(data, keys)
         if decision["correction"]:
             data["confirm_completed_correction"] = "on"
     form = OrderEditForm(data, {}, instance=order)
@@ -436,6 +564,20 @@ def _operations_form(order, section, fields, profile=None):
     return profile, OrderOperationsForm(data, instance=profile, prefix="operations", section=section)
 
 
+def _finance_forms(order, fields, profile):
+    """收支區段跟訂單頁一樣連收款明細一起送（order_operations 在 finance 區段會帶 payment_formset）。"""
+    from sales.forms import OrderOperationsForm
+    from sales.services.order_workspace import payment_formset_for
+
+    data = _payload(OrderOperationsForm(instance=profile, prefix="operations", section=FINANCE))
+    data.update(_formset_payload(payment_formset_for(order)))
+    data["_section"] = FINANCE
+    for field in fields:
+        data[f"operations-{field['key']}"] = field["new"]
+    form = OrderOperationsForm(data, instance=profile, prefix="operations", section=FINANCE)
+    return form, payment_formset_for(order, data, None)
+
+
 def _form_errors(form, label):
     messages = []
     for name, errors in form.errors.items():
@@ -445,8 +587,19 @@ def _form_errors(form, label):
     return messages
 
 
+def _profile_for(order):
+    from sales.services.operations_sync import sync_order_operations
+
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if profile is None:
+        # 與 order_operations 相同：還沒有收支資料的舊單第一次送出時建立。
+        sync_order_operations(order.pk)
+        profile = OrderOperationsProfile.objects.get(order=order)
+    return profile
+
+
 def validate_row(item, decision, user):
-    """依勾選用訂單頁同一份表單驗證（不存檔），回傳錯誤訊息。"""
+    """依勾選用訂單頁同一份表單驗證（不存檔），回傳錯誤訊息。有金額修改的列在預覽改用 `dry_run`（實際試存）。"""
     fields = included_fields(item, decision)
     errors = []
     if item["needs_correction"] and not decision["correction"] and any(f["section"] == CONTENT for f in fields):
@@ -468,6 +621,15 @@ def validate_row(item, decision, user):
             form = _subsidy_form(order, section_fields)
             if not form.is_valid():
                 errors.extend(_form_errors(form, SECTION_LABELS[section]))
+        elif section == FINANCE:
+            profile = OrderOperationsProfile.objects.filter(order=order).first()
+            if profile is None:
+                continue  # 寫入時才建立收支資料；預覽的試算（dry_run）會實際驗證
+            form, payments = _finance_forms(order, section_fields, profile)
+            if not form.is_valid():
+                errors.extend(_form_errors(form, SECTION_LABELS[section]))
+            if not payments.is_valid():
+                errors.append(f"{SECTION_LABELS[section]}：收款明細有誤，請到訂單頁確認。")
         else:
             _profile, form = _operations_form(order, section, section_fields)
             if not form.is_valid():
@@ -475,13 +637,108 @@ def validate_row(item, decision, user):
     return errors
 
 
-# ---------------------------------------------------------------- 寫入
+# ---------------------------------------------------------------- 寫入（畫面自動儲存同一段存檔流程）
 
-def apply_plan(batch, user, submitted_fingerprint, decisions):
-    """整批寫入：重新比對，指紋不同丟 PlanChanged；任何一列驗證或存檔失敗丟 ApplyFailed，整批退回。"""
+def _save_section(order_pk, section, fields, decision, user, reason, row_number):
     from sales.forms import SubsidyItemFormSet
     from sales.services import order_save
 
+    def failed(messages):
+        return ApplyFailed([f"第 {row_number} 列：" + "；".join(messages)])
+
+    order = SalesOrder.objects.get(pk=order_pk)
+    label = SECTION_LABELS[section]
+    if section == CONTENT:
+        baseline = order_save.content_baseline(order)
+        data, form, formset, fee_formset = _content_forms(order, fields, decision, user)
+        if not (form.is_valid() and formset.is_valid() and fee_formset.is_valid()):
+            raise failed(_form_errors(form, label) or [f"{label}：配件或其他費用明細有誤，請到訂單頁確認。"])
+        order_save.save_order_content(order, form, formset, fee_formset, baseline, user=user, posted=data, reason=reason)
+    elif section == SUBSIDY:
+        baseline = order_save.subsidy_baseline(order)
+        form = _subsidy_form(order, fields)
+        if not form.is_valid():
+            raise failed(_form_errors(form, label))
+        order_save.save_subsidy_data(order, form, SubsidyItemFormSet(None, instance=order, prefix="subsidy_items"),
+                                     baseline, items_submitted=False, user=user, reason=reason)
+    elif section == FINANCE:
+        profile = _profile_for(order)
+        baseline = order_save.operations_baseline(order, profile)
+        form, payments = _finance_forms(order, fields, profile)
+        if not (form.is_valid() and payments.is_valid()):
+            raise failed(_form_errors(form, label) or [f"{label}：收款明細有誤，請到訂單頁確認。"])
+        order_save.save_operations(order, profile, form, payments, baseline, user=user, reason=reason)
+    else:
+        profile = OrderOperationsProfile.objects.get(order=order)
+        baseline = order_save.operations_baseline(order, profile)
+        profile, form = _operations_form(order, section, fields, profile)
+        if not form.is_valid():
+            raise failed(_form_errors(form, label))
+        order_save.save_operations(order, profile, form, None, baseline, user=user, reason=reason)
+
+
+def _save_row(item, decision, fields, user, reason):
+    for section in SECTION_ORDER:
+        section_fields = [f for f in fields if f["section"] == section]
+        if section_fields:
+            _save_section(item["order"].pk, section, section_fields, decision, user, reason, item["row"])
+
+
+def _money(value):
+    return "" if value is None else f"{Decimal(value):,.0f}"
+
+
+def _metrics(order_pk, user):
+    """跟著重算、要列給使用者看的金額；收支與淨利依權限才列（與匯出的欄位權限相同）。"""
+    order = SalesOrder.objects.get(pk=order_pk)
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    policy = _policy(user)
+    values = {
+        "actual_balance": ("尾款", order.actual_balance),
+        "discounted_total": ("優惠後總價", order.discounted_total),
+        "plate_insurance_fee": ("牌險費", order.plate_insurance_fee),
+        "installment_monthly": ("每期金額", order.installment_monthly),
+    }
+    if profile is not None and policy.screen("order_finance") and policy.route("order_operations"):
+        values.update({
+            "actual_disbursement": ("實際車價收入", profile.actual_disbursement),
+            "vehicle_cost": ("成本", profile.vehicle_cost),
+            "dealer_commission_expense": ("車行傭金支出", profile.dealer_commission_expense),
+            "total_income": ("總收入", profile.total_income),
+            "total_expense": ("總支出", profile.total_expense),
+        })
+        if policy.screen("profit") and not order.is_cancelled_sale:
+            values["net_profit"] = ("單筆淨利", profile.net_profit)
+    return values
+
+
+def dry_run(item, decision, user):
+    """在交易裡照寫入流程試存一次、記下重算後的金額，再整筆退回（背景工作、通知、檔案清理都掛在 on_commit，
+    退回時一併丟棄）。回傳 (跟著重算的金額, 錯誤訊息)；使用者直接改的欄位不重複列。"""
+    import logging
+
+    fields = included_fields(item, decision)
+    if not fields:
+        return [], []
+    before = _metrics(item["order"].pk, user)
+    try:
+        with transaction.atomic():
+            _save_row(item, decision, fields, user, "批次修改試算")
+            after = _metrics(item["order"].pk, user)
+            transaction.set_rollback(True)
+    except ApplyFailed as error:
+        return [], error.messages
+    except Exception:  # 試算失敗不能讓預覽頁出錯；確認寫入時會再驗證一次
+        logging.getLogger(__name__).exception("回匯試算失敗", extra={"order_id": item["order"].pk})
+        return [], ["試算時發生錯誤，請到訂單頁確認這張訂單的資料。"]
+    edited = {field["key"] for field in fields}
+    return [{"label": label, "before": _money(value), "after": _money(after[key][1])}
+            for key, (label, value) in before.items()
+            if key not in edited and key in after and after[key][1] != value], []
+
+
+def apply_plan(batch, user, submitted_fingerprint, decisions):
+    """整批寫入：重新比對，指紋不同丟 PlanChanged；任何一列驗證或存檔失敗丟 ApplyFailed，整批退回。"""
     actor = user.get_full_name() or user.get_username()
     with transaction.atomic():
         plan = build_plan(batch, user)
@@ -494,8 +751,8 @@ def apply_plan(batch, user, submitted_fingerprint, decisions):
         if unresolved:
             raise ApplyFailed([f"第 {item['row']} 列有錯誤，請修正檔案重新上傳，或勾「不匯入這列」。" for item in unresolved])
         # 依訂單編號順序鎖列，避免與畫面自動儲存互相等待。
-        locked = {order.pk: order for order in SalesOrder.objects.select_for_update(of=("self",))
-                  .filter(pk__in=[item["order"].pk for item in pending]).order_by("pk")}
+        list(SalesOrder.objects.select_for_update(of=("self",))
+             .filter(pk__in=[item["order"].pk for item in pending]).order_by("pk").values_list("pk", flat=True))
         written = []
         for item in pending:
             decision = _row_decision(decisions, item)
@@ -505,37 +762,12 @@ def apply_plan(batch, user, submitted_fingerprint, decisions):
             if item["needs_correction"] and not decision["correction"] and any(f["section"] == CONTENT for f in fields):
                 raise ApplyFailed([f"第 {item['row']} 列：已交車的訂單改「訂車與配件」要勾「完成後修正」，或不匯入這一列。"])
             reason = f"批次修改（{batch.file_name} 第 {item['row']} 列）"
-            for section in SECTION_ORDER:
-                section_fields = [f for f in fields if f["section"] == section]
-                if not section_fields:
-                    continue
-                order = SalesOrder.objects.get(pk=locked[item["order"].pk].pk)
-                if section == CONTENT:
-                    baseline = order_save.content_baseline(order)
-                    data, form, formset, fee_formset = _content_forms(order, section_fields, decision, user)
-                    if not (form.is_valid() and formset.is_valid() and fee_formset.is_valid()):
-                        raise ApplyFailed([f"第 {item['row']} 列：" + "；".join(_form_errors(form, SECTION_LABELS[section]))])
-                    order_save.save_order_content(order, form, formset, fee_formset, baseline, user=user,
-                                                  posted=data, reason=reason)
-                elif section == SUBSIDY:
-                    baseline = order_save.subsidy_baseline(order)
-                    form = _subsidy_form(order, section_fields)
-                    if not form.is_valid():
-                        raise ApplyFailed([f"第 {item['row']} 列：" + "；".join(_form_errors(form, SECTION_LABELS[section]))])
-                    order_save.save_subsidy_data(order, form, SubsidyItemFormSet(None, instance=order, prefix="subsidy_items"),
-                                                 baseline, items_submitted=False, user=user, reason=reason)
-                else:
-                    profile = OrderOperationsProfile.objects.get(order=order)
-                    baseline = order_save.operations_baseline(order, profile)
-                    profile, form = _operations_form(order, section, section_fields, profile)
-                    if not form.is_valid():
-                        raise ApplyFailed([f"第 {item['row']} 列：" + "；".join(_form_errors(form, SECTION_LABELS[section]))])
-                    order_save.save_operations(order, profile, form, None, baseline, user=user, reason=reason)
+            _save_row(item, decision, fields, user, reason)
             labels = "、".join(f["label"] for f in fields)
             OrderEvent.objects.create(order_id=item["order"].pk, event_type=EVENT, actor_name=actor,
                                       description=f"{reason}：{labels}")
             written.append({"row": item["row"], "order": item["order"].pk, "number": item["order"].number,
-                            "fields": [[f["label"], f["current"], f["new"]] for f in fields]})
+                            "fields": [[f["label"], f["current_display"], f["new_display"]] for f in fields]})
         from django.utils import timezone
         batch.status = batch.Status.APPLIED
         batch.decisions = decisions

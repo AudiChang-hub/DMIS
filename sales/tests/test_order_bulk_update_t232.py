@@ -180,20 +180,20 @@ class OrderBulkUpdateTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         order.refresh_from_db()
         self.assertEqual(order.note, "")
 
-    def test_id_number_money_and_readonly_changes_are_listed_but_ignored(self):
+    def test_id_number_and_readonly_changes_are_listed_but_ignored(self):
         order, _vehicle = self.make_order()
-        book = self.export_book(["owner_id_number", "vehicle_price", "status", "owner_phone"])
+        book = self.export_book(["owner_id_number", "status", "total_income", "owner_phone"])
         self.set_cell(book, order, "owner_id_number", "B987654321")
-        self.set_cell(book, order, "vehicle_price", 1)
         self.set_cell(book, order, "status", "已完成")
+        self.set_cell(book, order, "total_income", 999999)
         batch = self.uploaded_batch(book)
         item = self.row_of(self.preview(batch), order)
         self.assertEqual(item["fields"], [])
         self.assertEqual({entry["reason"] for entry in item["ignored"]},
-                         {reimport.IGNORED_ORDER_PAGE, reimport.IGNORED_NEXT_VERSION, reimport.IGNORED_READONLY})
+                         {reimport.IGNORED_ORDER_PAGE, reimport.IGNORED_READONLY})
         self.apply(batch)
         order.refresh_from_db()
-        self.assertEqual((order.owner_id_number, order.vehicle_price), ("A123456789", 75000))
+        self.assertEqual(order.owner_id_number, "A123456789")
 
     # ---- 檔案層級的檢查 ----
     def test_new_duplicate_and_unknown_rows(self):

@@ -65,10 +65,16 @@ def order_bulk_update_detail(request, pk):
         return render(request, "sales/order_exchange/reimport_detail.html", {"batch": batch, "plan": None})
     plan = reimport.build_plan(batch, request.user)
     # 先用預設勾選（衝突、清空不勾）驗證一次，表單錯誤直接列在該列。
+    # 有金額修改的列在交易裡試存再整筆退回，順便列出跟著重算的金額（尾款、傭金、淨利等）。
     decisions = reimport.default_decisions(plan)
     for item in plan["rows"]:
-        if item["order"] is not None and not item["errors"]:
-            item["validation"] = reimport.validate_row(item, decisions[str(item["row"])], request.user)
+        if item["order"] is None or item["errors"]:
+            continue
+        decision = decisions[str(item["row"])]
+        if any(field["key"] in reimport.MONEY_KEYS for field in item["fields"]):
+            item["recalc"], item["validation"] = reimport.dry_run(item, decision, request.user)
+        else:
+            item["validation"] = reimport.validate_row(item, decision, request.user)
     plan["summary"] = reimport.summarize(plan["rows"], batch.skipped_rows)
     rows = [item for item in plan["rows"] if item["fields"] or item["errors"] or item["ignored"] or item.get("validation")]
     return render(request, "sales/order_exchange/reimport_detail.html", {

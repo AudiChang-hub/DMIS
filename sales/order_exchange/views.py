@@ -3,6 +3,8 @@
 GET `order_export`：範圍（沿用全部訂單頁的篩選）→ 勾欄位 →（帶 `preview=1`）預覽前 50 列。只讀，不留紀錄。
 POST `order_export_download`：使用者在預覽下方按「確認匯出」才產生 xlsx，並寫 `OrderExportRecord`；
 含補助撥款帳戶時，每張單比照「查看完整帳號」寫 `payout_account_viewed` 事件。
+GET `operations_report_export`（舊「匯出營運資料」網址，Q9）：不再直接下載，改導到這個匯出頁，
+範圍換算成舊匯出的口徑（不分頁籤、沒勾「含取消」就排除取消類訂單），欄位預設就是舊匯出那組。
 """
 from urllib.parse import quote
 
@@ -21,6 +23,7 @@ from sales.models import OrderEvent, OrderExportRecord
 
 from . import columns as cols
 from .scope import export_queryset, scope_labels, scope_params
+from .retention import expire_baselines
 from .workbook import build_workbook
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -36,11 +39,16 @@ def _selected_keys(source, granted):
     return [column.key for column in cols.resolve(keys, granted)] if keys else []
 
 
-def _scope_or_error(request, params, finance):
+def _scope_or_error(request, params):
     try:
-        return export_queryset(request, params, finance=finance), ""
+        return export_queryset(request, params), ""
     except SuspiciousOperation as error:
         return (None, None), str(error)
+
+
+def _tab_choices():
+    from sales.services import order_tabs
+    return [("all", "全部（不分類）"), *[(key, label) for key, label, _hint in order_tabs.TABS]]
 
 
 @login_required
@@ -52,7 +60,7 @@ def order_export(request):
     chosen = _selected_keys(request.GET, granted)
     selection = chosen or cols.default_selection(granted)
     selected_columns = cols.resolve(selection, granted)
-    (orders, tab), scope_error = _scope_or_error(request, params, "finance" in {c.group for c in selected_columns})
+    (orders, tab), scope_error = _scope_or_error(request, params)
     total = orders.count() if orders is not None else 0
     preview = None
     if request.GET.get("preview") == "1" and chosen and orders is not None:
@@ -67,9 +75,13 @@ def order_export(request):
     back_query = params.copy()
     return render(request, "sales/order_exchange/export.html", {
         "groups": cols.group_rows(granted, set(selection)),
-        "scope_labels": scope_labels(params, tab) if orders is not None else [],
+        # 分類另有下拉選單可切換，標籤列不重複列出。
+        "scope_labels": [pair for pair in scope_labels(params, tab) if pair[0] != "分類"] if orders is not None else [],
         "scope_error": scope_error,
         "scope_items": list(params.lists()),
+        "scope_items_without_tab": [(key, values) for key, values in params.lists() if key != "tab"],
+        "current_tab": tab or "",
+        "tab_choices": _tab_choices(),
         "total": total,
         "limit": cols.EXPORT_LIMIT,
         "preview_rows": cols.PREVIEW_ROWS,
@@ -92,7 +104,7 @@ def order_export_download(request):
         return redirect(retry)
     selected_columns = cols.resolve(keys, granted)
     summary = cols.summary(selected_columns)
-    (orders, tab), scope_error = _scope_or_error(request, params, summary["finance"])
+    (orders, tab), scope_error = _scope_or_error(request, params)
     if scope_error:
         messages.error(request, scope_error)
         return redirect(retry)
@@ -115,6 +127,7 @@ def order_export_download(request):
         }
     actor = _actor(request.user)
     with transaction.atomic():
+        expire_baselines()
         record = OrderExportRecord.objects.create(
             created_by=request.user if request.user.is_authenticated else None,
             actor_name=actor,
@@ -140,3 +153,23 @@ def order_export_download(request):
         f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quote(f"訂單匯出-{stamp}.xlsx")}'
     )
     return response
+
+
+@login_required
+@never_cache
+@require_GET
+def legacy_operations_export(request):
+    """舊「匯出營運資料（目前篩選）」網址：導到新的匯出頁，範圍維持舊匯出的口徑。"""
+    from sales.models import SalesOrder
+    from sales.services.order_filters import filter_order_analysis
+
+    params = scope_params(request.GET)
+    # 日期格式錯誤照舊回 400（SuspiciousOperation），不導過去。
+    filter_order_analysis(SalesOrder.objects.none(), params)
+    params["tab"] = "all"  # 舊匯出不分頁籤
+    # 舊匯出預設排除取消類訂單（business_default），只有帶 include_cancelled=1 才包含。
+    if params.get("include_cancelled") == "1":
+        params.pop("business_only", None)
+    else:
+        params["business_only"] = "1"
+    return redirect(f"{reverse('order_export')}?{params.urlencode()}")

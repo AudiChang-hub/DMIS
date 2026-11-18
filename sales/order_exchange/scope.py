@@ -23,7 +23,7 @@ def scope_params(source):
     return params
 
 
-def export_queryset(request, params, *, finance=False):
+def export_queryset(request, params):
     from sales.services import order_tabs as tab_rules
     from sales.services.order_filters import filter_order_analysis
     from sales.services.order_intake import scoped_orders
@@ -39,7 +39,8 @@ def export_queryset(request, params, *, finance=False):
         orders = orders.filter(build_order_search_query(query, profit_unlocked=profit_visible)).distinct()
     orders = filter_order_analysis(orders, params)
     tab = params.get("tab")
-    if tab not in tab_rules.TAB_KEYS:
+    # 「全部」只在匯出頁與舊匯出網址明確指定（舊匯出不分頁籤）；全部訂單頁的頁籤沒有這個值。
+    if tab != "all" and tab not in tab_rules.TAB_KEYS:
         filtered = query or params.get("status") or any(params.get(key) for key in ORDER_LIST_FILTER_KEYS)
         tab = "all" if filtered else "open"
     if tab != "all":
@@ -51,9 +52,8 @@ def export_queryset(request, params, *, finance=False):
     orders = sort_orders(orders, tokens or default_tokens)
     orders = orders.select_related(
         "source", "commission_recipient", "vehicle_model", "color", "allocated_vehicle", "operations",
-    ).prefetch_related("accessories", "other_fees")
-    if finance:
-        orders = orders.prefetch_related(Prefetch("payment_records", queryset=PaymentRecord.objects.all()))
+    ).prefetch_related("accessories", "other_fees", "subsidy_items",
+                       Prefetch("payment_records", queryset=PaymentRecord.objects.all()))
     return orders, tab
 
 

@@ -16,7 +16,9 @@ class DownloadCookieTests(TestCase):
     def test_attachment_response_sets_short_cookie_for_busy_indicator(self):
         admin = self.user.__class__.objects.create_superuser("admin", password="test-only")
         self.client.force_login(admin)
-        exported = self.client.get(reverse("operations_report_export"))
+        # T-232：營運匯出改由訂單匯出頁「確認匯出」下載。
+        flow.OrderFlowTests.make_order(self)
+        exported = self.client.post(reverse("order_export_download"), {"cols": ["owner_name"], "tab": "all"})
         self.assertTrue(exported["Content-Disposition"].startswith("attachment"))
         cookie = exported.cookies["dmis_download"]
         self.assertEqual(cookie["max-age"], 60)

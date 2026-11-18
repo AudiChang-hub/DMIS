@@ -6235,7 +6235,10 @@ class OrderOperationsTests(TestCase):
         profile.vehicle_cost = Decimal("60000")
         profile.save()
         list_response = self.client.get(reverse("operations_report"))
-        export_response = self.client.get(reverse("operations_report_export"))
+        # T-232：營運匯出改由訂單匯出頁產生；預設欄位＝舊營運匯出那組。
+        from sales.order_exchange.columns import DEFAULT_COLUMNS
+        from sales.tests.export_helpers import legacy_export_sheet
+        export_response = self.client.post(reverse("order_export_download"), {"cols": list(DEFAULT_COLUMNS), "tab": "all"})
 
         self.assertEqual(list_response.status_code, 200)
         self.assertNotContains(list_response, self.order.number)
@@ -6249,10 +6252,7 @@ class OrderOperationsTests(TestCase):
             export_response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        from openpyxl import load_workbook
-
-        workbook = load_workbook(BytesIO(export_response.content))
-        sheet = workbook["營運總表"]
+        sheet = legacy_export_sheet(self.client)
         headers = [cell.value for cell in sheet[1]]
         self.assertIn("單筆淨利", headers)
         self.assertIn("電池合約方案", headers)
@@ -6276,12 +6276,8 @@ class OrderOperationsTests(TestCase):
             ]
         )
 
-        response = self.client.get(reverse("operations_report_export"))
-
-        from openpyxl import load_workbook
-
-        workbook = load_workbook(BytesIO(response.content), data_only=False)
-        sheet = workbook["營運總表"]
+        from sales.tests.export_helpers import legacy_export_sheet  # T-232：舊匯出網址改導到新的匯出頁
+        sheet = legacy_export_sheet(self.client)
         columns = {cell.value: cell.column for cell in sheet[1]}
         expected = {
             "車主名稱": "'=HYPERLINK(\"https://evil.example\",\"點我\")",

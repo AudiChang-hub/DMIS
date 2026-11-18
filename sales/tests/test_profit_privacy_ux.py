@@ -46,7 +46,8 @@ class ProfitPrivacyTests(TestCase):
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 403)
         ScreenAccessGrant.objects.filter(user=self.staff, screen_key="profit").update(export=True)
-        self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 200)
+        # T-232：舊網址仍受同樣的授權檢查，通過後導到新的訂單匯出頁。
+        self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 302)
 
     def test_history_and_admin_raw_finance_follow_profit_grant_without_password(self):
         from sales.models import OrderChange
@@ -137,7 +138,7 @@ class ProfitPrivacyTests(TestCase):
 
     def test_export_and_raw_financial_routes_follow_profit_grant(self):
         self.client.force_login(self.root)
-        self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 302)  # T-232：導到新的匯出頁
         ScreenAccessGrant.objects.create(user=self.staff, screen_key="operations", view=True, export=True)
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(reverse("operations_report_export")).status_code, 403)

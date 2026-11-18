@@ -1,6 +1,5 @@
 from datetime import date
 from decimal import Decimal
-from io import BytesIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -8,7 +7,6 @@ from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
-from openpyxl import load_workbook
 
 from sales.forms import SalesOrderForm
 from sales.models import (
@@ -329,9 +327,8 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertContains(preview_page, "dealer-volume-bonus.css")
         self.assertContains(self.client.get(reverse("order_detail", args=[order.pk])), "台數與傭金歸屬")
         self.assertNotContains(self.client.get(reverse("order_operations", args=[order.pk])), "傭金收款車行")
-        response = self.client.get(reverse("operations_report_export"))
-        sheet = load_workbook(BytesIO(response.content)).active
-        rows = list(sheet.values)
+        from sales.tests.export_helpers import legacy_export_sheet  # T-232：舊匯出網址改導到新的匯出頁
+        rows = list(legacy_export_sheet(self.client).values)
         index = rows[0].index("台數與傭金歸屬車行")
         self.assertEqual(rows[1][index], "A車行")
 

@@ -3,7 +3,7 @@
 版面固定，之後的回匯依此讀取：
 - 工作表「訂單」：第 1 列（隱藏）是欄位代碼，對應以代碼為準；第 2 列是中文表頭；第 3 列起是資料。
 - A 欄「系統編號（請勿修改）」：用來對應每一張訂單。
-- 只能看的欄位表頭標「（唯讀）」、整欄灰底；之後可回匯修改的欄位白底。
+- 表頭文字與舊「匯出營運資料」相同；只能看的欄位表頭灰底、整欄灰底並在表頭註解寫明，可回匯修改的欄位白底。
 - 有選項的可修改欄位加下拉清單（選項放在隱藏的「_選項」頁）。
 - 隱藏頁「_dmis」放匯出代碼的簽章，回匯時用來找回匯出紀錄、擋下別的檔或被改過代碼的檔。
 """
@@ -13,6 +13,7 @@ from io import BytesIO
 
 from django.core import signing
 from openpyxl import Workbook
+from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -27,7 +28,8 @@ LIST_SHEET = "_選項"
 ID_KEY = "id"
 ID_LABEL = "系統編號（請勿修改）"
 SIGNING_SALT = "sales.order_exchange.export"
-READONLY_SUFFIX = "（唯讀）"
+READONLY_NOTE = "只能看：改了也不會匯回。"
+ORDER_PAGE_NOTE = "不可用匯回修改，請在訂單頁修改。"
 
 _HEADER_FONT = Font(bold=True, color="FFFFFF")
 _EDITABLE_FILL = PatternFill("solid", fgColor="174C3C")
@@ -63,13 +65,15 @@ def build_workbook(token, columns, rows):
     sheet.title = SHEET_TITLE
 
     sheet.append([ID_KEY, *[column.key for column in columns]])
-    sheet.append([ID_LABEL, *[column.label if column.editable else f"{column.label}{READONLY_SUFFIX}" for column in columns]])
+    sheet.append([ID_LABEL, *[column.label for column in columns]])
     sheet.row_dimensions[1].hidden = True
     for index, column in enumerate([None, *columns], start=1):
         header = sheet.cell(row=2, column=index)
         header.font = _HEADER_FONT
         header.fill = _EDITABLE_FILL if column is not None and column.editable else _READONLY_HEADER_FILL
         header.alignment = Alignment(vertical="center", wrap_text=True)
+        if column is None or not column.editable:
+            header.comment = Comment(ORDER_PAGE_NOTE if column is not None and column.order_page_only else READONLY_NOTE, "DMIS")
 
     for pk, values in rows:
         sheet.append([pk, *[_cell_value(value, column.kind) for value, column in zip(values, columns)]])

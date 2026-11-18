@@ -4,13 +4,11 @@
 匯出改成同樣的 6 碼，匯入讀得回來；匯入修正畫面也接受 6 碼。
 """
 import datetime
-from io import BytesIO
 from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.urls import reverse
-from openpyxl import load_workbook
 
 from sales.forms import YearMonthDateField, YearMonthDateInput, year_month_hint
 from sales.tests import test_old_vehicle_section as old_vehicle
@@ -112,7 +110,8 @@ class OldVehicleYearMonthPageTests(old_vehicle.OldVehicleSectionTests.__bases__[
         order, _vehicle = self.make_order()
         order.operations.old_vehicle_manufactured_on = datetime.date(2013, 9, 1)
         order.operations.save(update_fields=["old_vehicle_manufactured_on"])
-        sheet = load_workbook(BytesIO(self.client.get(reverse("operations_report_export")).content)).active
+        from sales.tests.export_helpers import legacy_export_sheet  # T-232：舊匯出網址改導到新的匯出頁
+        sheet = legacy_export_sheet(self.client)
         headers = [cell.value for cell in sheet[1]]
         column = headers.index("出廠日期")
         values = [row[column] for row in sheet.iter_rows(min_row=2, values_only=True)]

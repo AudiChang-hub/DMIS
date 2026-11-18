@@ -21,6 +21,12 @@
       const status = form.querySelector('select[name="status"]');
       if (status && !params.get("status")) status.value = "";
     });
+    // 頁首「匯出」帶入目前的篩選結果（T-232）：頁籤、排序換了，連結的條件跟著換。
+    document.querySelectorAll("[data-order-export-link]").forEach(link => {
+      const target = new URL(link.href, location.href);
+      target.search = new URL(url, location.href).search;
+      link.href = target.href;
+    });
   }
 
   async function load(url, {push = true, revealList = false} = {}) {

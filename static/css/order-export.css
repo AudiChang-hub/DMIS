@@ -5,6 +5,7 @@
 .order-export-scope__list > div { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
 .order-export-scope__list dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 .order-export-scope__list dd { margin: 0; color: var(--ink); font-size: var(--text-sm); font-weight: 700; overflow-wrap: anywhere; }
+.order-export-scope__tab { display: grid; gap: var(--space-1); max-width: 280px; color: var(--field-label); font-size: var(--text-sm); font-weight: 700; }
 .order-export-scope__hint { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; font-size: var(--text-sm); }
 
 .order-export-form { display: grid; gap: var(--stack-gap); }
@@ -15,6 +16,7 @@
 .order-export-key { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-soft); font-size: var(--text-sm); font-weight: 700; }
 .order-export-key::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: var(--green); }
 .order-export-key.is-readonly::before { background: var(--line-strong); }
+.order-export-key.is-order-page::before { background: var(--amber-strong); }
 
 .order-export-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-3) var(--space-4); min-width: 0; margin: 0; padding: var(--stack-gap) 0 0; border: 0; border-top: 1px solid var(--line-soft); }
 .order-export-group:first-of-type { padding-top: 0; border-top: 0; }
@@ -31,6 +33,8 @@
 .order-export-col small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); }
 .order-export-col.is-editable { box-shadow: inset 3px 0 0 var(--green); }
 .order-export-col.is-editable small { color: var(--green-ink); font-weight: 700; }
+.order-export-col.is-order-page { box-shadow: inset 3px 0 0 var(--amber-strong); }
+.order-export-col.is-order-page small { color: var(--amber-ink); font-weight: 700; }
 .order-export-col:has(input:disabled) { cursor: default; }
 .order-export-col.is-locked { opacity: .6; background: var(--surface-soft); }
 .order-export-col input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

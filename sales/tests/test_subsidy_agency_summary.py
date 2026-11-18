@@ -1,10 +1,8 @@
 from decimal import Decimal
-from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
-from openpyxl import load_workbook
 
 from sales.forms import OrderOperationsForm
 from sales.models import OrderOperationsProfile, SalesOrder, SubsidyItem, VehicleColor, VehicleModel
@@ -104,9 +102,8 @@ class AgencySummaryPageTests(TestCase):
         self.assertIn("1 筆・合計 $3,000", html)
 
     def test_operations_export_uses_summary_text(self):
-        response = self.client.get(reverse("operations_report_export"))
-        self.assertEqual(response.status_code, 200)
-        sheet = load_workbook(BytesIO(response.content)).active
+        from sales.tests.export_helpers import legacy_export_sheet  # T-232：舊匯出網址改導到新的匯出頁
+        sheet = legacy_export_sheet(self.client)
         headers = [cell.value for cell in sheet[1]]
         self.assertIn("工業局補助進度", headers)
         self.assertNotIn("縣市政府", headers)

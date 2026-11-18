@@ -358,7 +358,7 @@ urlpatterns = [
     ),
     path(
         "operations/export/",
-        views.operations_report_export,
+        order_exchange_views.legacy_operations_export,  # T-232 Q9：舊網址導到新的匯出頁
         name="operations_report_export",
     ),
     path("orders/export/", order_exchange_views.order_export, name="order_export"),

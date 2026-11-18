@@ -65,7 +65,6 @@ from .services.document_signing import (
     sign_documents,
 )
 from .services.dealer_workbook_sync import next_dealer_code
-from .services.excel_export import sanitize_excel_row
 from .forms import (
     AccessoryCategoryForm,
     AccessoryProductForm,
@@ -4400,25 +4399,6 @@ def order_list(request):
     )
 
 
-def _year_month_text(value):
-    """舊車出廠年月匯出成 6 碼 YYYYMM（T-93，跟畫面輸入一致；匯入也讀得回來）。"""
-    return f"{value.year:04d}{value.month:02d}" if value else ""
-
-
-def _operations_report_queryset(request):
-    from sales.services.order_filters import filter_order_analysis
-    rows = SalesOrder.objects.select_related(
-        "vehicle_model", "color", "allocated_vehicle", "operations", "source"
-    ).prefetch_related("payment_records", "subsidy_items")
-    keyword = request.GET.get("q", "").strip()
-    if keyword:
-        from sales.services.profit_access import profit_is_unlocked
-        rows = rows.filter(build_order_search_query(keyword, profit_unlocked=profit_is_unlocked(request))).distinct()
-    rows = filter_order_analysis(rows, request.GET, business_default=True)
-    date_field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at"}.get(request.GET.get("date_basis"), "registration_date")
-    return rows.order_by(f"-{date_field}", "-id")
-
-
 @login_required
 def operations_report(request):
     from sales.access.services import policy_for
@@ -4744,127 +4724,6 @@ def reconciliation_batch(request):
         f"已合併入帳 {len(posted)} 筆平台撥款，合計 {total:,.0f} 元，各訂單收支已同步。",
     )
     return _reconciliation_redirect(request)
-
-
-@login_required
-def operations_report_export(request):
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill
-
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "營運總表"
-    imported_financial_columns = (
-        "legacy_card_fee_expense", "installment_fee_expense", "used_vehicle_expense", "gift_shipping_expense",
-        "friendly_dealer_bonus_expense", "first_sale_bonus_expense", "volume_bonus_expense",
-        "used_vehicle_income", "card_installment_fee_income", "yamaha_bonus_income", "friendly_dealer_bonus_income",
-    )
-    headers = [
-        "訂單編號", "訂單日期", "車種", "型號", "型式", "顏色", "引擎／車身號碼",
-        "車主名稱", "車牌號碼", "車款售價", "實際撥款", "成本",
-        "總收款金額", "確認收款", "分期公司", "期數", "每期金額",
-        "分期公司確認匯款", "身分證字號", "西元生日", "民國生日",
-        "戶籍地址", "手機", "Email", "自送托運地點", "發票日期",
-        "尾款發票號碼", "補助方案", "補助金額", "銀行", "匯款帳戶",
-        "申請日", "工業局補助進度", "環境部補助進度", "地方政府補助進度", "舊車車主",
-        "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
-        "排氣量", "出廠日期", "報廢日期", "回收日期",
-        "領牌稅金支出", "強制險支出", "選號支出", "贈品支出", "運費支出",
-        "車行傭金支出", "銀行刷卡手續費支出", "領牌稅金收入", "強制險收入",
-        "代辦費收入", "選號收入", "分期手續費收入", "刷卡手續費收入",
-        "其他收入", "報廢代辦收入", "報廢車收入", "實銷獎勵金", "促銷補助金", "分期補貼息", "強制險傭金",
-        "信用卡傭金", "車控帳號", "電池合約方案", "電池合約啟用日期",
-        "電池合約帳號", "安全帽", "公司禮券、匯款", "其他",
-        "平台贈品", "客服電話", "分期資訊", "車行",
-        "總收入", "總支出", "單筆淨利",
-        "台數與傭金歸屬車行",
-        "訂單成立日期",
-    ]
-    headers.extend(OrderOperationsProfile._meta.get_field(field).verbose_name for field in imported_financial_columns)
-    sheet.append(headers)
-    for cell in sheet[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="174C3C")
-    for order in _operations_report_queryset(request):
-        profile = getattr(order, "operations", None)
-        roc_birth = ""
-        if order.owner_birth_date:
-            roc_birth = (
-                f"{order.owner_birth_date.year - 1911}/"
-                f"{order.owner_birth_date.month:02d}/{order.owner_birth_date.day:02d}"
-            )
-        def op(name, default=""):
-            return getattr(profile, name, default) if profile else default
-        sheet.append(sanitize_excel_row([
-            order.number, order.order_date, order.vehicle_model.name,
-            order.vehicle_model.model_number,
-            order.vehicle_model.get_model_code_display()
-            if order.vehicle_model.model_code else "",
-            order.color.label,
-            order.allocated_vehicle.identifier if order.allocated_vehicle else "",
-            order.owner_name, order.final_plate_number, order.vehicle_price,
-            op("actual_disbursement", 0), op("vehicle_cost", 0),
-            profile.total_received if profile else 0,
-            "是" if op("payment_confirmed", False) else "否",
-            order.installment_company, order.installment_periods,
-            order.installment_monthly,
-            "是" if op("installment_transfer_confirmed", False) else "否",
-            order.owner_id_number, order.owner_birth_date, roc_birth,
-            order.owner_address, order.owner_phone, order.owner_email,
-            order.delivery_destination, op("invoice_date"),
-            op("balance_invoice_number"), order.subsidy_type,
-            op("subsidy_amount", 0), op("bank_name"), op("remittance_account"),
-            op("subsidy_applied_on"),
-            *[row["text"] for row in order.subsidy_agency_summary[:3]],
-            order.old_owner_name, order.old_owner_id_number, order.trade_in_plate,
-            op("old_vehicle_engine_number"), op("old_vehicle_brand"),
-            op("old_vehicle_displacement_cc"), _year_month_text(op("old_vehicle_manufactured_on", None)),
-            op("scrapped_on"), op("recycled_on"),
-            op("registration_tax_expense", 0),
-            op("compulsory_insurance_expense", 0),
-            op("plate_selection_expense", 0),
-            op("gift_expense", 0),
-            op("shipping_expense", 0),
-            op("dealer_commission_expense", 0),
-            op("card_fee_expense", 0),
-            op("registration_tax_income", 0),
-            op("compulsory_insurance_income", 0),
-            op("agency_fee_income", 0),
-            op("plate_selection_income", 0),
-            op("installment_fee_income", 0),
-            op("card_fee_income", 0),
-            op("other_income", 0), op("scrap_agency_income", 0),
-            op("scrap_vehicle_income", 0), op("sales_bonus", 0),
-            op("promotion_subsidy", 0),
-            op("installment_interest_subsidy", 0),
-            op("insurance_commission", 0),
-            op("credit_card_commission", 0), op("vehicle_control_account"),
-            op("battery_plan"), op("battery_activated_on"),
-            op("battery_account"), op("helmet"),
-            op("company_gift_or_remittance"), op("other_fulfillment"),
-            op("platform_gift"), op("customer_service_phone"),
-            op("installment_info"), op("dealer_name"),
-            profile.total_income if profile else 0,
-            profile.total_expense if profile else 0,
-            None if order.is_cancelled_sale else (profile.net_profit if profile else 0),
-            str(order.effective_commission_recipient or ""),
-            order.established_on,
-            *[op(field, 0) for field in imported_financial_columns],
-        ]))
-    sheet.freeze_panes = "A2"
-    sheet.auto_filter.ref = sheet.dimensions
-    for column in sheet.columns:
-        sheet.column_dimensions[column[0].column_letter].width = min(
-            max(len(str(cell.value or "")) for cell in column) + 2, 28
-        )
-    output = BytesIO()
-    workbook.save(output)
-    response = HttpResponse(
-        output.getvalue(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    response["Content-Disposition"] = 'attachment; filename="operations-report.xlsx"'
-    return response
 
 
 @login_required

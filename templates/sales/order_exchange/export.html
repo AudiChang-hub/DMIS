@@ -14,23 +14,25 @@
     {% if scope_error %}
       <div class="callout callout--danger"><span class="callout__icon" aria-hidden="true">!</span><div><h3>篩選條件有誤</h3><p>{{ scope_error }} 請回全部訂單重新設定篩選。</p></div></div>
     {% else %}
-      <dl class="order-export-scope__list">{% for label, value in scope_labels %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+      {% if scope_labels %}<dl class="order-export-scope__list">{% for label, value in scope_labels %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
       {% if total > limit %}<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>超過每次 {{ limit }} 張的上限</h3><p>符合的訂單有 {{ total }} 張，請回全部訂單縮小日期或條件後再匯出。</p></div></div>{% endif %}
     {% endif %}
-    <p class="order-export-scope__hint muted">範圍跟全部訂單頁目前的搜尋、篩選與分類相同。<a class="button ghost small" href="{{ order_list_url }}" data-return-to>回全部訂單調整範圍</a></p>
+    {% if not scope_error %}<label class="order-export-scope__tab">分類<select name="tab" form="order-export-form" data-scope-tab>{% for key, label in tab_choices %}<option value="{{ key }}"{% if key == current_tab %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>{% endif %}
+    <p class="order-export-scope__hint muted">範圍帶入全部訂單頁目前的搜尋、篩選與分類；要換其他條件請回清單調整。<a class="button ghost small" href="{{ order_list_url }}" data-return-to>回全部訂單調整範圍</a></p>
   </div>
 </section>
 
 <form class="order-export-form" method="get" action="{% url 'order_export' %}#preview" id="order-export-form" data-order-export>
-  {% for key, values in scope_items %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endfor %}
+  {% for key, values in scope_items_without_tab %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endfor %}
   <input type="hidden" name="preview" value="1">
   <section class="section-block" aria-labelledby="export-columns-title">
     <div class="section-title"><h2 id="export-columns-title">選擇欄位</h2><span><span data-selected-count>{{ selected_keys|length }}</span> 欄</span></div>
     <div class="section-body order-export-columns">
       <div class="order-export-legend" aria-label="欄位說明">
-        <span class="order-export-key is-editable">之後可改完匯回</span>
+        <span class="order-export-key is-editable">可改完匯回</span>
         <span class="order-export-key is-readonly">只能看</span>
-        <p class="muted">「可改完匯回」的欄位在 Excel 是白底，批次修改功能下一版開放；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
+        <span class="order-export-key is-order-page">只能在訂單頁改</span>
+        <p class="muted">預設勾選的是原本「匯出營運資料」那組欄位，不改直接匯出內容相同。「可改完匯回」的欄位在 Excel 是白底，改完匯回批次修改的功能下一版開放；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
       </div>
       {% for row in groups %}
       <fieldset class="order-export-group{% if row.group.sensitive %} is-sensitive{% endif %}" data-export-group="{{ row.group.key }}"{% if not row.allowed %} disabled{% endif %}>
@@ -41,9 +43,9 @@
         {% if row.allowed %}<div class="order-export-group__tools"><button type="button" class="button secondary small" data-group-all>全選</button><button type="button" class="button ghost small" data-group-none>清除</button></div>{% endif %}
         <div class="order-export-group__grid">
           {% for item in row.columns %}
-          <label class="check-row order-export-col{% if item.column.editable %} is-editable{% endif %}{% if not item.allowed %} is-locked{% endif %}">
+          <label class="check-row order-export-col{% if item.column.editable %} is-editable{% elif item.column.order_page_only %} is-order-page{% endif %}{% if not item.allowed %} is-locked{% endif %}">
             <input type="checkbox" name="cols" value="{{ item.column.key }}"{% if item.checked and item.allowed %} checked{% endif %}{% if item.required or not item.allowed %} disabled{% endif %}{% if item.required %} data-required{% endif %}>
-            <span><strong>{{ item.column.label }}</strong><small>{% if item.required %}一定匯出{% elif not item.allowed %}沒有授權{% elif item.column.editable %}之後可改完匯回{% else %}只能看{% endif %}</small></span>
+            <span><strong>{{ item.column.label }}</strong><small>{% if not item.allowed %}沒有授權{% else %}{{ item.hint }}{% endif %}</small></span>
           </label>{% if item.required %}<input type="hidden" name="cols" value="{{ item.column.key }}">{% endif %}
           {% endfor %}
         </div>

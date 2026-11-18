@@ -1,20 +1,18 @@
 from django.utils import timezone
 from datetime import date
 from decimal import Decimal
-from io import BytesIO
 from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
 from django.http import QueryDict
 from django.test import TestCase, RequestFactory
 from django.urls import reverse
-from openpyxl import load_workbook
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleColor, PaymentRecord, OrderOperationsProfile
 from sales.services.dashboard_metrics import build_dashboard_metrics, _percent_change
 from sales.services.order_sorting import sort_context, sort_orders
 from sales.services.sales_metrics import summarize_sales, filter_payment_risk
-from sales.views import _operations_report_queryset
+from sales.order_exchange.scope import export_queryset
 
 
 class CommandCenterTests(TestCase):
@@ -89,7 +87,10 @@ class CommandCenterTests(TestCase):
         metrics = build_dashboard_metrics(date(2026,9,12))
         self.assertEqual(metrics['risk'], {'outstanding':1,'unconfirmed':1,'refund':1,'overpaid':0,'stale_allocation':0})
         for risk, expected in [('outstanding',outstanding), ('unconfirmed',outstanding), ('refund',refund)]:
-            query = _operations_report_queryset(RequestFactory().get('/', {'risk':risk}))
+            # T-232：營運匯出改由訂單匯出頁產生，範圍沿用舊匯出口徑（不分頁籤、排除取消類）。
+            request = RequestFactory().get('/')
+            request.user = self.user
+            query, _tab = export_queryset(request, QueryDict(f'risk={risk}&tab=all&business_only=1'))
             self.assertEqual(list(query.values_list('pk', flat=True)), [expected.pk])
             self.assertEqual(query.count(), metrics['risk'][risk])
 
@@ -113,8 +114,8 @@ class CommandCenterTests(TestCase):
         listing = self.client.get(response["Location"])
         self.assertEqual(listing.context['page_obj'].paginator.count, 2)
         self.assertEqual(self.client.get(reverse('operations_report')).context['cockpit']['pulse']['count']['value'], 0)
-        exported = self.client.get(reverse('operations_report_export'), {'include_cancelled':1})
-        sheet = load_workbook(BytesIO(exported.content)).active
+        from sales.tests.export_helpers import legacy_export_sheet  # T-232：舊匯出網址改導到新的匯出頁
+        sheet = legacy_export_sheet(self.client, {'include_cancelled': 1})
         column = [c.value for c in sheet[1]].index('單筆淨利')+1
         self.assertIsNone(sheet.cell(2,column).value)
         self.assertIsNone(sheet.cell(3,column).value)

@@ -237,6 +237,33 @@ def _sym_color(label, image_url):
     return {"name": label, "code": code, "stem": stem, "image_url": image_url}
 
 
+SYM_MODEL_CODE = re.compile(r"^[A-Z]{2,3}\d{1,2}[A-Z][A-Z0-9]{1,2}$")
+
+
+def sym_energy_label_codes(text, base_url):
+    """SYM 能源標示只有圖片（alt 都是「能源標章」），認證型號（例如 HJ11U3）只出現在標示圖檔名，
+    以及頁面 JSON-LD 的型號別名網址（/hj11u3 會轉址回車型頁）。兩邊各有缺漏（檔名 e-woo.webp、
+    別名帶 -h 尾碼或少列一個），取聯集，只收符合認證型號格式的字串；不做 OCR。"""
+    names = [
+        urlsplit(_img_src(tag)).path.rsplit("/", 1)[-1].rsplit(".", 1)[0].rsplit("-", 1)[-1]
+        for tag in re.findall(r"<img[^>]*>", _section(text, 'class="energymark"', ["</div>"]))
+    ]
+    host = urlsplit(base_url).hostname
+    for block in re.findall(r"<script[^>]*application/ld\+json[^>]*>(.*?)</script>", text, flags=re.S | re.I):
+        try:
+            data = json.loads(block)
+        except ValueError:
+            continue
+        for item in data if isinstance(data, list) else [data]:
+            if not isinstance(item, dict) or item.get("@type") != "ItemList":
+                continue
+            for element in item.get("itemListElement") or []:
+                parts = urlsplit(str(element.get("url", "")) if isinstance(element, dict) else "")
+                if parts.hostname == host and parts.path.count("/") == 1:
+                    names.append(re.sub(r"-[a-z]$", "", parts.path.strip("/"), flags=re.I))
+    return sorted({name.upper() for name in names if SYM_MODEL_CODE.match(name.upper())})
+
+
 def parse_sym_model(text, listing):
     """一頁可有多個版本（例如 ABS／標準），每個版本各為一筆官網車型。"""
     text = _strip_comments(text)
@@ -259,6 +286,8 @@ def parse_sym_model(text, listing):
         for block in _split_blocks(spec_area, r'<div class="onef')
     ]
     variant_count = max(len(color_groups), len(image_groups), len(names), 1)
+    # 一頁多版本（例如 ABS／CBS）時標示與版本無法對應，只列候選、不預填。
+    label_codes = sym_energy_label_codes(text, base_url)
     entries = []
     for index in range(variant_count):
         labels = color_groups[index] if index < len(color_groups) else []
@@ -279,6 +308,8 @@ def parse_sym_model(text, listing):
             "year_hint": _year_hint(name, *images),
             "displacement_cc": _number(specs.get("排氣量", "")),
             "power": specs.get("最大馬力", ""),
+            "model_number": "、".join(label_codes) if variant_count == 1 else "",
+            "model_number_candidates": label_codes if variant_count > 1 else [],
             "price": None,
             "price_note": "",
             "main_image_url": images[0] if images else listing.get("image_url", ""),
@@ -357,6 +388,15 @@ def _ribbon(fragment):
 SUZUKI_CODE = re.compile(r"[（(]\s*([A-Za-z0-9]{2,4})\s*[)）]")
 
 
+SUZUKI_CERTIFIED_CODE = re.compile(r"[（(]\s*([A-Za-z0-9]{3,15})\s*[)）]")
+
+
+def suzuki_model_number(certified):
+    """能源效率標示「認證車型 SUI 125 (UQ125DA)」取出 UQ125DA；括號內的型號長度與車色色碼（2–4 碼）不同，另用一個規則。"""
+    codes = SUZUKI_CERTIFIED_CODE.findall(certified or "")
+    return codes[-1].upper() if codes else ""
+
+
 def _suzuki_color(label, image_url):
     code_match = SUZUKI_CODE.search(label)
     code = code_match.group(1).upper() if code_match else ""
@@ -392,6 +432,7 @@ def parse_suzuki_model(text, listing):
         "year_hint": _year_hint(*(color["name"] for color in colors)),
         "displacement_cc": _number(specs.get("排氣量", "")),
         "power": specs.get("最大馬力") or specs.get("馬力", ""),
+        "model_number": suzuki_model_number(specs.get("認證車型", "")),
         "price": price,
         "price_note": "不含牌險" if price and "不含牌險" in _text(price_area) else "",
         "main_image_url": urljoin(base_url, kv.group(1)) if kv else listing.get("image_url", ""),
@@ -597,17 +638,28 @@ def fillable_colors(link):
 
 # ---------- 從官網建立車型 ----------
 
-def official_color_names(entry):
-    """車色預填名稱：色名不重複時用簡名（去除色號與配色說明），否則用官網全名。"""
+def _without_code(label, code):
+    if not code:
+        return label
+    stripped = re.sub(rf"[（(]?\s*(?<![A-Za-z0-9]){re.escape(code)}(?![A-Za-z0-9])\s*[)）]?", " ", label, flags=re.I)
+    return re.sub(r"\s+", " ", stripped).strip() or label
+
+
+def official_color_initials(entry):
+    """車色預填名稱與色碼（T-239）：色名不重複時用簡名（去除色號與配色說明），否則用官網全名去掉色碼；
+    色碼另填到色碼欄，畫面才不會顯示成「名稱 色碼 色碼」。"""
     colors = entry.get("colors", [])
     stems = [color.get("stem") or color["name"] for color in colors]
-    if len({_norm(stem) for stem in stems}) == len(stems):
-        return stems
-    return [color["name"] for color in colors]
+    unique = len({_norm(stem) for stem in stems}) == len(stems)
+    rows = []
+    for color, stem in zip(colors, stems):
+        code = "".join((color.get("code") or "").split()).upper()[:20]
+        rows.append({"name": stem if unique else _without_code(color["name"], code), "code": code})
+    return rows
 
 
 def model_prefill(link, base_model=None):
-    """新增機種／年式表單的預填值；只是起點，儲存前由人確認，型號與型式仍須人工填寫。"""
+    """新增機種／年式表單的預填值；只是起點，儲存前由人確認、可修改，型式仍須人工填寫。"""
     from datetime import date
 
     entry = link.data
@@ -632,11 +684,10 @@ def model_prefill(link, base_model=None):
             "energy_type": "electric" if entry.get("energy") == "electric" else "gas",
             "name": re.sub(r"^全新\s*", "", name).strip(),
         })
-        certified = SUZUKI_CODE.search(entry.get("specs", {}).get("認證車型", ""))
-        if entry.get("model_number"):
-            initial["model_number"] = entry["model_number"]
-        elif certified:
-            initial["model_number"] = certified.group(1).upper()
+        # 既有資料（T-239 前抓的）只有 specs 的認證車型，沒有 model_number 欄位。
+        model_number = entry.get("model_number") or suzuki_model_number(entry.get("specs", {}).get("認證車型", ""))
+        if model_number:
+            initial["model_number"] = model_number
     base_year = base_model.model_year if base_model else None
     initial["model_year"] = entry.get("year_hint") or (base_year + 1 if base_year else date.today().year)
     if entry.get("displacement_cc") and initial["energy_type"] == "gas":
@@ -644,7 +695,7 @@ def model_prefill(link, base_model=None):
     power = re.search(r"(\d+(?:\.\d+)?)\s*kw", entry.get("power", ""), flags=re.I)
     if power and initial["energy_type"] != "gas":
         initial["motor_power_kw"] = power.group(1)
-    return initial, official_color_names(entry)
+    return initial, official_color_initials(entry)
 
 
 def _eready_brand():

@@ -12,7 +12,7 @@
   {% if official %}
   <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><h3>{% if base_model %}從官網建立新年式{% else %}從官網建立車型{% endif %}：{{ official.name }}</h3><ul>
     {% if base_model %}<li>以「{{ base_model }}」為基礎建立新年式；原年式的資料、車色、圖片與訂單都不會變更。</li>{% endif %}
-    <li>已帶入官網的名稱、年份、排氣量與車色，請逐項確認；型號與型式請依原廠資料填寫。</li>
+    <li>已帶入官網的名稱、年份、排氣量{% if form.initial.model_number %}、原廠型號{% endif %}、車色與色碼，請逐項確認，可直接修改；{% if form.initial.model_number %}型式{% else %}型號與型式{% endif %}請依原廠資料填寫。</li>
     <li>儲存後一律為停用、未上架，並自動對應這款官網車型；設定售價、確認無誤後再啟用。</li>
   </ul></div></div>
   {% endif %}

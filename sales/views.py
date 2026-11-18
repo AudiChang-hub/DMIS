@@ -9405,7 +9405,7 @@ def _vehicle_model_form_view(request, instance=None, official=None, base_model=N
         model_post,
         instance=instance,
         prefix="colors",
-        initial=[{"name": name} for name in official_colors] or None,
+        initial=official_colors or None,
     )
     # 新增車型時預設提供一個顏色欄位；編輯時只顯示既有顏色，
     # 需要更多顏色再由使用者按「新增顏色」。

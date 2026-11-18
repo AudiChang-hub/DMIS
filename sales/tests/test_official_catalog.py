@@ -763,3 +763,103 @@ class OfficialCatalogEreadyCreateTests(TestCase):
         self.assertEqual(service.model_prefill(self.link)[0]["brand"], "eReady")
         ready = VehicleModel.objects.create(brand="eReady", name="eReady Run", energy_type="electric")
         self.assertIn(ready, service.brand_models("suzuki"))
+
+
+# T-239：SYM 能源標示是圖片（alt 只寫「能源標章」），型號只在標示圖檔名與 JSON-LD 型號別名網址（/hj11u3 轉址回車型頁）。
+SYM_WOO_BODY = """
+<div class="butline"><a class="stay">CBS</a></div>
+<div class="colorposition" id="colorposition"><div class="colorarea">
+<div class="colorchose stay"><ul><li><div class="text"> 淺棕 AF531 </div></li><li><div class="text"> 銀 AF532 </div></li></ul></div>
+</div></div>
+<div class="motobike"><div class="motoslide"><div class="picgroup stay"><div class="x"><img src="/s/AF531.webp"></div><div class="x"><img src="/s/AF532.webp"></div></div>
+</div><div id="mobile_colorposition"></div></div>
+<div class="typeabscba"><div>2024- WOO 鼓 CBS</div></div><div id="changtp-next"></div>
+<div class="formtable"><div class="onef"><div><span>排氣量</span> 115.6 CC </div></div></div>
+"""
+
+
+def sym_page(energymark, item_urls, body=SYM_WOO_BODY):
+    items = ",".join(r'{"@type":"ListItem","position":%d,"url":"https:\/\/tw.sym-global.com\/%s"}' % (i, u)
+                     for i, u in enumerate(item_urls, start=1))
+    return (
+        r'<script type="application/ld+json">{"@context":"http:\/\/schema.org","@type":"ItemList","itemListElement":[%s]}</script>' % items
+        + body.replace("<footer></footer>", "")
+        + '<div class="row loawed energy"><div class="title"><h4>能源標章</h4></div><div class="energymark">%s</div></div><footer></footer>' % energymark
+    )
+
+
+SYM_WOO = sym_page('<img src="/storage/system/product/100cc-125cc/woo115/HJ11u3.webp" alt="能源標章">', ["hj11u3"])
+
+
+class OfficialCatalogModelNumberAndColorCodeTests(TestCase):
+    """T-239：從官網建立車型要帶入色碼與原廠型號；都只是預填，儲存前可改。"""
+
+    WOO = {"slug": "woo-115", "url": "https://tw.sym-global.com/woo-115", "name": "WOO 115", "category": "100cc-125cc"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-t239-test-71!")
+
+    def make_link(self, entry, brand="sym"):
+        return OfficialCatalogModel.objects.create(brand=brand, source_key=entry["source_key"], source_url=entry["source_url"],
+                                                   name=entry["name"], data=entry, content_hash=service.content_hash(entry))
+
+    def test_sym_reads_model_number_from_energy_label(self):
+        (entry,) = service.parse_sym_model(SYM_WOO, self.WOO)
+        self.assertEqual(entry["model_number"], "HJ11U3")
+
+    def test_sym_label_file_and_alias_list_complement_each_other(self):
+        # 檔名沒有型號（e-woo.webp）時用別名清單；別名帶 -h 尾碼要去掉；兩邊各缺一個時取聯集。
+        cases = [
+            ('<img src="/s/e-woo/e-woo.webp" alt="能源標章">', ["ed5lu1"], "ED5LU1"),
+            ('<img src="/s/2026Data/0701-FKB12T2.webp" alt="能源標章">', ["fkb12t2"], "FKB12T2"),
+            ('<img src="/s/TDA16T6.webp" alt="能源標章">', ["tda16t6-h"], "TDA16T6"),
+            ('<img src="/s/fm11w9.webp"><img src="/s/fm11wa.webp">', ["fm11w9"], "FM11W9、FM11WA"),
+            ('<img src="/s/e-woo.webp">', ["about", "product"], ""),
+        ]
+        for energymark, urls, expected in cases:
+            with self.subTest(energymark=energymark):
+                (entry,) = service.parse_sym_model(sym_page(energymark, urls), self.WOO)
+                self.assertEqual(entry["model_number"], expected)
+
+    def test_sym_multi_variant_page_lists_candidates_without_guessing(self):
+        # 4MICA 一頁有 ABS／CBS 兩版、兩張標示，看不出哪個型號屬於哪一版：不預填，只列候選。
+        page = sym_page('<img src="/s/AL12W6.webp"><img src="/s/AL12W7.webp">', ["al12w7", "al12w6"], body=SYM_TWO_VARIANTS)
+        entries = service.parse_sym_model(page, {**self.WOO, "slug": "4mica125"})
+        self.assertEqual(len(entries), 2)
+        for entry in entries:
+            self.assertEqual((entry["model_number"], entry["model_number_candidates"]), ("", ["AL12W6", "AL12W7"]))
+        self.assertNotIn("model_number", service.model_prefill(self.make_link(entries[0]))[0])
+        self.client.force_login(self.root)
+        self.assertContains(self.client.get(reverse("official_catalog"), {"brand": "sym"}), "能源標示型號 AL12W6、AL12W7")
+
+    def test_suzuki_reads_certified_model_number(self):
+        page = SUZUKI_MODEL.replace("</table></div>", '<tr><td colspan="2">認證車型</td><td>SUI 125 (UQ125DA)</td></tr></table></div>')
+        listing = {"slug": "sui_125", "url": "https://www.suzukimotor.com.tw/product/sui_125/style_price.html", "name": "SUI 125"}
+        (entry,) = service.parse_suzuki_model(page, listing)
+        self.assertEqual(entry["model_number"], "UQ125DA")
+        # 正式站既有資料只有 specs、沒有 model_number 欄位，預填仍要讀得到。
+        legacy = {key: value for key, value in entry.items() if key != "model_number"}
+        self.assertEqual(service.model_prefill(self.make_link(legacy, brand="suzuki"))[0]["model_number"], "UQ125DA")
+
+    def test_create_page_prefills_color_codes_and_model_number(self):
+        (entry,) = service.parse_sym_model(SYM_WOO, self.WOO)
+        link = self.make_link(entry)
+        self.client.force_login(self.root)
+        response = self.client.get(reverse("vehicle_model_create"), {"official": link.pk})
+        form, colors = response.context["form"], response.context["color_formset"]
+        self.assertEqual(form.initial["model_number"], "HJ11U3")
+        self.assertEqual([(f.initial.get("name"), f.initial.get("code")) for f in colors.forms], [("淺棕", "AF531"), ("銀", "AF532")])
+        self.assertContains(response, 'value="AF531"')
+        self.assertContains(response, "原廠型號、車色與色碼，請逐項確認，可直接修改；型式請依原廠資料填寫")
+        self.assertFalse(VehicleColor.objects.filter(code="AF531").exists())
+
+    def test_duplicate_stems_keep_full_name_without_repeating_code(self):
+        entry = {"name": "X", "colors": [
+            {"name": "珍珠白-白/銀 AM855", "code": "AM855", "stem": "珍珠白"},
+            {"name": "珍珠白-白/黑 AM857", "code": "AM857", "stem": "珍珠白"},
+            {"name": "白 (W17) 26年式", "code": "W17", "stem": "白"},
+        ]}
+        self.assertEqual(service.official_color_initials(entry), [
+            {"name": "珍珠白-白/銀", "code": "AM855"}, {"name": "珍珠白-白/黑", "code": "AM857"}, {"name": "白 26年式", "code": "W17"},
+        ])

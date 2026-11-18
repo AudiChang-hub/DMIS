@@ -437,7 +437,11 @@ def effective_card(card, filters):
     return card
 
 
-def dimension_labels(dimension, keys):
+def dimension_labels(dimension, keys, queryset=None):
+    """queryset 只用在車色：標籤的色碼取自這個範圍內的訂單（T-231）；未給時用全部訂單。"""
+    if dimension == "color":
+        from .colors import report_color_labels
+        return report_color_labels(queryset if queryset is not None else SalesOrder.objects.all(), keys)
     if dimension in ("source", "recipient"):
         return dict(SalesSource.objects.filter(pk__in=keys).values_list("pk", "name"))
     if dimension == "model":
@@ -546,7 +550,7 @@ def card_result(config, card, filters):
     rows = rows[:card["limit"]]
     dimension = card["dimension"]
     keys = [row["report_key"] for row in rows if row["report_key"] is not None]
-    labels = dimension_labels(dimension, keys)
+    labels = dimension_labels(dimension, keys, queryset)
     values = []
     for row in rows:
         raw = row["report_key"]
@@ -575,7 +579,7 @@ def card_result(config, card, filters):
         for cell in cells:
             series_totals[cell["report_series"]] += value_of(cell)
         # 依目前顯示主分類中的合計排名；同值依原始查詢順序穩定排列。
-        all_series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None])
+        all_series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None], queryset)
         if card.get("series_sort", "value") == "value":
             series_keys.sort(key=lambda key: series_totals[key], reverse=True)
         else:

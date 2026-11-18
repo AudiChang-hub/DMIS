@@ -88,5 +88,10 @@ def reader_kpis(results):
                 peak = max(named, key=lambda row: _number(row["value"]))
                 share = f" · 占 {peak['percentage']:.1f}%" if peak.get("percentage") is not None else ""
                 short = _peak_label(result)
-                tiles.append({"label": f"最多的{short}", "value": peak["label"], "unit": "", "sub": f"{peak['display']} {_unit(result)}{share}".strip(), "text": True})
+                value, sub = peak["label"], f"{peak['display']} {_unit(result)}{share}".strip()
+                name = peak["key"][2:] if card["dimension"] == "color" and peak["key"].startswith("v:") else ""
+                if name and value.startswith(name + " "):
+                    # 車色（T-231）：大字只放名稱，色碼移到小字，多個色碼時摘要卡不會被撐成好幾行。
+                    value, sub = name, f"{value[len(name) + 1:]} · {sub}"
+                tiles.append({"label": f"最多的{short}", "value": value, "unit": "", "sub": sub, "text": True})
     return tiles[:MAX_TILES]

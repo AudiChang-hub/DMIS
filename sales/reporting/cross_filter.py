@@ -37,7 +37,7 @@ def selections(raw):
 def selection_label(config, item):
     if isinstance(item["group"], list):
         return "、".join(selection_label(config, {**item, "group": group}) for group in item["group"])
-    from .engine import decode_key, dimension_label, dimension_labels, effective_card
+    from .engine import base_query, decode_key, dimension_label, dimension_labels, effective_card
     try:
         card = effective_card(config["cards"][item["card"]], {"grain": item["grain"]})
         key = item["group"]
@@ -46,7 +46,9 @@ def selection_label(config, item):
         labels = []
         for dimension, encoded in zip(dimensions, keys):
             raw = decode_key(dimension, encoded)
-            labels.append(dimension_label(dimension, raw, dimension_labels(dimension, [] if raw is None else [raw])))
+            # 車色標籤的色碼取自該圖範圍（T-231），與圖上標籤一致。
+            scope = base_query(config, {}, card) if dimension == "color" else None
+            labels.append(dimension_label(dimension, raw, dimension_labels(dimension, [] if raw is None else [raw], scope)))
         return " · ".join(labels)
     except (ValueError, TypeError, KeyError, RecursionError, ValidationError):
         return "無效分類（請移除）"

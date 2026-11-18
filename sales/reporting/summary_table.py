@@ -37,8 +37,22 @@ def summary_result(config, card, filters):
     rows = list(grouped.order_by(*ordering, *fields[1:])[:min(card["limit"], MAX_GROUPS) + 1])
     truncated = len(rows) > card["limit"]
     rows = rows[:card["limit"]]
-    labels = [dimension_labels(dimension, [row[field] for row in rows if row[field] is not None])
+    labels = [dimension_labels(dimension, [row[field] for row in rows if row[field] is not None], queryset)
               for dimension, field in zip(dimensions, fields)]
+    # 兩個維度之一是車色時，每列的色碼只取該列另一維度範圍內的訂單（T-231），
+    # 例如「New NEX 125 · 白 RB5」不列 Saluto 的 W17。
+    pair_codes = None
+    if len(dimensions) == 2 and "color" in dimensions:
+        from .colors import color_code_label
+        pair_codes = {}
+        scoped = queryset.filter(report_key__in=[row["report_key"] for row in rows if row["report_key"] is not None])
+        for first, second, code in scoped.order_by().values_list(*fields, "color__code").distinct():
+            pair_codes.setdefault((first, second), set()).add(code)
+
+    def name_of(row, dimension, field, mapping):
+        if pair_codes is not None and dimension == "color" and row[field] not in (None, ""):
+            return color_code_label(row[field], pair_codes.get((row[fields[0]], row[fields[1]]), ()))
+        return dimension_label(dimension, row[field], mapping)
 
     def cell(row, metric):
         missing = metric in ("dealer_commission", "dealer_bonus") and row["financial_count"] != row["count"]
@@ -48,7 +62,7 @@ def summary_result(config, card, filters):
 
     values = []
     for row in rows:
-        names = [dimension_label(dimension, row[field], mapping)
+        names = [name_of(row, dimension, field, mapping)
                  for dimension, field, mapping in zip(dimensions, fields, labels)]
         keys = [encode_key(row[field]) for field in fields]
         key = "c:" + json.dumps(keys, separators=(",", ":")) if len(keys) == 2 else keys[0]

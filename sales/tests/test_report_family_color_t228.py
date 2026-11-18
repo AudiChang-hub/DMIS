@@ -119,25 +119,25 @@ class FamilyTreeAndColorTests(TestCase):
         self.assertEqual(info["total"], 3)
         response = self.client.get(reverse("report_display", args=[self.per_model_report.pk]))
         saluto = response.context["results"][0]
-        self.assertEqual([(row["label"], row["count"]) for row in saluto["rows"]], [("盧卡綠", 6), ("黑", 1), ("黑（消光）", 1)])
+        self.assertEqual([(row["label"], row["count"]) for row in saluto["rows"]], [("盧卡綠 N34／T94", 6), ("黑", 1), ("黑（消光）", 1)])  # T-231 起標籤帶色碼
 
     # ---- 車色統計：盧卡綠合併 ----
     def test_color_chart_counts_luca_green_as_one_color(self):
         response = self.client.get(reverse("report_display", args=[self.color_report.pk]))
         rows = {row["label"]: row["count"] for row in response.context["results"][0]["rows"]}
-        self.assertEqual(rows, {"盧卡綠": 6, "白": 4, "黑": 1, "黑（消光）": 1})
-        luca = next(row for row in response.context["results"][0]["rows"] if row["label"] == "盧卡綠")
+        self.assertEqual(rows, {"盧卡綠 N34／T94": 6, "白": 4, "黑": 1, "黑（消光）": 1})  # T-231 起標籤帶色碼
+        luca = next(row for row in response.context["results"][0]["rows"] if row["label"].startswith("盧卡綠"))
         detail = self.client.get(reverse("report_detail", args=[self.color_report.pk, 0]),
                                  {"group": luca["key"], "revision": publication_key(self.color_report)})
         self.assertEqual(detail.context["page_obj"].paginator.count, 6)
         export = self.client.get(reverse("report_export", args=[self.color_report.pk, 0]), {"format": "csv"})
-        self.assertIn("盧卡綠,6", export.content.decode().replace("\r", ""))
+        self.assertIn("盧卡綠 N34／T94,6", export.content.decode().replace("\r", ""))
         self.assertNotIn("UC125D", export.content.decode())
 
     def test_population_table_merges_color_too(self):
         response = self.client.get(reverse("report_display", args=[self.population_report.pk]))
         colors = {row["cells"][0]["value"]: row["cells"][-1]["value"] for row in response.context["records_rows"]}
-        self.assertEqual(colors["盧卡綠"], 6)
+        self.assertEqual(colors["盧卡綠 N34／T94"], 6)
         self.assertNotIn("盧卡綠（UC125D）", colors)
 
     def test_orders_and_color_master_keep_name_and_code(self):

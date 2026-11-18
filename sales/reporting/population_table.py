@@ -2,7 +2,7 @@
 from django.core.paginator import Paginator
 from django.db.models import Count
 
-from .colors import report_color_expression
+from .colors import report_color_expression, report_color_labels
 from .demographics import demographic_query
 
 HEADERS = ["車色", "車主姓名", "性別（修正分類）", "證號", "台數"]
@@ -20,15 +20,23 @@ def population_queryset(config, filters):
             .order_by("-count", "population_color", "owner_name", "population_sex", "owner_id_number"))
 
 
-def population_cells(row):
+def population_color_labels(config, filters):
+    """附表車色標籤「名稱 色碼」（T-231）；分組與台數不變。"""
+    from .engine import base_query
+    return report_color_labels(base_query(config, filters))
+
+
+def population_cells(row, color_labels=None):
     identity = (row["owner_id_number"] or "").strip()
-    return [row["population_color"] or "未填寫", row["owner_name"] or "未填寫", row["population_sex"], identity or "未填寫", row["count"]]
+    color = row["population_color"]
+    return [(color_labels or {}).get(color, color) or "未填寫", row["owner_name"] or "未填寫", row["population_sex"], identity or "未填寫", row["count"]]
 
 
 def population_context(config, filters, page_number):
     page = Paginator(population_queryset(config, filters), config.get("records_page_size", 100)).get_page(page_number)
+    color_labels = population_color_labels(config, filters)
     # 只把整理好的欄位傳入畫面，不留 ORM row。
-    page.object_list = [{"cells": [{"label": label, "value": value} for label, value in zip(HEADERS, population_cells(row))]}
+    page.object_list = [{"cells": [{"label": label, "value": value} for label, value in zip(HEADERS, population_cells(row, color_labels))]}
                         for row in page.object_list]
     return {"records_page": page, "records_headers": HEADERS, "records_rows": page.object_list,
             "records_note": NOTE, "records_grouped": True}

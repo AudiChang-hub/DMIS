@@ -498,9 +498,10 @@ def records_export(request, pk):
     config, _ = expand_cards(report.published, filters)
     filters = drop_stale_focus(filters, config)
     if grouped:
-        from .population_table import population_queryset, population_cells, HEADERS, NOTE
+        from .population_table import population_color_labels, population_queryset, population_cells, HEADERS, NOTE
         # accessible_report 與上方 export 檢核均已套用逐份授權。
         queryset = population_queryset(config, filters)
+        color_labels = population_color_labels(config, filters)
     else:
         queryset = record_queryset(config, filters)
     if queryset.count() > 5000:
@@ -515,7 +516,7 @@ def records_export(request, pk):
     writer.writerow(["口徑", NOTE if grouped else RECORD_NOTE])
     writer.writerow(HEADERS if grouped else [RECORD_COLUMNS[key] for key in columns])
     for order in queryset.iterator(chunk_size=250):
-        values = population_cells(order) if grouped else [cell["value"] for cell in record_cells(order, columns)]
+        values = population_cells(order, color_labels) if grouped else [cell["value"] for cell in record_cells(order, columns)]
         writer.writerow([csv_safe(value) for value in values])
     return response
 

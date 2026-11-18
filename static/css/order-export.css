@@ -1,0 +1,58 @@
+/* 匯出訂單（templates/sales/order_exchange/export.html，T-232）：只加本頁修飾，卡片、按鈕、表格、提示框沿用 app.css。 */
+.order-export-scope .section-title strong { color: var(--ink); font-family: var(--font-display); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.order-export-scope .section-body { display: grid; gap: var(--stack-gap-sm); }
+.order-export-scope__list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+.order-export-scope__list > div { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.order-export-scope__list dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.order-export-scope__list dd { margin: 0; color: var(--ink); font-size: var(--text-sm); font-weight: 700; overflow-wrap: anywhere; }
+.order-export-scope__hint { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0; font-size: var(--text-sm); }
+
+.order-export-form { display: grid; gap: var(--stack-gap); }
+.order-export-columns { display: grid; gap: var(--stack-gap); }
+.order-export-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.order-export-legend p { flex: 1 1 320px; margin: 0; font-size: var(--text-sm); }
+/* 圖例是說明不是勾選框：用色條＋文字，避免看起來能點。 */
+.order-export-key { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-soft); font-size: var(--text-sm); font-weight: 700; }
+.order-export-key::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: var(--green); }
+.order-export-key.is-readonly::before { background: var(--line-strong); }
+
+.order-export-group { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-3) var(--space-4); min-width: 0; margin: 0; padding: var(--stack-gap) 0 0; border: 0; border-top: 1px solid var(--line-soft); }
+.order-export-group:first-of-type { padding-top: 0; border-top: 0; }
+.order-export-group__head { display: grid; gap: var(--space-1); float: left; width: 100%; padding: 0; }
+.order-export-group__title { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink); font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; }
+.order-export-group__head small { color: var(--muted); font-size: var(--text-sm); }
+.order-export-group__tools { display: flex; gap: var(--space-2); }
+.order-export-group__grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-2); }
+.order-export-flag { padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border: 1px solid var(--amber-border); border-radius: var(--radius-xs); font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 800; line-height: 1.6; }
+.order-export-group[disabled] .order-export-group__title { color: var(--muted); }
+
+.order-export-col { padding: var(--space-2) var(--space-3); line-height: 1.4; }
+.order-export-col strong { display: block; font-size: var(--text-sm-plus); }
+.order-export-col small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); }
+.order-export-col.is-editable { box-shadow: inset 3px 0 0 var(--green); }
+.order-export-col.is-editable small { color: var(--green-ink); font-weight: 700; }
+.order-export-col:has(input:disabled) { cursor: default; }
+.order-export-col.is-locked { opacity: .6; background: var(--surface-soft); }
+.order-export-col input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.order-export-preview { scroll-margin-top: 150px; }
+.order-export-preview__notes { display: grid; gap: var(--stack-gap-sm); }
+.order-export-preview__notes:empty { display: none; }
+.order-export-preview__table th { white-space: nowrap; }
+.order-export-preview__table td { max-width: 280px; overflow-wrap: anywhere; }
+.order-export-preview__table .is-readonly { background: color-mix(in srgb, var(--line-soft) 55%, transparent); }
+.order-export-preview__table th.is-editable { box-shadow: inset 0 -2px 0 var(--green); }
+.order-export-download { display: grid; gap: var(--space-3); padding: var(--card-pad); border-top: 1px solid var(--line-soft); }
+.order-export-download p { margin: 0; }
+.order-export-download .form-actions { margin: 0; }
+
+@media (max-width: 600px) {
+  .order-export-group { grid-template-columns: minmax(0, 1fr); }
+  /* 手機兩欄並排，欄位多時不必一路往下滑。 */
+  .order-export-group__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-export-col { gap: var(--space-2); padding: var(--space-2); }
+  .order-export-col strong { font-size: var(--text-sm); }
+  .order-export-preview__table td { max-width: none; }
+  /* 手機表格變卡片：不畫唯讀灰底（半格灰塊看起來像版面錯位）。 */
+  .order-export-preview__table .is-readonly { background: none; }
+}

@@ -6377,3 +6377,34 @@ class OrderArchiveRecord(models.Model):
     files = models.JSONField("系統放入的檔名", default=list, blank=True)
     synced_at = models.DateTimeField("最近同步", null=True, blank=True)
     last_error = models.CharField("最近錯誤", max_length=500, blank=True)
+
+
+class OrderExportRecord(TimeStampedModel):
+    """訂單匯出紀錄（T-232）：誰、何時、匯出哪些欄位與幾張，含不含個資或淨利。
+
+    `baseline` 存每張單匯出當時「之後可回匯修改」欄位的值，回匯時做三方比對（匯出時／系統現值／檔案值），
+    匯出後在系統被改過的欄位列為衝突、不覆蓋；檔案本身只放 `token` 的簽章，基準值不靠檔案。
+    """
+
+    token = models.UUIDField("匯出代碼", default=uuid.uuid4, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="order_export_records", verbose_name="匯出帳號",
+    )
+    actor_name = models.CharField("匯出人員", max_length=150, blank=True)
+    scope = models.JSONField("匯出範圍（篩選條件）", default=dict, blank=True)
+    columns = models.JSONField("匯出欄位代碼", default=list, blank=True)
+    row_count = models.PositiveIntegerField("匯出張數", default=0)
+    contains_pii = models.BooleanField("含個資欄位", default=False)
+    contains_finance = models.BooleanField("含收支欄位", default=False)
+    contains_profit = models.BooleanField("含淨利欄位", default=False)
+    baseline = models.JSONField("回匯比對用的匯出時值", default=dict, blank=True)
+    baseline_cleared_at = models.DateTimeField("基準值清除時間", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "訂單匯出紀錄"
+        verbose_name_plural = "訂單匯出紀錄"
+
+    def __str__(self):
+        return f"{self.actor_name or '未知人員'} {timezone.localtime(self.created_at):%Y/%m/%d %H:%M} 匯出 {self.row_count} 張"

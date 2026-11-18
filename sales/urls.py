@@ -28,6 +28,7 @@ from .historical_date_change import historical_date_change
 from .reporting import views as report_views
 from .reporting import classification_views
 from .reporting import payout_views
+from .order_exchange import views as order_exchange_views
 from .access import views as access_views
 
 
@@ -360,6 +361,8 @@ urlpatterns = [
         views.operations_report_export,
         name="operations_report_export",
     ),
+    path("orders/export/", order_exchange_views.order_export, name="order_export"),
+    path("orders/export/download/", order_exchange_views.order_export_download, name="order_export_download"),
     path("orders/new/", views.order_create, name="order_create"),
     path("orders/drafts/save/", views.draft_save, name="draft_save"),
     path(

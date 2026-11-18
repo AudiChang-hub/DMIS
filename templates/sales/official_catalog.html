@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load sales_format %}
+{% extends "base.html" %}{% load sales_format %}{% load static %}
 {% block title %}原廠車型比對{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block head %}{% if any_running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
@@ -31,15 +31,36 @@
 <nav class="account-tabs official-tabs" aria-label="比對結果分類">
   {% for key, label, count in tabs %}<a href="?brand={{ brand }}&amp;tab={{ key }}"{% if key == tab %} aria-current="page"{% endif %}>{{ label }} <span>{{ count }}</span></a>{% endfor %}
 </nav>
+{% if categories|length > 1 or category %}
+<div class="official-filter">
+  <nav class="official-filter__chips" aria-label="官網分類">
+    <a href="?brand={{ brand }}&amp;tab={{ tab }}"{% if not category %} aria-current="page"{% endif %}>全部 <span>{{ category_total }}</span></a>
+    {% for name, count in categories %}<a href="?brand={{ brand }}&amp;tab={{ tab }}&amp;category={{ name|urlencode }}"{% if name == category %} aria-current="page"{% endif %}>{{ name }} <span>{{ count }}</span></a>{% endfor %}
+  </nav>
+  {% if category %}
+  <form method="post" action="{% url 'official_catalog_ignore_category' %}" data-confirm="{% if tab == 'ignored' %}確定要把「{{ category }}」的 {{ rows|length }} 款恢復到待對應嗎？{% else %}確定要忽略「{{ category }}」的 {{ rows|length }} 款嗎？只會標記為已忽略，不會改系統車型；之後可以在「已忽略」整類恢復。{% endif %}">{% csrf_token %}
+    <input type="hidden" name="brand" value="{{ brand }}"><input type="hidden" name="category" value="{{ category }}">{% if tab == "ignored" %}<input type="hidden" name="action" value="restore">{% endif %}
+    <button class="button secondary">{% if tab == "ignored" %}恢復這一類全部（{{ rows|length }} 款）{% else %}忽略這一類全部（{{ rows|length }} 款）{% endif %}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 
 {% for row in rows %}{% with link=row.link data=row.link.data %}
-<article class="section-block official-row">
+<article class="section-block official-row" id="official-{{ link.pk }}">
   <div class="official-row__media">{% if data.main_image_url %}<img src="{{ data.main_image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
   <div class="official-row__body">
     <h2 class="section-title">{{ link.name }}{% if data.official_label %} <span class="account-badge">官網標示 {{ data.official_label }}</span>{% endif %}{% if link.missing %} <span class="account-badge">官網已下架</span>{% endif %}</h2>
     <div class="section-body">
-      <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{% if data.model_number %}型號 {{ data.model_number }} · {% elif data.model_number_candidates %}能源標示型號 {{ data.model_number_candidates|join:"、" }}（本頁多個版本，請自行對應） · {% endif %}{% if data.colors %}{{ data.colors|length }} 色{% else %}官網未列車色{% endif %} ·<a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
-      {% if data.colors %}<p class="official-row__colors">{% for color in data.colors %}<span class="account-badge">{{ color.name }}</span>{% endfor %}</p>{% endif %}
+      <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{% if data.model_number %}型號 {{ data.model_number }} · {% elif data.model_number_candidates %}能源標示型號 {{ data.model_number_candidates|join:"、" }}（本頁多個版本，請自行對應） · {% endif %}{% if data.colors %}{{ data.colors|length }} 色{% else %}官網未列車色{% endif %} · <a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
+      {% if data.colors and not row.compare %}<p class="official-row__colors">{% for color in data.colors %}<span class="account-badge">{{ color.name }}</span>{% endfor %}</p>{% endif %}
+      {% if row.compare %}
+      <div class="official-compare" role="table" aria-label="官網與{% if link.vehicle_model %}系統車型{% else %}建議車型{% endif %}對照">
+        <p class="official-compare__summary">{% if link.vehicle_model %}與系統車型對照{% else %}與建議車型「{{ row.suggested_model }}」對照{% endif %}：{% if row.compare.mismatches %}<strong>{{ row.compare.mismatches }} 處不一致</strong>{% else %}型號與車色都一致{% endif %}</p>
+        <div class="official-compare__row official-compare__row--head" role="row"><span role="columnheader">項目</span><span role="columnheader">官網</span><span role="columnheader">系統</span></div>
+        {% for item in row.compare.rows %}<div class="official-compare__row{% if item.mismatch %} is-mismatch{% endif %}" role="row"><span role="cell">{{ item.label }}</span><span role="cell">{{ item.official|default:"—" }}</span><span role="cell">{{ item.system|default:"—" }}{% if item.note %} <span class="official-compare__note">{{ item.note }}</span>{% endif %}</span></div>{% endfor %}
+      </div>
+      {% endif %}
 
       {% if link.vehicle_model %}
       <p>對應系統車型：<a href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">{{ link.vehicle_model }}</a>{% if not link.vehicle_model.active %}（已停用）{% endif %}</p>
@@ -47,27 +68,27 @@
       {% endif %}
 
       {% if tab == "pending" %}
-      <form method="post" action="{% url 'official_catalog_link' link.pk %}" class="official-row__form">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
-        <label>對應到系統車型<select class="form-control" name="vehicle_model" data-searchable-select required><option value="">請選擇</option>{% for model in candidates %}{% if model.pk not in linked_ids %}<option value="{{ model.pk }}"{% if model.pk == row.suggested %} selected{% endif %}>{{ model }}</option>{% endif %}{% endfor %}</select></label>
+      <form method="post" action="{% url 'official_catalog_link' link.pk %}" class="official-row__form">{% csrf_token %}{% include "sales/_official_return_fields.html" %}
+        <label><span>對應到系統車型{% if row.match == "exact" %} <span class="official-match">型號相符</span>{% elif row.match == "candidate" %} <span class="official-match official-match--soft">型號在候選內，請確認版本</span>{% endif %}</span><select class="form-control" name="vehicle_model" data-searchable-select required><option value="">請選擇</option>{% for model in row.options %}<option value="{{ model.pk }}"{% if model.pk == row.suggested %} selected{% endif %}>{{ model }}{% if not model.active %}（停用）{% endif %}{% if model.pk == row.suggested and row.match == "exact" %}（型號相符）{% endif %}</option>{% endfor %}</select></label>
         <div class="form-actions"><button class="button primary">確認對應</button></div>
       </form>
-      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><div class="form-actions"><button class="button ghost">忽略這款</button><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}">系統沒有，從官網建立車型</a></div></form>
-      <p class="help-text">預設選項只依名稱與排氣量推測，請確認年式與型號正確。系統還沒有這款車時，按「從官網建立車型」帶入官網資料，建立後為停用、未上架。</p>
+      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}{% include "sales/_official_return_fields.html" %}<div class="form-actions"><button class="button ghost">忽略這款</button><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}">系統沒有，從官網建立車型</a></div></form>
+      <p class="help-text">預設選項先看原廠型號，再看名稱與排氣量，請確認年式與型號正確；停用的車型也可以對應。系統還沒有這款車時，按「從官網建立車型」帶入官網資料，建立後為停用、未上架。</p>
       {% elif tab == "ignored" %}
-      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="restore"><div class="form-actions"><button class="button secondary">恢復到待對應</button></div></form>
+      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}{% include "sales/_official_return_fields.html" %}<input type="hidden" name="action" value="restore"><div class="form-actions"><button class="button secondary">恢復到待對應</button></div></form>
       {% elif tab == "changes" %}
       <ul>{% for change in row.changes %}<li>{{ change }}</li>{% empty %}<li>官網內容有更新（名稱、規格或車色以外的欄位）。</li>{% endfor %}</ul>
-      <form method="post" action="{% url 'official_catalog_acknowledge' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="content_hash" value="{{ link.content_hash }}"><div class="form-actions"><a class="button ghost" href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">查看系統車型</a><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}&amp;base={{ link.vehicle_model.pk }}">改款：建立新年式</a><button class="button primary">已確認變動</button></div></form>
+      <form method="post" action="{% url 'official_catalog_acknowledge' link.pk %}">{% csrf_token %}{% include "sales/_official_return_fields.html" %}<input type="hidden" name="content_hash" value="{{ link.content_hash }}"><div class="form-actions"><a class="button ghost" href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">查看系統車型</a><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}&amp;base={{ link.vehicle_model.pk }}">改款：建立新年式</a><button class="button primary">已確認變動</button></div></form>
       <p class="help-text">「已確認」只記錄你已看過這些變動，不會修改系統車型、車色或售價。若是改款，按「建立新年式」帶入官網資料；舊年式與既有訂單不受影響。</p>
       {% elif tab == "images" %}
-      <form method="post" action="{% url 'official_catalog_fill_images' link.pk %}" data-confirm="確定要把勾選的官網圖片補到這些車色嗎？只會填入目前沒有圖片的車色。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
+      <form method="post" action="{% url 'official_catalog_fill_images' link.pk %}" data-confirm="確定要把勾選的官網圖片補到這些車色嗎？只會填入目前沒有圖片的車色。">{% csrf_token %}{% include "sales/_official_return_fields.html" %}
         <fieldset class="catalog-color-grid"><legend class="help-text">勾選要補上的圖片；系統車色已有圖片的不會列出，也不會被覆蓋。</legend>
         {% for color, official in row.fillable %}<label class="catalog-color-card"><input type="checkbox" name="color" value="{{ color.pk }}" checked><span class="catalog-color-visual"><img src="{{ official.image_url }}" alt="{{ official.name }}" loading="lazy" referrerpolicy="no-referrer"></span><strong>{{ color.label }}</strong><small>官網：{{ official.name }}</small></label>{% endfor %}
         </fieldset>
         <div class="form-actions"><button class="button primary">補上勾選的圖片</button></div>
       </form>
       {% elif tab == "linked" %}
-      <form method="post" action="{% url 'official_catalog_link' link.pk %}" data-confirm="取消對應後，之後的檢查不會再比對這款車型。系統車型與圖片不會變更。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="unlink"><div class="form-actions"><button class="button danger-outline">取消對應</button>{% if row.fillable %}<a class="button secondary" href="?brand={{ brand }}&amp;tab=images">可補 {{ row.fillable|length }} 張圖</a>{% endif %}</div></form>
+      <form method="post" action="{% url 'official_catalog_link' link.pk %}" data-confirm="取消對應後，之後的檢查不會再比對這款車型。系統車型與圖片不會變更。">{% csrf_token %}{% include "sales/_official_return_fields.html" %}<input type="hidden" name="action" value="unlink"><div class="form-actions"><button class="button danger-outline">取消對應</button>{% if row.fillable %}<a class="button secondary" href="?brand={{ brand }}&amp;tab=images">可補 {{ row.fillable|length }} 張圖</a>{% endif %}</div></form>
       {% endif %}
     </div>
   </div>
@@ -76,4 +97,7 @@
 <div class="empty-state small"><h3>{% if tab == "pending" %}沒有待對應的車型{% elif tab == "changes" %}官網沒有新的變動{% elif tab == "images" %}沒有可補的圖片{% elif tab == "linked" %}還沒有確認任何對應{% else %}沒有忽略的車型{% endif %}</h3><p>{% if tab == "images" %}已對應車型的車色都有圖片，或官網車色名稱／色號無法唯一對應到系統車色。{% elif tab == "pending" %}官網車型都已對應或忽略。{% else %}重新檢查官網後會更新這裡。{% endif %}</p></div>
 {% endfor %}
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/official-catalog.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

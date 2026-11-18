@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from urllib.parse import urlencode
 
 import django_rq
 from django.contrib import messages
@@ -38,13 +39,18 @@ def _brand(value):
     return value if value in OfficialCatalogBrand.values else OfficialCatalogBrand.SYM
 
 
-def _page_url(brand, tab):
-    return f"{reverse('official_catalog')}?brand={brand}&tab={tab}"
+def _page_url(brand, tab, category="", anchor=""):
+    query = urlencode({"brand": brand, "tab": tab, **({"category": category} if category else {})})
+    return f"{reverse('official_catalog')}?{query}" + (f"#official-{anchor}" if anchor else "")
 
 
 def _redirect_back(request, link):
+    """回到同一分頁與分類，並定位到下一款（表單送出 next；沒有下一款時定位到這一款）。"""
     tab = request.POST.get("tab", "")
-    return redirect(_page_url(link.brand, tab if tab in dict(TABS) else "pending"))
+    next_pk = request.POST.get("next", "")
+    return redirect(_page_url(link.brand, tab if tab in dict(TABS) else "pending",
+                              request.POST.get("category", "").strip(),
+                              next_pk if next_pk.isdigit() else str(link.pk)))
 
 
 def _audit(request, description, metadata):
@@ -81,13 +87,17 @@ def _price_note(link, today):
 def official_catalog(request):
     brand = _brand(request.GET.get("brand"))
     tab = request.GET.get("tab") if request.GET.get("tab") in dict(TABS) else "pending"
+    category = request.GET.get("category", "").strip()
     today = timezone.localdate()
     links = list(
         OfficialCatalogModel.objects.filter(brand=brand).select_related("vehicle_model").prefetch_related(
-            Prefetch("vehicle_model__colors", queryset=VehicleColor.objects.order_by("name", "pk"))
+            Prefetch("vehicle_model__colors", queryset=VehicleColor.objects.order_by("name", "pk")),
+            "vehicle_model__factory_model_codes",
         )
     )
-    candidates = list(service.brand_models(brand).filter(active=True))
+    # 停用的車型也列入（剛從官網建立、尚未定價的都是停用），選項標「（停用）」。
+    candidates = list(service.brand_models(brand).prefetch_related(
+        "factory_model_codes", Prefetch("colors", queryset=VehicleColor.objects.order_by("name", "pk"))))
     linked_ids = {link.vehicle_model_id for link in links if link.vehicle_model_id}
     buckets = {key: [] for key, _ in TABS}
     for link in links:
@@ -101,15 +111,36 @@ def official_catalog(request):
                 buckets["changes"].append(row)
             if fillable:
                 buckets["images"].append(row)
-    rows = buckets[tab]
-    for row in rows:
+    # 官網分類（SYM 有，例如 100cc-125cc、電動車）只在待對應與已忽略篩選，方便整類忽略或恢復。
+    categories = []
+    if tab in ("pending", "ignored"):
+        counts = {}
+        for row in buckets[tab]:
+            name = row["link"].data.get("category", "")
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+        categories = sorted(counts.items())
+    if category not in dict(categories):
+        category = ""
+    rows = [row for row in buckets[tab] if not category or row["link"].data.get("category", "") == category]
+    for index, row in enumerate(rows):
         link = row["link"]
+        row["next_pk"] = rows[index + 1]["link"].pk if index + 1 < len(rows) else ""
         if link.vehicle_model_id:
             row["price"] = _price_note(link, today)
             row["changes"] = service.describe_changes(link.acknowledged_data, link.data)
-        else:
-            suggested = service.suggest_vehicle_models(link.data, [m for m in candidates if m.pk not in linked_ids])
+            row["compare"] = service.compare_with_model(link.data, link.vehicle_model)
+        elif not link.is_ignored:
+            available = [m for m in candidates if m.pk not in linked_ids]
+            suggested = service.suggest_vehicle_models(link.data, available)
+            suggested_ids = {m.pk for m in suggested}
+            # 型號相符與名稱相近的排在選單最前面，其餘照名稱。
+            row["options"] = suggested + [m for m in available if m.pk not in suggested_ids]
             row["suggested"] = suggested[0].pk if suggested else None
+            if suggested:
+                row["suggested_model"] = suggested[0]
+                row["match"] = service.code_match(link.data, suggested[0])
+                row["compare"] = service.compare_with_model(link.data, suggested[0])
     latest = OfficialCatalogCheck.objects.filter(brand=brand).first()
     running = service.active_check(brand)
     brand_status = [
@@ -123,6 +154,9 @@ def official_catalog(request):
         "tab": tab,
         "tabs": [(key, label, len(buckets[key])) for key, label in TABS],
         "rows": rows,
+        "category": category,
+        "categories": categories,
+        "category_total": len(buckets[tab]),
         "candidates": candidates,
         "linked_ids": linked_ids,
         "latest": latest,
@@ -188,9 +222,9 @@ def official_catalog_link(request, pk):
             _audit(request, f"取消原廠車型對應：{locked.name}", {"official_id": pk, "vehicle_model_id": previous})
         messages.success(request, f"已取消「{link.name}」的對應，車型資料未變更。")
         return _redirect_back(request, link)
-    model = service.brand_models(link.brand).filter(active=True, pk=int(raw)).first() if raw.isdigit() else None
+    model = service.brand_models(link.brand).filter(pk=int(raw)).first() if raw.isdigit() else None
     if not model:
-        messages.error(request, "請選擇同品牌、啟用中的系統車型。")
+        messages.error(request, "請選擇同品牌的系統車型。")
         return _redirect_back(request, link)
     try:
         with transaction.atomic():
@@ -234,6 +268,41 @@ def official_catalog_ignore(request, pk):
     messages.success(request, f"已恢復「{link.name}」到待對應。" if restore
                      else f"已忽略「{link.name}」；官網內容變動時會重新列出。")
     return _redirect_back(request, link)
+
+
+@root_required
+@require_POST
+def official_catalog_ignore_category(request):
+    """一次忽略（或恢復）同一官網分類的待對應車型；只動比對紀錄，不動系統車型。"""
+    brand = _brand(request.POST.get("brand"))
+    category = request.POST.get("category", "").strip()
+    restore = request.POST.get("action") == "restore"
+    tab = "ignored" if restore else "pending"
+    if not category:
+        messages.error(request, "請先選擇官網分類。")
+        return redirect(_page_url(brand, tab))
+    changed = []
+    with transaction.atomic():
+        links = OfficialCatalogModel.objects.select_for_update(of=("self",)).filter(brand=brand, vehicle_model__isnull=True)
+        if not restore:
+            links = links.filter(missing=False)  # 官網已下架的不在待對應；已忽略分頁則照樣列出、可恢復。
+        for link in links:
+            # 忽略只動待對應的；恢復只動目前已忽略的。
+            if link.data.get("category", "") != category or link.is_ignored != restore:
+                continue
+            link.ignored_hash = "" if restore else link.content_hash
+            link.save(update_fields=["ignored_hash", "updated_at"])
+            changed.append({"official_id": link.pk, "name": link.name})
+        if changed:
+            _audit(request, f"{'恢復' if restore else '忽略'}原廠官網分類「{category}」{len(changed)} 款",
+                   {"brand": brand, "category": category, "restore": restore, "official": changed})
+    if not changed:
+        messages.info(request, f"「{category}」沒有可{'恢復' if restore else '忽略'}的車型。")
+    elif restore:
+        messages.success(request, f"已將「{category}」{len(changed)} 款恢復到待對應。")
+    else:
+        messages.success(request, f"已忽略「{category}」{len(changed)} 款；可到「已忽略」整類恢復，官網內容變動時也會重新列出。")
+    return redirect(_page_url(brand, tab))
 
 
 @root_required

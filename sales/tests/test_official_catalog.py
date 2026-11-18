@@ -851,7 +851,7 @@ class OfficialCatalogModelNumberAndColorCodeTests(TestCase):
         self.assertEqual(form.initial["model_number"], "HJ11U3")
         self.assertEqual([(f.initial.get("name"), f.initial.get("code")) for f in colors.forms], [("淺棕", "AF531"), ("銀", "AF532")])
         self.assertContains(response, 'value="AF531"')
-        self.assertContains(response, "原廠型號、車色與色碼，請逐項確認，可直接修改；型式請依原廠資料填寫")
+        self.assertContains(response, "原廠型號、型式（依名稱推測）、車色與色碼，請逐項確認，可直接修改。")
         self.assertFalse(VehicleColor.objects.filter(code="AF531").exists())
 
     def test_duplicate_stems_keep_full_name_without_repeating_code(self):
@@ -863,3 +863,128 @@ class OfficialCatalogModelNumberAndColorCodeTests(TestCase):
         self.assertEqual(service.official_color_initials(entry), [
             {"name": "珍珠白-白/銀", "code": "AM855"}, {"name": "珍珠白-白/黑", "code": "AM857"}, {"name": "白 26年式", "code": "W17"},
         ])
+
+
+class OfficialCatalogPlanATests(TestCase):
+    """T-239 方案 A：停用車型可選、型號相符優先、色碼對色、錨點導回、分類篩選與整類忽略、型式推測、對照。"""
+
+    WOO = {"slug": "woo-115", "url": "https://tw.sym-global.com/woo-115", "name": "WOO 115", "category": "100cc-125cc"}
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-plan-a-test-81!")
+        # 名稱相近但型號不同（啟用），以及型號相符但停用的車型。
+        cls.name_only = VehicleModel.objects.create(brand="SYM", name="WOO", model_number="XX11U1", model_year=2025,
+                                                    energy_type="gas", displacement_cc=115)
+        cls.by_code = VehicleModel.objects.create(brand="SYM", name="WOO 115 鼓", model_number="HJ11U3", model_year=2024,
+                                                  energy_type="gas", displacement_cc=116, active=False)
+        VehicleColor.objects.create(vehicle_model=cls.by_code, name="淺棕色", code="AF531")
+        VehicleColor.objects.create(vehicle_model=cls.by_code, name="銀", code="AF999")
+        VehicleColor.objects.create(vehicle_model=cls.by_code, name="消光黑")
+
+    def setUp(self):
+        self.client.force_login(self.root)
+        (entry,) = service.parse_sym_model(SYM_WOO, self.WOO)
+        entry["category"] = "100cc-125cc"
+        self.link = self.make_link(entry)
+
+    def make_link(self, entry, key=None):
+        return OfficialCatalogModel.objects.create(brand="sym", source_key=key or entry["source_key"], source_url=entry["source_url"],
+                                                   name=entry["name"], data=entry, content_hash=service.content_hash(entry))
+
+    def test_code_match_ranks_first_even_if_inactive(self):
+        response = self.client.get(reverse("official_catalog"), {"brand": "sym"})
+        (row,) = response.context["rows"]
+        self.assertEqual((row["suggested"], row["match"], row["options"][0]), (self.by_code.pk, "exact", self.by_code))
+        self.assertIn(self.name_only, row["options"])
+        self.assertContains(response, "（停用）（型號相符）")
+        self.assertContains(response, '<span class="official-match">型號相符</span>', html=False)
+
+    def test_can_link_inactive_model(self):
+        response = self.client.post(reverse("official_catalog_link", args=[self.link.pk]), {"vehicle_model": self.by_code.pk, "tab": "pending"})
+        self.assertEqual(response.status_code, 302)
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.vehicle_model, self.by_code)
+        self.by_code.refresh_from_db()
+        self.assertFalse(self.by_code.active)
+
+    def test_color_code_field_matches_and_conflicting_codes_do_not(self):
+        class Color:
+            def __init__(self, pk, name, code=""):
+                self.pk, self.name, self.code = pk, name, code
+        official = [{"name": "淺棕 AF531", "code": "AF531", "stem": "淺棕", "image_url": "a"},
+                    {"name": "銀 AF532", "code": "AF532", "stem": "銀", "image_url": "b"}]
+        matches = service.match_colors(official, [Color(1, "淺棕色", "AF531"), Color(2, "銀", "AF999")])
+        self.assertEqual({pk: color["image_url"] for pk, color in matches.items()}, {1: "a"})
+
+    def test_compare_marks_model_and_color_mismatches(self):
+        self.link.data["model_number"] = "HJ11U4"
+        compare = service.compare_with_model(self.link.data, self.by_code)
+        rows = {(row["official"], row["system"]): row["note"] for row in compare["rows"]}
+        self.assertEqual(rows[("HJ11U4", "HJ11U3")], "型號不同")
+        self.assertEqual(rows[("淺棕 AF531", "淺棕色 AF531")], "")
+        self.assertEqual(rows[("銀 AF532", "銀 AF999")], "色碼不同")
+        self.assertEqual(rows[("", "消光黑")], "官網沒有")
+        self.assertEqual(compare["mismatches"], 3)
+
+    def test_card_shows_comparison_with_suggested_model(self):
+        response = self.client.get(reverse("official_catalog"), {"brand": "sym"})
+        self.assertContains(response, "與建議車型「")
+        self.assertContains(response, "處不一致")
+        self.assertContains(response, 'id="official-%d"' % self.link.pk)
+
+    def test_actions_return_to_next_card_and_keep_category(self):
+        response = self.client.post(reverse("official_catalog_ignore", args=[self.link.pk]),
+                                    {"tab": "pending", "next": "987", "category": "100cc-125cc"})
+        self.assertEqual(response["Location"], reverse("official_catalog") + "?brand=sym&tab=pending&category=100cc-125cc#official-987")
+        response = self.client.post(reverse("official_catalog_ignore", args=[self.link.pk]), {"tab": "ignored", "action": "restore"})
+        self.assertTrue(response["Location"].endswith(f"?brand=sym&tab=ignored#official-{self.link.pk}"))
+
+    def test_category_filter_and_ignore_whole_category_can_be_restored(self):
+        (other,) = service.parse_sym_model(SYM_WOO, {**self.WOO, "slug": "e-woo", "category": "電動車"})
+        other_link = self.make_link(other)
+        linked = self.make_link({**self.link.data, "source_key": "linked"}, key="linked")
+        linked.vehicle_model = self.name_only
+        linked.save()
+        page = self.client.get(reverse("official_catalog"), {"brand": "sym", "category": "電動車"})
+        self.assertEqual([row["link"] for row in page.context["rows"]], [other_link])
+        self.assertEqual(dict(page.context["categories"]), {"100cc-125cc": 1, "電動車": 1})
+        self.assertContains(page, "忽略這一類全部（1 款）")
+
+        self.client.post(reverse("official_catalog_ignore_category"), {"brand": "sym", "category": "100cc-125cc"})
+        for link, ignored in ((self.link, True), (other_link, False), (linked, False)):
+            link.refresh_from_db()
+            self.assertEqual(link.is_ignored, ignored, link.name)
+        self.assertTrue(UserAccountAuditLog.objects.filter(description__contains="忽略原廠官網分類「100cc-125cc」1 款").exists())
+        ignored_page = self.client.get(reverse("official_catalog"), {"brand": "sym", "tab": "ignored", "category": "100cc-125cc"})
+        self.assertContains(ignored_page, "恢復這一類全部（1 款）")
+
+        self.client.post(reverse("official_catalog_ignore_category"), {"brand": "sym", "category": "100cc-125cc", "action": "restore"})
+        self.link.refresh_from_db()
+        self.assertFalse(self.link.is_ignored)
+
+        clerk = get_user_model().objects.create_user("clerk", password="Official-plan-a-test-82!", is_staff=True)
+        self.client.force_login(clerk)
+        response = self.client.post(reverse("official_catalog_ignore_category"), {"brand": "sym", "category": "100cc-125cc"})
+        self.assertEqual(response.status_code, 403)
+        self.link.refresh_from_db()
+        self.assertFalse(self.link.is_ignored)
+
+    def test_guess_model_type_only_when_unambiguous(self):
+        cases = {
+            ("2024- WOO 鼓 CBS", ""): "cbs_drum", ("2026 4MICA 125 ABS 電驅版", "ABS ZRSG3.0"): "abs_disc",
+            ("2026 4MICA 125 碟 電驅版", ""): "disc", ("FIDDLE LT CBS", ""): "", ("SUI 125", ""): "",
+            ("X ABS 雙碟", ""): "abs_dual_disc", ("X 前碟後鼓", ""): "front_disc_rear_drum", ("X 碟 鼓", ""): "",
+        }
+        for names, expected in cases.items():
+            with self.subTest(names=names):
+                self.assertEqual(service.guess_model_type(*names), expected)
+        self.assertEqual(service.model_prefill(self.link)[0]["model_code"], "cbs_drum")
+
+    def test_new_year_uses_official_new_model_number(self):
+        self.link.vehicle_model = self.by_code
+        self.link.data["model_number"] = "HJ11U5"
+        self.link.save()
+        self.assertEqual(service.model_prefill(self.link, self.by_code)[0]["model_number"], "HJ11U5")
+        self.link.data["model_number"] = ""
+        self.assertEqual(service.model_prefill(self.link, self.by_code)[0]["model_number"], "HJ11U3")

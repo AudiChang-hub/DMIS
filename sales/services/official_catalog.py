@@ -581,23 +581,63 @@ def _norm(value):
     return re.sub(r"[\s\-_/．.·()（）]+", "", value)
 
 
+CODE_SEPARATORS = re.compile(r"[、,，;；/\s]+")
+
+
+def _code_key(value):
+    return re.sub(r"[\s\-_]+", "", unicodedata.normalize("NFKC", str(value or ""))).upper()
+
+
+def official_model_codes(entry):
+    """官網型號：單一版本頁的 model_number（可多個，以「、」分隔）；多版本頁只有候選。回傳 (型號, 是否確定)。"""
+    codes = [code for code in CODE_SEPARATORS.split(entry.get("model_number") or "") if code]
+    if codes:
+        return codes, True
+    return list(entry.get("model_number_candidates") or []), False
+
+
+def system_model_codes(model):
+    """系統車型的原廠型號：啟用的「適用原廠型號」，沒有時用車型的型號欄位。"""
+    manager = getattr(model, "factory_model_codes", None)
+    codes = [code.code for code in manager.all() if code.active] if manager is not None else []
+    if not codes:
+        codes = [code for code in CODE_SEPARATORS.split(getattr(model, "model_number", "") or "") if code]
+    return codes
+
+
+def code_match(entry, model):
+    """官網型號與系統車型的型號是否相符："exact"（確定型號相符）、"candidate"（多版本頁候選之一）或 ""。"""
+    codes, certain = official_model_codes(entry)
+    official = {_code_key(code) for code in codes}
+    if not official or not official & {_code_key(code) for code in system_model_codes(model)}:
+        return ""
+    return "exact" if certain else "candidate"
+
+
 def suggest_vehicle_models(entry, candidates):
-    """依名稱相似度排序建議；只是預設選項，必須由人確認對應。"""
+    """型號相符排第一，其次依名稱相似度；只是預設選項，必須由人確認對應。"""
     official = _norm(re.sub(r"^\s*20\d{2}\s*", "", entry.get("name", "")))
     official_cc = float(entry["displacement_cc"]) if entry.get("displacement_cc") else None
     scored = []
     for model in candidates:
+        match = code_match(entry, model)
         name = _norm(model.name)
-        if not name:
+        if not name and not match:
             continue
-        # 同名不同排氣量（例如 125／158）不建議，避免誤選。
-        if official_cc and model.displacement_cc and abs(model.displacement_cc - official_cc) > 3:
+        # 同名不同排氣量（例如 125／158）不建議，避免誤選；型號完全相符時以型號為準。
+        if match != "exact" and official_cc and model.displacement_cc and abs(model.displacement_cc - official_cc) > 3:
             continue
-        if name == official:
+        if name and name == official:
             score = 2
-        elif name in official or official in name:
+        elif name and (name in official or official in name):
             score = 1
         else:
+            score = 0
+        if match == "exact":
+            score += 10
+        elif match == "candidate" and score:
+            score += 5
+        if not score:
             continue
         scored.append((score, model.model_year or 0, model))
     scored.sort(key=lambda item: (-item[0], -item[1], item[2].pk))
@@ -609,10 +649,16 @@ def match_colors(official_colors, system_colors):
     candidates = {}
     for color in system_colors:
         name = _norm(color.name)
+        system_code = _code_key(getattr(color, "code", ""))
         hits = []
         for index, official in enumerate(official_colors):
             code = _norm(official.get("code"))
-            if (code and code in name) or name in {_norm(official.get("stem")), _norm(official.get("name"))}:
+            official_code = _code_key(official.get("code"))
+            # T-223 起色碼存在車色的色碼欄，不再寫在色名裡；兩種寫法都比對。兩邊都有色碼卻不同時，同名也不算。
+            if system_code and official_code:
+                if system_code == official_code:
+                    hits.append(index)
+            elif (code and code in name) or name in {_norm(official.get("stem")), _norm(official.get("name"))}:
                 hits.append(index)
         candidates[color.pk] = hits
     usage = {}
@@ -624,6 +670,70 @@ def match_colors(official_colors, system_colors):
         for pk, hits in candidates.items()
         if len(hits) == 1 and usage[hits[0]] == 1
     }
+
+
+def compare_with_model(entry, model):
+    """卡片並排對照官網與系統車型的型號、車色色碼；mismatch 為 True 的列要標出不一致。"""
+    official_codes, certain = official_model_codes(entry)
+    system_codes = system_model_codes(model)
+    official_keys, system_keys = {_code_key(c) for c in official_codes}, {_code_key(c) for c in system_codes}
+    if not official_keys or not system_keys:
+        model_note = "官網未列型號" if not official_keys else "系統未填型號"
+    elif (official_keys == system_keys) if certain else bool(official_keys & system_keys):
+        model_note = ""
+    else:
+        model_note = "部分相同" if official_keys & system_keys else "型號不同"
+    model_row = {"label": "型號", "official": "、".join(official_codes), "system": "、".join(system_codes),
+                 "note": model_note, "mismatch": bool(model_note)}
+
+    system_colors = [color for color in model.colors.all() if color.active]
+    used, rows = set(), []
+    for official in entry.get("colors", []):
+        official_code = _code_key(official.get("code"))
+        names = {_norm(official.get("stem")), _norm(official.get("name"))}
+        match = next((c for c in system_colors if c.pk not in used and official_code
+                      and _code_key(c.code) == official_code), None)
+        match = match or next((c for c in system_colors if c.pk not in used and _norm(c.name) in names), None)
+        if match is None:
+            note = "系統沒有"
+        else:
+            used.add(match.pk)
+            system_code = _code_key(match.code)
+            note = "" if system_code == official_code else (
+                "系統未填色碼" if not system_code else "官網未列色碼" if not official_code else "色碼不同")
+        official_label = " ".join(part for part in (official.get("stem") or official["name"], official.get("code")) if part)
+        rows.append({"label": "車色", "official": official_label, "system": match.label if match else "",
+                     "note": note, "mismatch": bool(note)})
+    for color in system_colors:
+        if color.pk not in used:
+            rows.append({"label": "車色", "official": "", "system": color.label, "note": "官網沒有", "mismatch": True})
+    return {"rows": [model_row, *rows], "mismatches": sum(row["mismatch"] for row in [model_row, *rows])}
+
+
+BRAKE_TYPES = (
+    # (必須都出現的字, 型式)；先比對較具體的寫法。
+    (("ABS", "三碟"), "abs_triple_disc"),
+    (("ABS", "雙碟"), "abs_dual_disc"),
+    (("CBS", "雙碟"), "cbs_dual_disc"),
+    (("前碟後鼓",), "front_disc_rear_drum"),
+    (("CBS", "碟"), "cbs_disc"),
+    (("CBS", "鼓"), "cbs_drum"),
+    (("ABS",), "abs_disc"),
+)
+
+
+def guess_model_type(*names):
+    """依官網名稱推測型式（ABS／CBS、碟／鼓）；只有一種可能時才回傳，其他留空由人選。"""
+    text = unicodedata.normalize("NFKC", " ".join(name or "" for name in names)).upper()
+    for words, value in BRAKE_TYPES:
+        if all(word in text for word in words):
+            return value
+    if "CBS" in text:
+        return ""
+    has_disc, has_drum = "碟" in text, "鼓" in text
+    if has_disc != has_drum:
+        return "disc" if has_disc else "drum"
+    return ""
 
 
 def fillable_colors(link):
@@ -659,11 +769,13 @@ def official_color_initials(entry):
 
 
 def model_prefill(link, base_model=None):
-    """新增機種／年式表單的預填值；只是起點，儲存前由人確認、可修改，型式仍須人工填寫。"""
+    """新增機種／年式表單的預填值；只是起點，儲存前由人確認、可修改。"""
     from datetime import date
 
     entry = link.data
     initial = {"active": False}
+    # 既有資料（T-239 前抓的）只有 specs 的認證車型，沒有 model_number 欄位。
+    official_number = entry.get("model_number") or suzuki_model_number(entry.get("specs", {}).get("認證車型", ""))
     if base_model:
         initial.update({
             "existing_family": base_model.family_id,
@@ -672,8 +784,10 @@ def model_prefill(link, base_model=None):
             "name": base_model.family.name if base_model.family_id else base_model.name,
             "model_code": base_model.model_code,
             "electric_registration_class": base_model.electric_registration_class,
-            "model_number": "、".join(base_model.factory_model_codes.filter(active=True)
-                                      .order_by("code").values_list("code", flat=True)) or base_model.model_number,
+            # 改款通常換型號：官網有型號時用官網的新型號，沒有才沿用舊年式。
+            "model_number": official_number or "、".join(
+                base_model.factory_model_codes.filter(active=True).order_by("code").values_list("code", flat=True)
+            ) or base_model.model_number,
         })
     else:
         brands = list(brand_models(link.brand).values_list("brand", flat=True))
@@ -684,10 +798,11 @@ def model_prefill(link, base_model=None):
             "energy_type": "electric" if entry.get("energy") == "electric" else "gas",
             "name": re.sub(r"^全新\s*", "", name).strip(),
         })
-        # 既有資料（T-239 前抓的）只有 specs 的認證車型，沒有 model_number 欄位。
-        model_number = entry.get("model_number") or suzuki_model_number(entry.get("specs", {}).get("認證車型", ""))
-        if model_number:
-            initial["model_number"] = model_number
+        if official_number:
+            initial["model_number"] = official_number
+        model_type = guess_model_type(entry.get("name", ""), entry.get("variant", ""))
+        if model_type:
+            initial["model_code"] = model_type
     base_year = base_model.model_year if base_model else None
     initial["model_year"] = entry.get("year_hint") or (base_year + 1 if base_year else date.today().year)
     if entry.get("displacement_cc") and initial["energy_type"] == "gas":

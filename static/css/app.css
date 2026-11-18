@@ -7086,6 +7086,25 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .official-row__media{padding:var(--card-pad) 0 var(--card-pad) var(--card-pad)}.official-row__media img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:white;border-radius:var(--radius-sm)}
 .official-row__body{min-width:0}.official-row__body .section-body>*+*{margin-top:var(--stack-gap-sm)}.official-row__colors{display:flex;flex-wrap:wrap;gap:var(--space-2)}
 .official-tabs a:last-child,.official-brand-tabs a:last-child,.dealer-reward-tabs a:last-child,.vehicle-model-tabs a:last-child{margin-left:0}.official-brand-tabs small{color:var(--muted);font-weight:400}.official-row__form label{display:grid;gap:var(--space-2);max-width:640px}
+/* T-239 方案 A：比對卡片定位、分類篩選、官網／系統對照 */
+.official-row{scroll-margin-top:120px}.official-row:focus{outline:none}
+.official-filter{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:var(--stack-gap-sm);margin-bottom:var(--stack-gap)}
+.official-filter__chips{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.official-filter__chips a{display:inline-flex;align-items:center;gap:var(--space-2);min-height:36px;padding:0 var(--space-3);border:1px solid var(--line);border-radius:var(--radius-xs);background:var(--surface);color:var(--ink);font-size:var(--text-sm-plus);text-decoration:none}
+.official-filter__chips a:hover{border-color:var(--line-strong)}
+.official-filter__chips a:focus-visible{outline:2px solid var(--action-text,var(--forest));outline-offset:2px}
+.official-filter__chips a[aria-current]{border-color:var(--action-text,var(--forest));color:var(--action-text,var(--forest));font-weight:700}
+.official-filter__chips span{color:var(--muted);font-weight:400}
+.official-compare{border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+.official-compare__summary{margin:0;padding:var(--space-2) var(--space-3);background:var(--surface-tint);font-size:var(--text-sm-plus)}
+.official-compare__summary strong{color:var(--amber-ink)}
+.official-compare__row{display:grid;grid-template-columns:4.5em minmax(0,1fr) minmax(0,1.3fr);gap:var(--space-3);padding:var(--space-2) var(--space-3);border-top:1px solid var(--line);font-size:var(--text-sm-plus);overflow-wrap:anywhere}
+.official-compare__row--head{color:var(--muted);font-size:var(--text-sm);font-weight:700}
+.official-compare__row.is-mismatch{background:var(--amber-soft)}
+.official-compare__note{display:inline-block;margin-left:var(--space-1);padding:0 var(--space-2);border:1px solid var(--amber-border-strong);border-radius:var(--radius-xs);color:var(--amber-ink);font-size:var(--text-sm);white-space:nowrap}
+.official-match{display:inline-block;margin-left:var(--space-2);padding:0 var(--space-2);border:1px solid var(--teal-border);border-radius:var(--radius-xs);background:var(--teal-soft);color:var(--teal-ink);font-size:var(--text-sm);font-weight:700}
+.official-match--soft{font-weight:400}
+@media(max-width:700px){.official-row{scroll-margin-top:96px}.official-compare__row{grid-template-columns:3.5em minmax(0,1fr) minmax(0,1fr);gap:var(--space-2)}.official-filter{flex-direction:column;align-items:stretch}.official-filter form .button{width:100%}}
 @media(max-width:700px){.official-row{grid-template-columns:1fr}.official-row__media{padding:var(--card-pad) var(--card-pad) 0}.official-row__media img{max-width:240px}}
 .catalog-manage-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--stack-gap)}
 .catalog-manage-filters label{min-width:0;display:grid;gap:var(--space-3)}.catalog-manage-actions{display:flex;flex-wrap:wrap;gap:var(--stack-gap-sm);margin:var(--stack-gap-sm) 0}

@@ -84,6 +84,7 @@ urlpatterns = [
     path("data/catalog/official/<int:pk>/link/", official_catalog_views.official_catalog_link, name="official_catalog_link"),
     path("data/catalog/official/<int:pk>/acknowledge/", official_catalog_views.official_catalog_acknowledge, name="official_catalog_acknowledge"),
     path("data/catalog/official/<int:pk>/ignore/", official_catalog_views.official_catalog_ignore, name="official_catalog_ignore"),
+    path("data/catalog/official/ignore-category/", official_catalog_views.official_catalog_ignore_category, name="official_catalog_ignore_category"),
     path("data/catalog/official/<int:pk>/fill-images/", official_catalog_views.official_catalog_fill_images, name="official_catalog_fill_images"),
     path("orders/intake-attachments/<int:pk>/", intake_views.order_intake_attachment, name="order_intake_attachment"),
     path("system/users/<int:pk>/order-scope/", intake_views.order_account_scope, name="order_account_scope"),

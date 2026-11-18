@@ -181,7 +181,7 @@ PERSONAL.update({"user_guide_legacy", "help_start", "help_article"})  # T-197 �
 ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image"})
 ROOT_ONLY.update({"catalog_photo_board", "catalog_photo_save", "catalog_photo_thumb"})  # 車色圖片總覽，權限同選車圖片頁
-ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_fill_images"})
+ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_ignore_category", "official_catalog_fill_images"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.add("notification_list")
 PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊

@@ -206,6 +206,20 @@ def transfer_signoff_list(request):
     })
 
 
+def _receipt_color_choices():
+    """進車紀錄的車色篩選：仍以名稱篩選，選項文字比照列表顯示「名稱 色碼」（T-229）。"""
+    codes = {}
+    rows = VehicleColor.objects.filter(vehicleinventory__isnull=False).values_list("name", "code").order_by().distinct()
+    for name, code in rows:
+        codes.setdefault(name, set())
+        if (code or "").strip():
+            codes[name].add(code.strip())
+    return [
+        {"value": name, "label": f"{name} {'／'.join(sorted(codes[name]))}" if codes[name] else name}
+        for name in sorted(codes)
+    ]
+
+
 @login_required
 def inventory_receipt_list(request):
     """進車紀錄：依進車日期區間、車型、車色與來源篩選，查某段時間進了哪幾台車。"""
@@ -235,7 +249,7 @@ def inventory_receipt_list(request):
     return render(request, "sales/inventory_receipt_list.html", {
         "page_obj": page, "vehicles": page.object_list, "daily_counts": daily_counts,
         "models": VehicleModel.objects.filter(vehicleinventory__isnull=False).values_list("name", flat=True).distinct().order_by("name"),
-        "colors": VehicleColor.objects.filter(vehicleinventory__isnull=False).values_list("name", flat=True).distinct().order_by("name"),
+        "colors": _receipt_color_choices(),
         "acquisition_choices": VehicleInventory.AcquisitionType.choices,
         "selected": {"from": request.GET.get("from", ""), "to": request.GET.get("to", ""), "model": model_name,
                      "color": color_name, "acquisition": acquisition},

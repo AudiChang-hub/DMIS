@@ -8887,12 +8887,25 @@ def inventory_list(request):
             selected_family_choice_ids.append(family.pk)
     vehicle_family_choices.sort(key=lambda family: (family.brand.casefold(), family.name.casefold()))
     color_counts = {}
-    for row in facet("color", "color__name"):
+    color_codes = {}
+    for row in facet("color", "color__name", "color__code"):
         key = (row["color__name"] or "").strip().casefold()
         color_counts[key] = color_counts.get(key, 0) + row["total"]
+        code = (row["color__code"] or "").strip()
+        if code:
+            color_codes.setdefault(key, set()).add(code)
     selected_color_keys = {value.casefold() for value in selected_colors}
+    # 篩選仍以車色名稱合併（T-223），選項文字比照列表顯示「名稱 色碼」（T-229）；
+    # 同名車色在不同車型色碼不同時列出這些車的全部色碼。
     color_choices = [
-        {**group, "count": color_counts.get(key, 0)}
+        {
+            **group,
+            "label": (
+                f"{group['label']} {'／'.join(sorted(color_codes[key]))}"
+                if key in color_codes else group["label"]
+            ),
+            "count": color_counts.get(key, 0),
+        }
         for key, group in sorted(color_groups.items(), key=lambda item: item[1]["label"])
         if color_counts.get(key) or key in selected_color_keys
     ]

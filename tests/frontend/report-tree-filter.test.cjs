@@ -67,3 +67,12 @@ test('窄邊徽章：全選寫全部、部分寫勾選數、沒勾寫 0', () => 
     assert.ok(badge.main.length <= 3 && badge.sub.length <= 6, '徽章文字要短到 44px 內一行放得下');
   }
 });
+
+// T-228：同名車種合併成一項，一項底下可能有好幾個 model 欄位；數量以車種計，全部欄位都勾才算勾選。
+const {reportTreeLeafCount} = require('../../static/js/report-tree-filter.js');
+
+test('車種數量：每個車種的欄位全勾才算一個', () => {
+  assert.deepEqual(reportTreeLeafCount([[true, true], [true], [false]]), {checked: 2, total: 3});
+  assert.deepEqual(reportTreeLeafCount([[true, false], [true]]), {checked: 1, total: 2});
+  assert.deepEqual(reportTreeLeafCount([]), {checked: 0, total: 0});
+});

@@ -1,7 +1,9 @@
 """大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車型。
 
 - 只有側欄分組為「大數據分析」的報表使用；其他群組的篩選完全不變。
-- 車型層是訂單的車型主檔（VehicleModel），網址參數 `model` 可重複；全選＝不帶參數，
+- 車型層是車種（機種主檔 VehicleModelFamily，T-228）：同一車種的各年式、型號合併成一項，
+  不另列型號與年式；勾一項等於勾該車種在報表範圍內的所有車型主檔。
+- 網址參數仍是車型主檔（VehicleModel）的 `model`，可重複；全選＝不帶參數，
   全部取消＝`empty_model=1`（不顯示資料），沿用總覽版型「全部取消」的既有口徑。
 - 樹的節點只列報表範圍內有資料的車型：報表固定範圍，再取各圖固定範圍的聯集
   （例如車型 X 性別只列 eReady 四個車型圖涵蓋的車型），所以勾選一定影響畫面；
@@ -57,70 +59,87 @@ def _state(leaves, selected):
     return "checked" if leaves and chosen == len(leaves) else "mixed" if chosen else "unchecked"
 
 
-def model_label(model):
-    secondary = [value for value in (model.model_number if model.model_number != model.name else "",
-                                     str(model.model_year) if model.model_year else "") if value]
-    return model.name, " · ".join(secondary)
+def family_key(model):
+    """車種歸併依據：機種主檔；沒有機種主檔的舊資料改用品牌＋車型名稱（不分大小寫）。"""
+    return model.family_id or f"{model.brand.casefold()}|{model.name.strip().casefold()}"
+
+
+def family_name(model):
+    return model.family.name if model.family_id else model.name
 
 
 def build_tree(config, filters=None):
-    """回傳根節點（總計）。每個節點：key、label、detail、count、state、leaves（車型 pk 字串）、children。"""
+    """回傳根節點（總計）。每個節點：key、label、count、state、leaves（車型 pk 字串）、children。
+
+    最末層是車種：leaves 是該車種的所有車型主檔，inputs 是每個主檔的勾選欄位（一起勾、一起取消）。
+    根節點另帶 leaf_count（車種數）。
+    """
     model_ids = scope_queryset(config, {}).values_list("vehicle_model_id", flat=True).distinct()
-    models = list(VehicleModel.objects.filter(pk__in=model_ids))
+    models = list(VehicleModel.objects.filter(pk__in=model_ids).select_related("family"))
     counts = dict(scope_queryset(config, count_filters(filters)).order_by()
                   .values_list("vehicle_model_id").annotate(total=Count("pk")))
     selected = selected_models(filters)
     energy_order = {value: index for index, (value, _) in enumerate(VehicleModel.EnergyType.choices)}
     energy_labels = dict(VehicleModel.EnergyType.choices)
     models.sort(key=lambda model: (model.brand.casefold(), energy_order.get(model.energy_type, 99),
-                                   model.name.casefold(), model.model_number, model.model_year or 0, model.pk))
+                                   family_name(model).casefold(), model.pk))
 
-    def node(key, label, children=None, leaves=None, detail="", level=1):
+    def node(key, label, children=None, leaves=None, level=1):
         leaves = leaves if leaves is not None else [leaf for child in children for leaf in child["leaves"]]
-        return {"key": key, "label": label, "detail": detail, "level": level, "children": children or [],
+        return {"key": key, "label": label, "detail": "", "level": level, "children": children or [],
                 "leaves": leaves, "count": sum(counts.get(int(pk), 0) for pk in leaves),
                 "state": _state(leaves, selected)}
 
     brands = {}
     for model in models:
-        brands.setdefault(model.brand, {}).setdefault(model.energy_type, []).append(model)
+        (brands.setdefault(model.brand, {}).setdefault(model.energy_type, {})
+         .setdefault(family_key(model), []).append(model))
     brand_nodes = []
+    leaf_count = 0
     for brand, energies in brands.items():
         energy_nodes = []
-        for energy, items in energies.items():
+        for energy, families in energies.items():
             leaves = []
-            for model in items:
-                name, detail = model_label(model)
-                leaves.append(node(f"m:{model.pk}", name, leaves=[str(model.pk)], detail=detail, level=4))
+            for key, items in families.items():
+                pks = [str(model.pk) for model in items]
+                leaf = node(f"f:{brand}|{energy}|{key}", family_name(items[0]), leaves=pks, level=4)
+                leaf["inputs"] = [{"value": pk, "checked": selected is None or pk in selected} for pk in pks]
+                leaves.append(leaf)
+            leaf_count += len(leaves)
             energy_nodes.append(node(f"e:{brand}|{energy}", energy_labels.get(energy, energy or "未填能源別"),
                                      leaves, level=3))
         brand_nodes.append(node(f"b:{brand}", brand, energy_nodes, level=2))
     root = node(ROOT_KEY, "總計", brand_nodes, level=1)
     root["children_count"] = len(brand_nodes)
+    root["leaf_count"] = leaf_count
     return root
 
 
+def _leaf_nodes(brand):
+    return [leaf for energy in brand["children"] for leaf in energy["children"]]
+
+
 def _leaf_labels(tree):
-    """標籤用車型名稱；同一品牌內同名時才加型號／年式區分。"""
+    """標籤用車種名稱；同一品牌內不同能源別同名時才加能源別區分。"""
     labels = {}
     for brand in tree["children"]:
-        leaves = [leaf for energy in brand["children"] for leaf in energy["children"]]
-        names = [leaf["label"] for leaf in leaves]
-        for leaf in leaves:
-            duplicate = names.count(leaf["label"]) > 1 and leaf["detail"]
-            labels[leaf["leaves"][0]] = leaf["label"] + (f"（{leaf['detail']}）" if duplicate else "")
+        names = [leaf["label"].casefold() for leaf in _leaf_nodes(brand)]
+        for energy in brand["children"]:
+            for leaf in energy["children"]:
+                duplicate = names.count(leaf["label"].casefold()) > 1
+                labels[leaf["key"]] = leaf["label"] + (f"（{energy['label']}）" if duplicate else "")
     return labels
 
 
 def _parts(brand, picked, labels):
-    """整個能源別都在時寫能源別名稱，否則逐一列車型。"""
+    """整個能源別都在時寫能源別名稱，否則逐一列車種。picked 是車種節點 key 的集合。"""
     parts = []
     for energy in brand["children"]:
-        items = [leaf for leaf in energy["leaves"] if leaf in picked]
-        if items and len(items) == len(energy["leaves"]) and len(brand["children"]) > 1:
+        items = [leaf for leaf in energy["children"] if leaf["key"] in picked]
+        if items and len(items) == len(energy["children"]) and len(brand["children"]) > 1:
             parts.append(f"{energy['label']}（全部）")
         else:
-            parts.extend(labels[leaf] for leaf in items)
+            parts.extend(labels[leaf["key"]] for leaf in items)
     return parts
 
 
@@ -144,14 +163,17 @@ def tree_chips(tree, filters):
     chips = []
     for brand in tree["children"]:
         leaves = set(brand["leaves"])
-        chosen = leaves & selected
-        if chosen == leaves:
+        if leaves <= selected:
             continue
+        # 車種有任一車型主檔被勾就算勾選（舊網址可能只帶某個年式）；一個都沒勾才算取消。
+        nodes = _leaf_nodes(brand)
+        chosen = {leaf["key"] for leaf in nodes if set(leaf["leaves"]) & selected}
+        dropped = {leaf["key"] for leaf in nodes} - chosen
         if not chosen:
             value = "已取消勾選"
-        elif len(leaves - chosen) < len(chosen):
+        elif dropped and len(dropped) < len(chosen):
             # 大部分還勾著時，列出取消的比較短。
-            value = "不含 " + _summary(_parts(brand, leaves - chosen, labels))
+            value = "不含 " + _summary(_parts(brand, dropped, labels))
         else:
             value = _summary(_parts(brand, chosen, labels))
         restored = (selected | leaves) & all_leaves
@@ -166,7 +188,7 @@ def tree_chips(tree, filters):
     return chips
 
 
-# ---- 依勾選車型各一張圖（T-151）----
+# ---- 依勾選車型各一張圖（T-151；T-228 起一個車種一張）----
 PER_MODEL_LIMIT = 8  # 與每份報表最多 8 張圖、圖表點選與每圖排序欄位（0–7）一致。
 
 
@@ -176,9 +198,10 @@ def per_model_template(config):
 
 
 def expand_cards(config, filters=None):
-    """把「依勾選車型各一張圖」的範本展開成每個車型一張圖。
+    """把「依勾選車型各一張圖」的範本展開成每個車種一張圖。
 
-    依台數由多到少（同台數依品牌、車型名稱），最多 PER_MODEL_LIMIT 張；只列有資料的車型。
+    同一車種的各年式、型號合併成一張（T-228，與車型篩選一致），圖卡的 vehicle_model 是該車種的車型主檔清單。
+    依台數由多到少（同台數依品牌、車種名稱），最多 PER_MODEL_LIMIT 張；只列有資料的車種。
     台數套用讀者篩選與樹的勾選，但不套圖表點選，展開結果不會因點選圖形而變動。
     回傳 (展開後的報表設定, 說明)；不是範本時原樣回傳、說明為 None。
     """
@@ -190,18 +213,25 @@ def expand_cards(config, filters=None):
                      if key != "focus" and not key.startswith(("_", "sort_", "grain"))}
     counts = list(base_query(config, scope_filters, template).order_by().values("vehicle_model_id")
                   .annotate(total=Count("pk")).values_list("vehicle_model_id", "total"))
-    models = VehicleModel.objects.in_bulk([pk for pk, _ in counts])
-    counts.sort(key=lambda item: (-item[1], models[item[0]].brand.casefold(), models[item[0]].name.casefold(), item[0]))
-    shown = counts[:PER_MODEL_LIMIT]
-    names = [models[pk].name for pk, _ in shown]
-    cards = []
-    for pk, total in shown:
+    models = VehicleModel.objects.select_related("family").in_bulk([pk for pk, _ in counts])
+    groups = {}
+    for pk, total in counts:
         model = models[pk]
-        name = model.name if names.count(model.name) == 1 else f"{model.name}（{model.model_number or model.brand}）"
+        group = groups.setdefault(family_key(model), {"name": family_name(model), "brand": model.brand,
+                                                      "pks": [], "total": 0})
+        group["pks"].append(pk)
+        group["total"] += total
+    ordered = sorted(groups.values(), key=lambda group: (-group["total"], group["brand"].casefold(),
+                                                         group["name"].casefold(), min(group["pks"])))
+    shown = ordered[:PER_MODEL_LIMIT]
+    names = [group["name"].casefold() for group in shown]
+    cards = []
+    for group in shown:
+        name = group["name"] if names.count(group["name"].casefold()) == 1 else f"{group['name']}（{group['brand']}）"
         card = {key: value for key, value in template.items() if key != "per_model"}
-        card.update(title=f"{name}－{template['title']}", vehicle_model=pk)
+        card.update(title=f"{name}－{template['title']}", vehicle_model=sorted(group["pks"]))
         cards.append(card)
-    info = {"total": len(counts), "shown": len(cards), "hidden": len(counts) - len(cards), "limit": PER_MODEL_LIMIT}
+    info = {"total": len(ordered), "shown": len(cards), "hidden": len(ordered) - len(cards), "limit": PER_MODEL_LIMIT}
     return {**config, "cards": cards}, info
 
 

@@ -75,7 +75,7 @@ class TreeFilterTests(TestCase):
         self.assertEqual([energy["label"] for energy in ereddy["children"]], ["電動車", "輕型電動車"])
         self.assertEqual([leaf["label"] for leaf in ereddy["children"][0]["children"]], ["Fun", "Run"])
         self.assertEqual([leaf["count"] for leaf in ereddy["children"][0]["children"]], [3, 1])
-        self.assertEqual(ereddy["children"][0]["children"][0]["detail"], "EV060L · 2023")
+        self.assertEqual(ereddy["children"][0]["children"][0]["detail"], "")  # T-228：車種不再列型號與年式
         self.assertEqual(ereddy["count"], 5)
         leaves = set(tree["leaves"])
         self.assertNotIn(str(self.uq.pk), leaves)  # 不在任何一張圖的範圍

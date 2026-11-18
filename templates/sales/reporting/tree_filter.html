@@ -1,7 +1,7 @@
-{% load static %}{# 大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車型。勾選即自動套用，條件寫進網址的 model／empty_model。 #}
+{% load static %}{# 大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車種（T-228 同車種各年式、型號合併）。勾選即自動套用，條件寫進網址的 model／empty_model。 #}
 <aside class="report-tree-filter" data-report-tree aria-labelledby="report-tree-title">
   <div class="report-tree-filter__head">
-    <div class="report-tree-filter__heading"><h2 id="report-tree-title">車型篩選</h2><p class="report-tree-filter__status" data-report-tree-status aria-live="polite">{% if tree_filter.state == 'checked' %}全部 {{ tree_filter.leaves|length }} 個車型{% elif tree_filter.state == 'mixed' %}已選部分車型{% else %}未選取（不顯示資料）{% endif %}</p></div>
+    <div class="report-tree-filter__heading"><h2 id="report-tree-title">車型篩選</h2><p class="report-tree-filter__status" data-report-tree-status aria-live="polite">{% if tree_filter.state == 'checked' %}全部 {{ tree_filter.leaf_count }} 個車型{% elif tree_filter.state == 'mixed' %}已選部分車型{% else %}未選取（不顯示資料）{% endif %}</p></div>
     {% if side_dock %}<button type="button" class="report-side-panel__close" aria-expanded="false" aria-controls="report-tree-panel" aria-label="收合車型篩選" title="收合" data-side-close="tree"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>{% else %}
     <button type="button" class="button ghost small report-tree-filter__drawer" aria-expanded="true" aria-controls="report-tree-body" data-report-tree-drawer hidden><span data-report-tree-drawer-text>收合</span><span class="ui-chevron" aria-hidden="true"></span></button>
     {# 寬螢幕向右收合（T-152）：收起後只留右側窄邊，圖表區跟著變寬。 #}

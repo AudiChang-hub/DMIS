@@ -293,8 +293,10 @@ def base_query(config, filters, card=None):
     if filters.get("empty_months") or filters.get("empty_legacy_source") or filters.get("empty_legacy_dealer") or filters.get("empty_model"):
         queryset = queryset.none()
     if (card or {}).get("vehicle_model"):
-        # 依車型展開的圖卡（T-151）：展開時才加上，不存進報表設定。
-        queryset = queryset.filter(vehicle_model_id=card["vehicle_model"])
+        # 依車型展開的圖卡（T-151）：展開時才加上，不存進報表設定。T-228 起是同一車種的車型主檔清單。
+        vehicle_models = card["vehicle_model"]
+        queryset = queryset.filter(vehicle_model_id__in=vehicle_models if isinstance(vehicle_models, (list, tuple))
+                                   else [vehicle_models])
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     for scope in scopes:
         validate_scope(scope)

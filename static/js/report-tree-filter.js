@@ -1,4 +1,5 @@
-// 大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車型。
+// 大數據分析群組的樹狀篩選（T-151）：總計 → 品牌 → 能源別 → 車種。
+// 車種（T-228）合併同名車種的各年式、型號：一個節點底下可能有好幾個 model 欄位，一起勾、一起取消；數量以車種計。
 // 勾選後交給報表篩選表單（report-interactions.js）防抖、寫進網址並原地更新；
 // 全選＝不帶 model，全部取消＝empty_model=1（不顯示資料）。ARIA tree：方向鍵移動／展開／收合，空白鍵或 Enter 勾選。
 function reportTreeCheckedState(checked, total) {
@@ -26,6 +27,10 @@ function reportTreeReadCollapsed(storage) {
 function reportTreeWriteCollapsed(storage, collapsed) {
   try { storage?.setItem(REPORT_TREE_COLLAPSED_KEY, collapsed ? '1' : '0'); return true; } catch { return false; }
 }
+// 車種數量（T-228）：每個車種的 model 欄位全勾才算勾選。groups 是每個車種各欄位的勾選狀態。
+function reportTreeLeafCount(groups) {
+  return {checked: groups.filter(group => group.length && group.every(Boolean)).length, total: groups.length};
+}
 // 送出前改寫表單資料：全選不帶條件，全部取消改送 empty_model。
 function reportTreeFormData(formData, checked, total) {
   formData.delete('empty_model');
@@ -33,7 +38,7 @@ function reportTreeFormData(formData, checked, total) {
   if (!checked) { formData.delete('model'); formData.set('empty_model', '1'); }
   return formData;
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeCheckedState, reportTreeStatus, reportTreeFormData, reportTreeRailCount, reportTreeRailBadge, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY};
+if (typeof module !== 'undefined' && module.exports) module.exports = {reportTreeLeafCount, reportTreeCheckedState, reportTreeStatus, reportTreeFormData, reportTreeRailCount, reportTreeRailBadge, reportTreeReadCollapsed, reportTreeWriteCollapsed, REPORT_TREE_COLLAPSED_KEY};
 (() => {
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-report-tree]');
@@ -53,6 +58,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
   const railButton = root.querySelector('[data-report-tree-rail]');
   const parentOf = item => item.parentElement.closest('[role="treeitem"]');
   const leavesOf = item => [...item.querySelectorAll('[data-tree-input]')];
+  const ownInputs = item => [...item.querySelectorAll(':scope > [data-tree-input]')];
+  const leafItems = items.filter(item => ownInputs(item).length);
   const isVisible = item => { for (let parent = parentOf(item); parent; parent = parentOf(parent)) if (parent.getAttribute('aria-expanded') === 'false') return false; return true; };
   const visibleItems = () => items.filter(isVisible);
   // 節點名稱只取自己的名稱與台數，不把展開的子節點文字一併念出。
@@ -68,15 +75,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
       const leaves = leavesOf(item);
       item.setAttribute('aria-checked', reportTreeCheckedState(leaves.filter(input => input.checked).length, leaves.length));
     });
-    const checked = inputs.filter(input => input.checked).length;
-    status.textContent = reportTreeStatus(checked, inputs.length);
-    if (railCount) railCount.textContent = reportTreeRailCount(checked, inputs.length);
+    const {checked, total} = reportTreeLeafCount(leafItems.map(item => ownInputs(item).map(input => input.checked)));
+    status.textContent = reportTreeStatus(checked, total);
+    if (railCount) railCount.textContent = reportTreeRailCount(checked, total);
     if (railBadge) {
-      const badge = reportTreeRailBadge(checked, inputs.length);
+      const badge = reportTreeRailBadge(checked, total);
       railBadge.dataset.state = badge.state;
       railBadge.querySelector('[data-report-tree-rail-main]').textContent = badge.main;
       railBadge.querySelector('[data-report-tree-rail-sub]').textContent = badge.sub;
-      railButton?.setAttribute('title', `展開車型篩選（${reportTreeRailCount(checked, inputs.length)} 款）`);
+      railButton?.setAttribute('title', `展開車型篩選（${reportTreeRailCount(checked, total)} 款）`);
     }
   }
   function apply() { refresh(); proxy?.dispatchEvent(new Event('change', {bubbles: true})); }
@@ -94,6 +101,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
     item.focus({preventScroll: false});
   }
 
+  // 送出以 model 欄位計：全部欄位都勾才不帶條件（舊網址只帶某個年式時照原樣保留）。
   form.addEventListener('formdata', event => {
     reportTreeFormData(event.formData, inputs.filter(input => input.checked).length, inputs.length);
   });
@@ -191,8 +199,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = {reportTre
       const text = item.querySelector(':scope > .report-tree__row [data-tree-count-text]');
       const nextText = source.querySelector(':scope > .report-tree__row [data-tree-count-text]');
       if (text && nextText) text.replaceChildren(...[...nextText.childNodes].map(node => document.importNode(node, true)));
-      const input = item.querySelector(':scope > [data-tree-input]'), nextInput = source.querySelector(':scope > [data-tree-input]');
-      if (input && nextInput) input.checked = nextInput.checked;
+      const nextInputs = new Map(ownInputs(source).map(input => [input.value, input.checked]));
+      ownInputs(item).forEach(input => { if (nextInputs.has(input.value)) input.checked = nextInputs.get(input.value); });
     });
     refresh();
   });

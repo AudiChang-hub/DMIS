@@ -1545,15 +1545,14 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .filter-bar { display: flex; margin-bottom: var(--stack-gap-sm); gap: var(--space-3); }
 .filter-bar label { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm-plus); font-weight: 800; }
 .filter-bar select { min-height: 42px; padding: 0 var(--space-6) 0 var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.order-filter-bar { align-items: end; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius-lg); box-shadow: 0 7px 22px color-mix(in srgb, var(--shadow-ink) 5%, transparent); flex-wrap: wrap;
+.order-filter-bar { display: grid; grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)) minmax(0, 1.2fr) auto; align-items: end; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: 0 7px 22px color-mix(in srgb, var(--shadow-ink) 5%, transparent);
   padding: var(--inset-pad);
 }
 .order-filter-bar label { min-width: 0; align-items: stretch; flex-direction: column; gap: var(--space-2); }
-.order-filter-search { flex: 1 1 520px; }
-.order-filter-status { flex: 0 1 280px; }
 .order-filter-bar input, .order-filter-bar select { width: 100%; min-width: 0; min-height: 46px; }
 .order-filter-submit { min-width: 96px; }
+.order-filter-note { grid-column: 1 / -1; margin: 0; font-size: var(--text-sm); }
 .form-progress { position: sticky; z-index: 20; top: 82px; display: flex; margin-bottom: var(--stack-gap); padding: var(--space-2); gap: var(--space-2); overflow-x: auto; background: color-mix(in srgb, var(--paper) 95%, transparent); backdrop-filter: blur(10px); }
 .draft-status {
   display: flex; margin: calc(-1 * var(--space-3)) 0 var(--stack-gap); padding: var(--inset-pad); align-items: center; gap: var(--space-2);
@@ -5134,14 +5133,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .registration-rule-card__actions { display: grid; grid-template-columns: 1fr auto; }
   .registration-rule-card__actions > .button { width: 100%; }
   .registration-rule-more__menu { right: 0; bottom: calc(100% + 7px); top: auto; }
-  .order-filter-bar {
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(118px, .62fr);
-    align-items: end; gap: var(--space-3);
-  }
-  .order-filter-search { grid-column: 1 / -1; }
-  .order-filter-status { grid-column: 1; }
-  .order-filter-submit { grid-column: 2; width: 100%; min-width: 0; min-height: 48px; }
-  .order-filter-bar input, .order-filter-bar select { min-height: 48px; }
   .order-list-summary { min-height: 64px; padding: var(--space-2) var(--space-4); align-items: flex-start; flex-direction: column; gap: var(--space-2); }
   .order-list-summary__controls { width: 100%; justify-content: space-between; gap: var(--space-3); }
   .order-page-size-form label { font-size: var(--text-sm); }
@@ -6942,17 +6933,30 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .announcement-card { padding: var(--space-5) 0; border-bottom: 1px solid var(--line); }
 .system-home .section-block { padding: var(--card-pad); }
 .system-home .section-block > h2:first-child { margin-top: 0; }
-.order-filter-bar > details { width: 100%; grid-column: 1 / -1; grid-row: 3; order: 4; flex-basis: 100%; margin: 0; padding: var(--space-4) 0 0; background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; }
-.order-filter-bar .order-filter-submit { grid-row: 2; }
-.order-filter-bar .order-filter-status { grid-row: 2; }
-.order-filter-bar .order-filter-search { grid-row: 1; }
 .order-filter-bar input:not([type=hidden]), .order-filter-bar select,
 .announcement-form input:not([type=hidden]):not([type=checkbox]), .announcement-form textarea {
   width: 100%; min-width: 0; min-height: 48px; padding: var(--space-3) var(--space-4); border: 1px solid var(--line);
   border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font: inherit;
 }
 .announcement-form textarea { resize: vertical; }
-.order-filter-bar > details summary { margin-bottom: var(--stack-gap-sm); }
+.order-filter-bar .order-filter-submit { min-height: 48px; }
+.order-filter-bar input[type=date] { height: 48px; }
+/* T-233：篩選直接顯示不摺疊；欄位與搜尋鈕同高（桌面 48px、手機 --control-h）。寬桌面一列；1280px 以下兩列（搜尋＋日期起訖／能源別、收款確認、狀態、搜尋鈕）；860px 以下兩欄。 */
+@media (max-width: 1280px) {
+  .order-filter-bar { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
+  .order-filter-search { grid-column: span 2; }
+  .order-filter-choice, .order-filter-status, .order-filter-submit { grid-row: 2; }
+  .order-filter-status { grid-column: span 2; }
+}
+@media (max-width: 860px) {
+  .order-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .order-filter-search { grid-column: 1 / -1; }
+  .order-filter-choice, .order-filter-status, .order-filter-submit { grid-row: auto; }
+  .order-filter-status { grid-column: auto; }
+  .order-filter-submit { width: 100%; min-width: 0; }
+  .order-filter-bar :is(input:not([type=hidden]), select), .order-filter-bar .order-filter-submit { min-height: var(--control-h); padding-block: var(--space-2); }
+  .order-filter-bar input[type=date] { height: var(--control-h); padding-inline: var(--space-3); }
+}
 .announcement-card h3 { margin: var(--space-3) 0; }
 .announcement-body { white-space: pre-wrap; line-height: 1.8; }
 .announcement-form { display: grid; gap: var(--stack-gap); }

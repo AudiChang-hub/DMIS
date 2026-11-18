@@ -75,7 +75,21 @@ def filter_order_analysis(rows, params, *, business_default=False):
     return rows
 
 
+# T-233（使用者 2026-11-18）：全部訂單畫面只留日期起訖、能源別、收款確認；以下四項不在畫面上，
+# 但營運總表等連結帶來的網址參數照舊有效，篩選表單以隱藏欄位帶著走，並在已套用條件列顯示名稱。
+# 預設值（實際領牌日期、包含取消／退款）不算條件。
+HIDDEN_FILTERS = {
+    "date_basis": ("日期依據", {"established": "訂單成立日期", "order": "訂單版本日期", "delivery": "實際交付日期"}),
+    "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款",
+                         "overpaid": "溢收待退", "stale_allocation": "配車保留逾期"}),
+    "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認"}),
+    "business_only": ("成交範圍", {"1": "排除取消／退款"}),
+}
+
+
 def analysis_filter_context(params):
     selected = [(key, params[key]) for key in FILTER_KEYS if params.get(key)]
-    return {"analysis_filters": selected, "has_analysis_filters": bool(selected),
+    hidden = [(key, params[key], f"{name}「{values[params[key]]}」")
+              for key, (name, values) in HIDDEN_FILTERS.items() if params.get(key) in values]
+    return {"analysis_filters": selected, "has_analysis_filters": bool(selected), "hidden_filters": hidden,
             "energy_types": VehicleModel.EnergyType.choices}

@@ -1118,7 +1118,7 @@
   },
   "order_list.f73efc30a7cd": {
     "page": "全部訂單",
-    "default": "日期範圍留白時，保留沒有日期的訂單。取消待退款條件保留退款待辦。",
+    "default": "日期起訖依實際領牌日期。",
     "template": "templates/sales/order_list.html"
   },
   "order_list.53c85242b009": {

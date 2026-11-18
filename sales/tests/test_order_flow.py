@@ -4388,7 +4388,8 @@ class OrderFlowTests(TestCase):
 
         self.assertIn("order-filter-bar", order_list)
         self.assertIn("show_order_details=True", order_list)
-        self.assertIn("grid-template-columns: minmax(0, 1fr) minmax(118px, .62fr)", css)
+        # T-233：篩選直接顯示，860px 以下兩欄（搜尋整列，日期起訖、能源別／收款確認、狀態／搜尋鈕各一列）。
+        self.assertIn(".order-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }", css)
         self.assertIn(".order-facts { grid-template-columns: repeat(2, minmax(0, 1fr))", css)
         self.assertIn(".reconciliation-table input.form-control { width: 100%; min-width: 0", css)
         self.assertIn("mobile-field-label", reconciliation)

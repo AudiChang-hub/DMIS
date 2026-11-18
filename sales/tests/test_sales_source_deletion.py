@@ -29,7 +29,6 @@ class SalesSourceDeletionTests(TestCase):
             name="誤建測試車行",
             source_type=SalesSource.SourceType.DEALER,
             category=self.category,
-            code="N26090399",
             address="基隆市七堵區明德一路1號",
         )
 
@@ -64,7 +63,6 @@ class SalesSourceDeletionTests(TestCase):
         item = PriceListDistributionItem.objects.create(
             distribution=distribution,
             dealer=self.dealer,
-            dealer_code=self.dealer.code,
             dealer_name=self.dealer.name,
             city=self.dealer.city,
             district=self.dealer.district,
@@ -111,7 +109,6 @@ class SalesSourceDeletionTests(TestCase):
         platform = SalesSource.objects.create(
             name="測試平台",
             source_type=SalesSource.SourceType.PLATFORM,
-            code="PLATFORM-DELETE-TEST",
         )
 
         response = self.client.get(reverse("sales_source_delete", args=[platform.pk]))

@@ -54,7 +54,6 @@ class PriceListDistributionTests(TestCase):
         dealer = SalesSource.objects.create(
             source_type=SalesSource.SourceType.DEALER,
             name=name,
-            code=f"CODE-{name}",
             city=city,
             district=district,
             address=(f"{city}{district}測試路1號" if address is None else address),

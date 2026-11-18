@@ -656,11 +656,8 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         source = SalesSource.objects.get(name="LINE 測試車行")
         self.assertTrue(source.has_line_group)
-        self.assertEqual(source.code, "", "T-238：來源代碼取消，存檔不再自動編碼")
         self.assertFalse(source.cooperation_profiles.filter(cooperates=True).exists())
 
-        source.code = "D-LINE-01"
-        source.save(update_fields=["code", "updated_at"])
         edit_response = self.client.get(
             reverse("sales_source_edit", args=[source.pk])
         )
@@ -669,7 +666,6 @@ class ChannelFinanceTests(TestCase):
         self.assertNotContains(edit_response, "聯絡窗口")
         self.assertNotContains(edit_response, "contacts-TOTAL_FORMS")
         self.assertContains(edit_response, "系統資訊")
-        self.assertNotContains(edit_response, "D-LINE-01", msg_prefix="T-238：不再顯示來源代碼")
         self.assertNotContains(edit_response, "來源代碼")
         self.assertNotContains(edit_response, 'name="code"')
         self.assertNotContains(edit_response, "群組特性")
@@ -882,11 +878,10 @@ class ChannelFinanceTests(TestCase):
             name="車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
         )
-        self.dealer.code = "N26032615"
         self.dealer.category = category
         self.dealer.holiday_gift = True
         self.dealer.save(
-            update_fields=["code", "category", "holiday_gift", "updated_at"]
+            update_fields=["category", "holiday_gift", "updated_at"]
         )
         SalesSourceCooperationProfile.objects.create(
             source=self.dealer,
@@ -900,7 +895,6 @@ class ChannelFinanceTests(TestCase):
         html = response.content.decode()
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "N26032615", msg_prefix="T-238：不再顯示來源代碼")
         self.assertContains(response, "一般車行")
         self.assertContains(response, "送禮")
         self.assertNotContains(response, "可停 0 台")

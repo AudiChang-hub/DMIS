@@ -35,8 +35,6 @@ class FormPrintServiceTests(TestCase):
     def setUp(self):
         lifecycle.OrderLifecycleTests.setUp(self)
         self.order, self.vehicle = self.make_order(dealer=True, deposit=Decimal("5000"))
-        self.source.code = "PC"
-        self.source.save(update_fields=["code"])
         self.order.refresh_from_db()
 
     def test_values_follow_word_merge_fields(self):

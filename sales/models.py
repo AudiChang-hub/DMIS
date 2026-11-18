@@ -475,7 +475,6 @@ class SalesSource(TimeStampedModel):
         blank=True,
         null=True,
     )
-    code = models.CharField("來源代碼", max_length=40, blank=True)
     responsible_person = models.CharField("負責人", max_length=80, blank=True)
     phone = models.CharField("電話一", max_length=50, blank=True)
     phone_secondary = models.CharField("電話二", max_length=50, blank=True)
@@ -1258,7 +1257,6 @@ class PriceListDistributionItem(TimeStampedModel):
         blank=True,
         null=True,
     )
-    dealer_code = models.CharField("車行代碼快照", max_length=40, blank=True)
     dealer_name = models.CharField("車行名稱快照", max_length=120)
     city = models.CharField("縣市快照", max_length=20, blank=True)
     district = models.CharField("行政區快照", max_length=20, blank=True)

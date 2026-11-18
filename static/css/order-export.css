@@ -60,3 +60,45 @@
   /* 手機表格變卡片：不畫唯讀灰底（半格灰塊看起來像版面錯位）。 */
   .order-export-preview__table .is-readonly { background: none; }
 }
+
+/* ===== 匯回修改（reimport_upload.html／reimport_detail.html，T-232 3a） ===== */
+.bulk-upload { display: grid; gap: var(--stack-gap-sm); }
+.bulk-upload .callout ul { margin: var(--space-2) 0 0; padding-left: var(--space-4); }
+.bulk-upload__form { display: grid; gap: var(--space-3); max-width: 560px; }
+.bulk-upload__form .field { display: grid; gap: var(--space-1); color: var(--field-label); font-size: var(--text-sm); font-weight: 700; }
+.bulk-upload__form .form-actions { margin: 0; }
+
+.bulk-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2); margin: 0 0 var(--space-3); }
+.bulk-summary > div { display: grid; gap: var(--space-1); padding: var(--space-3); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md); }
+.bulk-summary dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.bulk-summary dd { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-md); font-weight: 800; font-variant-numeric: tabular-nums; }
+.bulk-summary .is-change { box-shadow: inset 3px 0 0 var(--green); }
+.bulk-summary .is-conflict { box-shadow: inset 3px 0 0 var(--amber-strong); }
+.bulk-summary .is-error { box-shadow: inset 3px 0 0 var(--red); }
+
+.bulk-form { display: grid; gap: var(--stack-gap-sm); }
+.bulk-row { display: grid; gap: var(--space-3); padding: var(--inset-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.bulk-row.has-error { border-color: var(--red-border); box-shadow: inset 3px 0 0 var(--red); }
+.bulk-row__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-4); }
+.bulk-row__head h3 { margin: 0; font-size: var(--text-base); }
+.bulk-row__exclude, .bulk-take { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
+.bulk-row__exclude input, .bulk-take input { width: 20px; height: 20px; margin: 0; }
+.bulk-row__errors { margin: 0; padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6); color: var(--red-ink); background: var(--red-soft); border-radius: var(--radius-md); font-size: var(--text-sm); }
+/* 每列的對照表欄寬一致，上下對得齊。 */
+.bulk-row__table { table-layout: fixed; width: 100%; }
+.bulk-row__table .bulk-col-label { width: 22%; }
+.bulk-row__table .bulk-col-value { width: 28%; }
+.bulk-row__table .bulk-col-action { width: 22%; }
+.bulk-row__table td, .bulk-row__table th { overflow-wrap: anywhere; }
+.bulk-row__table th small, .bulk-row__table td small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); font-weight: 500; }
+.bulk-row__table tr.is-conflict td { background: color-mix(in srgb, var(--amber-soft) 70%, transparent); }
+.bulk-row__table tr.is-clear td { background: color-mix(in srgb, var(--line-soft) 55%, transparent); }
+.bulk-row__ignored summary { color: var(--muted); font-size: var(--text-sm); font-weight: 700; cursor: pointer; }
+.bulk-row__ignored ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); color: var(--ink-soft); font-size: var(--text-sm); }
+.bulk-change-list { margin: 0; padding-left: var(--space-4); }
+.inventory-table td .bulk-change-list strong { display: inline; }
+
+/* 手機表格變卡片，欄寬交給卡片版面（須排在基礎規則之後）。 */
+@media (max-width: 600px) {
+  .bulk-row__table { table-layout: auto; }
+}

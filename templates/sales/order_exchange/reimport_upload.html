@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}匯回修改｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'order_list' as order_list_url %}
+{% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">全部訂單</p><h1>匯回修改</h1><p class="muted">把「匯出訂單」下載的 Excel 改好後匯回，先看差異預覽，確認後才寫入。</p></div>
+  <div class="hero-actions">{% url 'order_export' as export_url %}<a class="button ghost" href="{{ export_url }}">匯出訂單</a></div>
+</section>
+
+<section class="section-block" aria-labelledby="bulk-upload-title">
+  <div class="section-title"><h2 id="bulk-upload-title">上傳改好的檔案</h2></div>
+  <div class="section-body bulk-upload">
+    <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div>
+      <h3>匯回前請確認</h3>
+      <ul>
+        <li>只收本系統「匯出訂單」產生、{{ baseline_days }} 天內的 .xlsx（{{ max_mb }} MB 以內）；一次最多 {{ max_rows }} 張訂單。</li>
+        <li>這一版可以改：車主資料、交車與選號、訂單備註、舊車牌與舊車主、舊車與報廢、車控電池帳號。金額、付款與分期、收支下一版開放。</li>
+        <li>車主證件號碼請在訂單頁修改；灰底的欄位只能看，改了也不會寫回。</li>
+        <li>不會新增或刪除訂單：新加的列會略過，刪掉的列不處理。</li>
+        <li>匯出之後有人在系統改過的欄位會列為衝突，預設不覆蓋，可以逐欄選「以檔案為準」。</li>
+      </ul>
+    </div></div>
+    <form method="post" enctype="multipart/form-data" class="bulk-upload__form">
+      {% csrf_token %}
+      <label class="field"><span>Excel 檔</span><input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
+      <div class="form-actions"><button class="button primary" type="submit">上傳並預覽</button></div>
+    </form>
+  </div>
+</section>
+
+<section class="section-block" aria-labelledby="bulk-recent-title">
+  <div class="section-title"><h2 id="bulk-recent-title">我最近的匯回</h2><span>{{ recent|length }} 筆</span></div>
+  {% if recent %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="最近的匯回紀錄">
+    <table class="inventory-table inventory-table--fit">
+      <thead><tr><th scope="col">上傳時間</th><th scope="col">檔名</th><th scope="col">狀態</th><th scope="col">結果</th></tr></thead>
+      <tbody>{% for item in recent %}<tr>
+        <td data-label="上傳時間">{{ item.created_at|date:"Y/m/d H:i" }}</td>
+        <td data-label="檔名">{{ item.file_name }}</td>
+        <td data-label="狀態">{{ item.get_status_display }}</td>
+        <td data-label="結果" class="inventory-row-action"><a href="{% url 'order_bulk_update_detail' item.pk %}">{% if item.status == 'applied' %}已修改 {{ item.result.orders }} 張{% else %}查看預覽{% endif %}</a></td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="section-body"><div class="empty-state small"><h3>還沒有匯回紀錄</h3><p>先到「匯出訂單」下載 Excel，改好後回到這裡上傳。</p></div></div>
+  {% endif %}
+</section>
+{% endblock %}

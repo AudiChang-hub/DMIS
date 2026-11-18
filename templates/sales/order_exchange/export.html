@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load static screen_access %}
 {% block title %}匯出訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}?v={{ app_version }}">{% endblock %}
@@ -6,6 +6,7 @@
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">全部訂單</p><h1>匯出訂單</h1><p class="muted">勾選要匯出的欄位，先預覽表格，確認是要的內容再下載 Excel。</p></div>
+  {% url 'order_bulk_update' as bulk_url %}{% if_access 'order_bulk_update' %}<div class="hero-actions"><a class="button ghost" href="{{ bulk_url }}">匯回改好的檔案</a></div>{% endif_access %}
 </section>
 
 <section class="section-block order-export-scope" aria-labelledby="export-scope-title">
@@ -32,7 +33,7 @@
         <span class="order-export-key is-editable">可改完匯回</span>
         <span class="order-export-key is-readonly">只能看</span>
         <span class="order-export-key is-order-page">只能在訂單頁改</span>
-        <p class="muted">預設勾選的是原本「匯出營運資料」那組欄位，不改直接匯出內容相同。「可改完匯回」的欄位在 Excel 是白底，改完匯回批次修改的功能下一版開放；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
+        <p class="muted">預設勾選的是原本「匯出營運資料」那組欄位，不改直接匯出內容相同。「可改完匯回」的欄位在 Excel 是白底，改完可用「匯回改好的檔案」批次修改（這一版先開放非金額欄位）；灰底欄位只供查看，改了也不會寫回。車控與電池密碼不會匯出。</p>
       </div>
       {% for row in groups %}
       <fieldset class="order-export-group{% if row.group.sensitive %} is-sensitive{% endif %}" data-export-group="{{ row.group.key }}"{% if not row.allowed %} disabled{% endif %}>

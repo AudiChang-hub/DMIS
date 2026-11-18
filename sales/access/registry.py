@@ -25,6 +25,8 @@ SCREENS = (
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
     Screen("profit", "查看淨利", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
+    Screen("order_bulk_update", "訂單批次修改（匯出 Excel 改完匯回）", "order_bulk_update", True,
+           hint="寫入時仍逐區段檢查訂單頁相同的操作權限（訂車與配件、訂單作業）。"),
     Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
     Screen("dealer_payouts", "車行傭金／獎金給付（報表中心）", "dealer_payout_list", True, True),
@@ -55,7 +57,7 @@ SCREENS = (
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
     ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing", "order_gift")),)),
-    ("orders", "全部訂單", (("訂單與作業", ("orders", "order_documents", "work", "order_finance", "profit", "order_delete")),)),
+    ("orders", "全部訂單", (("訂單與作業", ("orders", "order_documents", "work", "order_finance", "profit", "order_delete", "order_bulk_update")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", (("給付追蹤", ("dealer_payouts",)),)),
     ("data", "資料維護區", (
@@ -88,6 +90,8 @@ register("orders", "order_create order_edit draft_save draft_presence draft_dele
 register("orders", "contract_print privacy_consent_print order_documents_print identity_documents_print", "export")
 register("orders", "order_tax_consent_preview", "export")  # T-158：訂單頁列印前預覽退稅同意書（POST）
 register("orders", "order_export order_export_download", "export")  # T-232：訂單匯出（自選欄位、預覽）
+register("order_bulk_update", "order_bulk_update order_bulk_update_detail")  # T-232 3a：GET 查看、POST 上傳
+register("order_bulk_update", "order_bulk_update_apply", "operate")
 register("work", "order_operations registration_document_file subsidy_document_file order_attachment_file order_attachments_zip")
 register("work", "registration_fee_variance_confirm order_commission_attribution_update order_discount_request order_discount_decide order_secret_reveal allocate_vehicle reallocate_vehicle unallocate_vehicle registration_save registration_document_upload registration_document_delete registration_document_rename registration_complete delivery_complete delivery_payment_update deposit_payment_update cancellation_request cancellation_withdraw refund_complete payment_reverse payment_overpayment_refund installment_decision_update order_exception_close order_close subsidy_toggle subsidy_document_upload subsidy_data_update subsidy_ocr_decision subsidy_document_delete", "operate")
 register("work", "order_attachment_upload order_attachment_delete order_intake_attachment_delete order_file_delete order_item_file_delete order_attachment_classify", "operate")

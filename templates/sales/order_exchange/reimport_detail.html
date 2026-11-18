@@ -1,0 +1,93 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{% if plan %}匯回預覽{% else %}匯回結果{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'order_bulk_update' as upload_url %}
+{% include "sales/_page_back.html" with fallback_url=upload_url label="匯回修改" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">匯回修改</p><h1>{% if plan %}匯回預覽{% else %}匯回結果{% endif %}</h1>
+    <p class="muted">{{ batch.file_name }}{% if batch.export_record %} · 匯出於 {{ batch.export_record.created_at|date:"Y/m/d H:i" }}（{{ batch.export_record.actor_name }}）{% endif %}</p></div>
+  <div class="hero-actions"><a class="button ghost" href="{{ upload_url }}">重新上傳</a></div>
+</section>
+
+{% if not plan %}
+<section class="section-block" aria-labelledby="bulk-result-title">
+  <div class="section-title"><h2 id="bulk-result-title">已寫入</h2><span>{{ batch.result.orders }} 張 · {{ batch.result.fields }} 欄 · {{ batch.applied_at|date:"Y/m/d H:i" }}</span></div>
+  {% if batch.result.rows %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="已寫入的訂單與欄位">
+    <table class="inventory-table">
+      <thead><tr><th scope="col">檔案列</th><th scope="col">訂單編號</th><th scope="col">修改</th></tr></thead>
+      <tbody>{% for row in batch.result.rows %}<tr>
+        <td data-label="檔案列" class="is-number">{{ row.row }}</td>
+        <td data-label="訂單編號"><a href="{% url 'order_detail' row.order %}">{{ row.number }}</a></td>
+        <td data-label="修改"><ul class="bulk-change-list">{% for label, before, after in row.fields %}<li><strong>{{ label }}</strong>：{{ before|default:"（空白）" }} → {{ after|default:"（清除）" }}</li>{% endfor %}</ul></td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% else %}<div class="section-body"><div class="empty-state small"><h3>沒有需要寫入的欄位</h3></div></div>{% endif %}
+</section>
+{% else %}
+
+{% for message in plan.blocking %}<div class="callout callout--danger"><span class="callout__icon" aria-hidden="true">!</span><div><h3>不能匯回</h3><p>{{ message }}</p></div></div>{% endfor %}
+{% if batch.last_error %}<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>上次確認沒有寫入</h3><p>{{ batch.last_error }}</p></div></div>{% endif %}
+
+<section class="section-block" aria-labelledby="bulk-summary-title">
+  <div class="section-title"><h2 id="bulk-summary-title">比對結果</h2><span>檔案 {{ plan.summary.rows }} 張訂單</span></div>
+  <div class="section-body">
+    <dl class="bulk-summary">
+      <div class="is-change"><dt>會修改</dt><dd>{{ plan.summary.changed }} 張 · {{ plan.summary.fields }} 欄</dd></div>
+      <div class="is-conflict"><dt>衝突（匯出後系統被改過）</dt><dd>{{ plan.summary.conflicts }} 欄</dd></div>
+      <div><dt>要確認清除</dt><dd>{{ plan.summary.clears }} 欄</dd></div>
+      <div class="is-error"><dt>有錯誤</dt><dd>{{ plan.summary.errors }} 列</dd></div>
+      <div><dt>已忽略</dt><dd>{{ plan.summary.ignored }} 欄</dd></div>
+      <div><dt>未變更</dt><dd>{{ plan.summary.unchanged }} 張</dd></div>
+      {% if plan.summary.skipped %}<div><dt>略過的新列</dt><dd>{{ plan.summary.skipped }} 列</dd></div>{% endif %}
+    </dl>
+    <p class="muted">寫入時跟訂單頁自動儲存走同一份驗證與存檔流程（含重算尾款、未領牌單的成本與獎勵），每張單留修改紀錄。整批在同一個交易裡，任何一張失敗就全部不寫。</p>
+  </div>
+</section>
+
+<form method="post" action="{% url 'order_bulk_update_apply' batch.pk %}" class="bulk-form" data-confirm="確定要把勾選的修改寫入這些訂單嗎？寫入後會留下修改紀錄，要改回請再到訂單頁修改。">
+  {% csrf_token %}
+  <input type="hidden" name="fingerprint" value="{{ plan.fingerprint }}">
+  {% for item in rows %}
+  <article class="bulk-row{% if item.errors or item.validation %} has-error{% endif %}" aria-labelledby="bulk-row-{{ item.row }}">
+    <header class="bulk-row__head">
+      <h3 id="bulk-row-{{ item.row }}">第 {{ item.row }} 列{% if item.order %} · <a href="{% url 'order_detail' item.order.pk %}" target="_blank" rel="noopener">{{ item.order.number }}</a> · {{ item.order.owner_name }}{% endif %}</h3>
+      {% if item.fields %}<label class="bulk-row__exclude"><input type="checkbox" name="exclude-{{ item.row }}"> 不匯入這列</label>{% endif %}
+    </header>
+    {% if item.errors or item.validation %}
+    <ul class="bulk-row__errors">{% for message in item.errors %}<li>{{ message }}</li>{% endfor %}{% for message in item.validation %}<li>{{ message }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if item.fields %}
+    <div class="inventory-table-wrap" tabindex="0" aria-label="第 {{ item.row }} 列的修改">
+      <table class="inventory-table inventory-table--fit bulk-row__table">
+        <colgroup><col class="bulk-col-label"><col class="bulk-col-value"><col class="bulk-col-value"><col class="bulk-col-action"></colgroup>
+        <thead><tr><th scope="col">欄位</th><th scope="col">系統現值</th><th scope="col">檔案值</th><th scope="col">處理</th></tr></thead>
+        <tbody>{% for field in item.fields %}<tr class="{% if field.conflict %}is-conflict{% elif field.clear %}is-clear{% endif %}">
+          <th scope="row" data-label="欄位">{{ field.label }}<small>{% for key, label in section_labels.items %}{% if key == field.section %}{{ label }}{% endif %}{% endfor %}</small></th>
+          <td data-label="系統現值">{{ field.current|default:"（空白）" }}</td>
+          <td data-label="檔案值">{{ field.new|default:"（清除）" }}</td>
+          <td data-label="處理">{% if field.conflict %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 以檔案為準</label><small>匯出時是「{{ field.base|default:"空白" }}」，之後有人改過；不勾就不覆蓋。</small>{% elif field.clear %}<label class="bulk-take"><input type="checkbox" name="take-{{ item.row }}-{{ field.key }}"> 確認清除</label>{% else %}會修改{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% if item.needs_correction %}<label class="check-row bulk-row__correction"><input type="checkbox" name="correction-{{ item.row }}"><span>這張已交車：我確認這是完成後修正，交付狀態不變；金額有變時會記應收差額。</span></label>{% endif %}
+    {% endif %}
+    {% if item.ignored %}
+    <details class="bulk-row__ignored"><summary>已忽略 {{ item.ignored|length }} 欄</summary>
+      <ul>{% for ignored in item.ignored %}<li><strong>{{ ignored.label }}</strong>：{{ ignored.reason }}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </article>
+  {% empty %}
+  <div class="empty-state"><h3>檔案和系統一樣</h3><p>沒有找到要修改的欄位。</p></div>
+  {% endfor %}
+  <div class="form-savebar">
+    <span class="form-savebar__hint">有錯誤的列要修正檔案重新上傳，或勾「不匯入這列」才能確認。</span>
+    <div><a class="button ghost" href="{{ upload_url }}">重新上傳</a><button class="button primary" type="submit"{% if not can_apply %} disabled{% endif %}>確認寫入</button></div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

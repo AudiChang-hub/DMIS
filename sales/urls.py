@@ -29,6 +29,7 @@ from .reporting import views as report_views
 from .reporting import classification_views
 from .reporting import payout_views
 from .order_exchange import views as order_exchange_views
+from .order_exchange import reimport_views as order_bulk_views
 from .access import views as access_views
 
 
@@ -363,6 +364,9 @@ urlpatterns = [
     ),
     path("orders/export/", order_exchange_views.order_export, name="order_export"),
     path("orders/export/download/", order_exchange_views.order_export_download, name="order_export_download"),
+    path("orders/bulk-update/", order_bulk_views.order_bulk_update, name="order_bulk_update"),
+    path("orders/bulk-update/<int:pk>/", order_bulk_views.order_bulk_update_detail, name="order_bulk_update_detail"),
+    path("orders/bulk-update/<int:pk>/apply/", order_bulk_views.order_bulk_update_apply, name="order_bulk_update_apply"),
     path("orders/new/", views.order_create, name="order_create"),
     path("orders/drafts/save/", views.draft_save, name="draft_save"),
     path(

@@ -6408,3 +6408,44 @@ class OrderExportRecord(TimeStampedModel):
 
     def __str__(self):
         return f"{self.actor_name or '未知人員'} {timezone.localtime(self.created_at):%Y/%m/%d %H:%M} 匯出 {self.row_count} 張"
+
+
+class OrderBulkUpdate(TimeStampedModel):
+    """訂單回匯批次修改（T-232 第 3a 版）：一次上傳一筆。
+
+    `rows` 存上傳檔裡每一列的欄位值（已整理成與匯出基準值相同的格式）；預覽每次依系統現值重新比對，
+    使用者按確認時帶回預覽的指紋，比對結果變了就整批不寫。寫入結果與當時的勾選存在 `result`／`decisions`。
+    """
+
+    class Status(models.TextChoices):
+        PREVIEW = "preview", "預覽中"
+        APPLIED = "applied", "已寫入"
+        DISCARDED = "discarded", "已放棄"
+
+    token = models.UUIDField("回匯代碼", default=uuid.uuid4, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="order_bulk_updates", verbose_name="上傳帳號",
+    )
+    actor_name = models.CharField("上傳人員", max_length=150, blank=True)
+    export_record = models.ForeignKey(
+        "OrderExportRecord", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="bulk_updates", verbose_name="對應的匯出紀錄",
+    )
+    file_name = models.CharField("檔名", max_length=255, blank=True)
+    status = models.CharField("狀態", max_length=20, choices=Status.choices, default=Status.PREVIEW)
+    columns = models.JSONField("檔案欄位代碼", default=list, blank=True)
+    rows = models.JSONField("檔案各列的值", default=list, blank=True)
+    skipped_rows = models.JSONField("略過的列（沒有系統編號）", default=list, blank=True)
+    decisions = models.JSONField("寫入時的勾選", default=dict, blank=True)
+    result = models.JSONField("寫入結果", default=dict, blank=True)
+    last_error = models.TextField("最近一次確認失敗原因", blank=True)
+    applied_at = models.DateTimeField("寫入時間", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "訂單回匯批次修改"
+        verbose_name_plural = "訂單回匯批次修改"
+
+    def __str__(self):
+        return f"{self.file_name or '回匯'}（{self.get_status_display()}）"

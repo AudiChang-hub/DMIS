@@ -241,7 +241,7 @@ def operations_baseline(order, profile):
                               previous_payment_proofs=previous_payment_proofs)
 
 
-def save_operations(order, profile, form, payment_formset, baseline, *, user):
+def save_operations(order, profile, form, payment_formset, baseline, *, user, reason="更新營運與對帳資料"):
     """`OrderOperationsForm`（與收款明細，若有）驗證通過後存檔；回傳存好的收支資料。"""
     actor = _editing_name(user)
     financial_before = baseline.financial_before
@@ -351,7 +351,7 @@ def save_operations(order, profile, form, payment_formset, baseline, *, user):
         OrderChange.objects.create(
             order=order,
             reason=(note_or_summary(form.cleaned_data.get("change_reason"), "人工確認歷史收支")
-                    if form.cleaned_data.get("confirm_legacy_finance") else "更新營運與對帳資料"),
+                    if form.cleaned_data.get("confirm_legacy_finance") else reason),
             changes=changes,
             actor_name=actor,
         )

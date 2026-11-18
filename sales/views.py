@@ -43,7 +43,7 @@ from .services.document_preview import is_unpreviewable_pdf, preview_unavailable
 from .access.services import is_root
 from .services.inventory_history import change_rows
 from .services.home_stores import home_location_stores
-from .services.audit_note import balance_summary, discount_summary, note_or_summary, with_note
+from .services.audit_note import discount_summary, note_or_summary, with_note
 from .services.inventory_restore import deletion_review_vehicle_ids, inventory_restore_summary
 from .services.order_attachments import (
     classify_route,
@@ -241,13 +241,13 @@ from .services.vehicle_model_family import (
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
 from .services import id_card_crop
+from .services import order_save
 from .services.order_change_display import build_order_change_cards
 from .services.order_next_actions import build_order_next_actions
 from .services.order_search import (
     build_order_match_summary,
     build_order_search_query,
 )
-from .services.customer_receivable import PLATE_INCOME_FIELDS
 from .status_tabs import item_status_counts, keep_status, queryset_status_counts, requested_status, status_tabs
 from .services.operations_sync import sync_order_operations
 from .services.registration_edit import apply_registration_edit, finish_registration
@@ -284,7 +284,7 @@ from .services.volume_bonus import (
     period_ended as volume_bonus_period_ended,
     scope_dealers as volume_bonus_scope_dealers,
 )
-from .services.secret_fields import decrypt_secret, encrypt_secret
+from .services.secret_fields import decrypt_secret
 from .services.legacy_import import (
     PREVIEW_SCHEMA_VERSION,
     apply_import_row_decision,
@@ -5850,11 +5850,7 @@ def order_operations(request, pk):
         else:
             # 還沒有收支資料的舊單：先以空白收支顯示，不存檔；第一次送出時才建立。
             profile = OrderOperationsProfile(order=order)
-    financial_before = {
-        field_name: getattr(profile, field_name)
-        for field_name in profile.MANUAL_PROTECTABLE_FINANCIAL_FIELDS
-    }
-    before = _operations_snapshot(profile)
+    baseline = order_save.operations_baseline(order, profile)
     # 工作台各步驟只送出自己的區段；未指定時（獨立營運頁）維持整張表單。
     section = request.POST.get("_section") if request.method == "POST" else None
     if section not in {"finance", "subsidy", "old_vehicle", "fulfillment"}:
@@ -5874,127 +5870,8 @@ def order_operations(request, pk):
         request.POST or None,
         request.FILES or None,
     ) if section in {None, "finance", "standalone"} else None
-    gap_before = settlement_gap(order)
-    previous_payment_proofs = list(
-        order.payment_records.exclude(proof="").values_list("proof", flat=True)
-    )
     if request.method == "POST" and form.is_valid() and (payment_formset is None or payment_formset.is_valid()):
-        with transaction.atomic():
-            profile = form.save(commit=False)
-            protected_fields = set(profile.manual_financial_fields or [])
-            protected_fields.update(
-                field_name
-                for field_name, original_value in financial_before.items()
-                if field_name in form.fields and form.cleaned_data.get(field_name) != original_value
-            )
-            profile.manual_financial_fields = sorted(protected_fields)
-            if "vehicle_cost" in form.fields and form.cleaned_data.get("vehicle_cost") != financial_before.get("vehicle_cost"):
-                profile.vehicle_cost_manual = True
-            vehicle_secret = form.cleaned_data.get("vehicle_control_password")
-            battery_secret = form.cleaned_data.get("battery_password")
-            if vehicle_secret:
-                profile.vehicle_control_password_encrypted = encrypt_secret(
-                    vehicle_secret
-                )
-            if battery_secret:
-                profile.battery_password_encrypted = encrypt_secret(battery_secret)
-            for flag, prefix in (("vehicle_control_confirmed", "vehicle_control"), ("fulfillment_confirmed", "fulfillment")):
-                if flag not in form.fields or form.fields[flag].disabled:
-                    continue
-                checked = bool(form.cleaned_data.get(flag))
-                if checked and not getattr(profile, f"{prefix}_confirmed_at"):
-                    setattr(profile, f"{prefix}_confirmed_at", timezone.now())
-                    setattr(profile, f"{prefix}_confirmed_by", _editing_name(request.user))
-                elif not checked:
-                    setattr(profile, f"{prefix}_confirmed_at", None)
-                    setattr(profile, f"{prefix}_confirmed_by", "")
-            profile.updated_by = _editing_name(request.user)
-            profile.save()
-            # 收款明細直接刪除（使用者 2026-10-21 T-47）：刪前留下內容快照寫入處理紀錄，刪除後無法復原。
-            deleted_payments = [_payment_deletion_snapshot(row.instance) for row in (payment_formset.deleted_forms if payment_formset is not None else [])
-                                if row.instance.pk]
-            payments = payment_formset.save() if payment_formset is not None else []
-            for snapshot in deleted_payments:
-                OrderChange.objects.create(order=order, reason="刪除收款", actor_name=_editing_name(request.user),
-                                           changes={f"刪除收款：{snapshot['item_name']}": {"before": snapshot["text"], "after": "已刪除"}})
-                OrderEvent.objects.create(order=order, event_type="payment_deleted", actor_name=_editing_name(request.user),
-                                          description=f"刪除收款：{snapshot['text']}")
-            deposit = next((payment for payment in payments if payment.system_key == "deposit"), None)
-            # 取消流程中退款依帳本結算，訂金應收不再回寫訂單約定訂金。
-            if deposit and deposit.expected_amount != order.deposit_amount and not order.is_cancelled_sale:
-                order.actual_balance += order.deposit_amount - deposit.expected_amount
-                order.deposit_amount = deposit.expected_amount
-                if deposit.received_on:
-                    order.deposit_date = deposit.received_on
-                order.calculated_balance = order.calculate_balance()
-                order.save(update_fields=["deposit_amount", "deposit_date", "actual_balance", "calculated_balance", "updated_at"])
-                sync_order_operations(order.pk, update_receivables=True)
-            for previous_proof in (previous_payment_proofs if payment_formset is not None else []):
-                _schedule_model_file_cleanup(
-                    PaymentRecord,
-                    "proof",
-                    previous_proof,
-                )
-            now = timezone.now()
-            for payment in payments:
-                if payment.confirmed and not payment.confirmed_at:
-                    payment.confirmed_at = now
-                    payment.confirmed_by = _editing_name(request.user)
-                    payment.save(
-                        update_fields=[
-                            "confirmed_at", "confirmed_by", "updated_at"
-                        ]
-                    )
-                elif not payment.confirmed and (payment.confirmed_at or payment.confirmed_by):
-                    payment.confirmed_at = None
-                    payment.confirmed_by = ""
-                    payment.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
-            plate_income_changed = any(
-                name in form.fields and form.cleaned_data.get(name) != financial_before.get(name)
-                for name in PLATE_INCOME_FIELDS
-            )
-            # 改了支出（例如請代辦人員領牌的選號支出）時，跟著支出的收入與代辦費收入要重算。
-            # 分期客戶應收依牌險收入計算，收入這次有改才連已收款的應收一起改（人工調整過的應收不動）。
-            sync_order_operations(
-                order.pk,
-                update_receivables=plate_income_changed and order.payment_type == SalesOrder.PaymentType.INSTALLMENT,
-            )
-            from .services.operations_sync import sync_payment_financials
-            from .services.payment_summary import disbursement_receipts
-            adoptable = {payment.pk for payment in disbursement_receipts(order, PaymentRecord.objects.filter(order=order))}
-            adopted = next((payment for payment in payments if payment.pk in adoptable), None)
-            sync_payment_financials(order.pk, adopt_payment_id=adopted.pk if adopted else None)
-            profile.refresh_from_db()
-            if form.cleaned_data.get("confirm_legacy_finance"):
-                profile.legacy_finance_reconciliation = {
-                    **profile.legacy_finance_reconciliation, "status": "reviewed",
-                    "reviewed_by": _editing_name(request.user), "reviewed_at": timezone.now().isoformat(),
-                    "review_reason": note_or_summary(form.cleaned_data.get("change_reason"), "人工確認歷史收支", 250),
-                    "reviewed_profit": str(profile.net_profit),
-                }
-                profile.save(update_fields=["legacy_finance_reconciliation", "updated_at"])
-            after = _operations_snapshot(profile)
-            changes = {
-                key: {"before": before.get(key, ""), "after": value}
-                for key, value in after.items()
-                if before.get(key, "") != value
-            }
-            OrderChange.objects.create(
-                order=order,
-                reason=(note_or_summary(form.cleaned_data.get("change_reason"), "人工確認歷史收支")
-                        if form.cleaned_data.get("confirm_legacy_finance") else "更新營運與對帳資料"),
-                changes=changes,
-                actor_name=_editing_name(request.user),
-            )
-            OrderEvent.objects.create(
-                order=order,
-                event_type="operations_updated",
-                description=f"更新營運與對帳資料（{len(changes)} 個欄位）",
-                actor_name=_editing_name(request.user),
-            )
-            if payment_formset is not None:
-                _record_duplicate_acknowledgements(order, payment_formset.forms, request.user)
-            _record_settlement_gap(order, gap_before, request.user)
+        order_save.save_operations(order, profile, form, payment_formset, baseline, user=request.user)
         if order_workspace.is_workspace_save(request):
             return order_workspace.saved(request, order, form=form, formsets=tuple(f for f in (payment_formset,) if f is not None))
         messages.success(request, "營運、收款及損益資料已更新。")
@@ -6328,8 +6205,6 @@ def order_edit(request, pk):
     if request.method != "POST":
         # 不再有獨立的編輯頁：訂單內容直接在訂單頁「訂車與配件」修改並自動儲存。
         return redirect(order_step_url(pk, "order"))
-    completed_correction = order.is_delivered
-    gap_before = settlement_gap(order) if completed_correction else None
     # 訂單頁自動儲存不獨佔編輯：同時開啟的人都能改，靠版本號避免互相覆蓋。
     if not order_workspace.is_workspace_save(request) and not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
         messages.error(
@@ -6349,19 +6224,8 @@ def order_edit(request, pk):
             messages.error(request, "此訂單已被其他人更新，請重新載入後再修改。")
             return redirect("order_edit", pk=pk)
 
-        before = _order_snapshot(order)
-        previous_identity_names = {
-            field_name: getattr(getattr(order, field_name), "name", "")
-            for field_name in ("id_front", "id_back")
-        }
-        previous_vehicle_model_id = order.vehicle_model_id
-        previous_color_id = order.color_id
-        installment_before = tuple(getattr(order, name) for name in (
-            "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
-            "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
-        ))
-        balance_was_automatic = order.actual_balance == order.calculated_balance
-        previous_actual_balance = order.actual_balance
+        baseline = order_save.content_baseline(order)
+        completed_correction = baseline.completed_correction
         form = OrderEditForm(request.POST, request.FILES, instance=order)
         if order_workspace.is_workspace_save(request) or request.POST.get("_workspace") == "1":
             for field in ("is_trade_in_subsidy", "old_owner_different"):
@@ -6371,99 +6235,12 @@ def order_edit(request, pk):
             request.POST, instance=order, prefix="other_fees"
         )
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
-            order = form.save(commit=False)
-            changed_photos = {
-                field_name for field_name, previous_name in previous_identity_names.items()
-                if getattr(getattr(order, field_name), "name", "") != previous_name
-            }
-            cropped_photos = [
-                field_name for field_name in id_card_crop.apply_posted_crops(order, request.POST, changed=changed_photos)
-                if field_name not in changed_photos and getattr(order, f"{field_name}_crop")
-            ]
-            if form.unallocate_requested:
-                # 使用者已在警告視窗確認：同一交易內先取消配車（車輛回到可銷售、留紀錄），再存新車型／車色。
-                order.unallocate(actor_name=_editing_name(request.user), reason="修改車型／車色")
-            if (
-                order.actual_balance != order.calculate_balance()
-                and not order.balance_adjustment_reason
-            ):
-                order.balance_adjustment_reason = balance_summary("修改訂單資料")
-            order.revision += 1
-            order.editing_session = ""
-            order.editing_by = ""
-            order.editing_at = None
-            order.save()
-            _apply_submitted_subsidy_programs(order, form, request.POST)
-            _schedule_replaced_identity_file_cleanup(
-                order,
-                previous_identity_names,
-            )
-            if not completed_correction or previous_vehicle_model_id != order.vehicle_model_id:
-                apply_order_price_snapshot(
-                    order,
-                    force=(previous_vehicle_model_id != order.vehicle_model_id or not order.price_snapshot),
-                )
-            installment_after = tuple(getattr(order, name) for name in (
-                "vehicle_model_id", "order_date", "payment_type", "vehicle_price", "installment_split_amount",
-                "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
-            ))
-            if installment_after != installment_before or (not completed_correction and not order.installment_plan_snapshot):
-                apply_order_installment_snapshot(order)
-            from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories, learnable_custom_names
-            # 存檔前記下這次新增或改名的自填列；舊列是歷史紀錄，不再加回主檔（T-179）。
-            learnable_names = learnable_custom_names(formset)
-            formset.save()
-            fee_formset.save()
-            learned_accessories = learn_custom_accessories(order, _editing_name(request.user), categories=custom_accessory_categories(formset),
-                                                           names=learnable_names)
-            order._prefetched_objects_cache = {}
-            order.calculated_balance = order.calculate_balance()
-            order.actual_balance = (
-                order.calculated_balance
-                if balance_was_automatic
-                else previous_actual_balance
-            )
-            order.save(
-                update_fields=[
-                    "calculated_balance",
-                    "actual_balance",
-                    "revision",
-                    "editing_session",
-                    "editing_by",
-                    "editing_at",
-                    "updated_at",
-                ]
-            )
-            after = _order_snapshot(order)
-            from .services.financial_refresh import refresh_unlocked_financials
-            if not completed_correction:
-                refresh_unlocked_financials(order.pk)
-            changes = _snapshot_changes(before, after)
-            OrderChange.objects.create(
-                order=order,
-                reason="修改訂單資料",
-                changes=changes,
-                actor_name=_editing_name(request.user),
-            )
-            OrderEvent.objects.create(
-                order=order,
-                event_type="updated",
-                description=f"{'完成後修正' if completed_correction else '修改訂單'}（{len(changes)} 個項目）",
-                actor_name=_editing_name(request.user),
-            )
-            if cropped_photos:
-                OrderEvent.objects.create(
-                    order=order,
-                    event_type="id_crop_adjusted",
-                    description="已調整車主證件" + "、".join("正面" if name == "id_front" else "反面" for name in cropped_photos) + "的裁切／旋轉（原始照片保留）。",
-                    actor_name=_editing_name(request.user),
-                )
-            if completed_correction:
-                _record_settlement_gap(order, gap_before, request.user)
+            result = order_save.save_order_content(order, form, formset, fee_formset, baseline, user=request.user, posted=request.POST)
+            order, learned_accessories = result.order, result.learned_accessories
             if order_workspace.is_workspace_save(request):
                 # 改了車型／車色（含 T-122 換車）：頁首車輛資料與配車候選清單都要跟著換，整頁重新載入。
                 # 未配車時也一樣，否則畫面仍顯示舊車色、配車清單仍是舊車色庫存（UAT 2026-11-07 T-129）。
-                vehicle_changed = (previous_vehicle_model_id, previous_color_id) != (order.vehicle_model_id, order.color_id)
+                vehicle_changed = (baseline.previous_vehicle_model_id, baseline.previous_color_id) != (order.vehicle_model_id, order.color_id)
                 extra = {"reload": True} if vehicle_changed or form.unallocate_requested else {}
                 # 新加進主檔的配件名稱交給畫面放進名稱選單，下一列不必重新整理就選得到（T-177）。
                 extra.update(_learned_accessory_payload(learned_accessories))
@@ -8465,9 +8242,7 @@ def subsidy_data_update(request, pk):
         messages.error(request, "此訂單已被其他人更新，請重新確認補助資料。")
         return redirect(detail_url)
 
-    before = _order_snapshot(order)
-    balance_was_automatic = order.actual_balance == order.calculated_balance
-    previous_actual_balance = order.actual_balance
+    baseline = order_save.subsidy_baseline(order)
     form = SubsidyDataForm(request.POST, instance=order)
     items_submitted = "subsidy_items-TOTAL_FORMS" in request.POST
     item_formset = SubsidyItemFormSet(
@@ -8491,44 +8266,7 @@ def subsidy_data_update(request, pk):
         )
         return redirect(detail_url)
 
-    order = form.save(commit=False)
-    order.revision += 1
-    order.calculated_balance = order.calculate_balance()
-    if balance_was_automatic:
-        order.actual_balance = order.calculated_balance
-    else:
-        order.actual_balance = previous_actual_balance
-        if order.actual_balance != order.calculated_balance:
-            order.balance_adjustment_reason = balance_summary("修改補助資料")
-    order.save()
-    if items_submitted:
-        item_formset.instance = order
-        item_formset.save()
-        # 有沒有汰舊由補助項目推導（使用者 2026-10-22 T-81 方案 A）。
-        from sales.services.subsidy_programs import sync_trade_in_from_subsidies
-        sync_trade_in_from_subsidies(order)
-    profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
-    profile.subsidy_amount = order.subsidy_total
-    profile.subsidy_applied_on = order.subsidy_last_applied_on
-    profile.updated_by = _editing_name(request.user)
-    profile.save(
-        update_fields=["subsidy_amount", "subsidy_applied_on", "updated_by", "updated_at"]
-    )
-
-    after = _order_snapshot(order)
-    changes = _snapshot_changes(before, after)
-    OrderChange.objects.create(
-        order=order,
-        reason="修改補助資料",
-        changes=changes,
-        actor_name=_editing_name(request.user),
-    )
-    OrderEvent.objects.create(
-        order=order,
-        event_type="subsidy_data_updated",
-        description=f"修改補助資料（{len(changes)} 個項目）",
-        actor_name=_editing_name(request.user),
-    )
+    order = order_save.save_subsidy_data(order, form, item_formset, baseline, items_submitted=items_submitted, user=request.user)
     if order_workspace.is_workspace_save(request):
         return order_workspace.saved(request, order, form=form, formsets=(item_formset,), extra={"subsidy_trade_in": order.is_trade_in_subsidy})
     messages.success(request, "補助資料已更新，尾款與變更紀錄已同步。")

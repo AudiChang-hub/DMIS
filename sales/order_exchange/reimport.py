@@ -31,6 +31,8 @@ SECTION_LABELS = {CONTENT: "訂車與配件", SUBSIDY: "汰舊補助資料", OLD
 # 每個區段在訂單頁的自動儲存端點；寫入前用同一條路由檢查權限（與訂單頁相同）。
 SECTION_ROUTES = {CONTENT: "order_edit", SUBSIDY: "subsidy_data_update",
                   OLD_VEHICLE: "order_operations", FULFILLMENT: "order_operations"}
+# 訂單頁的中介層對這兩個端點的 POST 另外要求「訂單內部財務」修改權限（access/middleware.py），回匯照做。
+FINANCE_GUARDED_ROUTES = frozenset({"order_edit", "order_operations"})
 FIELD_SECTION = {
     **{key: CONTENT for key in (
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date", "owner_address",
@@ -186,6 +188,16 @@ def _policy(user):
     return AccessPolicy(user)
 
 
+def section_allowed(policy, user, section, order):
+    """與訂單頁同一套權限：路由授權，加上中介層對訂車與配件、營運資料寫入要求的訂單內部財務修改權限。"""
+    from sales.services.order_intake import can_edit_finance
+
+    route = SECTION_ROUTES[section]
+    if not policy.route(route, "POST", {"pk": order.pk}):
+        return False
+    return route not in FINANCE_GUARDED_ROUTES or can_edit_finance(user)
+
+
 def build_plan(batch, user, decisions=None):
     """逐列比對；回傳 {"rows": [...], "blocking": [...], "summary": {...}, "fingerprint": str}。
 
@@ -262,7 +274,7 @@ def build_plan(batch, user, decisions=None):
         sections = [section for section in SECTION_ORDER if any(f["section"] == section for f in item["fields"])]
         item["sections"] = sections
         for section in sections:
-            if not policy.route(SECTION_ROUTES[section], "POST", {"pk": order.pk}):
+            if not section_allowed(policy, user, section, order):
                 item["errors"].append(f"你沒有「{SECTION_LABELS[section]}」的操作權限，這一區的欄位不能修改。")
         if CONTENT in sections and not order.can_edit_content:
             item["errors"].append("訂單已取消或在取消流程中，訂單內容已鎖定。")

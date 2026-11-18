@@ -313,6 +313,34 @@ class OrderBulkUpdateTests(lifecycle.OrderLifecycleTests.__bases__[0]):
         item = self.row_of(self.preview(self.uploaded_batch(book)), order)
         self.assertIn("你沒有「舊車與報廢」的操作權限，這一區的欄位不能修改。", item["errors"])
 
+    def test_content_and_operations_need_order_finance_like_the_order_page(self):
+        # 2.25.1：訂單頁的中介層對訂車與配件、營運資料的寫入另外要求「訂單內部財務」修改權限，回匯照做；
+        # 汰舊補助資料的端點沒有這項要求，照樣可以改。
+        order, _vehicle = self.make_order()
+        self.staff(("orders", {"operate": True, "export": True}), ("work", {"operate": True}),
+                   ("order_bulk_update", {"operate": True}))
+        book = self.export_book(["note", "old_vehicle_brand", "trade_in_plate"])
+        self.set_cell(book, order, "note", "沒有財務權限")
+        self.set_cell(book, order, "old_vehicle_brand", "沒有財務權限")
+        self.set_cell(book, order, "trade_in_plate", "OLD-9999")
+        batch = self.uploaded_batch(book)
+        item = self.row_of(self.preview(batch), order)
+        self.assertIn("你沒有「訂車與配件」的操作權限，這一區的欄位不能修改。", item["errors"])
+        self.assertIn("你沒有「舊車與報廢」的操作權限，這一區的欄位不能修改。", item["errors"])
+        self.assertNotIn("你沒有「汰舊補助資料」的操作權限，這一區的欄位不能修改。", item["errors"])
+        self.apply(batch)
+        order.refresh_from_db()
+        self.assertEqual(order.note, "")
+        self.assertEqual(OrderOperationsProfile.objects.get(order=order).old_vehicle_brand, "")
+        # 補上訂單內部財務修改權限後就能寫入（與訂單頁相同）。
+        ScreenAccessGrant.objects.create(user=get_user_model().objects.get(username="bulk-staff"),
+                                         screen_key="order_finance", view=True, operate=True)
+        again = self.uploaded_batch(book)
+        self.assertEqual(self.row_of(self.preview(again), order)["errors"], [])
+        self.apply(again)
+        order.refresh_from_db()
+        self.assertEqual((order.note, order.trade_in_plate), ("沒有財務權限", "OLD-9999"))
+
     def test_bulk_update_screen_and_own_batches_only(self):
         order, _vehicle = self.make_order()
         book = self.export_book(["note"])

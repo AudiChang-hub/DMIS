@@ -60,6 +60,13 @@ class ScopeForm(forms.Form):
             options.extend((value, f"已移除項目 #{value}") for value in scope.get(key, []) if value not in known)
             self.fields["fixed_" + key] = forms.MultipleChoiceField(label=label, choices=options, required=False)
             self.initial["fixed_" + key] = scope.get(key, [])
+        if "fixed_source" in self.fields:
+            # T-235：「車行／平台」依網路平台、本店、縣市、未分區分組；只改顯示，值不變。
+            from sales.services.dealer_regions import group_mixed_choices
+            sources = {str(pk): (kind, city) for pk, kind, city in SalesSource.objects.values_list("pk", "source_type", "city")}
+            self["fixed_source"].regions = group_mixed_choices(
+                self.fields["fixed_source"].choices, lambda value: sources.get(value, ("", ""))[0],
+                lambda value: sources.get(value, ("", ""))[1])
 
     def primary_fields(self):
         return [field for field in self.visible_fields() if not field.name.startswith("fixed_")]
@@ -427,6 +434,7 @@ class FilterForm(forms.Form):
             self._split_legacy_dealer(dealer_pairs)
         else:
             self._split_source(sources)
+            self._group_mixed_legacy_dealer(dealer_pairs)
 
     def _convert_source_type(self):
         """舊網址的來源類型（T-183）換算成銷售來源；與已選的銷售來源取交集，結果與原條件相同。"""
@@ -492,6 +500,19 @@ class FilterForm(forms.Form):
         from sales.services.dealer_regions import dealer_city_by_report_label, report_label_key
         cities = dealer_city_by_report_label()
         self._group_dealer_regions("legacy_dealer", lambda value: cities.get(report_label_key(value), ""))
+
+    def _group_mixed_legacy_dealer(self, pairs):
+        """標準版型進階篩選的「車行／平台」混合清單分組（T-235）：網路平台、本店在上，車行依縣市，其餘未分區。
+        同一標籤橫跨多種來源時與總覽版型相同：平台優先、其次車行。"""
+        from sales.services.dealer_regions import dealer_city_by_report_label, group_mixed_choices, report_label_key
+        kinds = {}
+        for label, source_type in pairs:
+            kinds.setdefault(label, set()).add(source_type)
+        kind = {label: "platform" if "platform" in types else "dealer" if "dealer" in types else "store"
+                for label, types in kinds.items()}
+        cities = dealer_city_by_report_label()
+        self["legacy_dealer"].regions = group_mixed_choices(
+            self.fields["legacy_dealer"].choices, kind.get, lambda value: cities.get(report_label_key(value), ""))
 
     def _group_dealer_regions(self, name, city_of):
         """「車行」選擇器依區域分組（T-234）：沿用車行聯絡資料的縣市順序，對不到車行主檔的歸「未分區」。只改顯示，值不變。"""

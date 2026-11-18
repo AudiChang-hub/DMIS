@@ -76,10 +76,12 @@ class OrderListFilterT233Tests(TestCase):
         self.assertEqual([o.pk for o in business.context["orders"]], [kept.pk])
 
     def test_export_link_keeps_current_query(self):
+        # T-232 Q9：舊「匯出營運資料」連結拿掉，頁首「匯出」帶入目前的篩選（範圍口徑與清單相同）。
+        export = reverse("order_export")
         response = self.client.get(reverse("order_list"), {"risk": "refund", "business_only": "1"})
-        self.assertContains(response, "risk=refund&amp;business_only=1&include_cancelled=0")
+        self.assertContains(response, f'href="{export}?risk=refund&amp;business_only=1" data-order-export-link')
         plain = self.client.get(reverse("order_list"), {"date_from": "2026-01-01"})
-        self.assertContains(plain, "date_from=2026-01-01&include_cancelled=1")
+        self.assertContains(plain, f'href="{export}?date_from=2026-01-01" data-order-export-link')
 
     def test_registered_filter_uses_confirmed_registration(self):
         today = timezone.localdate()
@@ -113,4 +115,4 @@ class OrderListFilterT233Tests(TestCase):
 
     def test_export_link_carries_registered_filter(self):
         response = self.client.get(reverse("order_list"), {"registered": "no"})
-        self.assertContains(response, "registered=no&include_cancelled=1")
+        self.assertContains(response, f'href="{reverse("order_export")}?registered=no" data-order-export-link')  # T-232

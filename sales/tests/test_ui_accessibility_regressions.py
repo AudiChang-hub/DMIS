@@ -49,9 +49,10 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
 
         self.assertGreaterEqual(contrast(amber_match.group(1), "#fff1d6"), 4.5)
         self.assertIn(".performance-card--primary > span { color: var(--on-accent); }", css)
+        # T-242：假日月曆的樣式搬到 business-holidays.css，規則內容不變。
         self.assertIn(
             ".holiday-calendar-day.is-outside { color: var(--muted);",
-            css,
+            Path("static/css/business-holidays.css").read_text(encoding="utf-8"),
         )
         self.assertIn(
             ".inventory-table-wrap:focus-visible { "

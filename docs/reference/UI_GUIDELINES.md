@@ -10,6 +10,12 @@
   `ppt-refinements` 依原載入順序併入檔尾各區段。
 - 模組專屬樣式放在 `static/css/<模組>.css`，由頁面的 `{% block head %}` 載入，
   只加模組修飾，不重新定義頁首、按鈕、空狀態等共用元件。
+- 只有單一模組用到的規則不放 app.css（T-242 A 案，分批從 app.css 搬出；只搬不改內容）：
+  模組 CSS 的 `<link>` 放在該頁 `{% block head %}` 最前面，層疊順序維持「app.css → 搬出的規則 → 頁面原本的模組 CSS」；
+  `{% load static %}` 要在 `{% block head %}` 之前。已搬出：價格表（`price-list.css`）、車行獎勵（`dealer-rewards.css`）、
+  照片看板（`catalog-photo-board.css`）、假日（`business-holidays.css`）。
+  `test_ui_consistency.PageStylesheetSplitTests` 擋下這些前綴回到 app.css；
+  搬移工具與驗收（全路由截圖比對、CSS coverage）在 `tools/ui_audit/`（不進 CI）。
 - 顏色、圓角、字級一律使用 `app.css` 開頭的設計參數。六種外觀主題靠同一組參數切換，
   寫死色碼會讓夜間／高對比外觀失效。例外：參數定義與主題區塊、主題選擇器的預覽色塊、列印樣式與 `contract.css`。
   半透明色用 `color-mix(in srgb, var(--參數) N%, transparent)`；陰影與遮罩用 `--shadow-ink`。

@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if editing_item %}編輯獎勵品項{% else %}新增獎勵品項{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}

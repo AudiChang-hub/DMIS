@@ -141,7 +141,10 @@ class PageFixStaticTests(SimpleTestCase):
     def test_page_spacing_and_glass(self):
         self.assertIn(".maintenance-section + .maintenance-section { margin-top: var(--stack-gap); }", self.app)
         self.assertIn("  .maintenance-section { margin-block: var(--stack-gap); }", self.app)
-        self.assertIn("@media(max-width:860px){.photo-board__toolbar{-webkit-backdrop-filter:none;backdrop-filter:none;", self.app)
+        # T-242：照片看板樣式搬到 catalog-photo-board.css（規則內容不變，外層 @media 原樣包回）。
+        board = read("static/css/catalog-photo-board.css")
+        self.assertIn(".photo-board__toolbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--surface)}",
+                      block(board, "@media(max-width:860px) {", "photo-board__toolbar{-webkit-backdrop-filter:none"))
         self.assertIn("  .order-page-size-form select { min-height: var(--control-h); }", self.app)
 
     def test_phone_order_cards_are_compact_and_desktop_table_untouched(self):

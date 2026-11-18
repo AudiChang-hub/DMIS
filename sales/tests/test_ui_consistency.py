@@ -541,3 +541,43 @@ class MobileFoundationTests(SimpleTestCase):
         self.assertIn("@media (min-width: 860.02px) { @view-transition { navigation: auto; } }", self.app)
         self.assertEqual(self.app.count("@view-transition"), 1)
         self.assertIn("@media (prefers-reduced-motion: reduce), (max-width: 860px) {\n  main, .hero-row { animation: none; }", self.app)
+
+
+class PageStylesheetSplitTests(SimpleTestCase):
+    """T-242 A 案：只有單一模組用到的樣式放在 static/css/<模組>.css，由該頁 {% block head %} 載入，不回到 app.css。"""
+
+    # 前綴 → (模組 CSS, 載入它的頁面)
+    MODULES = {
+        ("price-distribution", "price-assignment"): ("price-list.css", ("sales/price_list_distribution.html", "sales/price_list_distribution_assignments.html")),
+        ("dealer-reward",): ("dealer-rewards.css", ("sales/dealer_reward_campaign_form.html", "sales/dealer_reward_campaign_list.html",
+                                                   "sales/dealer_reward_catalog_form.html", "sales/dealer_reward_catalog_list.html")),
+        ("photo-board", "photo-cell"): ("catalog-photo-board.css", ("sales/catalog_photo_board.html",)),
+        ("holiday-calendar",): ("business-holidays.css", ("sales/business_holiday_list.html",)),
+    }
+    # 留在 app.css 的：和其他頁面共用的選擇器（同一條規則還列了其他元件，或 class 也出現在別頁），
+    # 以及搬出去會改變層疊結果的規則（原本被 app.css 後段同特異度規則蓋過；tools/ui_audit/style_diff.py 找出）。
+    SHARED = (".dealer-program-hero, .dealer-program-section, .dealer-reward-panel", ".dealer-reward-items",
+              ".dealer-reward-tabs a:last-child", ".holiday-calendar-field",
+              ".price-distribution-note textarea", ".price-assignment-picker", ".price-distribution-hero",
+              ".dealer-reward-item__header .button", ".dealer-reward-cost-row__header .button",
+              ".holiday-calendar-hero", ".holiday-calendar-active input")
+
+    def test_single_page_prefixes_stay_out_of_app_css(self):
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+        selectors = re.findall(r"(?:^|[}\n])\s*([^{}@/]+?)\s*\{", app)
+        offenders = []
+        for prefixes in self.MODULES:
+            pattern = re.compile(r"\.(?:" + "|".join(map(re.escape, prefixes)) + r")[\w-]*")
+            for selector in selectors:
+                if pattern.search(selector) and not any(shared in selector for shared in self.SHARED):
+                    offenders.append(" ".join(selector.split())[:80])
+        self.assertEqual(offenders, [])
+
+    def test_module_stylesheets_load_first_in_their_pages(self):
+        for prefixes, (css, pages) in self.MODULES.items():
+            self.assertTrue((CSS_DIR / css).exists(), css)
+            for page in pages:
+                text = (TEMPLATES / page).read_text(encoding="utf-8")
+                self.assertIn("{% block head %}<link rel=\"stylesheet\" href=\"{% static 'css/" + css + "' %}", text, page)
+                head = text.index("{% block head %}")
+                self.assertRegex(text[:head], r"{%\s*load\s[^%]*\bstatic\b", page)

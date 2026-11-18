@@ -1,0 +1,77 @@
+/* 車行獎勵活動與品項（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.dealer-reward-panel { padding: var(--card-pad); }
+.dealer-reward-heading, .dealer-reward-items-heading, .dealer-reward-editor-title {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--stack-gap-sm);
+}
+.dealer-reward-heading { padding-bottom: var(--space-5); border-bottom: 1px solid var(--line); }
+.dealer-reward-heading__actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: var(--space-2); }
+.dealer-reward-heading h2, .dealer-reward-items-heading h2, .dealer-reward-items-heading h3 { margin: 2px 0 var(--space-1); }
+.dealer-reward-heading p, .dealer-reward-items-heading p { margin: 0; }
+.dealer-reward-versions { display: flex; margin: var(--stack-gap-sm) 0; gap: var(--space-3); overflow-x: auto; scrollbar-width: thin; }
+.dealer-reward-version {
+  display: grid; min-width: 220px; padding: var(--space-3) var(--space-4); gap: 3px;
+  color: var(--ink); background: var(--surface-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-md); text-decoration: none;
+}
+.dealer-reward-version.is-current { background: var(--blue-soft); border-color: var(--blue); box-shadow: inset 3px 0 0 var(--blue); }
+.dealer-reward-version > span, .dealer-reward-version > em { color: var(--muted); font-size: var(--text-xs); font-style: normal; }
+.dealer-reward-form { margin-top: var(--stack-gap); }
+.dealer-reward-editor-title { margin-bottom: var(--stack-gap-sm); padding: var(--space-3) var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md); }
+.dealer-reward-editor-title > div { display: grid; gap: 3px; }
+.dealer-reward-editor-title span, .dealer-reward-editor-title small { color: var(--muted); font-size: var(--text-xs); }
+.dealer-reward-settings { padding: var(--inset-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.dealer-reward-settings__heading { display: flex; margin-bottom: var(--stack-gap-sm); align-items: baseline; justify-content: space-between; gap: var(--stack-gap-sm); }
+.dealer-reward-settings__heading h2, .dealer-reward-settings__heading h3 { margin: 0; font-size: var(--text-base); }
+.dealer-reward-settings__heading p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.dealer-reward-period-grid { display: grid; grid-template-columns: 1fr 1fr .8fr; align-items: start; gap: var(--space-3); }
+.dealer-reward-period-grid .field, .dealer-reward-period-note .field { padding: 0; }
+.dealer-reward-period-note { margin-top: var(--space-3); }
+.dealer-reward-period-note textarea { min-height: 68px; }
+.dealer-reward-status-field { display: grid; align-content: start; gap: var(--space-2); }
+.dealer-reward-field-label { color: var(--field-label); font-size: var(--text-sm); font-weight: 800; }
+.dealer-reward-enabled-toggle { display: inline-flex; width: fit-content; min-height: 46px; padding: 0 var(--space-3); align-items: center; gap: var(--space-2); cursor: pointer; background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.dealer-reward-enabled-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.dealer-reward-enabled-toggle__track { position: relative; width: 34px; height: 20px; flex: 0 0 auto; background: var(--muted); border-radius: var(--radius-pill); transition: background .16s ease; }
+.dealer-reward-enabled-toggle__track > span { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: var(--surface); border-radius: 50%; box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-ink) 24%, transparent); transition: transform .16s ease; }
+.dealer-reward-enabled-toggle input:checked + .dealer-reward-enabled-toggle__track { background: var(--green); }
+.dealer-reward-enabled-toggle input:checked + .dealer-reward-enabled-toggle__track > span { transform: translateX(14px); }
+.dealer-reward-enabled-toggle input:focus-visible + .dealer-reward-enabled-toggle__track { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.dealer-reward-enabled-toggle strong { font-size: var(--text-sm); }
+.dealer-reward-items-heading { margin: var(--stack-gap) 0 var(--space-3); }
+.dealer-reward-item {
+  display: block; padding: var(--inset-pad); background: var(--surface-soft);
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+}
+.dealer-reward-item .field { padding: 0; }
+.dealer-reward-item__header { display: flex; margin-bottom: var(--space-3); align-items: center; justify-content: space-between; gap: var(--stack-gap-sm); }
+.dealer-reward-item__header > div { display: grid; gap: 2px; }
+.dealer-reward-item__header strong { font-size: var(--text-sm-plus); }
+.dealer-reward-item__header span { color: var(--muted); font-size: var(--text-xs); }
+.dealer-reward-item__fields { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(160px, .7fr); align-items: start; gap: var(--space-3); }
+.dealer-reward-item__cost-summary { display: grid; margin-top: var(--space-3); padding: var(--space-3); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.dealer-reward-item__cost-summary span { display: grid; gap: 3px; }
+.dealer-reward-item__cost-summary small { color: var(--muted); font-size: var(--text-2xs); font-weight: 750; }
+.dealer-reward-item__cost-summary strong { font-size: var(--text-sm); }
+.dealer-reward-item__note { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.dealer-reward-unit-other { margin-top: var(--space-2); }
+.dealer-reward-catalog-grid { display: grid; grid-template-columns: 1fr 1.5fr .8fr .7fr; align-items: start; gap: var(--space-3); }
+.dealer-reward-cost-section { margin-top: var(--stack-gap); }
+.dealer-reward-cost-rows { display: grid; gap: var(--stack-gap-sm); }
+.dealer-reward-cost-row { padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.dealer-reward-cost-row__header { display: flex; margin-bottom: var(--space-3); align-items: center; justify-content: space-between; gap: var(--space-3); }
+.dealer-reward-cost-grid { display: grid; grid-template-columns: 1fr 1fr .8fr .7fr; align-items: start; gap: var(--space-3); }
+.dealer-reward-cost-grid .field { padding: 0; }
+.dealer-reward-accounting-note { display: flex; margin-top: var(--stack-gap-sm); padding: var(--inset-pad); gap: var(--space-3); color: var(--amber-ink); background: var(--amber-soft); border: 1px solid var(--amber-border); border-radius: var(--radius-md); }
+@media (max-width: 1180px) {
+  .dealer-reward-item__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dealer-reward-catalog-grid, .dealer-reward-cost-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .dealer-reward-panel { padding: var(--space-4) var(--space-4); }
+  .dealer-reward-heading, .dealer-reward-items-heading, .dealer-reward-editor-title, .dealer-reward-settings__heading { align-items: stretch; flex-direction: column; }
+  .dealer-reward-heading .button, .dealer-reward-items-heading .button { width: 100%; }
+  .dealer-reward-period-grid, .dealer-reward-item__fields, .dealer-reward-item__cost-summary, .dealer-reward-catalog-grid, .dealer-reward-cost-grid { grid-template-columns: 1fr; }
+  .dealer-reward-item__header { align-items: flex-start; }
+  .dealer-reward-cost-row__header { align-items: flex-start; }
+  .dealer-reward-accounting-note { flex-direction: column; }
+}

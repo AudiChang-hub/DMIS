@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% load site_copy %}
-{% load static %}
+{% extends "base.html" %}{% load static %}{% load site_copy %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/business-holidays.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}工作日與假日設定｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}

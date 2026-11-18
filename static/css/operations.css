@@ -923,7 +923,8 @@ html[data-theme="night-blue"] .ops {
   from { transform: translateY(6px); }
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* 手機（860px 以下）也不跑進場動畫：和全站換頁一樣直接顯示（T-226／T-241）。 */
+@media (prefers-reduced-motion: reduce), (max-width: 860px) {
   .ops-spark svg,
   .ops-card {
     animation: none;
@@ -943,6 +944,13 @@ html[data-theme="night-blue"] .ops {
 }
 
 @media (max-width: 860px) {
+  /* T-241：期間切換的觸控高度補到 44px（原本約 28px）。 */
+  .ops-period a {
+    display: inline-flex;
+    min-height: var(--control-h);
+    align-items: center;
+  }
+
   .ops-row,
   .ops-row--wide {
     grid-template-columns: minmax(0, 1fr);

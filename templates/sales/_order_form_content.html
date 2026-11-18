@@ -1,6 +1,7 @@
 {% load static sales_format site_copy screen_access %}
 
-<p class="muted">訂單成立日期：{% if editing_order %}{{ editing_order.established_display }}{% else %}首次儲存成立當日{% endif %}；領牌日期另行記錄。</p>
+{# T-241：建立訂單時這句放到頁首說明下方，不再排在返回鍵之前；訂單頁照舊放在訂車區最上面。 #}
+{% if editing_order %}<p class="muted">訂單成立日期：{{ editing_order.established_display }}；領牌日期另行記錄。</p>{% endif %}
 {% if editing_order %}
 {% else %}
   {% if reception_mode %}{% include "sales/_page_back.html" with fallback_url=reception_back_url label=reception_back_label %}
@@ -29,7 +30,7 @@
   {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
   {% if not editing_order %}
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">{% if wizard %}訂單精靈・第 {{ wizard.number }}／{{ wizard.total }} 步{% elif editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if wizard %}{{ wizard.label }}{% elif editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if wizard %}每一步都會存成草稿；完成這一步才能前往下一步，送出前會再核對整張訂單。{% elif editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
+    <div><p class="eyebrow">{% if wizard %}訂單精靈・第 {{ wizard.number }}／{{ wizard.total }} 步{% elif editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if wizard %}{{ wizard.label }}{% elif editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if wizard %}每一步都會存成草稿；完成這一步才能前往下一步，送出前會再核對整張訂單。{% elif editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p>{% if not editing_order %}<p class="muted form-heading__established">訂單成立日期：首次儲存成立當日；領牌日期另行記錄。</p>{% endif %}</div>
     {% if not wizard %}<div class="hero-actions">
       <button class="button primary desktop-save" type="submit">建立訂單</button>
       {# 完成編輯：先儲存，成功後回到訂單檢視；沒有修改就直接回去。 #}

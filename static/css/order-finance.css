@@ -243,6 +243,7 @@
   .ledger-block::before { inset-inline: var(--inset-pad); }
   .ledger-group--incentive { margin-inline: var(--space-2); padding: var(--space-3); }
   .ledger-row { grid-template-columns: minmax(0, 1fr) minmax(116px, 44%); grid-template-areas: "label input" "tag input"; }
+  .ledger-row__label small { text-wrap: pretty; }  /* T-241：說明不留「0 元」「負數」這種孤字 */
   .ledger-tag { justify-self: start; }
   .finance-amounts > summary { padding-inline: var(--inset-pad); }
   .finance-registration .registration-breakdown__total { justify-items: start; }

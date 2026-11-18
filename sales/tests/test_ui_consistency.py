@@ -525,7 +525,8 @@ class MobileFoundationTests(SimpleTestCase):
         mobile = MobileUatLayoutTests.mobile_block(self.app)
         self.assertIn("main :is(h1, h2, h3) { text-wrap: balance; }", mobile)
         self.assertIn("main :is(p, li, dd) { text-wrap: pretty; }", mobile)
-        self.assertNotIn("keep-all", self.app)  # 中文沒有空格，keep-all 會讓整句無法斷行
+        # 中文沒有空格，keep-all 會讓整句無法斷行；只允許很短、以空白分段的「目前排序」一行（T-241）。
+        self.assertEqual(re.findall(r"([^{}\n]*)\{[^}]*keep-all", self.app), ["    .order-sort-controls p "])
 
     def test_phone_skips_glass_and_entry_motion(self):
         """手機頁首、底部導覽、精靈底部列、訂單精簡列不用毛玻璃；換頁進場動畫與跨頁轉場只在桌面。"""

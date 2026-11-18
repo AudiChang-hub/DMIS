@@ -71,7 +71,8 @@
 @media (max-width: 600px) {
   .detail-hero { flex-wrap: wrap; }
   .detail-hero__side { width: 100%; max-width: none; justify-items: stretch; }
-  .detail-hero__actions { justify-content: flex-end; }
+  /* T-241：手機的刪除／退車靠左、緊接在台數歸屬小卡下方（危險次要放操作列最前），不再單獨浮在右側。 */
+  .detail-hero__actions { justify-content: flex-start; }
   .detail-hero .detail-hero__actions .button { flex: 0 0 auto; }
   .commission-attribution { justify-content: space-between; flex-wrap: wrap; }
   .commission-attribution__meta { white-space: normal; }

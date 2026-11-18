@@ -112,3 +112,7 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
   .wizard-bar__step.is-current .wizard-bar__link { justify-content: flex-start; }
   .wizard-summary dl > div { grid-template-columns: 1fr; gap: 0; }
 }
+@media (max-width: 860px) {
+  /* T-241：手機的「下一步」列和底部選單疊在一起約佔 160px：拿掉外框高度下限、內距收小，只留按鈕高度。 */
+  .wizard-nav.mobile-submit { min-height: 0; padding: var(--space-2); }
+}

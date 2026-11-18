@@ -83,7 +83,7 @@
       </div>
       <button class="price-distribution-note-toggle{% if item.note %} has-note{% endif %}" type="button" aria-expanded="false" aria-controls="distribution-note-form-{{ item.pk }}" data-note-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10l-4 4H5Z"/><path d="M15 19v-4h4"/></svg><span>{% if item.note %}有備註{% else %}備註{% endif %}</span></button>
       <form class="price-distribution-complete" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-complete>
-        {% csrf_token %}<input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}">
+        {% csrf_token %}<input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}"><input type="hidden" name="owner" value="{{ selected_owner }}">
         <button type="submit" role="switch" aria-checked="{% if item.completed %}true{% else %}false{% endif %}" aria-label="{{ item.dealer_name }}價格表已送達" class="price-distribution-check{% if item.completed %} is-completed{% endif %}">
           <span aria-hidden="true">✓</span><strong>{% if item.completed %}已完成{% else %}標記完成{% endif %}</strong>
         </button>

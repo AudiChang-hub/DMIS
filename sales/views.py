@@ -780,16 +780,9 @@ def price_list_distribution(request):
     owner = request.GET.get("owner", "").strip()
     if not owner:
         owner = "me" if all_items.filter(assigned_to=request.user).exists() else "all"
-    if owner == "me":
-        items = items.filter(assigned_to=request.user)
-    elif owner == "unassigned":
-        items = items.filter(assigned_to=None)
-    elif owner == "all":
-        pass
-    elif owner.isdigit() and int(owner) in user_ids:
-        items = items.filter(assigned_to_id=int(owner))
-    else:
-        owner = "all"
+    items, owner = _price_distribution_owner_scope(items, owner, request.user, user_ids)
+    # 完成進度只跟著負責人篩選（T-237）；搜尋、完成狀態、縣市、行政區不影響進度。
+    owner_items = items
     if query:
         items = items.filter(
             Q(dealer_name__icontains=query)
@@ -832,8 +825,8 @@ def price_list_distribution(request):
             address=item.address,
         )
 
-    total_count = all_items.count()
-    completed_count = all_items.filter(completed=True).count()
+    total_count = owner_items.count()
+    completed_count = owner_items.filter(completed=True).count()
     month_options = list(PriceListDistributionMonth.objects.order_by("-month"))
     cities = list(
         all_items.exclude(city="").values_list("city", flat=True).distinct().order_by("city")
@@ -1157,6 +1150,17 @@ def price_list_distribution_assignments(request, pk):
     )
 
 
+def _price_distribution_owner_scope(items, owner, user, user_ids):
+    """負責人篩選：清單與完成進度共用（T-237）。回傳 (篩選後的項目, 實際採用的負責人值)。"""
+    if owner == "me":
+        return items.filter(assigned_to=user), owner
+    if owner == "unassigned":
+        return items.filter(assigned_to=None), owner
+    if owner != "all" and owner.isdigit() and int(owner) in user_ids:
+        return items.filter(assigned_to_id=int(owner)), owner
+    return items, "all"
+
+
 @login_required
 @require_http_methods(["POST"])
 @transaction.atomic
@@ -1176,8 +1180,13 @@ def price_list_distribution_item_update(request, pk):
         item.note = request.POST.get("note", "").strip()
         changed_fields.append("note")
     item.save(update_fields=changed_fields)
-    total = item.distribution.items.count()
-    completed_count = item.distribution.items.filter(completed=True).count()
+    # 回傳的進度沿用頁面的負責人篩選（T-237）；舊頁面沒帶 owner 時維持全部。
+    users = _price_distribution_users(item.distribution)
+    scoped, _ = _price_distribution_owner_scope(
+        item.distribution.items.all(), request.POST.get("owner", "all").strip(), request.user, {user.pk for user in users},
+    )
+    total = scoped.count()
+    completed_count = scoped.filter(completed=True).count()
     payload = {
         "ok": True,
         "completed": item.completed,

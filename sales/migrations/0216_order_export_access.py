@@ -7,7 +7,7 @@
 """
 from django.db import migrations
 
-ACTOR = "system:0215-order-export"
+ACTOR = "system:0216-order-export"
 
 
 def grant_order_export(apps, schema_editor):
@@ -38,5 +38,5 @@ def grant_order_export(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("sales", "0214_order_export_record")]
+    dependencies = [("sales", "0215_order_export_record")]
     operations = [migrations.RunPython(grant_order_export, migrations.RunPython.noop)]

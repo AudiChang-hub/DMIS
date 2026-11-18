@@ -9,7 +9,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("sales", "0213_vehicle_color_code"),
+        ("sales", "0214_t230_home_location_stores"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

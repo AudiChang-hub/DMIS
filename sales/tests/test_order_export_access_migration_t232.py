@@ -1,4 +1,4 @@
-"""資料遷移 0215（T-232）：營運匯出併入訂單匯出，原本能匯出營運資料的帳號補上訂單匯出授權。"""
+"""資料遷移 0216（T-232）：營運匯出併入訂單匯出，原本能匯出營運資料的帳號補上訂單匯出授權。"""
 import importlib
 from types import SimpleNamespace
 
@@ -10,7 +10,7 @@ from django.test import TestCase
 from sales.access.models import ScreenAccessGrant, UserAccessRevision, UserAccessState
 from sales.access.services import AccessPolicy
 
-migration = importlib.import_module("sales.migrations.0215_order_export_access")
+migration = importlib.import_module("sales.migrations.0216_order_export_access")
 
 
 class OrderExportAccessMigrationTests(TestCase):

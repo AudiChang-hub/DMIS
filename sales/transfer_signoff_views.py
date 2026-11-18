@@ -18,6 +18,7 @@ from django.views.decorators.http import require_POST
 from sales.access.services import is_root
 from sales.models import SalesSource, VehicleColor, VehicleInventory, VehicleModel, VehicleTransferSignoff
 from sales.services.document_signing import decode_signature
+from sales.services.home_stores import home_store_choices, home_store_label, home_store_value_for_label
 from sales.services.inventory_location_note import FACTORY_LABEL
 from sales.services.transfer_signoff import (
     STATEMENT,
@@ -47,12 +48,14 @@ def _read_form(request):
     dealer_id = post.get("dealer", "")
     dealer = _dealers().filter(pk=dealer_id).first() if dealer_id.isdigit() else None
     factory = dealer_id == "factory"  # 原廠或總公司調回
+    home_store = home_store_label(dealer_id)  # 本店（馭盛、永湛）：只記名稱，不連車行主檔（T-230）
     data = {
         "dealer": dealer,
         "factory": factory,
-        # 選了車行主檔（或原廠／總公司）就以選項名稱為準；主檔沒有的車行才用手填名稱。
+        "home_store": dealer_id if home_store else "",
+        # 選了車行主檔（或原廠／總公司、本店）就以選項名稱為準；主檔沒有的車行才用手填名稱。
         "dealer_name": (
-            FACTORY_LABEL if factory else dealer.name if dealer else post.get("dealer_name", "").strip()
+            FACTORY_LABEL if factory else home_store or (dealer.name if dealer else post.get("dealer_name", "").strip())
         )[:120],
         "vehicle_ids": [int(value) for value in post.getlist("vehicles") if value.isdigit()],
         "note": post.get("note", "").strip()[:200],
@@ -68,6 +71,7 @@ def _data_from_pending(pending):
     return {
         "dealer": pending.dealer,
         "factory": not pending.dealer_id and pending.dealer_name == FACTORY_LABEL,
+        "home_store": "" if pending.dealer_id else home_store_value_for_label(pending.dealer_name),
         "dealer_name": pending.dealer_name,
         "vehicle_ids": list(pending.vehicles.values_list("pk", flat=True)),
         "note": pending.note,
@@ -85,7 +89,7 @@ def transfer_signoff_create(request):
     step, errors, vehicles, fingerprint = "select", [], [], ""
     pending = _pending_or_none(request.GET.get("pending"))
     data = _data_from_pending(pending) if pending else {
-        "dealer": None, "factory": False, "dealer_name": "", "note": "", "pending": None,
+        "dealer": None, "factory": False, "home_store": "", "dealer_name": "", "note": "", "pending": None,
         "vehicle_ids": [int(value) for value in request.GET.getlist("vehicle") if value.isdigit()],
     }
     if request.method == "POST":
@@ -151,6 +155,7 @@ def transfer_signoff_create(request):
             "errors": errors,
             "data": data,
             "dealers": _dealers(),
+            "home_stores": home_store_choices(),
             "candidates": candidates,
             "selected_ids": set(data["vehicle_ids"]),
             "vehicles": vehicles,

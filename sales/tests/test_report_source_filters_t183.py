@@ -114,7 +114,8 @@ class ReportSourceFilterTests(TestCase):
         config = {**self.config, "reader_layout": "analysis_overview"}
         form = FilterForm(config=config, reader_layout="analysis_overview")
         groups = {group["label"]: [value for value, _ in group["choices"]] for group in form["legacy_dealer"].split_groups}
-        self.assertEqual(groups, {"車行": ["甲車行"], "平台": ["小樹購員購"]})
+        # T-230：只出現在本店單的「馭盛」放進最上面的「本店」組。
+        self.assertEqual(groups, {"本店": ["馭盛"], "車行": ["甲車行"], "平台": ["小樹購員購"]})
 
     def test_fixed_scope_pages_only_show_their_own_picker(self):
         for layout, scope, label in (("platform_overview", "網路平台", "平台"), ("dealer_overview", "車行", "車行")):

@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from .models import GiftDistribution, GiftDistributionItem, GiftDistributionEvent, SalesSource
+from .services.home_stores import home_store_choices, home_store_label
 
 
 class DistributionForm(forms.ModelForm):
@@ -91,15 +92,18 @@ def manage(request, pk=None):
                 form.add_error("recipient", "此活動已有相同對象，請檢查是否重複。")
         elif action == "add_sources" and activity:
             ids = request.POST.getlist("sources")[:500]
-            sources = SalesSource.objects.filter(pk__in=[i for i in ids if i.isdigit()], active=True, source_type="dealer")
+            sources = list(SalesSource.objects.filter(pk__in=[i for i in ids if i.isdigit()], active=True, source_type="dealer"))
+            # 本店（馭盛、永湛，T-230）只記名稱，不連車行主檔。
+            home_names = list(dict.fromkeys(name for name in map(home_store_label, ids) if name))
             with transaction.atomic():
                 activity = GiftDistribution.objects.select_for_update().get(pk=pk)
                 if activity.archived or activity.deleted_at:
                     messages.error(request, "活動已由其他人封存，未新增名單。")
                     return redirect("gift_distribution_detail", pk=pk)
                 count = 0
-                for source in sources:
-                    item, created = GiftDistributionItem.objects.get_or_create(distribution=activity, recipient=source.name, defaults={"source": source})
+                targets = [(name, None) for name in home_names] + [(source.name, source) for source in sources]
+                for recipient, source in targets:
+                    item, created = GiftDistributionItem.objects.get_or_create(distribution=activity, recipient=recipient, defaults={"source": source})
                     if item.removed:
                         item.removed = False
                         item.completed = False
@@ -123,6 +127,7 @@ def manage(request, pk=None):
     return render(request, "sales/gift_distribution.html", {"activity": activity, "form": form,
         "page_obj": Paginator(rows, 20).get_page(request.GET.get("page")),
         "sources": SalesSource.objects.filter(active=True, source_type="dealer").order_by("name") if activity else [],
+        "home_stores": home_store_choices() if activity else [],
         "events": activity.events.all()[:30] if activity else [], "history": request.GET.get("history") == "1"})
 
 

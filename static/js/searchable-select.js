@@ -168,6 +168,13 @@
           return needles.every(needle => haystack.includes(needle));
         })
         .sort((left, right) => {
+          // 標 data-pinned 的選項固定排最上面、維持原順序（T-230 本店），沒標的選項排序不變。
+          const leftPinned = left.dataset.pinned === "1";
+          const rightPinned = right.dataset.pinned === "1";
+          if (leftPinned || rightPinned) {
+            if (leftPinned && rightPinned) return left.index - right.index;
+            return leftPinned ? -1 : 1;
+          }
           const leftIndex = recents.indexOf(left.value);
           const rightIndex = recents.indexOf(right.value);
           if (leftIndex >= 0 || rightIndex >= 0) {

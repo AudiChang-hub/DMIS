@@ -449,14 +449,22 @@ class FilterForm(forms.Form):
         # 已選但不屬於任一邊的舊值（例如本店來源）放進第一個選擇器，避免下次送出時默默遺失。
         extra = [(value, text) for value, text in self.fields[name].choices if value in selected and value not in listed]
         if groups and extra:
-            label, suffix, choices = groups[0]
-            groups[0] = (label, suffix, [*choices, *extra])
+            # 放進第一個非「本店」的選擇器（T-230），本店組只列馭盛、永湛。
+            index = next((i for i, group in enumerate(groups) if group[1] != "store"), 0)
+            label, suffix, choices = groups[index]
+            groups[index] = (label, suffix, [*choices, *extra])
         if groups:
             self[name].split_groups = [{"label": label, "id": f"id_{name}_{suffix}", "choices": choices}
                                       for label, suffix, choices in groups]
 
     def _split_source(self, sources):
+        from sales.services.home_stores import home_store_labels
+        home = home_store_labels()
+        # 本店（T-230）：馭盛、永湛固定放最上面一組，和車行分開；只是篩選，不牽動任何計算。
+        home_choices = sorted(((str(pk), name) for pk, name, kind in sources
+                               if kind == SalesSource.SourceType.STORE and name in home), key=lambda item: home.index(item[1]))
         self._attach_split("source", [
+            ("本店", "store", home_choices),
             ("車行", "dealer", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.DEALER]),
             ("平台", "platform", [(str(pk), name) for pk, name, kind in sources if kind == SalesSource.SourceType.PLATFORM]),
         ])
@@ -468,7 +476,13 @@ class FilterForm(forms.Form):
         # 同一標籤橫跨多種來源時，平台優先、其次車行；只出現在本店單的標籤用「銷售來源」篩。
         group = {label: "platform" if "platform" in types else "dealer" if "dealer" in types else "store" for label, types in kinds.items()}
         choices = self.fields["legacy_dealer"].choices
+        from sales.services.home_stores import home_store_labels
+        home = home_store_labels()
+        # 本店（T-230）：只出現在本店單的「馭盛」「永湛」固定放最上面一組，和車行分開。
+        home_choices = sorted(((value, text) for value, text in choices if group.get(value) == "store" and value in home),
+                              key=lambda item: home.index(item[0]))
         self._attach_split("legacy_dealer", [
+            ("本店", "store", home_choices),
             ("車行", "dealer", [(value, text) for value, text in choices if group.get(value) == "dealer"]),
             ("平台", "platform", [(value, text) for value, text in choices if group.get(value) == "platform"]),
         ])

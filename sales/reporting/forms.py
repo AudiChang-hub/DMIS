@@ -7,7 +7,7 @@ from sales.models import SalesOrder, SalesSource, VehicleModel
 from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, MODEL_TEXT_SCOPES, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES, source_type_to_classifications
-from .tree_filter import TREE_FIELDS, tree_chips
+from .tree_filter import TREE_FIELDS, per_model_slots, tree_chips
 
 # T-164：沿用原 Excel 報表的比對條件與分類，只在設計器分組與改顯示名稱，鍵值與讀者頁不變。
 # 銷售來源（T-183）已是主要來源條件，不再收在原 Excel 比對區。
@@ -163,7 +163,7 @@ class CardForm(ScopeForm):
         help_text="適用圓餅與堆疊圖。隱藏圖例仍可滑入查看分類與數字。")
     show_tooltip = forms.ChoiceField(label="滑入提示", choices=[("", "顯示數字與分類"), ("hide", "不顯示浮動提示")], required=False)
     per_model = forms.BooleanField(label="依勾選車型各一張圖（大數據分析）", required=False,
-        help_text="只用於大數據分析群組、且報表只有這一張圖：依讀者在右側勾選的車型，每款一張圖，台數由多到少，最多 8 張。")
+        help_text="只用於大數據分析群組、且報表只有這一張圖：依讀者在「車型篩選」勾選的車型，每款一張圖，依品牌、車型名稱排列，勾幾款就出幾張。")
     cross_filter = forms.ChoiceField(label="點選圖形", choices=[("", "依報表既有方式連動"), ("off", "僅查看，不連動")], required=False,
         help_text="互動預覽可實際試選；關閉連動不影響其他圖表或來源明細入口。")
 
@@ -403,7 +403,8 @@ class FilterForm(forms.Form):
         if layout == 'analysis_overview':
             self.COMMON_FIELDS = ('months',)
             self.fields['months'].label = '領牌年月'
-        for index in range(8):
+        # 每圖的日期層級／排序；依車種展開的報表（T-240）圖卡可超過 8 張。
+        for index in range(per_model_slots(config)):
             self.fields[f"grain_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
                 choices=[("", "依整頁設定"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
             self.fields[f"sort_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,

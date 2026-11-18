@@ -16,7 +16,7 @@ from django.urls import reverse
 from sales.models import ReportDefinition, SalesOrder, VehicleColor, VehicleModel
 from sales.reporting.engine import validate_config
 from sales.reporting.forms import CardForm
-from sales.reporting.tree_filter import PER_MODEL_LIMIT
+MODEL_COUNT = 10  # T-240：超過舊上限 8 款，全部出圖
 from sales.reporting.views import initial_config, publication_key
 
 
@@ -36,8 +36,8 @@ class PerModelCardTests(TestCase):
     def setUpTestData(cls):
         cls.admin = get_user_model().objects.create_superuser("admin", "admin@example.invalid", "Test-Only-123")
         cls.models = []
-        # 車型 i 有 i+1 台，台數多的排前面；比上限多兩款。
-        for index in range(PER_MODEL_LIMIT + 2):
+        # 車型 i 有 i+1 台；偶數 eReady、奇數 SUZUKI（T-240 起依品牌、車型名稱排列，不依台數）。
+        for index in range(MODEL_COUNT):
             brand, energy = ("SUZUKI", "gas") if index % 2 else ("eReady", "electric")
             model = VehicleModel.objects.create(brand=brand, name=f"車{index:02d}", model_number=f"M{index:02d}", energy_type=energy)
             cls.models.append(model)
@@ -62,23 +62,36 @@ class PerModelCardTests(TestCase):
     def titles(self, response):
         return [result["card"]["title"] for result in response.context["results"]]
 
-    def test_one_and_three_models_give_one_card_each_sorted_by_count(self):
+    def test_one_and_three_models_give_one_card_each_sorted_by_brand_then_name(self):
         one = self.client.get(self.url, {"model": self.ids(3)})
         self.assertEqual(self.titles(one), ["車03－性別"])
         self.assertEqual(one.context["results"][0]["count"], 4)
         three = self.client.get(self.url, {"model": self.ids(1, 5, 2)})
-        self.assertEqual(self.titles(three), ["車05－性別", "車02－性別", "車01－性別"])
-        self.assertEqual([result["count"] for result in three.context["results"]], [6, 3, 2])
-        self.assertContains(three, "勾選的 3 款車型各一張圖")
+        self.assertEqual(self.titles(three), ["車02－性別", "車01－性別", "車05－性別"])  # eReady 先、SUZUKI 後
+        self.assertEqual([result["count"] for result in three.context["results"]], [3, 2, 6])  # 台數不變
+        self.assertContains(three, "勾選的 3 款車型各一張圖，依品牌、車型名稱排列")
         self.assertContains(three, "data-per-model")
 
-    def test_all_models_are_capped_with_hint(self):
+    def test_all_models_get_a_card_without_cap(self):
         response = self.client.get(self.url)
-        self.assertEqual(len(response.context["results"]), PER_MODEL_LIMIT)
-        self.assertEqual(self.titles(response)[0], f"車{PER_MODEL_LIMIT + 1:02d}－性別")
-        self.assertEqual(response.context["per_model"],
-                         {"total": PER_MODEL_LIMIT + 2, "shown": PER_MODEL_LIMIT, "hidden": 2, "limit": PER_MODEL_LIMIT})
-        self.assertContains(response, f"顯示前 {PER_MODEL_LIMIT} 款車型；其餘 2 款請在「車型篩選」縮小勾選範圍")
+        self.assertEqual(self.titles(response), [f"車{index:02d}－性別" for index in (0, 2, 4, 6, 8, 1, 3, 5, 7, 9)])
+        self.assertEqual([result["count"] for result in response.context["results"]], [1, 3, 5, 7, 9, 2, 4, 6, 8, 10])
+        self.assertEqual(response.context["per_model"], {"total": MODEL_COUNT, "shown": MODEL_COUNT})
+        self.assertContains(response, f"勾選的 {MODEL_COUNT} 款車型各一張圖")
+        self.assertNotContains(response, "縮小勾選範圍")
+        self.assertNotContains(response, "report-per-model-note is-attention")
+
+    def test_cards_beyond_eight_keep_sort_detail_and_chart_selection(self):
+        params = {"revision": publication_key(self.report)}
+        last = MODEL_COUNT - 1  # 第 10 張＝車09
+        detail = self.client.get(reverse("report_detail", args=[self.report.pk, last]), params)
+        self.assertEqual(detail.context["page_obj"].paginator.count, 10)
+        focus = json.dumps([{"card": last, "group": "v:公司或其他", "grain": ""}])
+        response = self.client.get(self.url, {**params, "focus": focus})
+        self.assertEqual(response.context["error"], "")
+        self.assertEqual(response.context["focus_items"][0]["title"], "車09－性別：公司或其他")
+        sorted_last = self.client.get(self.url, {**params, f"sort_{last}": "key"})
+        self.assertEqual(sorted_last.context["results"][last]["selected_sort"], "key")
 
     def test_nothing_checked_shows_notice_without_cards(self):
         response = self.client.get(self.url, {"empty_model": "1"})

@@ -20,13 +20,13 @@ from django.utils import timezone
 from sales.reporting.engine import base_query, validate_config
 from sales.reporting.models import ReportDefinition, ReportRevision
 from sales.reporting.records import record_context
-from sales.reporting.tree_filter import PER_MODEL_LIMIT, expand_cards
+from sales.reporting.tree_filter import expand_cards
 from sales.reporting.views import results
 
 PER_MODEL_TITLES = ("車型 X 性別", "車型 X 顏色", "性別 X 車型顏色")
 AGE_TITLE = "性別 X 年齡"
 CAR_SCOPES = ("model_prefix", "legacy_energy")
-PER_MODEL_INTRO = f"依右側「車型篩選」勾選的車型，每款一張圖，台數由多到少，最多 {PER_MODEL_LIMIT} 張。"
+PER_MODEL_INTRO = "依右側「車型篩選」勾選的車型，每款一張圖，依品牌、車型名稱排列。"  # T-240 起不設張數上限
 AGE_OLD = "其餘保留 EV 開頭、電車及 20 歲以上條件"
 AGE_NEW = "保留 20 歲以上條件，涵蓋全部車種與能源（含油車）"
 

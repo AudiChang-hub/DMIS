@@ -114,11 +114,12 @@ class FamilyTreeAndColorTests(TestCase):
     # ---- 依勾選車型各一張圖：一個車種一張 ----
     def test_per_model_cards_are_one_per_family(self):
         expanded, info = expand_cards(self.per_model_config, {})
-        self.assertEqual([card["title"] for card in expanded["cards"]], ["Saluto 125－顏色", "New NEX 125－顏色", "Fun－顏色"])
-        self.assertEqual(sorted(expanded["cards"][0]["vehicle_model"]), sorted([self.saluto.pk, self.saluto_new.pk]))
+        # T-240 起依品牌、車種名稱排列（eReady 在 SUZUKI 前），不依台數。
+        self.assertEqual([card["title"] for card in expanded["cards"]], ["Fun－顏色", "New NEX 125－顏色", "Saluto 125－顏色"])
+        self.assertEqual(sorted(expanded["cards"][2]["vehicle_model"]), sorted([self.saluto.pk, self.saluto_new.pk]))
         self.assertEqual(info["total"], 3)
         response = self.client.get(reverse("report_display", args=[self.per_model_report.pk]))
-        saluto = response.context["results"][0]
+        saluto = response.context["results"][2]
         self.assertEqual([(row["label"], row["count"]) for row in saluto["rows"]], [("盧卡綠 N34／T94", 6), ("黑", 1), ("黑（消光）", 1)])  # T-231 起標籤帶色碼
 
     # ---- 車色統計：盧卡綠合併 ----

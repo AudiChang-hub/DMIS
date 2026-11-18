@@ -3,6 +3,10 @@ import json
 
 from django.core.exceptions import ValidationError
 
+# 圖卡序號與選取數的檢核上限；實際圖卡是否存在由呼叫端依報表設定再核對。
+# 一般報表最多 8 張圖，依車種展開的報表（T-240）可能更多。
+MAX_CARD_INDEX = 500
+
 
 def selections(raw):
     if not raw:
@@ -11,13 +15,13 @@ def selections(raw):
         if not isinstance(raw, str) or len(raw) > 6000:
             raise ValueError
         values = json.loads(raw)
-        if not isinstance(values, list) or len(values) > 8:
+        if not isinstance(values, list) or len(values) > MAX_CARD_INDEX:
             raise ValueError
         seen = set()
         for item in values:
             if not isinstance(item, dict) or set(item) != {"card", "group", "grain"}:
                 raise ValueError
-            if type(item["card"]) is not int or not 0 <= item["card"] < 8 or item["card"] in seen:
+            if type(item["card"]) is not int or not 0 <= item["card"] < MAX_CARD_INDEX or item["card"] in seen:
                 raise ValueError
             seen.add(item["card"])
             groups = item["group"] if isinstance(item["group"], list) else [item["group"]]

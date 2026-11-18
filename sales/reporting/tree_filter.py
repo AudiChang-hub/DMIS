@@ -188,8 +188,8 @@ def tree_chips(tree, filters):
     return chips
 
 
-# ---- 依勾選車型各一張圖（T-151；T-228 起一個車種一張）----
-PER_MODEL_LIMIT = 8  # 與每份報表最多 8 張圖、圖表點選與每圖排序欄位（0–7）一致。
+# ---- 依勾選車型各一張圖（T-151；T-228 起一個車種一張；T-240 起不設張數上限、依品牌與車種名稱排列）----
+# 一般報表最多 8 張圖（設計器限制）；展開的車種圖不受此限，圖表點選與每圖排序欄位依 per_model_slots 放寬。
 
 
 def per_model_template(config):
@@ -197,11 +197,24 @@ def per_model_template(config):
     return cards[0] if len(cards) == 1 and cards[0].get("per_model") else None
 
 
+def per_model_slots(config):
+    """每圖排序／日期層級欄位與圖表點選可用的圖卡數：一般報表 8；車種展開報表取車種數上限。"""
+    if per_model_template(config) is None:
+        return 8
+    from sales.models import VehicleModelFamily
+    return max(8, VehicleModelFamily.objects.count() + VehicleModel.objects.filter(family__isnull=True).count())
+
+
+def per_model_sort_key(group):
+    """品牌順序沿用車型篩選樹（品牌名稱不分大小寫），同品牌依車種名稱；同名時依最早建立的車型主檔。"""
+    return group["brand"].casefold(), group["name"].casefold(), min(group["pks"])
+
+
 def expand_cards(config, filters=None):
     """把「依勾選車型各一張圖」的範本展開成每個車種一張圖。
 
     同一車種的各年式、型號合併成一張（T-228，與車型篩選一致），圖卡的 vehicle_model 是該車種的車型主檔清單。
-    依台數由多到少（同台數依品牌、車種名稱），最多 PER_MODEL_LIMIT 張；只列有資料的車種。
+    勾了幾個車種就出幾張（T-240 取消前 8 張上限），依品牌、車種名稱排列（與車型篩選樹同序）；只列有資料的車種。
     台數套用讀者篩選與樹的勾選，但不套圖表點選，展開結果不會因點選圖形而變動。
     回傳 (展開後的報表設定, 說明)；不是範本時原樣回傳、說明為 None。
     """
@@ -221,17 +234,15 @@ def expand_cards(config, filters=None):
                                                       "pks": [], "total": 0})
         group["pks"].append(pk)
         group["total"] += total
-    ordered = sorted(groups.values(), key=lambda group: (-group["total"], group["brand"].casefold(),
-                                                         group["name"].casefold(), min(group["pks"])))
-    shown = ordered[:PER_MODEL_LIMIT]
-    names = [group["name"].casefold() for group in shown]
+    ordered = sorted(groups.values(), key=per_model_sort_key)
+    names = [group["name"].casefold() for group in ordered]
     cards = []
-    for group in shown:
+    for group in ordered:
         name = group["name"] if names.count(group["name"].casefold()) == 1 else f"{group['name']}（{group['brand']}）"
         card = {key: value for key, value in template.items() if key != "per_model"}
         card.update(title=f"{name}－{template['title']}", vehicle_model=sorted(group["pks"]))
         cards.append(card)
-    info = {"total": len(ordered), "shown": len(cards), "hidden": len(ordered) - len(cards), "limit": PER_MODEL_LIMIT}
+    info = {"total": len(ordered), "shown": len(cards)}
     return {**config, "cards": cards}, info
 
 

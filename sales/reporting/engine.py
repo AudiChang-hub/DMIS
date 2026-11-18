@@ -390,6 +390,10 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
         return source_model_query(queryset).annotate(**{alias: motor_type_expression()})
     if dimension == "legacy_sales_source":
         return sales_source_query(queryset).annotate(**{alias: sales_source_expression()})
+    if dimension == "color":
+        # 同一廣告色依年式分開的車色（「盧卡綠（UC125D）」）統計時合併成同一色（T-228）。
+        from .colors import report_color_expression
+        return queryset.annotate(**{alias: report_color_expression()})
     mapping = {
         "brand": "vehicle_model__brand", "model": "vehicle_model_id",
         "energy": "vehicle_model__energy_type", "source": "source_id",

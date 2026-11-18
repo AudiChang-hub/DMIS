@@ -2,6 +2,7 @@
 from django.core.paginator import Paginator
 from django.db.models import Count
 
+from .colors import report_color_expression
 from .demographics import demographic_query
 
 HEADERS = ["車色", "車主姓名", "性別（修正分類）", "證號", "台數"]
@@ -11,15 +12,17 @@ NOTE = ("依車色、車主、修正性別及證號分組。"
 
 def population_queryset(config, filters):
     from .engine import base_query
+    # 車色依報表統計口徑（T-228）：同一廣告色依年式分開的車色合併。
     return (demographic_query(base_query(config, filters), "sex", "population_sex")
-            .values("color__name", "owner_name", "population_sex", "owner_id_number")
+            .annotate(population_color=report_color_expression())
+            .values("population_color", "owner_name", "population_sex", "owner_id_number")
             .annotate(count=Count("pk"))
-            .order_by("-count", "color__name", "owner_name", "population_sex", "owner_id_number"))
+            .order_by("-count", "population_color", "owner_name", "population_sex", "owner_id_number"))
 
 
 def population_cells(row):
     identity = (row["owner_id_number"] or "").strip()
-    return [row["color__name"] or "未填寫", row["owner_name"] or "未填寫", row["population_sex"], identity or "未填寫", row["count"]]
+    return [row["population_color"] or "未填寫", row["owner_name"] or "未填寫", row["population_sex"], identity or "未填寫", row["count"]]
 
 
 def population_context(config, filters, page_number):

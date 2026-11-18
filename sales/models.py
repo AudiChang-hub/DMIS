@@ -3184,7 +3184,12 @@ class VehicleInventory(TimeStampedModel):
 
     @property
     def actual_location_label(self):
-        return self.current_dealer.name if self.current_dealer_id else "本店"
+        if self.current_dealer_id:
+            return self.current_dealer.name
+        # T-230：放在永湛等其他本店時顯示「本店：永湛」；主店馭盛仍顯示「本店」。
+        from sales.services.home_stores import store_location_label
+
+        return store_location_label(self.location_store if self.location_store_id else None)
 
     LEFT_STORE_STATUSES = (Status.DELIVERED, Status.SOLD, Status.TRANSFERRED_OUT)
 

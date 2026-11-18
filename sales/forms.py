@@ -89,6 +89,7 @@ from .services.registration_fee import (
 )
 from .services.installment_plan import resolve_installment_plan_option
 from .services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
+from .services.home_stores import home_location_stores
 from .services.price_version import (
     recommended_price_from_snapshot,
     recommended_vehicle_price,
@@ -2259,6 +2260,16 @@ def existing_vehicle_message(vehicle):
     )
 
 
+class PinnedOptionSelect(forms.Select):
+    """值以 home- 開頭的選項（本店門市）加 data-pinned，可搜尋選單固定排最上面（T-230）。"""
+
+    def create_option(self, name, value, *args, **kwargs):
+        option = super().create_option(name, value, *args, **kwargs)
+        if str(value).startswith("home-"):
+            option["attrs"]["data-pinned"] = "1"
+        return option
+
+
 class VehicleInventoryForm(forms.ModelForm):
     CORE_FIELDS = (
         "vehicle_model",
@@ -2389,6 +2400,7 @@ class VehicleInventoryForm(forms.ModelForm):
                 "data-search-placeholder": "輸入本店或車行名稱",
             }
         )
+        self._use_home_locations()
         self.core_fields_locked = core_fields_locked
         self.final_fields_locked = bool(
             self.instance.pk and self.instance.status in self.FINAL_STATUSES
@@ -2425,6 +2437,35 @@ class VehicleInventoryForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def _use_home_locations(self):
+        """T-230 B：實際位置最上面固定本店門市（馭盛、永湛），選了存「實際存放門市」、不放車行。
+        沒有本店門市資料時維持原本的「本店／車行」選單。"""
+        self.home_locations = {f"home-{store.pk}": store for store in home_location_stores()}
+        if not self.home_locations:
+            return
+        dealer_field = self.fields["current_dealer"]
+        self.location_dealers = {str(dealer.pk): dealer for dealer in dealer_field.queryset}
+        self.fields["current_dealer"] = forms.ChoiceField(
+            label=dealer_field.label, required=False,
+            help_text="放在本店請選本店門市；放在車行時選車行名稱。",
+            choices=[(value, f"本店：{store.name}") for value, store in self.home_locations.items()]
+            + [(value, dealer.name) for value, dealer in self.location_dealers.items()],
+            widget=PinnedOptionSelect(attrs=dealer_field.widget.attrs),
+        )
+        instance = self.instance
+        home_value = f"home-{instance.location_store_id}"
+        self.initial["current_dealer"] = (
+            str(instance.current_dealer_id) if instance.current_dealer_id
+            else home_value if home_value in self.home_locations else next(iter(self.home_locations))
+        )
+
+    def clean_current_dealer(self):
+        value = self.cleaned_data.get("current_dealer")
+        if not getattr(self, "home_locations", None):
+            return value
+        self.location_store_choice = self.home_locations.get(value)
+        return self.location_dealers.get(value)
 
     def clean_acquisition_type(self):
         return (
@@ -2485,6 +2526,9 @@ class VehicleInventoryForm(forms.ModelForm):
                 vehicle.status = VehicleInventory.Status.CONDITION_ISSUE
             elif not hold and vehicle.status == VehicleInventory.Status.CONDITION_ISSUE:
                 vehicle.status = VehicleInventory.Status.AVAILABLE
+        chosen_store = getattr(self, "location_store_choice", None)
+        if chosen_store is not None and (not vehicle.pk or "current_dealer" in self.changed_data):
+            vehicle.location_store = chosen_store  # T-230 B：選本店門市＝改實際存放門市
         if not vehicle.location_store_id:
             vehicle.location_store = (
                 Store.objects.filter(active=True, code__iexact="HQ").first()

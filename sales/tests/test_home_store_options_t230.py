@@ -173,3 +173,95 @@ class ReportHomeStoreFilterTests(TestCase):
         config = {**self.config, "reader_layout": "dealer_overview", "fixed_filters": {"legacy_source": ["車行"]}}
         form = FilterForm(config=config, reader_layout="dealer_overview")
         self.assertEqual(self.groups(form, "legacy_dealer"), [("車行", ["甲車行"])])
+
+
+class HomeLocationMigrationTests(TestCase):
+    """T-230 B：總店改名馭盛、新增永湛；空資料庫不建立門市，可回復。"""
+
+    def run_migration(self, direction):
+        from importlib import import_module
+        from django.apps import apps as django_apps
+        getattr(import_module("sales.migrations.0214_t230_home_location_stores"), direction)(django_apps, None)
+
+    def test_renames_hq_and_adds_yongzhan_then_reverts(self):
+        Store.objects.create(name="總店", code="HQ")
+        Store.objects.create(name="二店", code="S02")
+        self.run_migration("forwards")
+        self.run_migration("forwards")  # 重跑不重複建立
+        self.assertEqual(sorted(Store.objects.values_list("code", "name")), [("HQ", "馭盛"), ("S02", "二店"), ("YZ", "永湛")])
+        self.run_migration("backwards")
+        self.assertEqual(sorted(Store.objects.values_list("code", "name")), [("HQ", "總店"), ("S02", "二店")])
+
+    def test_empty_database_gets_no_store(self):
+        self.run_migration("forwards")
+        self.assertFalse(Store.objects.exists())
+
+
+class InventoryHomeLocationTests(TestCase):
+    """T-230 B：庫存實際位置最上面固定本店門市，選了改實際存放門市、不放車行。"""
+
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_superuser("admin", password="Local-t230-553!"))
+        self.yusheng = Store.objects.create(name="馭盛", code="HQ")
+        self.yongzhan = Store.objects.create(name="永湛", code="YZ")
+        Store.objects.create(name="二店", code="S02")  # 不是本店名稱，不列入
+        self.dealer = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER)
+        SalesSource.objects.create(name="永湛", source_type=SalesSource.SourceType.STORE, staff_stores=["yongzhan"])
+        model = VehicleModel.objects.create(brand="SYM", name="JET SL 125", model_number="T230B")
+        self.color = VehicleColor.objects.create(vehicle_model=model, name="消光黑")
+        self.model = model
+        self.car = VehicleInventory.objects.create(vehicle_model=model, color=self.color, frame_number="T230B0001",
+                                                   ownership_store=self.yusheng, location_store=self.yusheng)
+
+    def edit(self, location):
+        return self.client.post(reverse("inventory_edit", args=[self.car.pk]), {
+            "vehicle_model": self.model.pk, "color": self.color.pk, "engine_number": "", "frame_number": "T230B0001",
+            "acquisition_type": "company", "transfer_source_name": "", "current_dealer": location,
+            "received_on": str(self.car.received_on), "condition_note": "", "condition_resolution": "",
+        })
+
+    def test_form_lists_home_stores_first_without_store_sources(self):
+        html = self.client.get(reverse("inventory_edit", args=[self.car.pk])).content.decode()
+        self.assertIn(f'<option value="home-{self.yusheng.pk}" selected data-pinned="1">本店：馭盛</option>', html)
+        self.assertIn(f'<option value="home-{self.yongzhan.pk}" data-pinned="1">本店：永湛</option>', html)
+        self.assertLess(html.index("本店：永湛"), html.index(f'<option value="{self.dealer.pk}"'))
+        self.assertNotIn("本店：二店", html)
+        self.assertEqual(html.count(">永湛<"), 0, "永湛來源不出現在車行選項")
+
+    def test_moving_to_yongzhan_changes_store_not_dealer_and_logs_transfer(self):
+        response = self.edit(f"home-{self.yongzhan.pk}")
+        self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
+        self.car.refresh_from_db()
+        self.assertIsNone(self.car.current_dealer, "本店不是車行，不會被當成車行計算")
+        self.assertEqual(self.car.location_store, self.yongzhan)
+        self.assertEqual(self.car.ownership_store, self.yusheng, "只改實際存放門市，不改歸屬門市")
+        self.assertEqual(self.car.actual_location_label, "本店：永湛")
+        history = self.car.history_entries.get()
+        self.assertEqual((history.from_location_label, history.to_location_label), ("本店", "本店：永湛"))
+
+    def test_dealer_then_back_to_main_store(self):
+        self.car.location_store = self.yongzhan
+        self.car.save()
+        self.edit(str(self.dealer.pk))
+        self.car.refresh_from_db()
+        self.assertEqual((self.car.current_dealer, self.car.location_store), (self.dealer, self.yongzhan))
+        self.edit(f"home-{self.yusheng.pk}")
+        self.car.refresh_from_db()
+        self.assertEqual((self.car.current_dealer, self.car.location_store), (None, self.yusheng))
+        self.assertEqual(self.car.actual_location_label, "本店")
+
+    def test_list_filter_has_home_store_options_and_filters_by_store(self):
+        other = VehicleInventory.objects.create(vehicle_model=self.model, color=self.color, frame_number="T230B0002",
+                                                ownership_store=self.yusheng, location_store=self.yongzhan)
+        VehicleInventory.objects.create(vehicle_model=self.model, color=self.color, frame_number="T230B0003",
+                                        ownership_store=self.yusheng, location_store=self.yusheng, current_dealer=self.dealer)
+        response = self.client.get(reverse("inventory_list"))
+        self.assertContains(response, f'<option value="home-{self.yusheng.pk}" data-pinned="1" >本店：馭盛（1）</option>', html=False)
+        self.assertContains(response, f'<option value="home-{self.yongzhan.pk}" data-pinned="1" >本店：永湛（1）</option>', html=False)
+        self.assertNotContains(response, '<option value="store"', html=False)
+        filtered = self.client.get(reverse("inventory_list"), {"location": f"home-{self.yongzhan.pk}"})
+        self.assertEqual([v.pk for v in filtered.context["vehicles"]], [other.pk])
+        legacy = self.client.get(reverse("inventory_list"), {"location": "store"})
+        self.assertEqual({v.pk for v in legacy.context["vehicles"]}, {self.car.pk, other.pk}, "舊網址 store＝全部本店")
+        keyword = self.client.get(reverse("inventory_list"), {"q": "永湛"})
+        self.assertEqual([v.pk for v in keyword.context["vehicles"]], [other.pk])

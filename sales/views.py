@@ -42,6 +42,7 @@ from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
 from .access.services import is_root
 from .services.inventory_history import change_rows
+from .services.home_stores import home_location_stores
 from .services.audit_note import balance_summary, discount_summary, note_or_summary, with_note
 from .services.inventory_restore import deletion_review_vehicle_ids, inventory_restore_summary
 from .services.order_attachments import (
@@ -4109,7 +4110,7 @@ def _inventory_values(vehicle):
         "engine_number": (vehicle.engine_number or "", vehicle.engine_number or "未填寫"),
         "frame_number": (vehicle.frame_number or "", vehicle.frame_number or "未填寫"),
         "current_dealer": (
-            vehicle.current_dealer_id or "store",
+            vehicle.current_dealer_id or f"store-{vehicle.location_store_id}",  # T-230：本店門市也算位置
             vehicle.actual_location_label,
         ),
         "received_on": (str(vehicle.received_on), str(vehicle.received_on)),
@@ -8733,10 +8734,19 @@ def inventory_list(request):
             selected_locations.append(requested_location)
             selected_dealer_ids.append(int(dealer_id))
     selected_dealer_ids = list(dict.fromkeys(selected_dealer_ids))
-    if store_selected or selected_dealer_ids:
+    # T-230 B：本店門市（馭盛、永湛）各一個選項，依實際存放門市篩選；舊網址的 store＝全部本店照舊。
+    home_locations = {f"home-{store.pk}": store for store in home_location_stores()}
+    selected_home_ids = []
+    for requested_location in requested_locations:
+        if requested_location in home_locations:
+            selected_locations.append(requested_location)
+            selected_home_ids.append(home_locations[requested_location].pk)
+    if store_selected or selected_dealer_ids or selected_home_ids:
         location_query = Q(current_dealer__isnull=True) if store_selected else Q()
         if selected_dealer_ids:
             location_query |= Q(current_dealer_id__in=selected_dealer_ids)
+        if selected_home_ids:
+            location_query |= Q(current_dealer__isnull=True, location_store_id__in=selected_home_ids)
         filters["location"] = location_query
     selected_dealer_id = (
         str(selected_dealer_ids[0]) if selected_dealer_ids else ""
@@ -8757,6 +8767,7 @@ def inventory_list(request):
             | Q(color__name__icontains=keyword)
             | Q(color__code__icontains=keyword)
             | Q(current_dealer__name__icontains=keyword)
+            | Q(current_dealer__isnull=True, location_store__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
             | Q(transfer_source_name__icontains=keyword)
             | Q(disposition_dealer__name__icontains=keyword)
@@ -8785,7 +8796,7 @@ def inventory_list(request):
     vehicles = annotate_allocation_priority(
         narrowed().select_related(
             "vehicle_model", "vehicle_model__family", "color", "current_dealer",
-            "disposition_dealer",
+            "disposition_dealer", "location_store",
         )
     )
     sort_options = {
@@ -8909,9 +8920,22 @@ def inventory_list(request):
         for key, group in sorted(color_groups.items(), key=lambda item: item[1]["label"])
         if color_counts.get(key) or key in selected_color_keys
     ]
-    location_rows = facet("location", "current_dealer_id")
+    location_rows = facet("location", "current_dealer_id", "location_store_id")
     store_count = sum(row["total"] for row in location_rows if row["current_dealer_id"] is None)
-    location_counts = {row["current_dealer_id"]: row["total"] for row in location_rows if row["current_dealer_id"]}
+    location_counts = {}
+    store_location_counts = {}
+    for row in location_rows:
+        if row["current_dealer_id"]:
+            location_counts[row["current_dealer_id"]] = location_counts.get(row["current_dealer_id"], 0) + row["total"]
+        else:
+            store_location_counts[row["location_store_id"]] = store_location_counts.get(row["location_store_id"], 0) + row["total"]
+    home_location_choices = [
+        {"value": value, "name": store.name, "count": store_location_counts.get(store.pk, 0),
+         "selected": store.pk in selected_home_ids}
+        for value, store in home_locations.items()
+    ]
+    # 本店門市以外的本店車（例如沒有門市資料）仍用舊的「本店」選項。
+    other_store_count = store_count - sum(item["count"] for item in home_location_choices)
     location_dealers = list(
         SalesSource.objects.filter(Q(pk__in=list(location_counts)) | Q(pk__in=selected_dealer_ids)).order_by("name")
     )
@@ -8956,6 +8980,8 @@ def inventory_list(request):
             "colors": color_choices,
             "dealers": location_dealers,
             "store_count": store_count,
+            "home_locations": home_location_choices,
+            "other_store_count": other_store_count,
             "disposition_dealers": disposition_dealers,
             "disposition_none_count": disposition_none_count,
             "filter_query": filter_params.urlencode(),
@@ -10596,7 +10622,7 @@ def inventory_edit(request, pk):
                 "vehicle_model", "color", "location_store", "current_dealer"
             ).get(pk=pk)
             before = _inventory_values(vehicle)
-            before_location_id = vehicle.current_dealer_id
+            before_location_id = (vehicle.current_dealer_id, vehicle.location_store_id)
             before_location_label = vehicle.actual_location_label
             form = VehicleInventoryForm(
                 request.POST,
@@ -10617,7 +10643,7 @@ def inventory_edit(request, pk):
                 }
                 reason = form.cleaned_data.get("change_reason", "").strip()
                 if changes or reason:
-                    is_transfer = before_location_id != vehicle.current_dealer_id
+                    is_transfer = before_location_id != (vehicle.current_dealer_id, vehicle.location_store_id)
                     _create_inventory_history(
                         vehicle,
                         actor_name=_editing_name(request.user),

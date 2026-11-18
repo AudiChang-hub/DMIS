@@ -29,3 +29,25 @@ def home_store_label(value):
 def home_store_value_for_label(label):
     """已存的對象名稱若是本店，回傳對應選項值（重新開啟表單時保留選取）。"""
     return next((value for value, text in home_store_choices() if text == (label or "").strip()), "")
+
+
+# 庫存實際位置（T-230 B，使用者 2026-11-18）：本店用「實際存放門市」（Store），名稱對到上面的本店才列入。
+# 主店馭盛沿用原本顯示的「本店」；其他本店顯示「本店：永湛」。
+MAIN = SalesSource.StaffStore.YUSHENG
+
+
+def home_location_stores():
+    """啟用中、名稱屬於本店的門市，依 ORDER 排序（馭盛在前）。"""
+    from sales.models import Store
+
+    labels = home_store_labels()
+    stores = Store.objects.filter(active=True, name__in=labels)
+    return sorted(stores, key=lambda store: labels.index(store.name))
+
+
+def store_location_label(store):
+    """沒放車行時的位置名稱：主店與非本店門市都顯示「本店」，其他本店顯示「本店：名稱」。"""
+    labels = dict(SalesSource.StaffStore.choices)
+    if store is not None and store.name in labels.values() and store.name != labels[MAIN]:
+        return f"本店：{store.name}"
+    return "本店"

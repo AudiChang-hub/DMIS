@@ -62,7 +62,8 @@
   <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
     <select id="inventory-location" name="location" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-search-icon="1" data-search-placeholder="全部">
-      {% if store_count or selected.store_selected %}<option value="store" {% if selected.store_selected %}selected{% endif %}>本店（{{ store_count }}）</option>{% endif %}
+      {% for item in home_locations %}<option value="{{ item.value }}" data-pinned="1" {% if item.selected %}selected{% endif %}>本店：{{ item.name }}（{{ item.count }}）</option>{% endfor %}
+      {% if home_locations %}{% if other_store_count or selected.store_selected %}<option value="store" {% if selected.store_selected %}selected{% endif %}>本店（全部，{{ store_count }}）</option>{% endif %}{% elif store_count or selected.store_selected %}<option value="store" {% if selected.store_selected %}selected{% endif %}>本店（{{ store_count }}）</option>{% endif %}
       {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}（{{ dealer.filter_count }}）</option>{% endfor %}
     </select>
   </div>

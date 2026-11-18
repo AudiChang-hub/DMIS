@@ -829,7 +829,12 @@ class OfficialCatalogModelNumberAndColorCodeTests(TestCase):
         self.assertEqual(len(entries), 2)
         for entry in entries:
             self.assertEqual((entry["model_number"], entry["model_number_candidates"]), ("", ["AL12W6", "AL12W7"]))
-        self.assertNotIn("model_number", service.model_prefill(self.make_link(entries[0]))[0])
+        link = self.make_link(entries[0])
+        self.assertNotIn("model_number", service.model_prefill(link)[0])
+        self.client.force_login(self.root)
+        page = self.client.get(reverse("vehicle_model_create"), {"official": link.pk})
+        self.assertEqual(page.context["form"].initial.get("model_number"), None)
+        self.assertContains(page, "能源標示上的型號有 AL12W6、AL12W7；官網沒有標明哪個型號屬於哪個版本")
         self.client.force_login(self.root)
         self.assertContains(self.client.get(reverse("official_catalog"), {"brand": "sym"}), "能源標示型號 AL12W6、AL12W7")
 

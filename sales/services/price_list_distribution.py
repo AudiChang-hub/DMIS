@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from sales.models import (
@@ -63,14 +64,15 @@ def is_last_day(value):
     return value.day == monthrange(value.year, value.month)[1]
 
 
-def dealer_snapshot_rows():
-    profiles = list(
-        SalesSourceCooperationProfile.objects.filter(
-            source__source_type=SalesSource.SourceType.DEALER,
-            source__active=True,
-            cooperates=True,
-        ).select_related("source")
-    )
+def dealer_snapshot_rows(source_ids=None):
+    profiles = SalesSourceCooperationProfile.objects.filter(
+        source__source_type=SalesSource.SourceType.DEALER,
+        source__active=True,
+        cooperates=True,
+    ).select_related("source")
+    if source_ids is not None:
+        profiles = profiles.filter(source_id__in=source_ids)
+    profiles = list(profiles)
     rows = {}
     for profile in profiles:
         source = profile.source
@@ -218,3 +220,69 @@ def ensure_scheduled_distribution(*, today=None):
         )
         ensured.append((following, following_created))
     return ensured
+
+
+SNAPSHOT_FIELDS = (
+    "dealer_name", "city", "district", "address", "contact_phone",
+    "requires_sym", "requires_suzuki", "sym_exclusive",
+)
+
+
+@transaction.atomic
+def sync_dealer_distribution(dealer_id, *, today=None):
+    """車行異動後自動同步（T-236，使用者 2026-11-18）：只處理這一家車行，更新當月名單，下月已建立也一起更新；歷史月份不動。
+
+    - 變成符合：新增項目，沿用上月對這家的負責人（排在該負責人本月清單最後）。
+    - 仍然符合：只更新快照欄位（名稱、地址、電話、提供三陽／台鈴、三陽專銷）。
+    - 變成不符合：比照手動同步，只移除未完成且沒有備註的項目；已完成或有備註的保留。
+    - 「本月分工確認」只在這家的項目真的被新增或移除時清除；只更新快照不清。
+    其他車行的指派、順序、完成狀態都不動。回傳 [(月份, 動作)]，動作為 added／updated／removed。
+    """
+    today = today or timezone.localdate()
+    months = (normalize_month(today), next_month(today))
+    rows = {row["dealer"].pk: row for row in dealer_snapshot_rows(source_ids=[dealer_id])}
+    results = []
+    for distribution in PriceListDistributionMonth.objects.select_for_update().filter(month__in=months).order_by("month"):
+        action = _sync_dealer_item(distribution, dealer_id, rows.get(dealer_id))
+        if action:
+            results.append((distribution.month, action))
+        if action in {"added", "removed"} and distribution.assignment_confirmed_at:
+            distribution.assignment_confirmed_at = None
+            distribution.assignment_confirmed_by = ""
+            distribution.save(update_fields=["assignment_confirmed_at", "assignment_confirmed_by", "updated_at"])
+    return results
+
+
+def _sync_dealer_item(distribution, dealer_id, row):
+    item = distribution.items.select_for_update().filter(dealer_id=dealer_id).first()
+    if row is None:
+        if item is not None and not item.completed and not item.note:
+            item.delete()
+            return "removed"
+        return ""
+    values = {key: row[key] for key in SNAPSHOT_FIELDS}
+    if item is None:
+        _, previous = previous_assignment_rows(distribution.month)
+        assigned_to = previous.get(dealer_id, {}).get("assigned_to")
+        visit_order = 0
+        if assigned_to:
+            last = distribution.items.filter(assigned_to=assigned_to).aggregate(last=Max("visit_order"))["last"]
+            visit_order = (last or 0) + 1
+        PriceListDistributionItem.objects.create(
+            distribution=distribution, dealer_id=dealer_id, **values,
+            assigned_to=assigned_to, assigned_to_name=assignment_user_label(assigned_to), visit_order=visit_order,
+        )
+        return "added"
+    changed = [key for key, value in values.items() if getattr(item, key) != value]
+    if not changed:
+        return ""
+    for key in changed:
+        setattr(item, key, values[key])
+    item.save(update_fields=[*changed, "updated_at"])
+    return "updated"
+
+
+def schedule_dealer_distribution_sync(dealer_id):
+    """在交易提交後同步這家車行（同步可重複執行，結果相同；交易回滾就不同步）。"""
+    if dealer_id:
+        transaction.on_commit(lambda: sync_dealer_distribution(dealer_id))

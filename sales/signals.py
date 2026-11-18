@@ -308,3 +308,26 @@ def archive_order_on_save(sender, instance, raw=False, **kwargs):
 def archive_order_files(sender, instance, raw=False, **kwargs):
     if not raw and getattr(instance, "order_id", None):
         schedule_order_archive(instance.order_id)
+
+
+
+# 價格表分發名單自動同步（T-236，使用者 2026-11-18）：車行新增、停用／啟用、改類型、改名稱地址電話或合作設定後，
+# 只同步這一家在當月（與已建立的下月）名單；歷史月份不動，手動「重新同步名單」照舊。
+from .models import SalesSource as _SalesSource, SalesSourceCooperationProfile as _CooperationProfile  # noqa: E402
+
+
+@receiver(post_save, sender=_SalesSource)
+def sync_price_list_after_source_change(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
+    from .services.price_list_distribution import schedule_dealer_distribution_sync
+    schedule_dealer_distribution_sync(instance.pk)
+
+
+@receiver(post_save, sender=_CooperationProfile)
+@receiver(post_delete, sender=_CooperationProfile)
+def sync_price_list_after_cooperation_change(sender, instance, raw=False, **kwargs):
+    if raw:
+        return
+    from .services.price_list_distribution import schedule_dealer_distribution_sync
+    schedule_dealer_distribution_sync(instance.source_id)

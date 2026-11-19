@@ -76,6 +76,29 @@ jobs:
             echo "migrations=false" >> "$GITHUB_OUTPUT"
           fi
 
+  blocked-terms:
+    # 公開 repo：擋下新寫入的真實客戶、車行、平台、分期公司與人員帳號。清單在 repo secret
+    # BLOCKED_TERMS（一行一詞），只掃本次新增／修改的行、新檔名與 commit 訊息；命中只印位置，不印詞。
+    name: 禁用詞掃描
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scanner self-test (fake terms only)
+        run: python3 -m unittest discover -s tests/tools
+
+      - name: Scan changed lines and commit messages
+        env:
+          BLOCKED_TERMS: ${{ secrets.BLOCKED_TERMS }}
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # fork 的 PR 拿不到 secret：只警告略過；其餘（push main、同 repo PR、排程、手動）缺清單即失敗。
+          MISSING_MODE: ${{ github.event.pull_request.head.repo.fork && 'skip' || 'fail' }}
+        run: python3 tools/check_blocked_terms.py --base "$SCAN_BASE" --missing "$MISSING_MODE"
+
   docs-tests:
     name: 使用手冊對照測試
     needs: basics

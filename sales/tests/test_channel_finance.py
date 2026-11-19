@@ -73,7 +73,7 @@ class ChannelFinanceTests(TestCase):
             extra_disbursement_bonus=Decimal("300"),
         )
         self.dealer = SalesSource.objects.create(
-            name="〔車行〕",
+            name="示範車行丁",
             source_type=SalesSource.SourceType.DEALER,
             suzuki_vehicle_capacity=5,
         )
@@ -238,7 +238,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_extra_disbursement_bonus_is_not_applied_to_another_company(self):
         order = self.make_order()
-        SalesOrder.objects.filter(pk=order.pk).update(installment_company="遠信")
+        SalesOrder.objects.filter(pk=order.pk).update(installment_company="示範分期公司")
         order.refresh_from_db()
 
         apply_order_installment_snapshot(order)
@@ -555,7 +555,7 @@ class ChannelFinanceTests(TestCase):
 
         response = self.client.post(
             reverse("installment_company_quick_create"),
-            {"name": "遠信", "customer_service_phone": "0800-000-000"},
+            {"name": "示範分期公司", "customer_service_phone": "0800-000-000"},
             HTTP_ACCEPT="application/json",
         )
 
@@ -563,7 +563,7 @@ class ChannelFinanceTests(TestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["created"])
-        company = InstallmentCompany.objects.get(name="遠信")
+        company = InstallmentCompany.objects.get(name="示範分期公司")
         self.assertTrue(company.active)
         self.assertEqual(company.customer_service_phone, "0800-000-000")
         self.assertEqual(payload["company"]["id"], company.pk)
@@ -596,7 +596,7 @@ class ChannelFinanceTests(TestCase):
 
     def test_quick_create_installment_company_requires_login_and_name(self):
         url = reverse("installment_company_quick_create")
-        self.assertEqual(self.client.post(url, {"name": "遠信"}).status_code, 302)
+        self.assertEqual(self.client.post(url, {"name": "示範分期公司"}).status_code, 302)
         self.client.force_login(self.user)
 
         response = self.client.post(url, {"name": ""})
@@ -612,7 +612,7 @@ class ChannelFinanceTests(TestCase):
         response = self.client.post(
             reverse("sales_source_create") + "?kind=store",
             {
-                "name": "文傑",
+                "name": "示範員工甲",
                 "phone": "0912-345-678",
                 "staff_stores": [SalesSource.StaffStore.YUSHENG],
                 "staff_commission": "2500",
@@ -621,7 +621,7 @@ class ChannelFinanceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        source = SalesSource.objects.get(name="文傑")
+        source = SalesSource.objects.get(name="示範員工甲")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category, category)
         self.assertEqual(source.phone, "0912-345-678")
@@ -1060,11 +1060,11 @@ class ChannelFinanceTests(TestCase):
             {
                 "category": wrong_category.pk,
                 "name": self.dealer.name,
-                "responsible_person": "〔聯絡人〕",
+                "responsible_person": "示範負責人",
                 "phone": "02-23456789",
                 "phone_secondary": "02-23456780",
                 "mobile": "0912345678",
-                "other_contact": "LINE：〔車行〕車行",
+                "other_contact": "LINE：示範車行丁車行",
                 "address": "新北市汐止區測試路 1 號",
                 "holiday_gift": "on",
                 "note": "主要車行",
@@ -1126,7 +1126,7 @@ class ChannelFinanceTests(TestCase):
             },
         )
         self.dealer.refresh_from_db()
-        self.assertEqual(self.dealer.responsible_person, "〔聯絡人〕")
+        self.assertEqual(self.dealer.responsible_person, "示範負責人")
         self.assertEqual(self.dealer.mobile, "0912345678")
         self.assertEqual(self.dealer.sym_vehicle_capacity, 3)
         self.assertEqual(self.dealer.suzuki_vehicle_capacity, 2)
@@ -1143,7 +1143,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(relationship_choices, {"general": "一般", "exclusive": "專銷"})
 
     def test_sales_source_list_searches_contact_and_relationship_profile(self):
-        self.dealer.responsible_person = "〔聯絡人〕"
+        self.dealer.responsible_person = "示範負責人"
         self.dealer.mobile = "0912345678"
         self.dealer.suzuki_vehicle_capacity = 6
         self.dealer.save(
@@ -1163,7 +1163,7 @@ class ChannelFinanceTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        for keyword in ("〔聯絡人〕", "0912345678", "專銷", "新版價格表"):
+        for keyword in ("示範負責人", "0912345678", "專銷", "新版價格表"):
             with self.subTest(keyword=keyword):
                 response = self.client.get(reverse("sales_source_list"), {"q": keyword})
                 self.assertEqual(response.status_code, 200)
@@ -1225,7 +1225,7 @@ class ChannelFinanceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "〔車行〕")
+        self.assertContains(response, "示範車行丁")
         self.assertNotContains(response, "<strong>一般車行</strong>", html=False)
         self.assertNotContains(response, "測試平台")
         self.assertContains(response, "年節送禮 1 家")
@@ -1450,7 +1450,7 @@ class ChannelFinanceTests(TestCase):
         response = self.client.get(reverse("sales_source_holiday_gift_manage"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "〔車行〕")
+        self.assertContains(response, "示範車行丁")
         self.assertNotContains(response, "不顯示的平台")
         self.assertContains(response, "目前名單")
 
@@ -1464,4 +1464,4 @@ class ChannelFinanceTests(TestCase):
                 response = self.client.get(
                     reverse("sales_source_list"), {"q": keyword}
                 )
-                self.assertContains(response, "〔車行〕")
+                self.assertContains(response, "示範車行丁")

@@ -23,7 +23,7 @@ class ReportSourceFilterTests(TestCase):
     def setUpTestData(cls):
         cls.admin = get_user_model().objects.create_superuser("admin", "admin@example.invalid", "Test-Only-123")
         cls.dealer = SalesSource.objects.create(name="甲車行", source_type="dealer")
-        cls.platform = SalesSource.objects.create(name="小樹購員購", source_type="platform")
+        cls.platform = SalesSource.objects.create(name="示範平台甲員購", source_type="platform")
         cls.staff = SalesSource.objects.create(name="文傑", source_type="store")
         cls.friend = SalesSource.objects.create(name="朋友推薦", source_type="store")
         model = VehicleModel.objects.create(brand="SUZUKI", name="來源測試車", energy_type="gas")
@@ -103,7 +103,7 @@ class ReportSourceFilterTests(TestCase):
         self.assertEqual(self.count(self.config, f"source={dealer}"), 2)
         self.assertEqual(self.count(self.config, f"source={dealer}&source={platform}"), 3)
         config = {**self.config, "reader_layout": "sales_overview"}
-        self.assertEqual(self.count(config, "legacy_dealer=甲車行&legacy_dealer=小樹購員購"), 3)
+        self.assertEqual(self.count(config, "legacy_dealer=甲車行&legacy_dealer=示範平台甲員購"), 3)
 
     def test_selected_value_outside_both_lists_is_kept(self):
         form = FilterForm(query(f"source={self.staff.pk}"), config=self.config)
@@ -115,7 +115,7 @@ class ReportSourceFilterTests(TestCase):
         form = FilterForm(config=config, reader_layout="analysis_overview")
         groups = {group["label"]: [value for value, _ in group["choices"]] for group in form["legacy_dealer"].split_groups}
         # T-230：只出現在本店單的「馭盛」放進最上面的「本店」組。
-        self.assertEqual(groups, {"本店": ["馭盛"], "車行": ["甲車行"], "平台": ["小樹購員購"]})
+        self.assertEqual(groups, {"本店": ["馭盛"], "車行": ["甲車行"], "平台": ["示範平台甲員購"]})
 
     def test_fixed_scope_pages_only_show_their_own_picker(self):
         for layout, scope, label in (("platform_overview", "網路平台", "平台"), ("dealer_overview", "車行", "車行")):

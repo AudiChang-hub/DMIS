@@ -23,7 +23,7 @@ class DraftCleanupTests(TestCase):
         self.addCleanup(self.temp.cleanup)
         users = get_user_model()
         self.root = users.objects.create_superuser("admin", password="Test-Only-123")
-        self.staff = users.objects.create_user("〔人員〕", password="Test-Only-123")
+        self.staff = users.objects.create_user("Staffc", password="Test-Only-123")
         UserAccessState.objects.create(user=self.staff, configured=True)
         for key in ("orders", "order_intake"):
             ScreenAccessGrant.objects.create(user=self.staff, screen_key=key, view=True, operate=True)
@@ -31,7 +31,7 @@ class DraftCleanupTests(TestCase):
             brand="SUZUKI", name="草稿車", model_number="DR125", model_year=2026,
             model_code=VehicleModel.ModelType.DRUM, energy_type=VehicleModel.EnergyType.GAS, displacement_cc=125)
         self.draft = OrderDraft.objects.create(
-            owner_account=self.staff, created_by="〔人員〕", updated_by="〔人員〕",
+            owner_account=self.staff, created_by="Staffc", updated_by="Staffc",
             data={"_reception": True, "owner_name": CUSTOMER, "owner_phone": "0912000111", "vehicle_model": self.model.pk},
             id_front=SimpleUploadedFile("front.jpg", b"fake-image-bytes", content_type="image/jpeg"),
         )
@@ -46,7 +46,7 @@ class DraftCleanupTests(TestCase):
         self.client.force_login(self.root)
         response = self.client.get(reverse("draft_cleanup_list"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "〔人員〕")
+        self.assertContains(response, "Staffc")
         self.assertContains(response, "接待草稿")
         self.assertContains(response, str(self.model))
         self.assertNotContains(response, CUSTOMER)
@@ -91,11 +91,11 @@ class DraftCleanupTests(TestCase):
 
     def test_cannot_delete_while_someone_else_is_editing(self):
         OrderDraft.objects.filter(pk=self.draft.pk).update(
-            editing_session="someone-else", editing_by="〔人員〕", editing_at=timezone.now())
+            editing_session="someone-else", editing_by="Staffc", editing_at=timezone.now())
         self.client.force_login(self.root)
         page = self.client.get(reverse("draft_cleanup_list"))
-        self.assertContains(page, "〔人員〕 編輯中，暫時不能刪除")
-        self.assertContains(self.delete(), "〔人員〕 正在編輯這份草稿")
+        self.assertContains(page, "Staffc 編輯中，暫時不能刪除")
+        self.assertContains(self.delete(), "Staffc 正在編輯這份草稿")
         self.assertTrue(OrderDraft.objects.filter(pk=self.draft.pk).exists())
         # 心跳已逾時（離開頁面）就可以刪除
         OrderDraft.objects.filter(pk=self.draft.pk).update(editing_at=timezone.now() - timedelta(seconds=120))

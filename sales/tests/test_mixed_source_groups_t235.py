@@ -29,10 +29,10 @@ class MixedGroupHelperTests(TestCase):
     def test_platform_and_home_on_top_dealers_by_county_rest_unassigned(self):
         kinds = {"p": "platform", "y": "store", "z": "store", "s": "store", "a": "dealer", "b": "dealer", "c": "dealer", "x": None}
         cities = {"a": "新北市", "b": "臺北市", "c": ""}
-        names = {"p": "小樹購", "y": "永湛", "z": "馭盛", "s": "文傑", "a": "板橋", "b": "信義", "c": "無址", "x": "已移除"}
+        names = {"p": "示範平台甲", "y": "永湛", "z": "馭盛", "s": "示範員工甲", "a": "板橋", "b": "信義", "c": "無址", "x": "已移除"}
         groups = group_mixed_choices([(key, names[key]) for key in "pyzsabcx"], kinds.get, cities.get)
-        self.assertEqual(summary(groups), [("網路平台", ["小樹購"]), ("本店", ["馭盛", "永湛"]), ("臺北市", ["信義"]),
-                                           ("新北市", ["板橋"]), ("未分區", ["文傑", "無址", "已移除"])])
+        self.assertEqual(summary(groups), [("網路平台", ["示範平台甲"]), ("本店", ["馭盛", "永湛"]), ("臺北市", ["信義"]),
+                                           ("新北市", ["板橋"]), ("未分區", ["示範員工甲", "無址", "已移除"])])
 
 
 class MixedSourcePickerTests(TestCase):
@@ -40,9 +40,9 @@ class MixedSourcePickerTests(TestCase):
     def setUpTestData(cls):
         cls.taipei = source("信義車行", "dealer", "臺北市")
         cls.newtaipei = source("板橋 機車", "dealer", "新北市")
-        cls.platform = source("小樹購員購", "platform")
+        cls.platform = source("示範平台甲員購", "platform")
         cls.yongzhan = source("永湛", "store")
-        cls.staff = source("文傑", "store")
+        cls.staff = source("示範員工甲", "store")
         model = VehicleModel.objects.create(brand="SUZUKI", name="T235 報表車", energy_type="gas")
         color = VehicleColor.objects.create(vehicle_model=model, name="白")
         rows = [("dealer", cls.taipei), ("dealer", cls.newtaipei), ("platform", cls.platform), ("store", cls.yongzhan),
@@ -58,8 +58,8 @@ class MixedSourcePickerTests(TestCase):
     def test_standard_reader_mixed_picker_is_grouped_and_covers_all_choices(self):
         form = FilterForm(config=self.config)
         groups = form["legacy_dealer"].regions
-        self.assertEqual(summary(groups), [("網路平台", ["小樹購員購"]), ("本店", ["馭盛", "永湛"]), ("臺北市", ["信義車行"]),
-                                           ("新北市", ["板橋機車"]), ("未分區", ["文傑"])])
+        self.assertEqual(summary(groups), [("網路平台", ["示範平台甲員購"]), ("本店", ["馭盛", "永湛"]), ("臺北市", ["信義車行"]),
+                                           ("新北市", ["板橋機車"]), ("未分區", ["示範員工甲"])])
         self.assertEqual(sorted(v for g in groups for v, _ in g["choices"]), sorted(v for v, _ in form.fields["legacy_dealer"].choices))
 
     def test_standard_reader_filter_results_unchanged(self):

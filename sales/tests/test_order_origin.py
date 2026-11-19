@@ -89,8 +89,8 @@ class OrderOriginRuleTests(TestCase):
             ("legacy_finance_repaired", "歷史財務核對修復", "核對"),
             ("updated", "系統（1.63.0 選號費搬移）", "改記為選號費"),
             ("order_updated", "admin（依使用者指示）", "依 Excel 第 4 列補登"),
-            ("updated", "〔人員〕", "修改訂單（0 個項目）"),
-            ("operations_updated", "〔人員〕", "更新營運與對帳資料（0 個欄位）"),
+            ("updated", "Staffc", "修改訂單（0 個項目）"),
+            ("operations_updated", "Staffc", "更新營運與對帳資料（0 個欄位）"),
             ("historical_delivery_reopened", "admin", "沒有車牌，改回待交車"),
             ("allocated", "", "沒有操作人"),
         ]:
@@ -105,21 +105,21 @@ class OrderOriginRuleTests(TestCase):
         self.assertEqual(response.status_code, 302)
         origin = self.origin(order)
         self.assertEqual((origin.key, origin.label, origin.edited_by), (IMPORTED_EDITED, "Excel 匯入已修改", "admin"))
-        OrderEvent.objects.create(order=order, event_type="operations_updated", actor_name="〔人員〕",
+        OrderEvent.objects.create(order=order, event_type="operations_updated", actor_name="Staffc",
                                   description="更新營運與對帳資料（2 個欄位）")
-        self.assertEqual(self.origin(order).edited_by, "〔人員〕", "顯示最後一次修改的人")
+        self.assertEqual(self.origin(order).edited_by, "Staffc", "顯示最後一次修改的人")
         page = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(page, 'data-order-origin="imported_edited"')
-        self.assertContains(page, "最後修改 〔人員〕")
+        self.assertContains(page, "最後修改 Staffc")
         overview = self.client.get(reverse("order_overview", args=[order.pk]))
         self.assertContains(overview, "Excel 匯入已修改")
 
     def test_annotation_matches_single_order_rule(self):
         order = self.imported_order()
-        OrderEvent.objects.create(order=order, event_type="updated", actor_name="〔人員〕", description="修改訂單（3 個項目）")
+        OrderEvent.objects.create(order=order, event_type="updated", actor_name="Staffc", description="修改訂單（3 個項目）")
         annotated = with_order_origin(SalesOrder.objects.filter(pk=order.pk)).get()
         self.assertTrue(annotated.origin_imported)
-        self.assertEqual(annotated.origin_edited_by, "〔人員〕")
+        self.assertEqual(annotated.origin_edited_by, "Staffc")
         self.assertEqual(order_origin(annotated).key, IMPORTED_EDITED)
 
 
@@ -150,7 +150,7 @@ class OrderOriginListTests(TestCase):
                                                      fingerprint=f"{self.rows:064d}", action=LegacyImportRow.Action.CREATE)
                 LegacySalesSnapshot.objects.create(order=order, import_row=row)
                 if kind == IMPORTED_EDITED:
-                    OrderEvent.objects.create(order=order, event_type="updated", actor_name="〔人員〕",
+                    OrderEvent.objects.create(order=order, event_type="updated", actor_name="Staffc",
                                               description="修改訂單（1 個項目）")
 
     def list_queries(self):
@@ -177,9 +177,9 @@ class OrderOriginListTests(TestCase):
             keys = [order_origin(order).key for order in orders]
         self.assertEqual(keys, [MANUAL, IMPORTED, IMPORTED_EDITED] * 3)
         edited = orders[2]
-        OrderEvent.objects.create(order=orders[1], event_type="updated", actor_name="〔人員〕", description="修改訂單（2 個項目）")
+        OrderEvent.objects.create(order=orders[1], event_type="updated", actor_name="Staffb", description="修改訂單（2 個項目）")
         self.assertEqual(current_order_origin(orders[1]).key, IMPORTED_EDITED, "存檔後重新判斷，不沿用舊標記")
-        self.assertEqual(order_origin(edited).edited_by, "〔人員〕")
+        self.assertEqual(order_origin(edited).edited_by, "Staffc")
 
     def test_recycle_bin_renders_marks(self):
         self.make_orders(2)

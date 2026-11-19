@@ -42,7 +42,7 @@ class ReportDealerRegionTests(TestCase):
         cls.taipei = dealer("台北車行", "臺北市")
         cls.newtaipei = dealer("板橋 機車", "新北市")
         cls.nowhere = dealer("無址車行")
-        cls.platform = SalesSource.objects.create(name="小樹購員購", source_type="platform")
+        cls.platform = SalesSource.objects.create(name="示範平台甲員購", source_type="platform")
         cls.yongzhan = SalesSource.objects.create(name="永湛", source_type="store", staff_stores=["yongzhan"])
         model = VehicleModel.objects.create(brand="SUZUKI", name="T234 報表車", energy_type="gas")
         color = VehicleColor.objects.create(vehicle_model=model, name="白")

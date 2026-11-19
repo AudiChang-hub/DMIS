@@ -25,7 +25,7 @@ class SharedDealerVehicleCapacityMigrationTests(TransactionTestCase):
             "sales", "SalesSourceCooperationProfile"
         )
         source = SalesSource.objects.create(
-            name="〔車行〕",
+            name="示範車行丁",
             source_type="dealer",
             vehicle_capacity=5,
         )

@@ -753,13 +753,13 @@ class LegacyImportTests(TestCase):
 
     def test_trial_vehicle_source_suffix_becomes_order_note(self):
         SalesSource.objects.create(
-            name="昌勝",
+            name="示範車行甲",
             source_type=SalesSource.SourceType.DEALER,
             active=True,
         )
         workbook = load_workbook(BytesIO(workbook_bytes()))
         workbook["銷貨"]["AN3"] = "車行"
-        workbook["銷貨"]["AN4"] = "昌勝(試乘車)"
+        workbook["銷貨"]["AN4"] = "示範車行甲(試乘車)"
         stream = BytesIO()
         workbook.save(stream)
         upload = SimpleUploadedFile("trial-vehicle.xlsx", stream.getvalue())
@@ -774,14 +774,14 @@ class LegacyImportTests(TestCase):
 
         build_import_preview(batch)
         sales_row = batch.rows.get(sheet_name="銷貨")
-        self.assertEqual(sales_row.mapped_data["dealer_name"], "昌勝")
+        self.assertEqual(sales_row.mapped_data["dealer_name"], "示範車行甲")
         self.assertEqual(sales_row.mapped_data["transaction_type"], "test_ride")
         self.assertEqual(sales_row.mapped_data["note"], "試乘車")
 
         confirm_import(batch, "tester")
 
         order = SalesOrder.objects.get(owner_name="正式車主")
-        self.assertEqual(order.source.name, "昌勝")
+        self.assertEqual(order.source.name, "示範車行甲")
         self.assertEqual(order.transaction_type, SalesOrder.TransactionType.TEST_RIDE)
         self.assertEqual(order.note, "試乘車")
 
@@ -971,7 +971,7 @@ class LegacyImportTests(TestCase):
             _infer_sales_transaction_type({"補助方案": "FUN 中古車過戶"}, ""), (used, "補助方案標示中古車過戶")
         )
         # 中古車標記優先於試乘車等其他交易類型文字。
-        self.assertEqual(_infer_sales_transaction_type({"備註": "中古車買賣"}, "昌勝(試乘車)")[0], used)
+        self.assertEqual(_infer_sales_transaction_type({"備註": "中古車買賣"}, "示範車行甲(試乘車)")[0], used)
         self.assertEqual(
             _infer_sales_transaction_type({"備註": "新車成交，另有中古車估價"}, "")[0],
             SalesOrder.TransactionType.REGULAR_NEW,
@@ -993,15 +993,15 @@ class LegacyImportTests(TestCase):
         )
 
     def test_transaction_type_is_separated_from_sales_source_name(self):
-        self.assertEqual(_clean_sales_source_name("昌勝(試乘車)"), "昌勝")
-        self.assertEqual(_clean_sales_source_name("東永-試乘車"), "東永")
+        self.assertEqual(_clean_sales_source_name("示範車行甲(試乘車)"), "示範車行甲")
+        self.assertEqual(_clean_sales_source_name("示範車行己-試乘車"), "示範車行己")
         self.assertEqual(_clean_sales_source_name("中獎車"), "")
         self.assertEqual(_clean_sales_source_name("代申請補助"), "")
         self.assertEqual(
-            _clean_sales_source_name("昌勝(代申請補助)"), "昌勝"
+            _clean_sales_source_name("示範車行甲(代申請補助)"), "示範車行甲"
         )
         self.assertEqual(
-            _infer_sales_transaction_type({}, "昌勝(試乘車)")[0],
+            _infer_sales_transaction_type({}, "示範車行甲(試乘車)")[0],
             SalesOrder.TransactionType.TEST_RIDE,
         )
         self.assertEqual(
@@ -1014,14 +1014,14 @@ class LegacyImportTests(TestCase):
         )
         self.assertEqual(
             _sales_order_note(
-                {}, "昌勝(試乘車)", SalesOrder.TransactionType.TEST_RIDE
+                {}, "示範車行甲(試乘車)", SalesOrder.TransactionType.TEST_RIDE
             ),
             "試乘車",
         )
         self.assertEqual(
             _sales_order_note(
                 {"備註": "客戶指定"},
-                "昌勝（試乘車）",
+                "示範車行甲（試乘車）",
                 SalesOrder.TransactionType.TEST_RIDE,
                 "試乘車",
             ),
@@ -1084,10 +1084,10 @@ class LegacyImportTests(TestCase):
                     source_name,
                 )
 
-        self.assertEqual(_clean_sales_source_name("博客來"), "博客來")
+        self.assertEqual(_clean_sales_source_name("示範平台乙"), "示範平台乙")
         self.assertEqual(
             _sales_order_note(
-                {}, "博客來", SalesOrder.TransactionType.REGULAR_NEW
+                {}, "示範平台乙", SalesOrder.TransactionType.REGULAR_NEW
             ),
             "",
         )
@@ -1548,7 +1548,7 @@ class LegacyImportTests(TestCase):
     def test_quick_create_staff_gets_store_category_automatically(self):
         content = workbook_bytes()
         workbook = load_workbook(BytesIO(content))
-        workbook["銷貨"]["AN4"] = "文傑"
+        workbook["銷貨"]["AN4"] = "示範員工甲"
         stream = BytesIO()
         workbook.save(stream)
         payload = stream.getvalue()
@@ -1568,16 +1568,16 @@ class LegacyImportTests(TestCase):
                 args=[batch.pk, LegacyImportMasterMapping.MappingType.SALES_SOURCE],
             ),
             {
-                "source_value": "文傑",
+                "source_value": "示範員工甲",
                 "resolution_action": "create",
                 "source-create-source_type": SalesSource.SourceType.STORE,
-                "source-create-name": "文傑",
+                "source-create-name": "示範員工甲",
                 "source-create-address": "",
             },
         )
 
         self.assertEqual(response.status_code, 302)
-        source = SalesSource.objects.get(name="文傑")
+        source = SalesSource.objects.get(name="示範員工甲")
         self.assertEqual(source.category.name, "本店員工")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
 

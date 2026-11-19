@@ -49,7 +49,7 @@ class TransferHomeStoreTests(TestCase):
         self.override.enable()
         store = Store.objects.create(name="總店", code="MAIN")
         self.client.force_login(get_user_model().objects.create_superuser("admin", password="Local-t230-551!"))
-        self.dealer = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER)
+        self.dealer = SalesSource.objects.create(name="示範車行甲", source_type=SalesSource.SourceType.DEALER)
         # 正式站的永湛是本店來源（store），不是車行。
         self.yongzhan = SalesSource.objects.create(name="永湛", source_type=SalesSource.SourceType.STORE,
                                                    staff_stores=["yongzhan"])
@@ -104,7 +104,7 @@ class TransferHomeStoreTests(TestCase):
 class GiftHomeStoreTests(TestCase):
     def setUp(self):
         self.client.force_login(get_user_model().objects.create_superuser("admin", password="Local-t230-552!"))
-        self.dealer = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER)
+        self.dealer = SalesSource.objects.create(name="示範車行甲", source_type=SalesSource.SourceType.DEALER)
         SalesSource.objects.create(name="永湛", source_type=SalesSource.SourceType.STORE, staff_stores=["yongzhan"])
         self.activity = GiftDistribution.objects.create(title="年節", created_by="admin")
         self.url = reverse("gift_distribution_detail", args=[self.activity.pk])
@@ -119,16 +119,16 @@ class GiftHomeStoreTests(TestCase):
     def test_adding_home_stores_records_names_without_source(self):
         self.client.post(self.url, {"action": "add_sources", "sources": [*HOME, str(self.dealer.pk), "store:bogus"]})
         items = {item.recipient: item.source for item in GiftDistributionItem.objects.filter(distribution=self.activity)}
-        self.assertEqual(items, {"馭盛": None, "永湛": None, "昌勝": self.dealer})
+        self.assertEqual(items, {"馭盛": None, "永湛": None, "示範車行甲": self.dealer})
 
 
 class ReportHomeStoreFilterTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.dealer = SalesSource.objects.create(name="甲車行", source_type="dealer")
-        cls.platform = SalesSource.objects.create(name="小樹購員購", source_type="platform")
+        cls.platform = SalesSource.objects.create(name="示範平台甲員購", source_type="platform")
         cls.yongzhan = SalesSource.objects.create(name="永湛", source_type="store", staff_stores=["yongzhan"])
-        cls.staff = SalesSource.objects.create(name="文傑", source_type="store", staff_stores=["yusheng"])
+        cls.staff = SalesSource.objects.create(name="示範員工甲", source_type="store", staff_stores=["yusheng"])
         model = VehicleModel.objects.create(brand="SUZUKI", name="T230 報表車", energy_type="gas")
         color = VehicleColor.objects.create(vehicle_model=model, name="白")
         rows = [("dealer", cls.dealer), ("platform", cls.platform), ("store", cls.yongzhan), ("store", cls.yongzhan),
@@ -148,7 +148,7 @@ class ReportHomeStoreFilterTests(TestCase):
         config = {**self.config, "reader_layout": "analysis_overview"}
         form = FilterForm(config=config, reader_layout="analysis_overview")
         self.assertEqual(self.groups(form, "legacy_dealer"),
-                         [("本店", ["馭盛", "永湛"]), ("車行", ["甲車行"]), ("平台", ["小樹購員購"])])
+                         [("本店", ["馭盛", "永湛"]), ("車行", ["甲車行"]), ("平台", ["示範平台甲員購"])])
 
     def test_selecting_home_store_filters_its_orders(self):
         config = {**self.config, "reader_layout": "analysis_overview"}
@@ -205,7 +205,7 @@ class InventoryHomeLocationTests(TestCase):
         self.yusheng = Store.objects.create(name="馭盛", code="HQ")
         self.yongzhan = Store.objects.create(name="永湛", code="YZ")
         Store.objects.create(name="二店", code="S02")  # 不是本店名稱，不列入
-        self.dealer = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER)
+        self.dealer = SalesSource.objects.create(name="示範車行甲", source_type=SalesSource.SourceType.DEALER)
         SalesSource.objects.create(name="永湛", source_type=SalesSource.SourceType.STORE, staff_stores=["yongzhan"])
         model = VehicleModel.objects.create(brand="SYM", name="JET SL 125", model_number="T230B")
         self.color = VehicleColor.objects.create(vehicle_model=model, name="消光黑")

@@ -13,9 +13,9 @@ class UserManagementTests(TestCase):
             first_name="管理者",
         )
         self.user = get_user_model().objects.create_user(
-            username="〔人員〕",
+            username="staffc",
             password="UserPass!56789",
-            first_name="〔人員〕",
+            first_name="Staffc",
         )
 
     def test_management_page_is_superuser_only_and_navigation_is_hidden(self):
@@ -33,7 +33,7 @@ class UserManagementTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "帳號與權限")
-        self.assertContains(response, "〔人員〕")
+        self.assertContains(response, "Staffc")
         maintenance = self.client.get(reverse("data_maintenance"))
         self.assertContains(maintenance, reverse("user_management"))
 
@@ -173,7 +173,7 @@ class UserManagementTests(TestCase):
             reverse("user_account_create"),
             {
                 "display_name": "另一位",
-                "username": "〔人員〕",
+                "username": "STAFFC",
                 "password1": "TempPass!67890",
                 "password2": "TempPass!67890",
                 "is_active": "on",
@@ -182,7 +182,7 @@ class UserManagementTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "這個登入帳號已有人使用")
-        self.assertEqual(get_user_model().objects.filter(username__iexact="〔人員〕").count(), 1)
+        self.assertEqual(get_user_model().objects.filter(username__iexact="staffc").count(), 1)
 
     def test_admin_cannot_deactivate_or_demote_self(self):
         self.client.force_login(self.admin)
@@ -287,7 +287,7 @@ class UserManagementTests(TestCase):
 
     def test_password_reset_invalidates_existing_sessions(self):
         other_device = self.client_class()
-        self.assertTrue(other_device.login(username="〔人員〕", password="UserPass!56789"))
+        self.assertTrue(other_device.login(username="staffc", password="UserPass!56789"))
         self.assertEqual(other_device.get(reverse("dashboard")).status_code, 200)
 
         self.client.force_login(self.admin)
@@ -337,6 +337,6 @@ class UserManagementTests(TestCase):
         self.user.save(update_fields=["is_active"])
         self.client.force_login(self.admin)
 
-        response = self.client.get(reverse("user_management"), {"q": "Syl", "status": "inactive"})
-        self.assertContains(response, "〔人員〕")
+        response = self.client.get(reverse("user_management"), {"q": "taffc", "status": "inactive"})
+        self.assertContains(response, "Staffc")
         self.assertNotContains(response, "管理者</h3>")

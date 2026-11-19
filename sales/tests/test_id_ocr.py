@@ -98,8 +98,8 @@ class IdFieldExtractionTests(TestCase):
 
     def test_cleans_name_region_with_layout_labels(self):
         self.assertEqual(
-            _clean_name_text("姓名\n張鴻\n性別 男\n賢\n出生 民國"),
-            "張〔來源〕",
+            _clean_name_text("姓名\n張小\n性別 男\n明\n出生 民國"),
+            "張小明",
         )
 
     def test_name_region_only_completes_one_missing_character(self):
@@ -108,11 +108,11 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(_choose_name_candidate("", "林小華"), "林小華")
 
     def test_extracts_vertical_name_character_after_gender_label(self):
-        text = "姓名 張鴻\n性別 男\n賢\n出生 民國70年1月2日"
+        text = "姓名 張小\n性別 男\n明\n出生 民國70年1月2日"
 
         result = extract_fields(text, "front")
 
-        self.assertEqual(result["name"], "張〔來源〕")
+        self.assertEqual(result["name"], "張小明")
 
     def test_extracts_front_fields_and_converts_roc_date(self):
         text = (

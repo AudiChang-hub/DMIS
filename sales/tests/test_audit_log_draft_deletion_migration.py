@@ -24,11 +24,11 @@ class AuditLogDraftDeletionMigrationTests(TransactionTestCase):
 
     def test_marks_only_draft_deletions_and_reverses(self):
         Log = self._apps(self.migrate_from).get_model("sales", "UserAccountAuditLog")
-        reception = Log.objects.create(target_username="〔人員〕", action="update",
-                                       description="admin 刪除接待草稿 405a785a（建立人 〔人員〕）；原因：測試草稿")
+        reception = Log.objects.create(target_username="Staffc", action="update",
+                                       description="admin 刪除接待草稿 405a785a（建立人 Staffc）；原因：測試草稿")
         normal = Log.objects.create(target_username="admin", action="update",
                                     description="admin 刪除草稿 1234abcd（建立人 admin）；原因：重複")
-        account = Log.objects.create(target_username="〔人員〕", action="update", description="修改權限：訂單")
+        account = Log.objects.create(target_username="Staffc", action="update", description="修改權限：訂單")
 
         executor = MigrationExecutor(connection)
         executor.migrate([self.migrate_to])

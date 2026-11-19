@@ -107,7 +107,7 @@ class StockCountTests(TestCase):
 
     def test_locations_list_store_then_dealers_with_counts(self):
         """庫位（T-115）：不在車行的寫實際存放門市，門市依主檔順序在前；車行依台數多到少；只算現有庫存，0 台留空。"""
-        other = SalesSource.objects.create(name="旭昶", source_type=SalesSource.SourceType.DEALER)
+        other = SalesSource.objects.create(name="示範車行乙", source_type=SalesSource.SourceType.DEALER)
         yongzhan = Store.objects.create(name="永湛", code="YZ")
         Store.objects.create(name="馭盛", code="YS")  # 沒有車的門市不列
         self.vehicle(self.uc, self.grey, current_dealer=other)
@@ -119,7 +119,7 @@ class StockCountTests(TestCase):
         grey = rows[("UC125DA", "灰")]
         store_counts = {"總店": 3, "永湛": 1}
         stores = [(name, store_counts[name], False) for name in Store.objects.values_list("name", flat=True) if name in store_counts]
-        self.assertEqual(grey.locations, stores + [("旭昶", 2, True), ("車行甲", 1, True)])
+        self.assertEqual(grey.locations, stores + [("示範車行乙", 2, True), ("車行甲", 1, True)])
         self.assertEqual(grey.location_text, "、".join(f"{name} {count}" for name, count, _ in grey.locations))
         self.assertNotIn("本店", grey.location_text)
         self.assertEqual(grey.dealer, 3)  # 「車行」欄口徑不變
@@ -128,7 +128,7 @@ class StockCountTests(TestCase):
         self.assertEqual(rows[("EV060L", "白")].locations, [])  # 已售出等放在車行的車不算，0 台留空
 
     def test_location_counts_match_inventory_location_filter(self):
-        other = SalesSource.objects.create(name="旭昶", source_type=SalesSource.SourceType.DEALER)
+        other = SalesSource.objects.create(name="示範車行乙", source_type=SalesSource.SourceType.DEALER)
         self.vehicle(self.uc, self.red, current_dealer=other)
         self.vehicle(self.uc, self.red, location_store=Store.objects.create(name="永湛", code="YZ"))
         dealer_ids = {self.dealer.name: self.dealer.pk, other.name: other.pk}

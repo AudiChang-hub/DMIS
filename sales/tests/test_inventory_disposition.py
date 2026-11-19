@@ -34,21 +34,21 @@ RECEIVED = date(2026, 3, 1)
 
 class LocationNoteParseTests(SimpleTestCase):
     def test_dealer_name_only_is_location(self):
-        result = parse("昌勝", RECEIVED)
-        self.assertEqual((result["kind"], result["name"], result["store"]), (LOCATION, "昌勝", False))
+        result = parse("示範車行甲", RECEIVED)
+        self.assertEqual((result["kind"], result["name"], result["store"]), (LOCATION, "示範車行甲", False))
 
     def test_dealer_with_parenthesis_keeps_note(self):
-        result = parse("昌勝(已配電)", RECEIVED)
-        self.assertEqual((result["kind"], result["name"], result["note"]), (LOCATION, "昌勝", "已配電"))
+        result = parse("示範車行甲(已配電)", RECEIVED)
+        self.assertEqual((result["kind"], result["name"], result["note"]), (LOCATION, "示範車行甲", "已配電"))
 
     def test_transfer_variants(self):
-        for text in ("昌勝調走", "昌勝調", "昌勝已調走"):
+        for text in ("示範車行甲調走", "示範車行甲調", "示範車行甲已調走"):
             with self.subTest(text=text):
                 result = parse(text, RECEIVED)
-                self.assertEqual((result["kind"], result["name"]), (TRANSFER_OUT, "昌勝"))
+                self.assertEqual((result["kind"], result["name"]), (TRANSFER_OUT, "示範車行甲"))
 
     def test_transfer_with_month_day_infers_year_from_received_date(self):
-        self.assertEqual(parse("4/12 昌勝調走", RECEIVED)["on"], date(2026, 4, 12))
+        self.assertEqual(parse("4/12 示範車行甲調走", RECEIVED)["on"], date(2026, 4, 12))
         # 早於進貨日的月／日視為隔年，但不能晚於今天。
         from sales.services.inventory_location_note import _infer_date
         self.assertEqual(_infer_date(1, 5, RECEIVED, today=date(2027, 6, 1)), date(2027, 1, 5))
@@ -61,16 +61,16 @@ class LocationNoteParseTests(SimpleTestCase):
 
     def test_merged_columns_and_factory_label(self):
         from sales.services.inventory_location_note import resolve
-        found = {"旭昶": "DEALER-旭昶"}
-        result = resolve(["旭昶", "6/23〔車行〕調走", None, "0"], RECEIVED, False, lambda name: None)
-        self.assertEqual((result["status"], result["disposition_dealer_name"]), ("transferred_out", "〔車行〕"))
+        found = {"示範車行乙": "DEALER-示範車行乙"}
+        result = resolve(["示範車行乙", "6/23示範車行丙調走", None, "0"], RECEIVED, False, lambda name: None)
+        self.assertEqual((result["status"], result["disposition_dealer_name"]), ("transferred_out", "示範車行丙"))
         self.assertEqual(result["disposition_on"], date(2026, 6, 23))
-        self.assertIn("旭昶", result["note"])
+        self.assertIn("示範車行乙", result["note"])
         result = resolve(["調回工廠"], RECEIVED, False, lambda name: None)
         self.assertEqual(result["disposition_dealer_name"], "原廠／總公司")
         result = resolve(["TWC10C306054"], RECEIVED, False, lambda name: None)
         self.assertEqual(result["note"], "其他號碼：TWC10C306054")
-        self.assertEqual(found["旭昶"], "DEALER-旭昶")
+        self.assertEqual(found["示範車行乙"], "DEALER-示範車行乙")
 
     def test_transfer_back_to_factory(self):
         result = parse("調回工廠", RECEIVED)
@@ -112,7 +112,7 @@ class InventoryImportDispositionTests(TestCase):
     def setUp(self):
         Store.objects.create(name="總店", code="MAIN")
         self.changsheng = SalesSource.objects.create(
-            name="昌勝", source_type=SalesSource.SourceType.DEALER, active=True
+            name="示範車行甲", source_type=SalesSource.SourceType.DEALER, active=True
         )
         self.tempdir = TemporaryDirectory()
         self.override = override_settings(MEDIA_ROOT=self.tempdir.name)
@@ -138,14 +138,14 @@ class InventoryImportDispositionTests(TestCase):
 
     def test_quantity_and_unlabeled_m_column(self):
         vehicles = self.run_import(inventory_workbook([
-            ("FR001", 1, "昌勝"),
-            ("FR002", 0, "4/12 昌勝調走"),
+            ("FR001", 1, "示範車行甲"),
+            ("FR002", 0, "4/12 示範車行甲調走"),
             ("FR003", 0, "大發領"),
             ("FR004", 0, "員購車"),
             ("FR005", 1, "馭盛"),
-            ("FR006", 0, "昌勝"),
+            ("FR006", 0, "示範車行甲"),
             ("FR007", 0, ""),
-            ("FR008", 1, "昌勝調走"),
+            ("FR008", 1, "示範車行甲調走"),
         ]))
         in_stock = vehicles["FR001"]
         self.assertEqual(in_stock.status, VehicleInventory.Status.AVAILABLE)
@@ -172,32 +172,32 @@ class InventoryImportDispositionTests(TestCase):
         self.assertEqual(vehicles["FR005"].note, "")
         # 已售出的車不改實際位置，只記曾放在哪間車行。
         self.assertIsNone(vehicles["FR006"].current_dealer)
-        self.assertEqual(vehicles["FR006"].note, "曾放在 昌勝")
+        self.assertEqual(vehicles["FR006"].note, "曾放在 示範車行甲")
         self.assertEqual(vehicles["FR007"].status, VehicleInventory.Status.SOLD)
         self.assertEqual(vehicles["FR007"].note, "")
         # 數量 1 卻寫調出：以數量為準仍是庫存，原文只存備註。
         self.assertEqual(vehicles["FR008"].status, VehicleInventory.Status.AVAILABLE)
         self.assertEqual(vehicles["FR008"].disposition, "")
-        self.assertEqual(vehicles["FR008"].note, "昌勝調走")
+        self.assertEqual(vehicles["FR008"].note, "示範車行甲調走")
 
     def test_n_column_follow_up_is_merged(self):
-        workbook_rows = [("FR030", 0, "旭昶")]
+        workbook_rows = [("FR030", 0, "示範車行乙")]
         content = inventory_workbook(workbook_rows)
         from openpyxl import load_workbook
         book = load_workbook(BytesIO(content))
-        book["進貨"]["N2"] = "6/23〔車行〕調走"
+        book["進貨"]["N2"] = "6/23示範車行丙調走"
         stream = BytesIO()
         book.save(stream)
         vehicle = self.run_import(stream.getvalue())["FR030"]
         self.assertEqual(vehicle.status, VehicleInventory.Status.TRANSFERRED_OUT)
-        self.assertEqual(vehicle.disposition_dealer_name, "〔車行〕")
-        self.assertEqual(vehicle.note, "旭昶")
+        self.assertEqual(vehicle.disposition_dealer_name, "示範車行丙")
+        self.assertEqual(vehicle.note, "示範車行乙")
 
     def test_backfill_migration_repairs_rows_imported_by_old_version(self):
         from importlib import import_module
         from django.apps import apps as django_apps
         from sales.models import LegacyImportRow, VehicleInventoryHistory
-        vehicles = self.run_import(inventory_workbook([("FR040", 0, "旭昶"), ("FR041", 1, "昌勝"), ("FR042", 0, "")]))
+        vehicles = self.run_import(inventory_workbook([("FR040", 0, "示範車行乙"), ("FR041", 1, "示範車行甲"), ("FR042", 0, "")]))
         # 模擬 1.61.0 前的匯入結果：數量 0 停用、沒讀 M 欄、都在本店。
         VehicleInventory.objects.filter(pk__in=[v.pk for v in vehicles.values()]).update(
             status=VehicleInventory.Status.INACTIVE, current_dealer=None, note="",
@@ -206,12 +206,12 @@ class InventoryImportDispositionTests(TestCase):
         VehicleInventory.objects.filter(pk=vehicles["FR041"].pk).update(status=VehicleInventory.Status.AVAILABLE)
         for row in LegacyImportRow.objects.filter(sheet_name="進貨"):
             if row.mapped_data["identifier"] == "FR040":
-                row.raw_data = {**row.raw_data, "M": "旭昶", "N": "6/23〔車行〕調走"}
+                row.raw_data = {**row.raw_data, "M": "示範車行乙", "N": "6/23示範車行丙調走"}
                 row.save(update_fields=["raw_data"])
         import_module("sales.migrations.0172_backfill_imported_inventory_location").backfill(django_apps, None)
         first, second, third = (VehicleInventory.objects.get(pk=vehicles[key].pk) for key in ("FR040", "FR041", "FR042"))
         self.assertEqual(first.status, VehicleInventory.Status.TRANSFERRED_OUT)
-        self.assertEqual(first.disposition_dealer_name, "〔車行〕")
+        self.assertEqual(first.disposition_dealer_name, "示範車行丙")
         self.assertEqual(second.current_dealer, self.changsheng)
         self.assertEqual(third.status, VehicleInventory.Status.SOLD)
         self.assertEqual(VehicleInventoryHistory.objects.filter(actor_name__contains="進貨資料補正").count(), 3)
@@ -220,11 +220,11 @@ class InventoryImportDispositionTests(TestCase):
         self.assertEqual(VehicleInventoryHistory.objects.filter(actor_name__contains="進貨資料補正").count(), 3)
 
     def test_m_column_with_named_header_is_read(self):
-        vehicles = self.run_import(inventory_workbook([("FR010", 0, "昌勝調")], location_header="存放／調車"))
+        vehicles = self.run_import(inventory_workbook([("FR010", 0, "示範車行甲調")], location_header="存放／調車"))
         self.assertEqual(vehicles["FR010"].disposition, VehicleInventory.Disposition.TRANSFER_OUT)
 
     def test_m_column_with_unrelated_header_is_ignored(self):
-        vehicles = self.run_import(inventory_workbook([("FR011", 0, "昌勝調")], location_header="其他"))
+        vehicles = self.run_import(inventory_workbook([("FR011", 0, "示範車行甲調")], location_header="其他"))
         self.assertEqual(vehicles["FR011"].disposition, "")
         self.assertEqual(vehicles["FR011"].note, "")
 
@@ -236,7 +236,7 @@ class InventoryDispositionListTests(TestCase):
         self.client.force_login(self.user)
         self.model = VehicleModel.objects.create(brand="SYM", name="測試車", model_number="TEST125")
         self.color = VehicleColor.objects.create(vehicle_model=self.model, name="白")
-        self.dealer_a = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER, active=True)
+        self.dealer_a = SalesSource.objects.create(name="示範車行甲", source_type=SalesSource.SourceType.DEALER, active=True)
         self.dealer_b = SalesSource.objects.create(name="大發", source_type=SalesSource.SourceType.DEALER, active=True)
 
     def vehicle(self, frame, **fields):
@@ -248,7 +248,7 @@ class InventoryDispositionListTests(TestCase):
 
     def test_sold_scope_filters_by_disposition_and_dealer(self):
         to_a = self.vehicle("FR-A", status=VehicleInventory.Status.TRANSFERRED_OUT, disposition="transfer_out", disposition_dealer=self.dealer_a,
-                            disposition_dealer_name="昌勝", disposition_on=date(2026, 4, 12))
+                            disposition_dealer_name="示範車行甲", disposition_on=date(2026, 4, 12))
         to_b = self.vehicle("FR-B", disposition="transfer_out", disposition_dealer=self.dealer_b,
                             disposition_dealer_name="大發")
         pickup = self.vehicle("FR-C", disposition="dealer_pickup", disposition_dealer_name="外縣市車行")

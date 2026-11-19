@@ -24,7 +24,7 @@ class OdooMasterImportTests(TestCase):
                     "name": "測試車行",
                     "code": "D010",
                     "store_type_name": "專賣",
-                    "owner_name": "〔聯絡人〕",
+                    "owner_name": "示範負責人",
                     "store_manager": "李窗口",
                     "phone_1": "02-12345678",
                     "mobile": "0912345678",
@@ -122,9 +122,9 @@ class OdooMasterImportTests(TestCase):
         )
         self.assertTrue(source.holiday_gift)
         self.assertTrue(source.has_line_group)
-        self.assertIn("歷史聯絡資料：〔聯絡人〕（負責人）", source.note)
+        self.assertIn("歷史聯絡資料：示範負責人（負責人）", source.note)
         self.assertIn("歷史聯絡資料：李窗口（聯絡人）", source.note)
-        self.assertEqual(source.note.count("歷史聯絡資料：〔聯絡人〕"), 1)
+        self.assertEqual(source.note.count("歷史聯絡資料：示範負責人"), 1)
         self.assertEqual(source.note.count("歷史聯絡資料：李窗口"), 1)
         self.assertEqual(policy.commission_adjustment, 500)
         self.assertEqual(policy.note, "特別加碼")
@@ -161,7 +161,7 @@ class OdooMasterImportTests(TestCase):
 
         source = SalesSource.objects.get(name="測試車行")
         self.assertTrue(source.note.startswith("請先電話聯絡\n"))
-        self.assertIn("歷史聯絡資料：〔聯絡人〕（負責人）", source.note)
+        self.assertIn("歷史聯絡資料：示範負責人（負責人）", source.note)
         self.assertNotIn("遷移 ID:", source.note)
 
     def test_price_import_preserves_human_source_note_without_system_marker(self):
@@ -190,7 +190,7 @@ class OdooMasterImportTests(TestCase):
         payload["dealers"] = [
             {
                 "id": 99,
-                "name": "文傑",
+                "name": "示範員工甲",
                 "code": "STAFF-01",
                 "store_type_name": "店內員工",
                 "active": True,
@@ -202,7 +202,7 @@ class OdooMasterImportTests(TestCase):
 
         import_odoo_master_data(payload, apply=True)
 
-        source = SalesSource.objects.get(name="文傑")
+        source = SalesSource.objects.get(name="示範員工甲")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category.name, "店內員工")
         self.assertEqual(

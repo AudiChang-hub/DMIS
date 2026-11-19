@@ -2571,7 +2571,7 @@ class OrderFlowTests(TestCase):
             order=order,
             event_type="manual_note",
             description="已電話確認週六交車",
-            actor_name="〔人員〕",
+            actor_name="Staffc",
         )
         RegistrationDocument.objects.create(
             order=order,
@@ -4337,7 +4337,7 @@ class OrderFlowTests(TestCase):
         order.source_type = SalesOrder.SourceType.DEALER
         order.registration_date = date(2026, 8, 20)
         order.final_plate_number = "ABC-1234"
-        order.note = "momo員購"
+        order.note = "demomall員購"
         order.save(
             update_fields=[
                 "source",
@@ -4366,7 +4366,7 @@ class OrderFlowTests(TestCase):
             "ABC-1234",
             "$ 19,945",  # 含建單即帶入的強制險傭金 145（T-157）
             "測試車行",
-            "momo員購",
+            "demomall員購",
         ):
             with self.subTest(value=value):
                 self.assertContains(response, value)

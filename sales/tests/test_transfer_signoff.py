@@ -38,7 +38,7 @@ class TransferSignoffTests(TestCase):
         self.store = Store.objects.create(name="總店", code="MAIN")
         self.root = get_user_model().objects.create_superuser("admin", password="Local-transfer-984!")
         self.client.force_login(self.root)
-        self.dealer = SalesSource.objects.create(name="昌勝", source_type=SalesSource.SourceType.DEALER, active=True)
+        self.dealer = SalesSource.objects.create(name="示範車行甲", source_type=SalesSource.SourceType.DEALER, active=True)
         model = VehicleModel.objects.create(brand="SYM", name="JET SL 125", model_number="TEST125")
         color = VehicleColor.objects.create(vehicle_model=model, name="消光黑")
         self.cars = [
@@ -77,7 +77,7 @@ class TransferSignoffTests(TestCase):
         signoff = VehicleTransferSignoff.objects.get()
         self.assertRedirects(response, reverse("transfer_signoff_detail", args=[signoff.pk]))
         self.assertEqual(signoff.dealer, self.dealer)
-        self.assertEqual(signoff.dealer_name, "昌勝")
+        self.assertEqual(signoff.dealer_name, "示範車行甲")
         self.assertEqual(len(signoff.vehicles_snapshot), 3)
         self.assertEqual(signoff.vehicles.count(), 3)
         self.assertTrue(signoff.signed_pdf.name.endswith(".pdf"))
@@ -92,7 +92,7 @@ class TransferSignoffTests(TestCase):
             self.assertIn(signoff.number, car.history_entries.get().reason)
 
         detail = self.client.get(reverse("transfer_signoff_detail", args=[signoff.pk]))
-        self.assertContains(detail, "調往 昌勝")
+        self.assertContains(detail, "調往 示範車行甲")
         self.assertContains(detail, "含鑰匙")
         pdf = self.client.get(reverse("transfer_signoff_pdf", args=[signoff.pk]))
         self.assertEqual(pdf["Content-Type"], "application/pdf")
@@ -112,13 +112,13 @@ class TransferSignoffTests(TestCase):
 
     def test_dealer_not_in_master_uses_typed_name(self):
         cars = self.cars[:1]
-        fingerprint = self.review(cars, dealer="", dealer_name="〔車行〕")
-        self.sign(cars, fingerprint, dealer="", dealer_name="〔車行〕")
+        fingerprint = self.review(cars, dealer="", dealer_name="示範車行丙")
+        self.sign(cars, fingerprint, dealer="", dealer_name="示範車行丙")
         signoff = VehicleTransferSignoff.objects.get()
         self.assertIsNone(signoff.dealer)
-        self.assertEqual(signoff.dealer_name, "〔車行〕")
+        self.assertEqual(signoff.dealer_name, "示範車行丙")
         cars[0].refresh_from_db()
-        self.assertEqual(cars[0].disposition_dealer_name, "〔車行〕")
+        self.assertEqual(cars[0].disposition_dealer_name, "示範車行丙")
 
     def test_factory_recall_option(self):
         cars = self.cars[:2]

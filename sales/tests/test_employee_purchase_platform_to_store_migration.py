@@ -42,7 +42,7 @@ class EmployeePurchasePlatformToStoreMigrationTests(TransactionTestCase):
             for name in source_names
         }
         unrelated = SalesSource.objects.update_or_create(
-            name="博客來", source_type="platform", defaults={"active": True}
+            name="示範平台乙", source_type="platform", defaults={"active": True}
         )[0]
         model = VehicleModel.objects.create(
             brand="SUZUKI",
@@ -165,7 +165,7 @@ class EmployeePurchasePlatformToStoreMigrationTests(TransactionTestCase):
             SalesSource.objects.filter(
                 pk=unrelated.pk,
                 source_type="platform",
-                name="博客來",
+                name="示範平台乙",
             ).exists()
         )
         unchanged_order = SalesOrder.objects.get(pk=unrelated_order.pk)

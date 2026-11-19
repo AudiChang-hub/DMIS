@@ -103,8 +103,8 @@ class SettleServiceTests(SettleTestBase):
         self.assertEqual((self.expense(first), self.expense(second)), (2000, 2000))
         self.assertEqual(unsettled_volume_bonus(first), 500)
 
-        settlement = settle_group(*self.scope(rule), "〔人員〕", expected_total=1000, now=AFTER)
-        self.assertEqual((settlement.quantity, settlement.total_amount, settlement.settled_by), (2, 1000, "〔人員〕"))
+        settlement = settle_group(*self.scope(rule), "staffb", expected_total=1000, now=AFTER)
+        self.assertEqual((settlement.quantity, settlement.total_amount, settlement.settled_by), (2, 1000, "staffb"))
         self.assertEqual((self.expense(first), self.expense(second)), (2500, 2500))
         self.assertEqual(unsettled_volume_bonus(first), 0)
         self.assertEqual(OrderVolumeBonus.objects.filter(rule=rule, posted_at=AFTER).count(), 2)
@@ -118,26 +118,26 @@ class SettleServiceTests(SettleTestBase):
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
         with self.assertRaisesMessage(ValidationError, "還沒結束"):
-            settle_group(*self.scope(rule), "〔人員〕", now=timezone.make_aware(datetime(2026, 10, 31, 22)))
+            settle_group(*self.scope(rule), "staffb", now=timezone.make_aware(datetime(2026, 10, 31, 22)))
         with self.assertRaisesMessage(ValidationError, "已變動"):
-            settle_group(*self.scope(rule), "〔人員〕", expected_total=500, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", expected_total=1000, now=AFTER)
+            settle_group(*self.scope(rule), "staffb", expected_total=500, now=AFTER)
+        settle_group(*self.scope(rule), "staffb", expected_total=1000, now=AFTER)
         with self.assertRaisesMessage(ValidationError, "已經結算"):
-            settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+            settle_group(*self.scope(rule), "staffb", now=AFTER)
 
     def test_group_below_threshold_has_nothing_to_settle(self):
         self.order()
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
         with self.assertRaisesMessage(ValidationError, "沒有達到門檻"):
-            settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+            settle_group(*self.scope(rule), "staffb", now=AFTER)
         self.assertFalse(VolumeBonusSettlement.objects.exists())
 
     def test_settled_amount_is_fixed_and_changes_are_flagged(self):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        settlement = settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settlement = settle_group(*self.scope(rule), "staffb", now=AFTER)
         with self.captureOnCommitCallbacks(execute=True):
             second.registration_date = date(2026, 11, 2)  # 改領牌日移出期間：不自動收回
             second.save()
@@ -154,18 +154,18 @@ class SettleServiceTests(SettleTestBase):
         first, _second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         third = self.order(date(2026, 10, 25))
         recompute_rule(rule.pk, now=AFTER)
         self.assertFalse(OrderVolumeBonus.objects.filter(order=third).exists())  # 已結算的組不加新單
-        cancel_settlement(*self.scope(rule), "〔人員〕", now=AFTER)
+        cancel_settlement(*self.scope(rule), "staffa", now=AFTER)
         self.assertEqual(self.expense(first), 2000)
         self.assertEqual(OrderVolumeBonus.objects.filter(rule=rule, posted_at__isnull=True).count(), 3)
         old = VolumeBonusSettlement.objects.get()
-        self.assertEqual(old.cancelled_by, "〔人員〕")
+        self.assertEqual(old.cancelled_by, "staffa")
         self.assertTrue(OrderEvent.objects.filter(order=first, event_type="volume_bonus_settled",
                                                   description__startswith="取消台數獎金結算").exists())
-        again = settle_group(*self.scope(rule), "〔人員〕", expected_total=1500, now=AFTER)
+        again = settle_group(*self.scope(rule), "staffb", expected_total=1500, now=AFTER)
         self.assertEqual((again.quantity, again.total_amount), (3, 1500))
         self.assertEqual(VolumeBonusSettlement.objects.count(), 2)
         self.assertEqual(self.expense(third), 2500)
@@ -174,20 +174,20 @@ class SettleServiceTests(SettleTestBase):
         self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         [item] = self.bonus_items()
-        payouts.set_paid([item.source_key], True, "〔人員〕")
+        payouts.set_paid([item.source_key], True, "staffb")
         with self.assertRaisesMessage(ValidationError, "先取消已給付"):
-            cancel_settlement(*self.scope(rule), "〔人員〕", now=AFTER)
-        payouts.set_paid([item.source_key], False, "〔人員〕")
-        cancel_settlement(*self.scope(rule), "〔人員〕", now=AFTER)
+            cancel_settlement(*self.scope(rule), "staffb", now=AFTER)
+        payouts.set_paid([item.source_key], False, "staffb")
+        cancel_settlement(*self.scope(rule), "staffb", now=AFTER)
 
     def test_settlement_card_and_dealer_account_do_not_deduct_bonus(self):
         order, _second = self.order(cash_receivable_v2=True), self.order(date(2026, 10, 20), cash_receivable_v2=True)
         before = dealer_account_due(order)
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         order = SalesOrder.objects.get(pk=order.pk)
         card = dealer_settlement(order)
         self.assertEqual(card["volume_bonus"], 500)
@@ -200,17 +200,17 @@ class SettleServiceTests(SettleTestBase):
         self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         user = get_user_model().objects.create_superuser("bonus-admin", password="Test-Only-123")
         self.assertEqual(bonus_rule_delete_preview(rule, user)["settlement_count"], 1)
-        cancel_settlement(*self.scope(rule), "〔人員〕", now=AFTER)
+        cancel_settlement(*self.scope(rule), "staffb", now=AFTER)
         self.assertEqual(bonus_rule_delete_preview(rule, user)["settlement_count"], 0)
 
     def test_order_settled_with_one_dealer_does_not_move_to_another(self):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule(minimum=1)
         recompute_rule(rule.pk, now=AFTER)
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         with self.captureOnCommitCallbacks(execute=True):
             SalesOrder.objects.filter(pk=second.pk).update(commission_recipient=self.other)
             recompute_rule(rule.pk, now=AFTER)
@@ -258,11 +258,11 @@ class SettlePayoutPageTests(SettleTestBase):
         self.assertEqual((totals["unpaid_amount"], totals["settle_amount"], totals["settle_count"]),
                          (Decimal("4000"), Decimal("1000"), 1))
         with self.assertRaisesMessage(ValidationError, "請先按「結算」"):
-            payouts.set_paid([pending.source_key], True, "〔人員〕")
+            payouts.set_paid([pending.source_key], True, "staffb")
         self.assertEqual([item.source_key for item in payouts.filter_items(payouts.collect_items(), status="settle")],
                          [pending.source_key])
 
-        settle_group(*self.scope(rule), "〔人員〕", now=AFTER)
+        settle_group(*self.scope(rule), "staffb", now=AFTER)
         [settled] = self.bonus_items()
         self.assertEqual((settled.status, settled.status_label, settled.checkable, settled.method_label),
                          ("unpaid", "待發放", True, "另付"))
@@ -346,7 +346,7 @@ class SettleConcurrencyTests(TransactionTestCase):
                 close_old_connections()
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(settle, actor) for actor in ("〔人員〕", "〔人員〕")]
+            futures = [pool.submit(settle, actor) for actor in ("staffb", "staffa")]
             self.assertCountEqual([future.result(timeout=30) for future in futures], ["ok", "blocked"])
         self.assertEqual(VolumeBonusSettlement.objects.filter(cancelled_at__isnull=True).count(), 1)
         for order in orders:

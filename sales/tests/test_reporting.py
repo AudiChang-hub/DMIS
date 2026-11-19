@@ -1028,12 +1028,12 @@ class ReportingTests(TestCase):
         self.model.save(update_fields=["model_number", "energy_type"])
         SalesOrder.objects.filter(source__in=(self.a, self.b)).update(source_type="platform")
         SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
-        SalesSource.objects.filter(pk=self.b.pk).update(name="momo")
+        SalesSource.objects.filter(pk=self.b.pk).update(name="demomall")
         result = card_result(config, config["cards"][0], {})
         self.assertEqual(result["count"], 3)
-        self.assertEqual({s["label"] for r in result["rows"] for s in r["segments"]}, {"PC", "MOMO"})
+        self.assertEqual({s["label"] for r in result["rows"] for s in r["segments"]}, {"PC", "DEMOMALL"})
         rows = record_context(config, {})["records_rows"]
-        self.assertEqual({r["cells"][1]["value"] for r in rows}, {"PC", "MOMO"})
+        self.assertEqual({r["cells"][1]["value"] for r in rows}, {"PC", "DEMOMALL"})
         self.assertEqual(card_result(config, config["cards"][0], {"legacy_source": ["車行"]})["count"], 0)
         self.assertEqual(card_result(config, config["cards"][0], {"legacy_energy": ["油車"]})["count"], 0)
 
@@ -1071,8 +1071,8 @@ class ReportingTests(TestCase):
         card = {**self.config["cards"][0], "dimension": "legacy_sales_source"}
         for source_type, name, label in (("store", "中古車", "馭盛"), ("store", "假展場", "馭盛"), ("store", "Yahoo", "馭盛"),
                                          ("store", "文傑", "店內員工"), ("store", "峻生", "店內員工"), ("store", "展場", "展場"),
-                                         ("store", "朋友推薦", "馭盛"), ("platform", "小樹購員購", "網路平台"),
-                                         ("platform", "MOMO", "網路平台"), ("platform", "Yahoo+假展場", "網路平台"),
+                                         ("store", "朋友推薦", "馭盛"), ("platform", "示範平台甲員購", "網路平台"),
+                                         ("platform", "DEMOMALL", "網路平台"), ("platform", "Yahoo+假展場", "網路平台"),
                                          ("dealer", "文傑", "車行"), ("dealer", "Yahoo", "車行")):
             with self.subTest(source_type=source_type, name=name):
                 SalesSource.objects.filter(pk=self.a.pk).update(name=name, source_type=source_type)

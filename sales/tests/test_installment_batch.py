@@ -33,7 +33,7 @@ class InstallmentBatchTests(TestCase):
         cls.start = cls.today - timedelta(days=30)
         cls.day = first_of_next_month(cls.today)
         cls.hotai = InstallmentCompany.objects.create(name="和潤")
-        cls.yuanxin = InstallmentCompany.objects.create(name="遠信")
+        cls.yuanxin = InstallmentCompany.objects.create(name="示範分期公司")
         cls.a = cls.make_model("分期甲")
         cls.b = cls.make_model("分期乙")
         cls.c = cls.make_model("分期丙")  # 尚未設定分期
@@ -140,7 +140,7 @@ class InstallmentBatchTests(TestCase):
         self.assertEqual(sorted(options), [12, 24, 60])
         self.assertEqual(options[24].monthly_amount, 3250)
         self.assertEqual(options[60].monthly_amount, 1500)
-        # 同一台車：12、24 期和潤 92%，60 期遠信 88%，開辦費各自不同。
+        # 同一台車：12、24 期和潤 92%，60 期示範分期公司 88%，開辦費各自不同。
         self.assertEqual([options[p].company for p in (12, 24, 60)], [self.hotai, self.hotai, self.yuanxin])
         self.assertEqual([options[p].expected_disbursement_rate for p in (12, 24, 60)],
                          [Decimal("92"), Decimal("92"), Decimal("88")])
@@ -181,7 +181,7 @@ class InstallmentBatchTests(TestCase):
         self.assertEqual(options[12].expected_disbursement_rate, Decimal("90.5"), "其他期數不受影響")
 
     def test_car_fee_applies_to_all_periods_and_exceptions_override(self):
-        """200cc 以上 SUZUKI：24–36 期和潤免開辦費，48 期以上遠信開辦費 3,500。"""
+        """200cc 以上 SUZUKI：24–36 期和潤免開辦費，48 期以上示範分期公司開辦費 3,500。"""
         hotai, yx = str(self.hotai.pk), str(self.yuanxin.pk)
         values = self.grid(self.c, fee="0",
                            p24="5,200", c24=hotai, r24="92", p36="3,700", c36=hotai, r36="92",

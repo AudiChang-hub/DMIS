@@ -182,7 +182,7 @@ class BonusRuleDeletionTests(TestCase):
         self.assertEqual(rule.display_name, '年度合作方案')
 
     def test_name_repair_is_explicit_guarded_and_idempotent(self):
-        rule = self.rule(name='〔車行〕／SUZUKI／2026/04/01', brand='SUZUKI')
+        rule = self.rule(name='示範車行戊／SUZUKI／2026/04/01', brand='SUZUKI')
         other = self.rule(name='其他名稱')
         before = DealerVolumeBonusRule.objects.filter(pk=rule.pk).values().get()
         args = dict(rule_id=rule.pk, expected_name=rule.name, stdout=StringIO())

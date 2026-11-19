@@ -93,76 +93,76 @@ class PayoutWriteTests(PayoutTestBase):
     def test_mark_unmark_and_history(self):
         order = self.registered()
         key = KEY.format(order.pk)
-        self.assertEqual(payouts.set_paid([key], True, "〔人員〕"), 1)
+        self.assertEqual(payouts.set_paid([key], True, "staffb"), 1)
         entry = DealerPayoutEntry.objects.get(source_key=key)
         self.assertEqual((entry.paid, entry.paid_amount, entry.paid_by, entry.dealer, entry.order),
-                         (True, Decimal("2300"), "〔人員〕", self.dealer, order))
-        self.assertEqual(payouts.set_paid([key], True, "〔人員〕"), 0)
-        self.assertEqual(payouts.set_paid([key], False, "〔人員〕"), 1)
+                         (True, Decimal("2300"), "staffb", self.dealer, order))
+        self.assertEqual(payouts.set_paid([key], True, "staffb"), 0)
+        self.assertEqual(payouts.set_paid([key], False, "staffa"), 1)
         entry.refresh_from_db()
         self.assertFalse(entry.paid)
         self.assertEqual(list(entry.events.order_by("pk").values_list("action", "actor_name")),
-                         [("paid", "〔人員〕"), ("unpaid", "〔人員〕")])
+                         [("paid", "staffb"), ("unpaid", "staffa")])
 
     def test_unmarking_untouched_item_creates_nothing(self):
         order = self.registered()
-        self.assertEqual(payouts.set_paid([KEY.format(order.pk)], False, "〔人員〕"), 0)
+        self.assertEqual(payouts.set_paid([KEY.format(order.pk)], False, "staffb"), 0)
         self.assertFalse(DealerPayoutEntry.objects.exists())
 
     def test_batch_is_all_or_nothing(self):
         order = self.registered()
         with self.assertRaises(ValidationError):
-            payouts.set_paid([KEY.format(order.pk), "commission:order:999999"], True, "〔人員〕")
+            payouts.set_paid([KEY.format(order.pk), "commission:order:999999"], True, "staffb")
         self.assertFalse(DealerPayoutEntry.objects.exists())
 
     def test_amount_change_after_payment_is_flagged_then_confirmed(self):
         order = self.registered()
         key = KEY.format(order.pk)
-        payouts.set_paid([key], True, "〔人員〕")
+        payouts.set_paid([key], True, "staffb")
         OrderOperationsProfile.objects.filter(order=order).update(dealer_commission_expense=2800)
         item = payouts.current_item(key)
         self.assertTrue(item.paid)
         self.assertEqual((item.status, item.difference), ("changed", Decimal("500")))
-        payouts.confirm_difference(key, "〔人員〕")
+        payouts.confirm_difference(key, "staffa")
         item = payouts.current_item(key)
         self.assertEqual(item.status, "paid")
         self.assertEqual(item.entry.paid_amount, Decimal("2800"))
         self.assertTrue(DealerPayoutEvent.objects.filter(entry=item.entry, action="confirm_difference").exists())
         with self.assertRaises(ValidationError):
-            payouts.confirm_difference(key, "〔人員〕")
+            payouts.confirm_difference(key, "staffa")
 
     def test_note_saved_with_history_even_before_payment(self):
         order = self.registered()
         key = KEY.format(order.pk)
-        self.assertFalse(payouts.save_note(key, "  ", "〔人員〕"))
+        self.assertFalse(payouts.save_note(key, "  ", "staffb"))
         self.assertFalse(DealerPayoutEntry.objects.exists())
-        self.assertTrue(payouts.save_note(key, "11/20 匯款", "〔人員〕"))
-        self.assertFalse(payouts.save_note(key, "11/20 匯款", "〔人員〕"))
+        self.assertTrue(payouts.save_note(key, "11/20 匯款", "staffb"))
+        self.assertFalse(payouts.save_note(key, "11/20 匯款", "staffb"))
         self.assertEqual(payouts.current_item(key).note, "11/20 匯款")
         event = DealerPayoutEvent.objects.get(action="note")
         self.assertEqual((event.note_before, event.note_after), ("", "11/20 匯款"))
         with self.assertRaises(ValidationError):
-            payouts.save_note(key, "長" * 501, "〔人員〕")
+            payouts.save_note(key, "長" * 501, "staffb")
 
     def test_paid_item_whose_source_disappears_is_an_orphan_until_resolved(self):
         order = self.registered()
         key = KEY.format(order.pk)
-        payouts.set_paid([key], True, "〔人員〕")
+        payouts.set_paid([key], True, "staffb")
         SalesOrder.all_objects.filter(pk=order.pk).update(status="exception_closed")
         items = payouts.collect_items()
         orphans = payouts.orphan_entries(items)
         self.assertEqual([entry.source_key for entry in orphans], [key])
         with self.assertRaises(ValidationError):
-            payouts.set_paid([key], False, "〔人員〕")
-        payouts.resolve_orphan(orphans[0].pk, "〔人員〕")
+            payouts.set_paid([key], False, "staffb")
+        payouts.resolve_orphan(orphans[0].pk, "staffa")
         self.assertEqual(payouts.orphan_entries(payouts.collect_items()), [])
 
     def test_payment_does_not_touch_settlement_or_profit_fields(self):
         order = self.registered(cash_receivable_v2=True)
         profile_before = OrderOperationsProfile.objects.filter(order=order).values().get()
         settlement_before = dealer_settlement(order)
-        payouts.set_paid([KEY.format(order.pk)], True, "〔人員〕")
-        payouts.save_note(KEY.format(order.pk), "已抵扣", "〔人員〕")
+        payouts.set_paid([KEY.format(order.pk)], True, "staffb")
+        payouts.save_note(KEY.format(order.pk), "已抵扣", "staffb")
         order = SalesOrder.objects.get(pk=order.pk)
         self.assertEqual(OrderOperationsProfile.objects.filter(order=order).values().get(), profile_before)
         self.assertEqual(dealer_settlement(order), settlement_before)
@@ -171,7 +171,7 @@ class PayoutWriteTests(PayoutTestBase):
 class PayoutSummaryTests(PayoutTestBase):
     def test_dealer_totals_split_paid_and_unpaid(self):
         first, second = self.registered(), self.registered(day=date(2026, 11, 2))
-        payouts.set_paid([KEY.format(first.pk)], True, "〔人員〕")
+        payouts.set_paid([KEY.format(first.pk)], True, "staffb")
         items = payouts.collect_items()
         group = payouts.summarize(items)[0]
         self.assertEqual((group["unpaid_amount"], group["paid_amount"]), (Decimal("2300"), Decimal("2300")))
@@ -236,7 +236,7 @@ class PayoutViewTests(PayoutTestBase):
 
     def test_csv_export_is_formula_safe(self):
         order = self.registered()
-        payouts.save_note(KEY.format(order.pk), "=HYPERLINK(\"x\")", "〔人員〕")
+        payouts.save_note(KEY.format(order.pk), "=HYPERLINK(\"x\")", "staffb")
         self.client.force_login(self.admin)
         response = self.client.get(reverse("dealer_payout_export"))
         text = response.content.decode("utf-8-sig")
@@ -259,7 +259,7 @@ class PayoutVolumeBonusTests(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.dealer = SalesSource.objects.create(name="旭昶", source_type="dealer")
+        cls.dealer = SalesSource.objects.create(name="示範車行乙", source_type="dealer")
         VehicleBrand.objects.get_or_create(name="SUZUKI")
         cls.model = VehicleModel.objects.create(brand="SUZUKI", name="SUI", energy_type="gas", base_dealer_commission=2000)
         cls.color = VehicleColor.objects.create(vehicle_model=cls.model, name="黃色")
@@ -292,13 +292,13 @@ class PayoutVolumeBonusTests(TestCase):
         self.assertFalse(item.checkable)
         self.assertEqual(item.status, "estimate")
         with self.assertRaises(ValidationError):
-            payouts.set_paid([item.source_key], True, "〔人員〕")
+            payouts.set_paid([item.source_key], True, "staffb")
 
     def test_posted_bonus_is_one_row_per_period_and_commission_excludes_it(self):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=self.AFTER)
-        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "〔人員〕", now=self.AFTER)
+        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "staffb", now=self.AFTER)
         [item] = self.bonus_items()
         self.assertEqual((item.amount, item.dealer, item.short_label), (Decimal("1000"), self.dealer, "十月衝量"))
         self.assertIn("2 台，達 2 台門檻", item.period_label)
@@ -313,9 +313,9 @@ class PayoutVolumeBonusTests(TestCase):
         first, second = self.order(), self.order(date(2026, 10, 20))
         rule = self.rule()
         recompute_rule(rule.pk, now=self.AFTER)
-        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "〔人員〕", now=self.AFTER)
+        settle_group(rule.pk, rule.periods.get().pk, self.dealer.pk, "staffb", now=self.AFTER)
         [item] = self.bonus_items()
-        payouts.set_paid([item.source_key], True, "〔人員〕")
+        payouts.set_paid([item.source_key], True, "staffb")
         self.order(date(2026, 10, 25))
         recompute_rule(rule.pk, now=self.AFTER)
         [item] = self.bonus_items()
@@ -366,7 +366,7 @@ class PayoutRewardTests(PayoutTestBase):
     def test_paid_quantity_survives_reapply_and_flags_change(self):
         order = self.rewarded()
         oil = self.reward_items()[0]
-        payouts.set_paid([oil.source_key], True, "〔人員〕")
+        payouts.set_paid([oil.source_key], True, "staffb")
         entry = DealerPayoutEntry.objects.get(source_key=oil.source_key)
         self.assertEqual((entry.paid_quantity, entry.paid_unit, entry.paid_amount), (Decimal("3"), "罐", None))
         self.oil_item.quantity = 5
@@ -374,7 +374,7 @@ class PayoutRewardTests(PayoutTestBase):
         apply_order_dealer_rewards(SalesOrder.objects.get(pk=order.pk), force=True)  # 明細刪掉重建，代碼不變
         oil = self.reward_items()[0]
         self.assertEqual((oil.status, oil.paid), ("changed", True))
-        payouts.confirm_difference(oil.source_key, "〔人員〕")
+        payouts.confirm_difference(oil.source_key, "staffb")
         self.assertEqual(DealerPayoutEntry.objects.get(source_key=oil.source_key).paid_quantity, Decimal("5"))
 
     def test_store_order_assigned_to_dealer_lists_reward_but_not_commission(self):
@@ -417,7 +417,7 @@ class PayoutConcurrencyTests(TransactionTestCase):
                 close_old_connections()
 
         with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = [pool.submit(mark, actor) for actor in ("〔人員〕", "〔人員〕")]
+            futures = [pool.submit(mark, actor) for actor in ("staffb", "staffa")]
             self.assertCountEqual([future.result(timeout=30) for future in futures], [1, 0])
         self.assertEqual(DealerPayoutEntry.objects.filter(source_key=key).count(), 1)
         self.assertEqual(DealerPayoutEvent.objects.filter(entry__source_key=key, action="paid").count(), 1)

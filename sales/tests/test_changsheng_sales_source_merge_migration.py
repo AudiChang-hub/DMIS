@@ -28,7 +28,7 @@ class ChangshengSalesSourceMergeMigrationTests(TransactionTestCase):
             name="昌勝",
             source_type="dealer",
             code="N26032512",
-            responsible_person="〔聯絡人〕",
+            responsible_person="示範聯絡人甲",
             active=True,
         )
         legacy = SalesSource.objects.create(

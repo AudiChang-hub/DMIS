@@ -32,7 +32,7 @@ class DealerLabelPageTests(TestCase):
         cls.admin = get_user_model().objects.create_superuser("admin", "admin@example.invalid", "Test-Only-123")
         electric = VehicleModel.objects.create(brand="eReady", name="Fun", model_number="EV060L", energy_type="electric")
         dealer = SalesSource.objects.create(name="甲車行", source_type="dealer")
-        platform = SalesSource.objects.create(name="MOMO", source_type="platform")
+        platform = SalesSource.objects.create(name="DEMOMALL", source_type="platform")
         for source_type, source in (("dealer", dealer), ("platform", platform)):
             color = VehicleColor.objects.create(vehicle_model=electric, name=f"白{source_type}")
             SalesOrder.objects.create(source_type=source_type, source=source, order_date=date(2026, 10, 2),

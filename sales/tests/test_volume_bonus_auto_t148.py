@@ -68,7 +68,7 @@ class VolumeBonusAutoTests(TestCase):
         return OrderOperationsProfile.objects.get(order=order).dealer_commission_expense
 
     def settle(self, rule, dealer=None):
-        return settle_group(rule.pk, rule.periods.get().pk, (dealer or self.a).pk, "〔人員〕", now=AFTER)
+        return settle_group(rule.pk, rule.periods.get().pk, (dealer or self.a).pk, "staffb", now=AFTER)
 
     def test_multi_dealer_rule_counts_each_dealer_separately(self):
         a1, a2, b1 = self.order(self.a), self.order(self.a), self.order(self.b)
@@ -160,7 +160,7 @@ class VolumeBonusAutoTests(TestCase):
         rule.save()
         recompute_rule(rule.pk, now=AFTER)
         self.assertEqual(self.expense(a1), 2500)  # 已結算金額固定，停用只標「結算後有變」
-        cancel_settlement(rule.pk, rule.periods.get().pk, self.a.pk, "〔人員〕", now=AFTER)
+        cancel_settlement(rule.pk, rule.periods.get().pk, self.a.pk, "staffb", now=AFTER)
         self.assertEqual(self.expense(a1), 2000)
         self.assertFalse(OrderVolumeBonus.objects.filter(rule=rule).exists())  # 停用的規則不再試算
         with self.captureOnCommitCallbacks(execute=True):

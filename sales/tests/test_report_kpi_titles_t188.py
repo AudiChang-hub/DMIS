@@ -44,7 +44,7 @@ class ReportPageKpiTitleTests(TestCase):
         electric = VehicleModel.objects.create(brand="eReady", name="Fun", model_number="EV060L", energy_type="electric")
         gas = VehicleModel.objects.create(brand="SUZUKI", name="Saluto", model_number="UC125", energy_type="gas")
         dealer = SalesSource.objects.create(name="甲車行", source_type="dealer")
-        platform = SalesSource.objects.create(name="MOMO", source_type="platform")
+        platform = SalesSource.objects.create(name="DEMOMALL", source_type="platform")
         for model, source_type, source in ((electric, "dealer", dealer), (electric, "platform", platform), (gas, "dealer", dealer)):
             color = VehicleColor.objects.create(vehicle_model=model, name=f"白{source_type}{model.pk}")
             SalesOrder.objects.create(source_type=source_type, source=source, order_date=date(2026, 10, 2),

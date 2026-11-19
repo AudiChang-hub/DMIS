@@ -30,7 +30,7 @@ class SalesSourceMergeMigrationTests(TransactionTestCase):
             name="奕鈞工坊",
             source_type="dealer",
             code="N26032522",
-            responsible_person="〔聯絡人〕",
+            responsible_person="示範聯絡人乙",
             phone="24258317",
             active=True,
         )

@@ -5894,7 +5894,8 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-filter-choice, .order-filter-status, .order-filter-submit { grid-row: auto; }
   .order-filter-submit { grid-column: 1 / -1; width: 100%; min-width: 0; }
   .order-filter-bar :is(input:not([type=hidden]), select), .order-filter-bar .order-filter-submit { min-height: var(--control-h); padding-block: var(--space-2); }
-  .order-filter-bar input[type=date] { height: var(--control-h); padding-inline: var(--space-3); }
+  /* T-252：iOS 的原生日期欄位依內容決定寬度、不理會 width: 100%，兩欄時「日期迄」會撐出卡片；比照 .form-control 日期欄（f8202c91）拿掉原生外觀。 */
+  .order-filter-bar input[type=date] { display: block; -webkit-appearance: none; appearance: none; max-width: 100%; height: var(--control-h); padding-inline: var(--space-3); }
 }
 .announcement-card h3 { margin: var(--space-3) 0; }
 .announcement-body { white-space: pre-wrap; line-height: 1.8; }

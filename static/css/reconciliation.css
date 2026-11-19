@@ -1,0 +1,60 @@
+/* 統一撥款對帳（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.reconciliation-table { width: 100%; min-width: 980px; }
+.reconciliation-table input.form-control { min-width: 130px; }
+.reconciliation-table .reconciliation-money { min-width: 110px; text-align: right; }
+.reconciliation-table .difference-warning { color: var(--red); font-weight: 900; }
+.reconciliation-table .reconciliation-posted { display: grid; justify-items: end; gap: var(--space-1); }
+.reconciliation-table tr.is-picked td { background: color-mix(in srgb, var(--amber) 7%, var(--surface)); }
+.reconciliation-table tr.is-posted td { color: var(--muted); }
+.reconciliation-table tr.is-posted td strong { color: var(--ink); }
+.reconciliation-table tr.is-posted .difference-warning strong { color: var(--red); }
+@media (max-width: 600px) {
+  .reconciliation-table, .reconciliation-table tbody { display: block; width: 100%; min-width: 0; }
+  .reconciliation-table tbody { display: grid; gap: var(--space-3); }
+  .reconciliation-table tr {
+    display: grid; padding: var(--inset-pad); grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--stack-gap-sm) var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+    box-shadow: 0 7px 20px color-mix(in srgb, var(--shadow-ink) 6%, transparent);
+  }
+  .reconciliation-table td {
+    display: block; min-width: 0; width: 100%; padding: 0; border: 0;
+  }
+  .reconciliation-table td::before { display: block; margin-bottom: var(--space-1); font-size: var(--text-sm); }
+  .reconciliation-table td:nth-child(1),
+  .reconciliation-table td:nth-child(2),
+  .reconciliation-table .inventory-row-action { grid-column: 1 / -1; }
+  .reconciliation-table .reconciliation-posted { justify-items: start; }
+  .reconciliation-table td:nth-child(1) {
+    padding-bottom: var(--space-3); border-bottom: 1px solid var(--line);
+  }
+  .reconciliation-table td:nth-child(1)::before,
+  .reconciliation-table td:nth-child(2)::before,
+  .reconciliation-table .reconciliation-expected::before,
+  .reconciliation-table .reconciliation-difference::before { display: none; }
+  .reconciliation-table td:nth-child(1) strong { font-size: var(--text-md); }
+  .reconciliation-table td:nth-child(1) span { margin-top: var(--space-1); overflow-wrap: anywhere; }
+  .reconciliation-table td:nth-child(2) {
+    display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
+  }
+  .reconciliation-table td:nth-child(2) span { color: var(--muted); font-size: var(--text-sm); }
+  .reconciliation-table input.form-control { width: 100%; min-width: 0; min-height: 48px; }
+  .reconciliation-table .number-cell { text-align: left; }
+  .reconciliation-table td span.mobile-field-label {
+    display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800;
+  }
+  .reconciliation-table .number-cell strong { font-size: var(--text-base); font-variant-numeric: tabular-nums; }
+  .reconciliation-table .compact-check {
+    display: flex; min-height: 48px; padding: 0 var(--space-3); background: var(--surface-soft);
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+  }
+  .reconciliation-table .compact-check input { width: 22px; height: 22px; }
+  .reconciliation-table .inventory-row-action .button { width: 100%; min-height: 48px; }
+  .reconciliation-table td:nth-child(1) .reconciliation-order span { margin-top: 0; }
+  .reconciliation-shell .table-scroll .reconciliation-table td:first-child { padding-inline: 0; }
+  .reconciliation-table .inventory-row-action form { flex: 1; }
+  .reconciliation-table .reconciliation-posted { align-items: center; gap: var(--space-3); }
+  .reconciliation-table .reconciliation-order .order-number-stack { margin-top: var(--space-1); }
+  .reconciliation-table tr.is-picked { border-color: var(--amber); }
+  .reconciliation-table tr.is-picked { background: color-mix(in srgb, var(--amber) 7%, var(--surface)); }
+  .reconciliation-table tr.is-picked td { background: transparent; }
+}

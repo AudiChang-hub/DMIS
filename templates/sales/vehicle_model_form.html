@@ -1,7 +1,7 @@
-{% extends "base.html" %}{% load site_copy screen_access %}
+{% extends "base.html" %}{% load static %}{% load site_copy screen_access %}
 {% block title %}{% if is_editing %}規格與車色｜{{ vehicle_model.name }}{% else %}新增機種／年式{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide model-workspace-page{% endblock %}
-{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}">{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
 {% block content %}
 {% include "sales/_vehicle_model_workspace.html" with workspace_tab="spec" %}
 <form method="post" class="master-model-form">

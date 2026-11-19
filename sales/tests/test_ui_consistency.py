@@ -553,6 +553,20 @@ class PageStylesheetSplitTests(SimpleTestCase):
                                                    "sales/dealer_reward_catalog_form.html", "sales/dealer_reward_catalog_list.html")),
         ("photo-board", "photo-cell"): ("catalog-photo-board.css", ("sales/catalog_photo_board.html",)),
         ("holiday-calendar",): ("business-holidays.css", ("sales/business_holiday_list.html",)),
+        # 第二批（T-242）
+        ("registration-rule",): ("registration-fee-rules.css", ("sales/brand_registration_fee_rule_list.html",)),
+        ("vehicle-model", "vehicle-brand", "master-model"): ("vehicle-models.css", (
+            "sales/vehicle_brand_list.html", "sales/vehicle_model_list.html", "sales/vehicle_model_form.html",
+            "sales/vehicle_model_batch.html", "sales/vehicle_model_copy.html", "sales/vehicle_model_installment_batch.html",
+            "sales/settlement_cost_rule_form.html", "sales/settlement_cost_rule_list.html",
+            "sales/vehicle_model_price_versions.html", "sales/vehicle_model_settlement_costs.html",
+            "sales/vehicle_model_commission.html", "sales/vehicle_model_incentives.html", "sales/vehicle_model_rules.html",
+            "sales/catalog_edit.html", "sales/installment_plan_list.html")),
+        ("source-line", "holiday-gift"): ("sales-sources.css", ("sales/sales_source_list.html", "sales/sales_source_holiday_gift_manage.html")),
+        ("deletion-review",): ("order-deletion-queue.css", ("sales/order_deletion_queue.html",)),
+        ("quick-entry",): ("inventory-quick-entry.css", ("sales/inventory_quick_form.html",)),
+        ("accessory-bulk",): ("accessory-bulk.css", ("sales/accessory_product_list.html",)),
+        ("reconciliation-table",): ("reconciliation.css", ("sales/reconciliation_list.html",)),
     }
     # 留在 app.css 的：和其他頁面共用的選擇器（同一條規則還列了其他元件，或 class 也出現在別頁），
     # 以及搬出去會改變層疊結果的規則（原本被 app.css 後段同特異度規則蓋過；tools/ui_audit/style_diff.py 找出）。
@@ -560,7 +574,11 @@ class PageStylesheetSplitTests(SimpleTestCase):
               ".dealer-reward-tabs a:last-child", ".holiday-calendar-field",
               ".price-distribution-note textarea", ".price-assignment-picker", ".price-distribution-hero",
               ".dealer-reward-item__header .button", ".dealer-reward-cost-row__header .button",
-              ".holiday-calendar-hero", ".holiday-calendar-active input")
+              ".holiday-calendar-hero", ".holiday-calendar-active input",
+              # 第二批：共用或層疊衝突
+              ".registration-rule-panel__heading", ".master-model-section", ".master-model-grid", ".holiday-gift-summary",
+              ".stacked-form, .master-model-form", ".form-section.static-section, .master-model-section",
+              ".quick-entry-field", ".reconciliation-table td span.mobile-field-label")
 
     def test_single_page_prefixes_stay_out_of_app_css(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")

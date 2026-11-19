@@ -1,0 +1,126 @@
+/* 車行與年節送禮名單（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.source-line-group-section {
+  display: grid; overflow: visible; margin-top: 0;
+  background: var(--line-group-with-bg);
+  border: 1px solid var(--line-group-with-border); border-left-width: 6px;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+}
+.source-line-group-section + .source-line-group-section { margin-top: 0; }
+.source-line-group-section.is-without_group {
+  background: var(--line-group-without-bg);
+  border-color: var(--line-group-without-border);
+}
+.source-line-group-section.is-inactive {
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+.source-line-group-section__header {
+  position: sticky; z-index: 10; top: 72px;
+  display: flex; min-height: 70px; padding: var(--bar-pad); align-items: center;
+  justify-content: space-between; gap: var(--stack-gap-sm);
+  background: var(--line-group-with-header);
+  border-bottom: 1px solid var(--line-group-with-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--shadow-ink) 8%, transparent);
+}
+.source-line-group-section.is-without_group .source-line-group-section__header {
+  background: var(--line-group-without-header);
+  border-bottom-color: var(--line-group-without-border);
+}
+.source-line-group-section.is-inactive .source-line-group-section__header {
+  background: var(--surface-raised);
+  border-bottom-color: var(--line);
+}
+.source-line-group-section__header::before {
+  width: 5px; align-self: stretch; flex: 0 0 auto; content: "";
+  background: var(--line-group-with-accent); border-radius: var(--radius-pill);
+}
+.source-line-group-section.is-without_group .source-line-group-section__header::before { background: var(--line-group-without-accent); }
+.source-line-group-section.is-inactive .source-line-group-section__header::before { background: var(--muted); }
+.source-line-group-section__header span { display: grid; margin-right: auto; gap: 3px; }
+.source-line-group-section__header strong { color: var(--ink); font-size: var(--text-md); }
+.source-line-group-section__header small { color: var(--muted); }
+.source-line-group-section__header b {
+  flex: 0 0 auto; padding: var(--space-2) var(--space-3); color: var(--line-group-with-count-text); background: var(--line-group-with-count-bg);
+  border: 1px solid var(--line-group-with-border);
+  border-radius: var(--radius-pill); font-size: var(--text-sm);
+}
+.source-line-group-section.is-without_group .source-line-group-section__header b {
+  color: var(--line-group-without-count-text); background: var(--line-group-without-count-bg);
+  border-color: var(--line-group-without-border);
+}
+.source-line-group-section.is-inactive .source-line-group-section__header b {
+  color: var(--ink); background: var(--surface); border-color: var(--line);
+}
+.source-line-group-section__content {
+  display: grid; padding: var(--inset-pad); gap: var(--space-3); background: var(--line-group-with-content);
+  border-radius: 0 0 var(--radius-lg) var(--radius-md);
+}
+.source-line-group-section.is-without_group .source-line-group-section__content {
+  background: var(--line-group-without-content);
+}
+.source-line-group-section.is-inactive .source-line-group-section__content {
+  background: var(--surface-subtle);
+}
+.source-line-group-section__empty {
+  display: grid; min-height: 82px; padding: var(--space-4) var(--space-4); place-content: center start; gap: var(--space-1);
+  color: var(--muted); background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--muted) 42%, var(--line)); border-radius: var(--radius-md);
+}
+.source-line-group-section__empty strong { color: var(--ink); }
+.source-line-group-section__empty small, .source-line-group-section__header small { color: var(--ink-soft); }
+.holiday-gift-hero { align-items: center; }
+.holiday-gift-summary span, .holiday-gift-summary small { color: var(--muted); font-size: var(--text-sm); }
+.holiday-gift-summary strong { color: var(--amber); font-size: var(--text-xl); }
+.holiday-gift-maintenance {
+  overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.holiday-gift-toolbar {
+  display: flex; min-height: 86px; padding: var(--space-4) var(--space-4); align-items: end;
+  justify-content: space-between; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line);
+}
+.holiday-gift-search { width: min(620px, 100%); }
+.holiday-gift-toolbar-actions { display: flex; gap: var(--space-2); }
+.holiday-gift-filter-status { margin: 0; padding: var(--space-3) var(--space-4); color: var(--muted); background: var(--surface-soft); font-size: var(--text-sm); }
+.holiday-gift-table { min-width: 760px; }
+.holiday-gift-table th:first-child, .holiday-gift-table td:first-child { width: 112px; text-align: center; }
+.holiday-gift-table label { cursor: pointer; }
+.holiday-gift-checkbox { width: 22px; height: 22px; accent-color: var(--forest); cursor: pointer; }
+.holiday-gift-no-result { display: grid; min-height: 150px; place-content: center; gap: var(--space-1); text-align: center; }
+.holiday-gift-no-result span { color: var(--muted); }
+.holiday-gift-save-actions {
+  position: sticky; z-index: 8; bottom: 14px; display: flex; width: fit-content;
+  margin: var(--stack-gap-sm) var(--stack-gap-sm) var(--stack-gap-sm) auto; padding: var(--space-3); align-items: center; gap: var(--space-3);
+  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-lg);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
+}
+.holiday-gift-save-actions > div { display: grid; padding: 0 var(--space-2); gap: 2px; }
+.holiday-gift-save-actions > div span { color: color-mix(in srgb, var(--surface) 78%, transparent); font-size: var(--text-xs); }
+@media (max-width: 600px) {
+  .source-line-group-section { margin-top: 0; border-radius: var(--radius-lg); }
+  .source-line-group-section + .source-line-group-section { margin-top: 0; }
+  .source-line-group-section__header { top: 62px; min-height: 66px; padding: var(--bar-pad); }
+  .source-line-group-section__header small { font-size: var(--text-xs); }
+  .source-line-group-section__header b { padding: var(--space-2) var(--space-2); font-size: var(--text-xs); }
+  .source-line-group-section__content { padding: var(--space-3); gap: var(--space-3); }
+  .holiday-gift-hero { align-items: stretch; }
+  .holiday-gift-toolbar { align-items: stretch; flex-direction: column; }
+  .holiday-gift-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .holiday-gift-table { min-width: 0; }
+  .holiday-gift-table thead { display: none; }
+  .holiday-gift-table tbody, .holiday-gift-table tr, .holiday-gift-table td { display: block; width: 100%; }
+  .holiday-gift-table tr { position: relative; padding: var(--space-4) var(--space-8) var(--space-4) var(--space-4); border-bottom: 1px solid var(--line); }
+  .holiday-gift-table td { padding: 2px 0; border: 0; }
+  .holiday-gift-table td::before { display: none; }
+  .holiday-gift-table th:first-child, .holiday-gift-table td:first-child {
+    position: absolute; top: 50%; right: 18px; width: 28px; padding: 0; transform: translateY(-50%);
+  }
+  .holiday-gift-table td[data-label="狀態"] { margin-top: var(--space-2); }
+  .holiday-gift-save-actions {
+    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom));
+    left: 14px; width: auto; margin: 0; flex-wrap: wrap;
+  }
+  .holiday-gift-save-actions > div { width: 100%; }
+  .holiday-gift-save-actions .button { flex: 1; }
+  .holiday-gift-form { padding-bottom: 140px; }
+}

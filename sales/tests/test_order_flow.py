@@ -4379,7 +4379,8 @@ class OrderFlowTests(TestCase):
     def test_mobile_core_lists_have_explicit_non_overflow_layout_rules(self):
         from pathlib import Path
 
-        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        # T-242：撥款對帳表的樣式搬到 reconciliation.css（只搬不改內容），兩支一起讀。
+        css = Path("static/css/app.css").read_text(encoding="utf-8") + Path("static/css/reconciliation.css").read_text(encoding="utf-8")
         order_list = Path("templates/sales/order_list.html").read_text(encoding="utf-8")
         reconciliation = Path("templates/sales/reconciliation_list.html").read_text(
             encoding="utf-8"

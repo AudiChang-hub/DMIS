@@ -1,0 +1,39 @@
+/* 配件與工資批次修改（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.accessory-bulk-tools { display: flex; padding: var(--space-3) var(--space-4); align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); background: var(--surface-soft); border-bottom: 1px solid var(--line); }
+.accessory-bulk-pickall { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; cursor: pointer; }
+.accessory-bulk-picked { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.accessory-bulk-tools__actions { display: flex; margin-left: auto; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.accessory-bulk-tools__actions select { width: auto; min-width: 180px; }
+.accessory-bulk-table td { padding: var(--space-2) var(--space-3); }
+.accessory-bulk-table th.accessory-bulk-pick, .accessory-bulk-table td.accessory-bulk-pick { width: 44px; text-align: center; }
+.accessory-bulk-table input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--forest); cursor: pointer; }
+.accessory-bulk-table input[type="text"] { min-width: 220px; }
+.accessory-bulk-table input.accessory-bulk-money { width: 120px; max-width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+.accessory-bulk-table select { min-width: 150px; max-width: 220px; }
+.accessory-bulk-table :is(input, select).is-changed { border-color: var(--amber); background: var(--amber-soft); }
+.accessory-bulk-table tbody tr.is-picked { background: var(--surface-tint); }
+.accessory-bulk-table tbody tr.accessory-bulk-row--error { background: var(--red-soft); }
+.accessory-bulk-table td span.accessory-bulk-note { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.accessory-bulk-table td span.accessory-bulk-errors { margin-top: var(--space-1); color: var(--red); font-size: var(--text-sm); font-weight: 700; }
+.accessory-bulk-active { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; cursor: pointer; }
+.accessory-bulk-savebar { margin: var(--space-3); }
+.accessory-bulk-savebar .form-savebar__hint strong { display: block; color: var(--ink); font-size: var(--text-base); }
+.accessory-bulk-savebar .button.primary:disabled { opacity: .55; cursor: not-allowed; }
+.accessory-bulk-cats { min-width: 180px; max-width: 260px; }
+.accessory-bulk-cats > summary { min-height: 40px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-mid); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
+.accessory-bulk-cats > summary:hover { border-color: var(--line-strong); }
+.accessory-bulk-cats > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.accessory-bulk-cats:has(input.is-changed) > summary { border-color: var(--amber); background: var(--amber-soft); }
+.accessory-bulk-cats__panel { display: grid; margin: var(--space-2) 0 0; padding: var(--space-2) 0 0; gap: var(--space-2); border: 0; border-top: 1px solid var(--line-soft); }
+.accessory-bulk-cats__panel label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
+.accessory-bulk-table .accessory-bulk-cats__panel input.is-changed { outline: 2px solid var(--amber); outline-offset: 1px; }
+@media (max-width: 860px) {
+  .accessory-bulk-tools__actions { width: 100%; margin-left: 0; }
+  .accessory-bulk-tools__actions select { flex: 1 1 100%; min-width: 0; }
+  .accessory-bulk-tools__actions .button { flex: 1 1 calc(50% - var(--space-2)); white-space: nowrap; }
+  .accessory-bulk-table td.accessory-bulk-pick { width: auto; text-align: left; }
+  .accessory-bulk-table :is(input[type="text"], input.accessory-bulk-money, select) { width: 100%; max-width: none; min-width: 0; }
+  .accessory-bulk-table td { grid-column: 1 / -1; }
+  .accessory-bulk-cats { max-width: none; }
+  .accessory-bulk-savebar { margin: var(--space-2); }
+}

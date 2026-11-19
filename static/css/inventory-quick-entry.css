@@ -1,0 +1,65 @@
+/* 快速進車（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.quick-entry-source { align-content: start; }
+.quick-entry-source [hidden] { display: none; }
+.quick-entry-form { display: grid; gap: var(--stack-gap-sm); }
+.quick-entry-panel {
+  overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.quick-entry-head, .quick-entry-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.1fr) minmax(120px, .8fr) minmax(170px, 1fr) 142px 116px minmax(170px, 1fr) minmax(160px, 1fr) 108px;
+  gap: var(--space-3);
+}
+.quick-entry-head {
+  padding: var(--space-3) var(--space-4); color: var(--muted); background: var(--surface-soft);
+  border-bottom: 1px solid var(--line); font-size: var(--text-xs); font-weight: 900;
+}
+.quick-entry-row {
+  position: relative; padding: var(--space-4) var(--space-4); align-items: start; border-bottom: 1px solid var(--line);
+}
+.quick-entry-row.has-error { background: var(--red-soft); }
+.quick-entry-field { display: grid; min-width: 0; gap: var(--space-1); }
+.quick-entry-field input, .quick-entry-field select, .quick-entry-field textarea {
+  width: 100%; min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--surface); color: var(--ink);
+}
+.quick-entry-field textarea { min-height: 44px; max-height: 92px; resize: vertical; }
+.quick-entry-field .year-month-hint[data-state="empty"] { display: none; }
+.quick-entry-delete { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; }
+.quick-entry-row-error { grid-column: 1 / -1; }
+.quick-entry-add {
+  width: calc(100% - 36px); margin: var(--stack-gap-sm) var(--stack-gap-sm); border-style: dashed;
+}
+.quick-entry-actions {
+  position: sticky; z-index: 8; bottom: 14px; display: flex; width: fit-content;
+  margin-left: auto; padding: var(--space-3); gap: var(--space-3); background: var(--forest);
+  border-radius: var(--radius-lg); box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
+}
+@media (max-width: 1280px) {
+  .quick-entry-head { display: none; }
+  .quick-entry-row {
+    margin: var(--space-3); padding: var(--inset-pad); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    border: 1px solid var(--line); border-radius: var(--radius-md);
+  }
+  .quick-entry-field { grid-column: 1 / -1; }
+  .quick-entry-field:nth-child(4), .quick-entry-field:nth-child(5) { grid-column: auto; }
+  .quick-entry-field::before {
+    content: attr(data-label); color: var(--muted); font-size: var(--text-xs); font-weight: 900;
+  }
+  .quick-entry-field:has(.identifier-label)::before { display: none; }
+  .quick-entry-field .visually-hidden.identifier-label {
+    position: static; width: auto; height: auto; overflow: visible; clip: auto;
+    white-space: normal; color: var(--muted); font-size: var(--text-xs); font-weight: 900;
+  }
+  .quick-entry-delete { grid-column: 1 / -1; }
+  .quick-entry-delete .button { width: 100%; }
+}
+@media (max-width: 600px) {
+  .quick-entry-form { padding-bottom: 150px; }
+  .quick-entry-add { width: calc(100% - 24px); margin: 0 var(--space-3) var(--space-3); }
+  .quick-entry-actions {
+    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom));
+    left: 14px; width: auto;
+  }
+  .quick-entry-actions .button { flex: 1; }
+}

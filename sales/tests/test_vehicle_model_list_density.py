@@ -10,6 +10,8 @@ from django.urls import reverse
 from sales.models import VehicleColor, VehicleModel
 
 APP_CSS = Path(settings.BASE_DIR) / "static" / "css" / "app.css"
+# T-242：機種清單的樣式搬到 vehicle-models.css（只搬不改內容），兩支一起讀。
+MODEL_CSS = Path(settings.BASE_DIR) / "static" / "css" / "vehicle-models.css"
 
 
 class VehicleModelListDensityTests(TestCase):
@@ -57,12 +59,12 @@ class VehicleModelListDensityTests(TestCase):
         self.assertEqual(panel.count("<li>"), 8)
         self.assertIn("<li>維蘇威黑</li>", panel)
         self.assertIn("vehicle-model-color-peek.js", self.html)
-        css = APP_CSS.read_text(encoding="utf-8")
+        css = APP_CSS.read_text(encoding="utf-8") + MODEL_CSS.read_text(encoding="utf-8")
         self.assertNotIn(".color-dot", css)
         self.assertRegex(css, r"span\.color-peek__names \{[^}]*-webkit-line-clamp: 2;")
 
     def test_actions_sit_side_by_side_and_headers_stay_visible(self):
-        css = APP_CSS.read_text(encoding="utf-8")
+        css = APP_CSS.read_text(encoding="utf-8") + MODEL_CSS.read_text(encoding="utf-8")
         self.assertIn(".vehicle-model-row-actions { display: flex; align-items: center; justify-content: flex-end;", css)
         self.assertNotRegex(css, r"\.vehicle-model-row-actions \{[^}]*flex-direction: column")
         self.assertRegex(css, r"\.master-model-table thead th \{\s*position: sticky;")

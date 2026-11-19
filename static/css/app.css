@@ -1079,84 +1079,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .section-title h2, .section-title h3 { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
 .section-title > span, .section-title > a { color: var(--muted); font-size: var(--text-sm); font-weight: 700; }
 .section-title > a { color: var(--blue); }
-.registration-rule-panel { overflow: visible; }
 .registration-rule-panel__heading { min-height: 72px; }
-.registration-rule-panel__heading > div { display: grid; gap: 3px; }
-.registration-rule-panel__heading p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
-.registration-rule-list { display: grid; padding: var(--inset-pad); gap: var(--stack-gap-sm); }
-.registration-rule-card {
-  position: relative; min-width: 0; overflow: visible; background: var(--surface);
-  border: 1px solid var(--line); border-radius: var(--radius-lg);
-  box-shadow: 0 5px 18px color-mix(in srgb, var(--shadow-ink) 4%, transparent);
-}
-.registration-rule-card.is-inactive { background: var(--surface-soft); opacity: .78; }
-.registration-rule-card__header {
-  display: flex; min-height: 82px; padding: var(--space-4) var(--space-4); align-items: center;
-  justify-content: space-between; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line);
-  background: linear-gradient(135deg, var(--surface-subtle) 0%, var(--surface-tint) 100%); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-.registration-rule-card__identity { display: flex; min-width: 0; align-items: center; gap: var(--space-3); }
-.registration-rule-card__mark {
-  display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center;
-  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-md); font-weight: 900;
-}
-.registration-rule-card__brand-line { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.registration-rule-card__brand-line h3 { margin: 0; font-size: var(--text-md); }
-.registration-rule-card__energy {
-  display: inline-flex; min-height: 24px; padding: 2px var(--space-2); align-items: center;
-  color: var(--action-text); background: var(--mint); border: 1px solid var(--line);
-  border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 850;
-}
-.registration-rule-card__insurance-badge {
-  display: inline-flex; min-height: 26px; padding: 3px var(--space-3); align-items: center;
-  color: var(--amber); background: var(--amber-soft); border: 1px solid var(--gold);
-  border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 900; letter-spacing: .01em;
-}
-.registration-rule-card__insurance-badge.is-manual { color: var(--muted); background: var(--surface-soft); border-color: var(--line); }
-.registration-rule-card__identity p { margin: 3px 0 0; color: var(--muted); font-size: var(--text-sm); }
-.registration-rule-card__body {
-  display: grid; padding: var(--inset-pad); grid-template-columns: minmax(180px,.8fr) minmax(260px,1.2fr) minmax(210px,.9fr);
-  align-items: stretch; gap: var(--space-3);
-}
-.registration-rule-card__method,
-.registration-rule-card__amount,
-.registration-rule-card__period {
-  display: grid; min-width: 0; min-height: 112px; padding: var(--space-4) var(--space-4); align-content: center;
-  gap: var(--space-1); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md);
-}
-.registration-rule-card__amount { color: var(--action-text); background: var(--mint); border-color: var(--line-mid); }
-.registration-rule-card__body span,
-.registration-rule-card__note > span { color: var(--muted); font-size: var(--text-xs); font-weight: 850; letter-spacing: .04em; }
-.registration-rule-card__body strong { font-size: var(--text-base); }
-.registration-rule-card__insurance-years {
-  color: var(--ink); font-size: var(--text-2xl) !important; line-height: 1.15; font-variant-numeric: tabular-nums;
-}
-.registration-rule-card__insurance-years b { font-size: var(--text-base); font-weight: 900; }
-.registration-rule-card__insurance-years.is-manual { font-size: var(--text-lg) !important; }
-.registration-rule-card__amount > strong { font-size: var(--text-lg); line-height: 1.3; font-variant-numeric: tabular-nums; }
-.registration-rule-card__body small { color: var(--muted); font-size: var(--text-xs); }
-.registration-rule-card__amount-parts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--stack-gap-sm); }
-.registration-rule-card__amount-parts b { color: var(--ink); font-size: var(--text-sm); }
-.registration-rule-card__footer {
-  display: flex; min-height: 68px; padding: var(--space-3) var(--space-4); align-items: center;
-  justify-content: space-between; gap: var(--stack-gap-sm); border-top: 1px solid var(--line);
-}
-.registration-rule-card__note { min-width: 0; }
-.registration-rule-card__note p { margin: 2px 0 0; color: var(--muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
-.registration-rule-card__actions { display: flex; position: relative; flex: 0 0 auto; align-items: center; gap: var(--space-2); }
-.registration-rule-more { position: relative; }
-.registration-rule-more > summary { list-style: none; user-select: none; }
-.registration-rule-more > summary::-webkit-details-marker { display: none; }
-.registration-rule-more[open] > summary { color: var(--action-text); background: var(--mint); }
-.registration-rule-more__menu {
-  position: absolute; z-index: 12; right: 0; top: calc(100% + 7px); width: 170px; padding: var(--space-2);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow);
-}
-.registration-rule-more__menu button {
-  width: 100%; min-height: 42px; padding: var(--space-2) var(--space-3); color: var(--red); background: transparent;
-  border: 0; border-radius: var(--radius-sm); text-align: left; font-weight: 850; cursor: pointer;
-}
-.registration-rule-more__menu button:hover { background: var(--red-soft); }
 .order-list { overflow: hidden; }
 .order-row {
   display: grid; grid-template-columns: 10px minmax(180px, 1fr) 140px auto 20px;
@@ -2947,8 +2870,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .inventory-table .inventory-disposition--dealer_pickup { color: var(--teal-ink); background: var(--teal-soft); border-color: var(--teal-border); }
 .inventory-disposition-cell small { display: block; color: var(--muted); font-size: var(--text-xs); }
 .inventory-table .inventory-note { display: block; max-width: 220px; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); line-height: 1.35; }
-.quick-entry-source { align-content: start; }
-.quick-entry-source [hidden] { display: none; }
 .inventory-condition {
   display: inline-flex !important; width: fit-content; padding: var(--space-1) var(--space-2);
   color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line);
@@ -3157,64 +3078,11 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .history-change-list > div.is-single { grid-template-columns: 1fr; }
 }
 .empty-state.compact { min-height: 110px; }
-.quick-entry-form { display: grid; gap: var(--stack-gap-sm); }
-.quick-entry-panel {
-  overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-}
-.quick-entry-head, .quick-entry-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.1fr) minmax(120px, .8fr) minmax(170px, 1fr) 142px 116px minmax(170px, 1fr) minmax(160px, 1fr) 108px;
-  gap: var(--space-3);
-}
-.quick-entry-head {
-  padding: var(--space-3) var(--space-4); color: var(--muted); background: var(--surface-soft);
-  border-bottom: 1px solid var(--line); font-size: var(--text-xs); font-weight: 900;
-}
-.quick-entry-row {
-  position: relative; padding: var(--space-4) var(--space-4); align-items: start; border-bottom: 1px solid var(--line);
-}
-.quick-entry-row.has-error { background: var(--red-soft); }
-.quick-entry-field { display: grid; min-width: 0; gap: var(--space-1); }
-.quick-entry-field input, .quick-entry-field select, .quick-entry-field textarea {
-  width: 100%; min-height: 44px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); background: var(--surface); color: var(--ink);
-}
-.quick-entry-field textarea { min-height: 44px; max-height: 92px; resize: vertical; }
 /* 快速進車出廠年月（T-138）：每列都有「例 201309」提示字，空白列不再重複顯示說明，打字後才出現換算或錯誤。 */
-.quick-entry-field .year-month-hint[data-state="empty"] { display: none; }
-.quick-entry-delete { display: flex; min-height: 44px; align-items: center; justify-content: flex-end; }
-.quick-entry-row-error { grid-column: 1 / -1; }
 .cost-rule-scheduled { background: var(--blue-soft); color: var(--blue); }
 .cost-rule-active { background: var(--mint); color: var(--action-text); }
 .cost-rule-expired, .cost-rule-inactive { background: var(--surface-soft); color: var(--muted); }
-.quick-entry-add {
-  width: calc(100% - 36px); margin: var(--stack-gap-sm) var(--stack-gap-sm); border-style: dashed;
-}
-.quick-entry-actions {
-  position: sticky; z-index: 8; bottom: 14px; display: flex; width: fit-content;
-  margin-left: auto; padding: var(--space-3); gap: var(--space-3); background: var(--forest);
-  border-radius: var(--radius-lg); box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
-}
 /* 快速進車欄位多（含車輛來源），寬度不足 1280px 時改為卡片，避免表格被面板裁切。 */
-@media (max-width: 1280px) {
-  .quick-entry-head { display: none; }
-  .quick-entry-row {
-    margin: var(--space-3); padding: var(--inset-pad); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    border: 1px solid var(--line); border-radius: var(--radius-md);
-  }
-  .quick-entry-field { grid-column: 1 / -1; }
-  .quick-entry-field:nth-child(4), .quick-entry-field:nth-child(5) { grid-column: auto; }
-  .quick-entry-field::before {
-    content: attr(data-label); color: var(--muted); font-size: var(--text-xs); font-weight: 900;
-  }
-  .quick-entry-field:has(.identifier-label)::before { display: none; }
-  .quick-entry-field .visually-hidden.identifier-label {
-    position: static; width: auto; height: auto; overflow: visible; clip: auto;
-    white-space: normal; color: var(--muted); font-size: var(--text-xs); font-weight: 900;
-  }
-  .quick-entry-delete { grid-column: 1 / -1; }
-  .quick-entry-delete .button { width: 100%; }
-}
 .master-filters {
   display: grid; margin-bottom: var(--stack-gap); padding: var(--inset-pad);
   grid-template-columns: minmax(280px, 1fr) 200px 180px auto;
@@ -3278,76 +3146,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .source-status-switch .is-inactive b { color: var(--ink); background: var(--surface-soft); }
 .sales-source-directory { overflow: visible; }
-.source-line-group-section {
-  display: grid; overflow: visible; margin-top: 0;
-  background: var(--line-group-with-bg);
-  border: 1px solid var(--line-group-with-border); border-left-width: 6px;
-  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
-}
-.source-line-group-section + .source-line-group-section { margin-top: 0; }
-.source-line-group-section.is-without_group {
-  background: var(--line-group-without-bg);
-  border-color: var(--line-group-without-border);
-}
-.source-line-group-section.is-inactive {
-  background: var(--surface-soft);
-  border-color: var(--line);
-}
-.source-line-group-section__header {
-  position: sticky; z-index: 10; top: 72px;
-  display: flex; min-height: 70px; padding: var(--bar-pad); align-items: center;
-  justify-content: space-between; gap: var(--stack-gap-sm);
-  background: var(--line-group-with-header);
-  border-bottom: 1px solid var(--line-group-with-border);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: 0 5px 16px color-mix(in srgb, var(--shadow-ink) 8%, transparent);
-}
-.source-line-group-section.is-without_group .source-line-group-section__header {
-  background: var(--line-group-without-header);
-  border-bottom-color: var(--line-group-without-border);
-}
-.source-line-group-section.is-inactive .source-line-group-section__header {
-  background: var(--surface-raised);
-  border-bottom-color: var(--line);
-}
-.source-line-group-section__header::before {
-  width: 5px; align-self: stretch; flex: 0 0 auto; content: "";
-  background: var(--line-group-with-accent); border-radius: var(--radius-pill);
-}
-.source-line-group-section.is-without_group .source-line-group-section__header::before { background: var(--line-group-without-accent); }
-.source-line-group-section.is-inactive .source-line-group-section__header::before { background: var(--muted); }
-.source-line-group-section__header span { display: grid; margin-right: auto; gap: 3px; }
-.source-line-group-section__header strong { color: var(--ink); font-size: var(--text-md); }
-.source-line-group-section__header small { color: var(--muted); }
-.source-line-group-section__header b {
-  flex: 0 0 auto; padding: var(--space-2) var(--space-3); color: var(--line-group-with-count-text); background: var(--line-group-with-count-bg);
-  border: 1px solid var(--line-group-with-border);
-  border-radius: var(--radius-pill); font-size: var(--text-sm);
-}
-.source-line-group-section.is-without_group .source-line-group-section__header b {
-  color: var(--line-group-without-count-text); background: var(--line-group-without-count-bg);
-  border-color: var(--line-group-without-border);
-}
-.source-line-group-section.is-inactive .source-line-group-section__header b {
-  color: var(--ink); background: var(--surface); border-color: var(--line);
-}
-.source-line-group-section__content {
-  display: grid; padding: var(--inset-pad); gap: var(--space-3); background: var(--line-group-with-content);
-  border-radius: 0 0 var(--radius-lg) var(--radius-md);
-}
-.source-line-group-section.is-without_group .source-line-group-section__content {
-  background: var(--line-group-without-content);
-}
-.source-line-group-section.is-inactive .source-line-group-section__content {
-  background: var(--surface-subtle);
-}
-.source-line-group-section__empty {
-  display: grid; min-height: 82px; padding: var(--space-4) var(--space-4); place-content: center start; gap: var(--space-1);
-  color: var(--muted); background: color-mix(in srgb, var(--surface) 82%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--muted) 42%, var(--line)); border-radius: var(--radius-md);
-}
-.source-line-group-section__empty strong { color: var(--ink); }
-.source-line-group-section__empty small, .source-line-group-section__header small { color: var(--ink-soft); }
 .source-basic-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap) var(--space-6); }
 .source-basic-card--wide { grid-column: 1 / -1; }
 .source-basic-card { min-width: 0; padding: 0; background: none; border: 0; border-radius: 0; }
@@ -3739,102 +3537,12 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   gap: .45rem;
 }
 .quick-active-toggle-form button:disabled { cursor: not-allowed; opacity: .58; }
-.holiday-gift-hero { align-items: center; }
 .holiday-gift-summary {
   display: grid; min-width: 180px; padding: var(--inset-pad); gap: 2px;
   background: var(--amber-soft); border: 1px solid var(--amber-border); border-radius: var(--radius-lg);
 }
-.holiday-gift-summary span, .holiday-gift-summary small { color: var(--muted); font-size: var(--text-sm); }
-.holiday-gift-summary strong { color: var(--amber); font-size: var(--text-xl); }
-.holiday-gift-maintenance {
-  overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-}
-.holiday-gift-toolbar {
-  display: flex; min-height: 86px; padding: var(--space-4) var(--space-4); align-items: end;
-  justify-content: space-between; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line);
-}
-.holiday-gift-search { width: min(620px, 100%); }
-.holiday-gift-toolbar-actions { display: flex; gap: var(--space-2); }
-.holiday-gift-filter-status { margin: 0; padding: var(--space-3) var(--space-4); color: var(--muted); background: var(--surface-soft); font-size: var(--text-sm); }
-.holiday-gift-table { min-width: 760px; }
-.holiday-gift-table th:first-child, .holiday-gift-table td:first-child { width: 112px; text-align: center; }
-.holiday-gift-table label { cursor: pointer; }
-.holiday-gift-checkbox { width: 22px; height: 22px; accent-color: var(--forest); cursor: pointer; }
-.holiday-gift-no-result { display: grid; min-height: 150px; place-content: center; gap: var(--space-1); text-align: center; }
-.holiday-gift-no-result span { color: var(--muted); }
-.holiday-gift-save-actions {
-  position: sticky; z-index: 8; bottom: 14px; display: flex; width: fit-content;
-  margin: var(--stack-gap-sm) var(--stack-gap-sm) var(--stack-gap-sm) auto; padding: var(--space-3); align-items: center; gap: var(--space-3);
-  color: var(--on-accent); background: var(--forest); border-radius: var(--radius-lg);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
-}
-.holiday-gift-save-actions > div { display: grid; padding: 0 var(--space-2); gap: 2px; }
-.holiday-gift-save-actions > div span { color: color-mix(in srgb, var(--surface) 78%, transparent); font-size: var(--text-xs); }
-.vehicle-model-catalog { display: grid; gap: var(--stack-gap); }
-.vehicle-model-catalog__toolbar {
-  display: flex; min-height: 70px; padding: var(--bar-pad); align-items: center;
-  justify-content: space-between; gap: var(--stack-gap-sm); background: var(--surface);
-  border: 1px solid var(--line); border-radius: var(--radius);
-}
-.vehicle-model-catalog__toolbar > div:first-child { display: grid; gap: 3px; }
-.vehicle-model-catalog__toolbar span { color: var(--muted); font-size: var(--text-sm); }
-.vehicle-brand-group {
-  overflow: clip; background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); box-shadow: 0 8px 22px color-mix(in srgb, var(--shadow-ink) 5%, transparent);
-}
-.vehicle-brand-group__header {
-  display: grid; min-height: 78px; padding: var(--space-4) var(--space-4);
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center; gap: var(--stack-gap-sm); background: var(--surface-soft);
-  border-bottom: 1px solid var(--line); cursor: pointer; list-style: none;
-}
-.vehicle-brand-group__header::-webkit-details-marker { display: none; }
-.vehicle-brand-group:not([open]) .vehicle-brand-group__header { border-bottom-color: transparent; }
-.vehicle-brand-group__header:hover { background: var(--surface-soft); }
-.vehicle-brand-group__header:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
-.vehicle-brand-group__identity, .vehicle-brand-group__metrics { display: grid; min-width: 0; gap: 3px; }
-.vehicle-brand-group__identity strong { overflow: hidden; font-size: var(--text-md); text-overflow: ellipsis; white-space: nowrap; }
-.vehicle-brand-group__identity small, .vehicle-brand-group__metrics small { color: var(--muted); font-size: var(--text-xs); }
-.vehicle-brand-group__metrics { min-width: 116px; text-align: right; }
-.vehicle-brand-group__metrics strong { font-size: var(--text-sm-plus); }
-.vehicle-brand-group__toggle {
-  display: inline-flex; min-width: 72px; min-height: 38px; padding: var(--space-2) var(--space-3);
-  align-items: center; justify-content: center; gap: var(--space-2); color: var(--action-text);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
-  font-size: var(--text-sm); font-weight: 900;
-}
-.vehicle-brand-group__toggle-close { display: none; }
-.vehicle-brand-group[open] .vehicle-brand-group__toggle-open { display: none; }
-.vehicle-brand-group[open] .vehicle-brand-group__toggle-close { display: inline; }
-.vehicle-brand-group__chevron { margin-top: calc(-1 * var(--space-1)); }
-.vehicle-brand-group[open] .vehicle-brand-group__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
 /* 機種總表：每格「主值＋一行小字」，桌面一列固定兩行高；顏色改色點加點開清單，數值單行，操作鈕橫排。
    品牌列與表頭捲動時固定在頁首下方；品牌區塊窄於 880px 時改水平捲動，操作欄固定在右側。 */
-.vehicle-brand-group { --vm-brand-bar: 64px; container: vm-group / inline-size; }
-.vehicle-model-overview-table { border: 0; border-radius: 0; box-shadow: none; }
-.vehicle-model-overview-table > .master-model-table { min-width: 0; font-variant-numeric: tabular-nums; }
-.master-model-table thead th { padding: var(--space-2) var(--space-3); color: var(--muted); font-size: var(--text-xs); letter-spacing: .04em; }
-.master-model-table tbody td { padding: var(--space-2) var(--space-3); line-height: 1.35; }
-.master-model-table :is(th, td):first-child { padding-left: var(--space-4); }
-.master-model-table :is(th, td):last-child { padding-right: var(--space-4); }
-.master-model-table td > strong { display: block; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; white-space: nowrap; }
-.master-model-table td small { display: block; margin-top: 1px; color: var(--muted); font-size: var(--text-xs); font-weight: 650; white-space: nowrap; }
-.master-model-table .vm-reward-cell small { overflow: hidden; text-overflow: ellipsis; }
-.master-model-table td > .is-unset { color: var(--muted); font-weight: 700; }
-.master-model-table .vm-year-cell > strong { display: flex; align-items: center; gap: var(--space-2); }
-.master-model-table .vm-price-cell span.price-scope {
-  display: block; width: fit-content; margin-top: 1px; padding: 0; background: none; border: 0;
-  border-radius: 0; font-size: var(--text-xs); font-weight: 800; line-height: 1.35;
-}
-.master-model-table .vm-reward-cell small { max-width: 13em; }
-.master-model-table .vehicle-model-rewards.is-on { color: var(--green); font-weight: 800; }
-.master-model-table .vehicle-model-active-toggle { min-height: 30px; }
-.vehicle-model-family-group:hover > td { background: var(--surface-subtle); }
-.master-model-table .vehicle-model-inactive-divider td > span { display: inline-grid; vertical-align: middle; }
-.master-model-table .vehicle-model-inactive-divider td > :is(strong, small) { display: inline; }
-.vehicle-model-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
-.vehicle-model-row-actions .vehicle-model-copy-link { margin-right: 0; }
-.master-model-table .vehicle-model-row-actions .button.small { min-height: 32px; padding: 0 var(--space-3); font-size: var(--text-sm); }
 /* 啟用顏色：「N 種」加色名，色名整個不拆字（「維蘇威黑、」一起換行），最多兩行，放不下時結尾省略；滑過看全部，點開列出完整清單。 */
 .color-peek {
   display: block; max-width: 19rem; margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2)); padding: var(--space-1) var(--space-2);
@@ -3843,13 +3551,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .color-peek:hover, .color-peek:focus-visible { background: var(--surface); border-color: var(--line-strong); }
 .color-peek:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
-.master-model-table td span.color-peek__names {
-  display: -webkit-box; overflow: hidden; color: var(--ink-soft); font-size: var(--text-sm); font-weight: 650; line-height: 1.4;
-  -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-}
-.master-model-table td .color-peek__names strong { display: inline; margin-right: var(--space-2); color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; }
-.master-model-table td .color-peek__names span { display: inline; white-space: nowrap; }
-.master-model-table .vm-color-cell { min-width: 12.5rem; }
 .color-peek__panel {
   position: fixed; inset: auto; width: max-content; max-width: min(340px, calc(100vw - 24px)); margin: 0;
   padding: var(--space-3) var(--space-4) var(--space-4); color: var(--ink); background: var(--surface);
@@ -3859,100 +3560,19 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .color-peek__panel:popover-open { animation: color-peek-in .18s var(--ease-out); }
 @keyframes color-peek-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
 .color-peek__panel > p { display: flex; margin: 0 0 var(--space-3); align-items: baseline; justify-content: space-between; gap: var(--space-4); }
-.master-model-table .color-peek__panel > p strong { display: inline; font-size: var(--text-sm); }
-.master-model-table .color-peek__panel > p small { display: inline; margin: 0; font-size: var(--text-xs); }
 .color-peek__panel ul { display: grid; margin: 0; padding: 0; grid-template-columns: repeat(2, minmax(0, max-content)); gap: var(--space-2) var(--space-5); list-style: none; }
 .color-peek__panel li { font-size: var(--text-sm); font-weight: 700; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .color-peek__panel:popover-open { animation: none; } }
 @media (min-width: 860.02px) {
-  .vehicle-brand-group[open] > .vehicle-brand-group__header {
-    position: sticky; z-index: 4; top: var(--app-header-height, 72px); height: var(--vm-brand-bar); min-height: 0; padding-block: var(--space-2);
-  }
   /* 中等寬度（例如 1280px 螢幕釘選目錄）：狀態只留開關，文字改由 aria-label 與滑過提示說明。 */
   @container vm-group (width < 1100px) {
-    .master-model-table :is(thead th, tbody td) { padding-inline: var(--space-2); }
-    .master-model-table :is(th, td):first-child { padding-left: var(--space-3); }
-    .master-model-table :is(th, td):last-child { padding-right: var(--space-3); }
-    .master-model-table .vehicle-model-row-actions .button.small { padding: 0 var(--space-2); }
-    .master-model-table .vehicle-model-machine-cell { min-width: 8rem; }
-    .master-model-table .vm-year-cell > strong { flex-wrap: wrap; row-gap: var(--space-1); }
-    .master-model-table .vehicle-model-active-toggle .source-active-toggle__label {
-      position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-    }
   }
   @container vm-group (width >= 880px) {
-    .vehicle-model-overview-table { overflow: visible; }
-    .master-model-table thead th {
-      position: sticky; z-index: 3; top: calc(var(--app-header-height, 72px) + var(--vm-brand-bar));
-      box-shadow: inset 0 -1px 0 var(--line);
-    }
   }
   @container vm-group (width < 880px) {
-    .vehicle-model-overview-table > .master-model-table { min-width: 880px; }
-    .master-model-table thead th:last-child,
-    .vehicle-model-overview-table .vehicle-model-row-action { position: sticky; right: 0; z-index: 1; box-shadow: inset 1px 0 0 var(--line); }
   }
   /* 保險：內容仍比區塊寬（例如特別長的型號）時，vehicle-brand-groups.js 標記 data-overflowing，改回水平捲動並固定操作欄。 */
-  .vehicle-model-overview-table[data-overflowing] { overflow-x: auto; }
-  .vehicle-model-overview-table[data-overflowing] thead th { position: static; }
-  .vehicle-model-overview-table[data-overflowing] :is(thead th:last-child, .vehicle-model-row-action) {
-    position: sticky; top: auto; right: 0; z-index: 1; box-shadow: inset 1px 0 0 var(--line);
-  }
 }
-.vehicle-model-family-group > td { background: var(--surface); }
-.vehicle-model-family-group.is-inactive > td { color: var(--muted); background: var(--surface-soft); }
-.vehicle-model-family-group.is-inactive .vehicle-model-machine-cell > strong { color: var(--ink-soft); }
-.vehicle-model-inactive-divider > td {
-  padding: var(--space-3) var(--space-4) !important; color: var(--muted); background: var(--line-soft) !important;
-  border-top: 2px solid var(--line); border-bottom: 1px solid var(--line-mid);
-}
-.vehicle-model-inactive-divider td > span {
-  display: inline-grid; width: 24px; height: 24px; margin-right: var(--space-2); place-items: center;
-  color: var(--on-accent); background: var(--neutral-solid); border-radius: var(--radius-xs); font-size: var(--text-2xs); font-weight: 950;
-}
-.vehicle-model-inactive-divider td > strong { margin-right: var(--space-2); color: var(--ink-soft); font-size: var(--text-sm); }
-.vehicle-model-inactive-divider td > small { color: var(--neutral-solid); font-size: var(--text-xs); }
-.vehicle-model-active-toggle,
-.vehicle-model-active-toggle.is-active {
-  min-height: 32px; padding: var(--space-1); gap: var(--space-2);
-  background: transparent; border-color: transparent;
-}
-.vehicle-model-active-toggle:hover,
-.vehicle-model-active-toggle.is-active:hover {
-  background: var(--surface-soft); border-color: transparent; transform: none;
-}
-.vehicle-model-active-toggle .source-active-toggle__label { font-size: var(--text-sm); }
-.vehicle-model-machine-cell { min-width: 9.5rem; }
-.master-model-table .vehicle-model-machine-cell > strong { font-size: var(--text-base); white-space: normal; }
-.master-model-table .vehicle-model-machine-cell > small { letter-spacing: .03em; }
-.vehicle-model-inventory-link {
-  display: inline-grid; width: fit-content; gap: 0; color: var(--action-text);
-  text-decoration: none;
-}
-.vehicle-model-inventory-link strong { color: var(--ink); white-space: nowrap; }
-.master-model-table .vehicle-model-inventory-link small { color: var(--action-text); font-weight: 800; }
-.vehicle-model-inventory-link small i { display: inline-block; margin-left: 2px; font-style: normal; transition: transform .16s var(--ease-out); }
-.vehicle-model-inventory-link:hover small i { transform: translateX(2px); }
-.master-model-table .vehicle-model-inventory-link.is-empty strong { color: var(--muted); font-weight: 700; }
-.vehicle-model-inventory-link:hover strong,
-.vehicle-model-inventory-link:hover small { text-decoration: underline; }
-.vehicle-model-inventory-link:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--shadow-ink) 20%, transparent); outline-offset: 3px; border-radius: var(--radius-xs);
-}
-.vehicle-model-inventory-link--compact {
-  display: inline; color: var(--action-text); font-weight: 850;
-}
-.vehicle-model-year-trigger {
-  display: inline-flex; min-height: 22px; padding: 0 var(--space-2);
-  align-items: center; gap: var(--space-1); color: var(--action-text); background: var(--mint);
-  border: 1px solid var(--line); border-radius: var(--radius-pill); cursor: pointer;
-  font: inherit; font-size: var(--text-2xs); font-weight: 900;
-}
-.vehicle-model-year-trigger:hover { background: var(--mint); border-color: var(--green-border); }
-.vehicle-model-year-trigger:focus-visible { outline: 3px solid color-mix(in srgb, var(--shadow-ink) 20%, transparent); outline-offset: 2px; }
-.vehicle-model-year-trigger.is-search-match { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
-.vehicle-model-year-trigger i { font-style: normal; }
-.vehicle-model-search-match { margin-left: var(--space-2); color: var(--amber); font-size: var(--text-2xs); font-weight: 900; }
 .vehicle-year-drawer {
   width: min(560px, calc(100vw - 24px)); height: 100dvh; max-width: none; max-height: none;
   margin: 0 0 0 auto; padding: 0; overflow: hidden; color: var(--ink); background: var(--surface-soft);
@@ -3994,21 +3614,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .vehicle-year-card dd { margin: 0; overflow-wrap: anywhere; font-size: var(--text-sm); font-weight: 800; }
 .vehicle-year-card > footer { padding-top: var(--space-3); border-top: 1px solid var(--line); }
 .vehicle-year-card__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
-.vehicle-model-copy-link { margin-right: var(--space-2); }
-.master-model-table { min-width: 1080px; }
-.vehicle-model-brand-badge {
-  display: inline-flex !important; width: fit-content; margin-left: var(--space-1); vertical-align: 2px;
-  padding: 3px var(--space-2); color: var(--action-text) !important; background: var(--mint);
-  border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--text-2xs) !important;
-  font-style: normal; font-weight: 900;
-}
-.master-model-form { display: grid; gap: var(--stack-gap); }
 .master-model-section { overflow: hidden; padding: 0; }
-.master-model-section .section-heading {
-  display: flex; min-height: 74px; padding: 0 0 var(--space-4); align-items: center;
-  justify-content: space-between; border-bottom: 1px solid var(--line);
-}
-.master-model-section .section-heading h2 { margin: 2px 0 0; font-size: var(--text-md); }
 .master-family-rename-note {
   display: flex;
   align-items: center;
@@ -4377,12 +3983,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .reconciliation-shell { min-width: 0; max-width: 100%; overflow: hidden; }
 .reconciliation-shell .table-scroll { max-width: 100%; overflow-x: auto; }
-.reconciliation-table { width: 100%; min-width: 980px; }
-.reconciliation-table input.form-control { min-width: 130px; }
-.reconciliation-table .reconciliation-money { min-width: 110px; text-align: right; }
-.reconciliation-table .difference-warning { color: var(--red); font-weight: 900; }
 .reconciliation-expected-adjustment { margin-top: var(--space-2); text-align: left; }
-.reconciliation-table .reconciliation-posted { display: grid; justify-items: end; gap: var(--space-1); }
 .reconciliation-posted .status-pill { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, var(--surface)); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
 .reconciliation-posted small { color: var(--muted); font-size: var(--text-xs); white-space: nowrap; }
 .reconciliation-posted small a { color: var(--action-text); font-weight: 700; }
@@ -4421,10 +4022,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .reconciliation-pending { display: inline-flex; padding: 2px var(--space-2); border: 1px dashed var(--line-strong); border-radius: var(--radius-pill); color: var(--muted); font-size: var(--text-xs); font-weight: 800; white-space: nowrap; }
 .reconciliation-preview { display: block; margin-top: var(--space-1); color: var(--ink); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .reconciliation-hint { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-2xs); }
-.reconciliation-table tr.is-picked td { background: color-mix(in srgb, var(--amber) 7%, var(--surface)); }
-.reconciliation-table tr.is-posted td { color: var(--muted); }
-.reconciliation-table tr.is-posted td strong { color: var(--ink); }
-.reconciliation-table tr.is-posted .difference-warning strong { color: var(--red); }
 .reconciliation-posted form { margin: 0; }
 .form-savebar.reconciliation-batch { margin-top: var(--stack-gap-sm); border-color: var(--ink); animation: reconciliation-batch-in .22s ease-out; }
 .reconciliation-batch[hidden] { display: none; }
@@ -4619,8 +4216,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .master-filters.sales-source-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .master-filters.sales-source-filters .inventory-filter-actions > * { flex: 1; }
   .master-filters.sales-source-filters:has(.source-filter--line) .source-filter--gift { grid-column: 1 / -1; }
-  .registration-rule-card__body { grid-template-columns: 1fr 1fr; }
-  .registration-rule-card__amount { grid-row: span 2; }
   .maintenance-grid { grid-template-columns: 1fr; }
   .account-summary { grid-template-columns: 1fr 1fr; }
   .account-filter { grid-template-columns: 1fr 1fr; }
@@ -4717,19 +4312,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .theme-dialog__footer .button { width: 100%; min-height: 44px; }
   .mobile-shortcuts-dialog__fields { padding: var(--inset-pad); grid-template-columns: 1fr; gap: var(--space-3); }
   .mobile-shortcuts-dialog .theme-dialog__footer > small { font-size: var(--text-xs); }
-  .registration-rule-list { padding: var(--space-3); gap: var(--space-3); }
   .registration-rule-panel__heading { min-height: 64px; padding: var(--space-3) var(--space-4); }
-  .registration-rule-card__header { min-height: 76px; padding: var(--inset-pad); align-items: flex-start; }
-  .registration-rule-card__mark { width: 38px; height: 38px; flex-basis: 38px; border-radius: var(--radius-md); }
-  .registration-rule-card__body { padding: var(--space-3); grid-template-columns: 1fr; gap: var(--space-2); }
-  .registration-rule-card__method,
-  .registration-rule-card__amount,
-  .registration-rule-card__period { min-height: 92px; }
-  .registration-rule-card__amount { grid-row: auto; }
-  .registration-rule-card__footer { padding: var(--space-3); align-items: stretch; flex-direction: column; }
-  .registration-rule-card__actions { display: grid; grid-template-columns: 1fr auto; }
-  .registration-rule-card__actions > .button { width: 100%; }
-  .registration-rule-more__menu { right: 0; bottom: calc(100% + 7px); top: auto; }
   .order-list-summary { min-height: 64px; padding: var(--space-2) var(--space-4); align-items: flex-start; flex-direction: column; gap: var(--space-2); }
   .order-list-summary__controls { width: 100%; justify-content: space-between; gap: var(--space-3); }
   .order-page-size-form label { font-size: var(--text-sm); }
@@ -4897,54 +4480,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
     margin-bottom: var(--space-3); padding: 0 2px var(--space-3); border-bottom: 1px solid var(--line);
   }
   .reconciliation-shell .table-scroll { overflow: visible; }
-  .reconciliation-table, .reconciliation-table tbody { display: block; width: 100%; min-width: 0; }
-  .reconciliation-table tbody { display: grid; gap: var(--space-3); }
-  .reconciliation-table tr {
-    display: grid; padding: var(--inset-pad); grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--stack-gap-sm) var(--space-3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
-    box-shadow: 0 7px 20px color-mix(in srgb, var(--shadow-ink) 6%, transparent);
-  }
-  .reconciliation-table td {
-    display: block; min-width: 0; width: 100%; padding: 0; border: 0;
-  }
-  .reconciliation-table td::before { display: block; margin-bottom: var(--space-1); font-size: var(--text-sm); }
-  .reconciliation-table td:nth-child(1),
-  .reconciliation-table td:nth-child(2),
-  .reconciliation-table .inventory-row-action { grid-column: 1 / -1; }
-  .reconciliation-table .reconciliation-posted { justify-items: start; }
-  .reconciliation-table td:nth-child(1) {
-    padding-bottom: var(--space-3); border-bottom: 1px solid var(--line);
-  }
-  .reconciliation-table td:nth-child(1)::before,
-  .reconciliation-table td:nth-child(2)::before,
-  .reconciliation-table .reconciliation-expected::before,
-  .reconciliation-table .reconciliation-difference::before { display: none; }
-  .reconciliation-table td:nth-child(1) strong { font-size: var(--text-md); }
-  .reconciliation-table td:nth-child(1) span { margin-top: var(--space-1); overflow-wrap: anywhere; }
-  .reconciliation-table td:nth-child(2) {
-    display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
-  }
-  .reconciliation-table td:nth-child(2) span { color: var(--muted); font-size: var(--text-sm); }
-  .reconciliation-table input.form-control { width: 100%; min-width: 0; min-height: 48px; }
-  .reconciliation-table .number-cell { text-align: left; }
-  .reconciliation-table td span.mobile-field-label {
-    display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800;
-  }
-  .reconciliation-table .number-cell strong { font-size: var(--text-base); font-variant-numeric: tabular-nums; }
-  .reconciliation-table .compact-check {
-    display: flex; min-height: 48px; padding: 0 var(--space-3); background: var(--surface-soft);
-    border: 1px solid var(--line); border-radius: var(--radius-md);
-  }
-  .reconciliation-table .compact-check input { width: 22px; height: 22px; }
-  .reconciliation-table .inventory-row-action .button { width: 100%; min-height: 48px; }
-  .reconciliation-table td:nth-child(1) .reconciliation-order span { margin-top: 0; }
-  .reconciliation-shell .table-scroll .reconciliation-table td:first-child { padding-inline: 0; }
-  .reconciliation-table .inventory-row-action form { flex: 1; }
-  .reconciliation-table .reconciliation-posted { align-items: center; gap: var(--space-3); }
-  .reconciliation-table .reconciliation-order .order-number-stack { margin-top: var(--space-1); }
-  .reconciliation-table tr.is-picked { border-color: var(--amber); }
-  .reconciliation-table tr.is-picked { background: color-mix(in srgb, var(--amber) 7%, var(--surface)); }
-  .reconciliation-table tr.is-picked td { background: transparent; }
   .system-status-grid { grid-template-columns: 1fr; gap: var(--space-3); }
   .system-status-card { min-height: 104px; padding: var(--inset-pad); }
   .system-status-summary { padding: var(--inset-pad); }
@@ -4967,13 +4502,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .history-change-list > div { grid-template-columns: 1fr; gap: var(--space-1); }
   .history-change-list .change-arrow { display: none; }
   .history-snapshot { grid-template-columns: 1fr; }
-  .quick-entry-form { padding-bottom: 150px; }
-  .quick-entry-add { width: calc(100% - 24px); margin: 0 var(--space-3) var(--space-3); }
-  .quick-entry-actions {
-    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom));
-    left: 14px; width: auto;
-  }
-  .quick-entry-actions .button { flex: 1; }
   .master-filters, .master-filters.sales-source-filters { grid-template-columns: 1fr 1fr; padding: var(--inset-pad); }
   .master-filters.sales-source-filters .master-search { grid-column: 1 / -1; }
   .master-filters.sales-source-filters .inventory-filter-actions { justify-self: stretch; }
@@ -4982,54 +4510,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .source-address-field { grid-column: 1 / -1; }
   .source-system-info { grid-template-columns: 1fr; padding: var(--card-pad); gap: var(--stack-gap-sm); }
   .source-system-info dl { grid-template-columns: 1fr 1fr; }
-  .vehicle-model-catalog { gap: var(--stack-gap); }
-  .vehicle-model-catalog__toolbar { padding: var(--bar-pad); align-items: stretch; flex-direction: column; }
-  .vehicle-brand-group__header {
-    min-height: 72px; padding: var(--space-3) var(--space-3);
-    grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3);
-  }
-  .vehicle-brand-group__identity strong { font-size: var(--text-base); }
-  .vehicle-brand-group__metrics {
-    grid-column: 1; grid-row: 2; min-width: 0; grid-auto-flow: column;
-    justify-content: start; gap: var(--space-2); text-align: left;
-  }
-  .vehicle-brand-group__metrics strong, .vehicle-brand-group__metrics small { font-size: var(--text-2xs); }
-  .vehicle-brand-group__toggle {
-    grid-column: 2; grid-row: 1 / span 2; min-width: 42px; width: 42px; height: 42px;
-    padding: 0; border-radius: var(--radius-md);
-  }
-  .vehicle-brand-group__toggle-open, .vehicle-brand-group__toggle-close { display: none !important; }
-  .vehicle-brand-group .inventory-table tr { grid-template-columns: 1fr; }
-  .vehicle-brand-group .inventory-table td { grid-column: 1 / -1; }
-  .vehicle-model-year-trigger { min-height: 28px; padding-inline: var(--space-2); font-size: var(--text-2xs); }
   /* 機種總表手機版：精簡卡片，三欄四列，值本身就看得懂（2026／124 c.c.／$79,800／6 種），不另印欄名。 */
-  .vehicle-brand-group[open] > .vehicle-brand-group__header {
-    position: sticky; z-index: 4; top: var(--app-header-height, 62px); min-height: 0; padding-block: var(--space-2); row-gap: var(--space-1);
-  }
-  .vehicle-brand-group[open] > .vehicle-brand-group__header .vehicle-brand-group__toggle { width: 36px; min-width: 36px; height: 36px; }
-  .vehicle-brand-group .master-model-table tr.vehicle-model-family-group {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-areas: "name name status" "year power price" "color color stock" "reward reward actions";
-    gap: var(--space-3) var(--space-3); padding: var(--space-3) var(--space-4); align-items: start;
-  }
-  .vehicle-brand-group .master-model-table tr.vehicle-model-family-group > td { display: block; min-width: 0; padding: 0; }
-  .master-model-table tr.vehicle-model-family-group > td::before { display: none; }
-  .vehicle-brand-group .master-model-table .vehicle-model-machine-cell { grid-area: name; }
-  .vehicle-brand-group .master-model-table .vm-year-cell { grid-area: year; }
-  .vehicle-brand-group .master-model-table .vm-power-cell { grid-area: power; }
-  .vehicle-brand-group .master-model-table .vm-price-cell { grid-area: price; }
-  .vehicle-brand-group .master-model-table .vm-reward-cell { grid-area: reward; }
-  .vehicle-brand-group .master-model-table .vm-color-cell { grid-area: color; }
-  .vehicle-brand-group .master-model-table .vm-stock-cell { grid-area: stock; }
-  .vehicle-brand-group .master-model-table .vm-status-cell { grid-area: status; justify-self: end; }
-  .vehicle-brand-group .master-model-table .vehicle-model-row-action { grid-area: actions; align-self: center; }
-  .master-model-table .vehicle-model-machine-cell > strong { font-size: var(--text-md); }
-  .master-model-table .vm-reward-cell small { max-width: none; }
-  .master-model-table .vm-year-cell > strong { flex-wrap: wrap; row-gap: var(--space-1); }
-  .master-model-table .color-peek { max-width: none; }
-  .vehicle-brand-group .master-model-table .vm-color-cell { min-width: 0; }
-  .master-model-table td span.color-peek__names { -webkit-line-clamp: 3; line-clamp: 3; }
-  .master-model-table .vehicle-model-row-actions .button.small { min-height: 36px; padding: 0 var(--space-3); }
   .vehicle-year-drawer {
     width: 100%; height: min(86dvh, 760px); margin: auto 0 0; border: 0;
     border-top: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
@@ -5042,12 +4523,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .vehicle-year-card dl { grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-3); }
   .source-list-summary { padding-block: var(--space-3); align-items: stretch; flex-direction: column; }
   .source-region-groups { padding: var(--space-3); gap: var(--stack-gap-sm); }
-  .source-line-group-section { margin-top: 0; border-radius: var(--radius-lg); }
-  .source-line-group-section + .source-line-group-section { margin-top: 0; }
-  .source-line-group-section__header { top: 62px; min-height: 66px; padding: var(--bar-pad); }
-  .source-line-group-section__header small { font-size: var(--text-xs); }
-  .source-line-group-section__header b { padding: var(--space-2) var(--space-2); font-size: var(--text-xs); }
-  .source-line-group-section__content { padding: var(--space-3); gap: var(--space-3); }
   .source-region-group > summary { min-height: 64px; padding: var(--space-3) var(--space-3); }
   .source-region-toggle { min-width: 58px; min-height: 40px; }
   .source-district-row { display: block !important; padding: 0 !important; }
@@ -5057,30 +4532,9 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .line-group-colour-guide { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
   .line-group-colour-guide > small { margin-left: 0; }
 
-  .holiday-gift-hero { align-items: stretch; }
   .holiday-gift-summary { width: 100%; }
-  .holiday-gift-toolbar { align-items: stretch; flex-direction: column; }
-  .holiday-gift-toolbar-actions { display: grid; grid-template-columns: 1fr 1fr; }
-  .holiday-gift-table { min-width: 0; }
-  .holiday-gift-table thead { display: none; }
-  .holiday-gift-table tbody, .holiday-gift-table tr, .holiday-gift-table td { display: block; width: 100%; }
-  .holiday-gift-table tr { position: relative; padding: var(--space-4) var(--space-8) var(--space-4) var(--space-4); border-bottom: 1px solid var(--line); }
-  .holiday-gift-table td { padding: 2px 0; border: 0; }
-  .holiday-gift-table td::before { display: none; }
-  .holiday-gift-table th:first-child, .holiday-gift-table td:first-child {
-    position: absolute; top: 50%; right: 18px; width: 28px; padding: 0; transform: translateY(-50%);
-  }
-  .holiday-gift-table td[data-label="狀態"] { margin-top: var(--space-2); }
-  .holiday-gift-save-actions {
-    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom));
-    left: 14px; width: auto; margin: 0; flex-wrap: wrap;
-  }
-  .holiday-gift-save-actions > div { width: 100%; }
-  .holiday-gift-save-actions .button { flex: 1; }
-  .holiday-gift-form { padding-bottom: 140px; }
   .master-model-grid { grid-template-columns: 1fr; }
   .master-family-rename-note { align-items: flex-start; flex-direction: column; gap: var(--space-1); margin: var(--stack-gap-sm) var(--stack-gap-sm) 0; }
-  .master-model-section .section-heading { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
   .vehicle-business-grid { padding: var(--inset-pad); grid-template-columns: 1fr; }
   .vehicle-business-card { min-height: 0; }
   .vehicle-business-card p { min-height: 0; }
@@ -6180,115 +5634,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   }
 }
 /* Vehicle model data correction */
-.vehicle-model-correction { margin-top: var(--stack-gap); overflow: hidden; }
-.vehicle-model-correction details > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--stack-gap);
-  padding: var(--space-5) var(--space-5);
-  cursor: pointer;
-  list-style: none;
-}
-.vehicle-model-correction details > summary::-webkit-details-marker { display: none; }
-.vehicle-model-correction details > summary span:first-child { display: grid; gap: var(--space-1); }
-.vehicle-model-correction details > summary small { color: var(--muted); font-weight: 500; }
-.vehicle-model-correction__summary-action { color: var(--green); font-weight: 800; }
-.vehicle-model-correction__body { border-top: 1px solid var(--line); padding: var(--card-pad); }
-.vehicle-model-correction__current h3 { margin: 3px 0; }
-.vehicle-model-correction__current p:last-child { margin: 0; color: var(--muted); }
-.vehicle-model-relation-summary {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(90px, 1fr));
-  gap: var(--space-3);
-  margin: var(--stack-gap-sm) 0;
-}
-.vehicle-model-relation-summary span {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--surface-soft);
-}
-.vehicle-model-correction__notice {
-  display: grid;
-  gap: 3px;
-  margin-bottom: var(--stack-gap-sm);
-  padding: var(--space-4) var(--space-4);
-  border-left: 4px solid var(--green);
-  border-radius: var(--radius-md);
-  background: var(--surface-soft);
-}
-.vehicle-model-correction-action {
-  margin-top: var(--stack-gap-sm);
-  padding: var(--card-pad);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-.vehicle-model-correction-action__heading {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin-bottom: var(--stack-gap-sm);
-}
-.vehicle-model-correction-action__heading h3,
-.vehicle-model-correction-action__heading p { margin: 0; }
-.vehicle-model-correction-action__heading p { margin-top: 3px; color: var(--muted); }
-.vehicle-model-correction-action__number {
-  display: grid;
-  place-items: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  background: var(--green);
-  color: var(--on-status);
-  font-weight: 900;
-}
-.vehicle-model-year-form {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.35fr) minmax(220px, 1fr) auto;
-  align-items: end;
-  gap: var(--stack-gap-sm);
-}
-.vehicle-model-current-year {
-  display: grid;
-  gap: var(--space-2);
-  min-height: 74px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--surface-soft);
-}
-.vehicle-model-current-year span { color: var(--muted); font-size: var(--text-sm-plus); }
-.vehicle-model-current-year strong { font-size: var(--text-md); }
-.vehicle-model-correction-form-error { grid-column: 1 / -1; margin: 0; }
-.vehicle-model-correction-action--danger { background: var(--surface-soft); }
-.vehicle-model-move-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: var(--stack-gap-sm);
-}
-.vehicle-model-delete-zone {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--stack-gap);
-  margin: 0;
-  padding: 0;
-}
-.vehicle-model-delete-zone p { margin: var(--space-1) 0 0; color: var(--muted); }
 @media (max-width: 720px) {
-  .vehicle-model-correction details > summary,
-  .vehicle-model-correction__body { padding: var(--inset-pad); }
-  .vehicle-model-relation-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .vehicle-model-correction-action { padding: var(--inset-pad); }
-  .vehicle-model-year-form { grid-template-columns: 1fr; }
-  .vehicle-model-move-form { grid-template-columns: 1fr; }
-  .vehicle-model-delete-zone { align-items: stretch; flex-direction: column; }
-  .vehicle-model-delete-zone .button { width: 100%; }
   .staff-source-table tbody { display: grid; padding: var(--space-3); gap: var(--space-3); }
   .staff-source-table tr {
     padding: var(--inset-pad); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--stack-gap-sm);
@@ -7302,71 +6648,6 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .quick-toggle-moved-note { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 700; }
 
 /* 刪除審核：每筆申請一張審核卡（訂單｜申請原因｜關聯影響與操作），可先判斷再進入審核頁。 */
-.deletion-review-hero { align-items: end; }
-.deletion-review-stats { display: flex; margin: 0; gap: var(--space-3); }
-.deletion-review-stats > div {
-  min-width: 128px; padding: var(--space-3) var(--space-4);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
-}
-.deletion-review-stats dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
-.deletion-review-stats dd { margin: var(--space-1) 0 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 850; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.deletion-review-stats dd small { margin-left: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 700; }
-.deletion-review-stats dd.deletion-review-stats__wait { font-size: var(--text-lg); }
-.deletion-review-list { display: grid; margin: 0 0 var(--stack-gap); padding: 0; gap: var(--space-3); list-style: none; }
-.deletion-review-card {
-  display: grid; padding: var(--space-5) var(--space-5); gap: var(--space-5);
-  grid-template-columns: minmax(200px, 1fr) minmax(0, 1.6fr) minmax(220px, auto); align-items: start;
-  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--amber-border-strong);
-  border-radius: var(--radius); box-shadow: var(--shadow-soft);
-  transition: box-shadow .2s ease, transform .2s ease;
-}
-.deletion-review-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
-.deletion-review-card:has(.is-danger) { border-left-color: var(--red); }
-.deletion-review-card__order h2 { margin: var(--space-1) 0 var(--space-1); font-family: var(--font-display); font-size: var(--text-xl); line-height: 1.2; }
-.deletion-review-card__number { margin: 0; color: var(--muted); font-size: var(--text-xs); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
-.deletion-review-card__vehicle { margin: 0 0 var(--space-3); color: var(--muted); font-weight: 700; }
-.deletion-review-card__reason { margin: 0; padding: var(--space-4); background: var(--surface-soft); border-radius: var(--radius-md); }
-.deletion-review-card__reason blockquote {
-  position: relative; margin: 0 0 var(--space-3); padding-left: var(--space-4);
-  color: var(--ink); font-size: var(--text-md); font-weight: 700; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere;
-  border-left: 3px solid var(--line-strong);
-}
-.deletion-review-card__reason figcaption { color: var(--muted); font-size: var(--text-sm); }
-.deletion-review-card__reason figcaption strong { color: var(--ink); }
-.deletion-review-card__side { display: grid; height: 100%; gap: var(--space-4); align-content: space-between; justify-items: end; }
-.deletion-review-impacts { display: flex; margin: 0; padding: 0; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1); list-style: none; }
-.deletion-review-impacts li {
-  padding: var(--space-1) var(--space-3); border: 1px solid transparent; border-radius: var(--radius-pill);
-  font-size: var(--text-xs); font-weight: 800; white-space: nowrap;
-}
-.deletion-review-impacts .is-ok { color: var(--green-ink); background: color-mix(in srgb, var(--green) 10%, transparent); border-color: var(--green-border); }
-.deletion-review-impacts .is-warn { color: var(--amber-strong); background: var(--amber-soft); border-color: var(--amber-border); }
-.deletion-review-impacts .is-danger { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border); }
-.deletion-review-card__actions { display: flex; gap: var(--space-2); }
-.deletion-review-card__actions .button { white-space: nowrap; }
-.deletion-review-empty {
-  display: grid; padding: var(--space-8) var(--space-5); justify-items: center; gap: var(--space-2); text-align: center;
-  background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius);
-}
-.deletion-review-empty > span {
-  display: grid; width: 48px; height: 48px; place-items: center; color: var(--green-ink); font-size: var(--text-xl); font-weight: 900;
-  background: color-mix(in srgb, var(--green) 12%, transparent); border-radius: 50%;
-}
-.deletion-review-empty h2 { margin: var(--space-2) 0 0; font-size: var(--text-lg); }
-.deletion-review-empty p { margin: 0; color: var(--muted); }
-@media (max-width: 1024px) {
-  .deletion-review-card { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
-  .deletion-review-card__side { grid-column: 1 / -1; grid-template-columns: 1fr auto; align-items: center; justify-items: stretch; }
-  .deletion-review-impacts { justify-content: flex-start; }
-}
-@media (max-width: 600px) {
-  .deletion-review-hero { align-items: stretch; }
-  .deletion-review-stats > div { flex: 1; min-width: 0; }
-  .deletion-review-card { padding: var(--space-4); grid-template-columns: 1fr; gap: var(--space-4); }
-  .deletion-review-card__side { grid-template-columns: 1fr; }
-  .deletion-review-card__actions .button { flex: 1; }
-}
-@media (prefers-reduced-motion: reduce) { .deletion-review-card { transition: none; } .deletion-review-card:hover { transform: none; } }
 
 /* 交車前確認：車控與電池合約（電動車）、贈品與履約，勾選即完成並記錄確認人。 */
 .delivery-prep { margin-bottom: var(--stack-gap); }
@@ -7508,17 +6789,12 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .model-index__brand-link.is-current::before, .model-index__family.is-current::before { content: ""; position: absolute; top: 6px; bottom: 6px; left: 0; width: 3px; background: var(--action-bg); border-radius: var(--radius-pill); }
 .model-index__divider { margin: var(--space-2) 0 2px; padding: 0 var(--space-3); color: var(--muted); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .12em; }
 .model-index__empty { margin: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
-.vehicle-brand-group { scroll-margin-top: calc(var(--app-header-height, 72px) + 24px); }
 /* 列被固定的品牌列與表頭蓋住時往下讓：頁首＋品牌列＋表頭。 */
-.vehicle-model-family-group[id] { scroll-margin-top: calc(var(--app-header-height, 72px) + var(--vm-brand-bar, 64px) + 48px); }
-.vehicle-model-family-group:focus { outline: none; }
-.vehicle-model-family-group.is-located > td { animation: model-index-locate 2.2s var(--ease-out); }
 @keyframes model-index-locate {
   0%, 35% { background: color-mix(in srgb, var(--action-bg) 14%, var(--surface)); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--action-bg) 40%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--action-bg) 40%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
   .model-index__brand-link, .model-index__family { transition: none; }
-  .vehicle-model-family-group.is-located > td { animation: none; background: color-mix(in srgb, var(--action-bg) 12%, var(--surface)); }
 }
 @media (min-width: 1100px) {
   body.is-side-nav-pinned .page-shell { padding-left: calc(var(--side-nav-width, 260px) + var(--space-5)); }
@@ -7565,12 +6841,10 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .color-peek__fill{display:flex;margin-top:var(--space-3);padding-top:var(--space-3);justify-content:space-between;border-top:1px solid var(--line);color:var(--forest);font-size:var(--text-sm);font-weight:800;text-decoration:none}
 .color-peek__fill:hover{text-decoration:underline}
 .vm-photo-board-link{display:inline-flex;flex:none;min-height:40px;padding:0 var(--space-4);align-items:center;gap:var(--space-2);border:1px solid var(--line);border-radius:var(--radius-pill);background:var(--surface);color:var(--ink);font-size:var(--text-sm);font-weight:800;text-decoration:none;transition:border-color var(--dur-2) var(--ease-out),transform var(--dur-2) var(--ease-out)}
-.vehicle-model-catalog__toolbar .vm-photo-board-link span{color:inherit}
 .vm-photo-board-link:hover{border-color:var(--forest);transform:translateY(-1px)}
 .vm-photo-board-link.has-missing{border-color:color-mix(in srgb,var(--red) 35%,var(--line))}
 .vm-photo-board-link b{color:var(--red);font-variant-numeric:tabular-nums}
-.vehicle-model-catalog__toolbar .vm-photo-board-link__icon{display:grid;width:28px;height:28px;place-items:center;border-radius:50%;background:var(--surface-subtle);color:var(--forest)}
-@media(max-width:700px){.vehicle-model-catalog__toolbar:has(.vm-photo-board-link){flex-wrap:wrap}.vm-photo-board-link{width:100%;justify-content:space-between}}
+@media(max-width:700px){.vm-photo-board-link{width:100%;justify-content:space-between}}
 @media(prefers-reduced-motion:reduce){.vm-photo-board-link,.master-photo-filter{transition:none}.vm-photo-board-link:hover{transform:none}}
 
 /* 配件與工資清單（T-178）：類別頁籤橫向一列可捲動、清單上直接批次修改。只作用在這一頁的專用 class。 */
@@ -7578,26 +6852,6 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .inventory-scope-tabs.accessory-tabs { display: flex; grid-template-columns: none; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .accessory-tabs .inventory-scope-tab { flex: 0 0 auto; min-height: 52px; gap: var(--space-3); scroll-snap-align: start; white-space: nowrap; }
 .accessory-tabs .inventory-scope-tab:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
-.accessory-bulk-tools { display: flex; padding: var(--space-3) var(--space-4); align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); background: var(--surface-soft); border-bottom: 1px solid var(--line); }
-.accessory-bulk-pickall { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; cursor: pointer; }
-.accessory-bulk-picked { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
-.accessory-bulk-tools__actions { display: flex; margin-left: auto; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
-.accessory-bulk-tools__actions select { width: auto; min-width: 180px; }
-.accessory-bulk-table td { padding: var(--space-2) var(--space-3); }
-.accessory-bulk-table th.accessory-bulk-pick, .accessory-bulk-table td.accessory-bulk-pick { width: 44px; text-align: center; }
-.accessory-bulk-table input[type="checkbox"] { width: 20px; height: 20px; margin: 0; accent-color: var(--forest); cursor: pointer; }
-.accessory-bulk-table input[type="text"] { min-width: 220px; }
-.accessory-bulk-table input.accessory-bulk-money { width: 120px; max-width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
-.accessory-bulk-table select { min-width: 150px; max-width: 220px; }
-.accessory-bulk-table :is(input, select).is-changed { border-color: var(--amber); background: var(--amber-soft); }
-.accessory-bulk-table tbody tr.is-picked { background: var(--surface-tint); }
-.accessory-bulk-table tbody tr.accessory-bulk-row--error { background: var(--red-soft); }
-.accessory-bulk-table td span.accessory-bulk-note { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
-.accessory-bulk-table td span.accessory-bulk-errors { margin-top: var(--space-1); color: var(--red); font-size: var(--text-sm); font-weight: 700; }
-.accessory-bulk-active { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; cursor: pointer; }
-.accessory-bulk-savebar { margin: var(--space-3); }
-.accessory-bulk-savebar .form-savebar__hint strong { display: block; color: var(--ink); font-size: var(--text-base); }
-.accessory-bulk-savebar .button.primary:disabled { opacity: .55; cursor: not-allowed; }
 /* 配件與工資三頁的區塊間距（使用者 2026-11-14「頁籤跟表格之間太擠」，2.10.1）：只用這三頁的專用 class，不動共用元件。
    新增／編輯配件：表單用設計系統的卡片（form-section static-section），兩張卡片之間留 --stack-gap。
    管理類別：新增表單與類別清單之間留 --stack-gap；寬螢幕左右並排。
@@ -7627,28 +6881,12 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .accessory-form-card .field:has(> .checkbox-label) > .checkbox-label { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .accessory-category-choices .accessory-category-choices__grid label { transition: none; } }
 /* 批次修改的類別可複選（T-179）：摘要像欄位，展開後在格子內列出勾選框，不浮出表格外。 */
-.accessory-bulk-cats { min-width: 180px; max-width: 260px; }
-.accessory-bulk-cats > summary { min-height: 40px; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-mid); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font-size: var(--text-sm); cursor: pointer; }
-.accessory-bulk-cats > summary:hover { border-color: var(--line-strong); }
-.accessory-bulk-cats > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.accessory-bulk-cats:has(input.is-changed) > summary { border-color: var(--amber); background: var(--amber-soft); }
-.accessory-bulk-cats__panel { display: grid; margin: var(--space-2) 0 0; padding: var(--space-2) 0 0; gap: var(--space-2); border: 0; border-top: 1px solid var(--line-soft); }
-.accessory-bulk-cats__panel label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); cursor: pointer; }
-.accessory-bulk-table .accessory-bulk-cats__panel input.is-changed { outline: 2px solid var(--amber); outline-offset: 1px; }
 .accessory-panel .row-action-buttons form, .accessory-category-panel .row-action-buttons form { display: contents; }
 /* 外框 overflow: hidden 會讓底部儲存列無法黏住畫面；clip 一樣裁圓角但不形成捲動容器。 */
 .inventory-list-panel.accessory-panel { overflow: clip; }
 @media (prefers-reduced-motion: reduce) { .inventory-scope-tabs.accessory-tabs { scroll-behavior: auto; } }
 @media (max-width: 860px) {
-  .accessory-bulk-tools__actions { width: 100%; margin-left: 0; }
-  .accessory-bulk-tools__actions select { flex: 1 1 100%; min-width: 0; }
   /* 加入／移出類別、設為啟用／停用四顆按鈕（T-179）兩顆一排，字不斷行。 */
-  .accessory-bulk-tools__actions .button { flex: 1 1 calc(50% - var(--space-2)); white-space: nowrap; }
-  .accessory-bulk-table td.accessory-bulk-pick { width: auto; text-align: left; }
-  .accessory-bulk-table :is(input[type="text"], input.accessory-bulk-money, select) { width: 100%; max-width: none; min-width: 0; }
-  .accessory-bulk-table td { grid-column: 1 / -1; }
-  .accessory-bulk-cats { max-width: none; }
-  .accessory-bulk-savebar { margin: var(--space-2); }
   .accessory-panel .inventory-table td:is([data-label="配件名稱"], [data-label="狀態"]) { grid-column: 1 / -1; }
   /* 管理類別（T-179）：類別名稱、狀態與操作各占整列，名稱不被擠成兩三個字一行。 */
   .accessory-category-panel .inventory-table td { grid-column: 1 / -1; }

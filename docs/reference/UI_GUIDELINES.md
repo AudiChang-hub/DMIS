@@ -13,7 +13,9 @@
 - 只有單一模組用到的規則不放 app.css（T-242 A 案，分批從 app.css 搬出；只搬不改內容）：
   模組 CSS 的 `<link>` 放在該頁 `{% block head %}` 最前面，層疊順序維持「app.css → 搬出的規則 → 頁面原本的模組 CSS」；
   `{% load static %}` 要在 `{% block head %}` 之前。已搬出：價格表（`price-list.css`）、車行獎勵（`dealer-rewards.css`）、
-  照片看板（`catalog-photo-board.css`）、假日（`business-holidays.css`）。
+  照片看板（`catalog-photo-board.css`）、假日（`business-holidays.css`）；第二批：領牌規則（`registration-fee-rules.css`）、
+  機種與品牌（`vehicle-models.css`）、車行與年節送禮（`sales-sources.css`）、刪除審核（`order-deletion-queue.css`）、
+  快速進車（`inventory-quick-entry.css`）、配件批次修改（`accessory-bulk.css`）、統一撥款對帳（`reconciliation.css`）。
   `test_ui_consistency.PageStylesheetSplitTests` 擋下這些前綴回到 app.css；
   搬移工具與驗收（全路由截圖比對、CSS coverage）在 `tools/ui_audit/`（不進 CI）。
 - 顏色、圓角、字級一律使用 `app.css` 開頭的設計參數。六種外觀主題靠同一組參數切換，

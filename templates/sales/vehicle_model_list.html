@@ -1,5 +1,5 @@
-{% extends "base.html" %}{% load site_copy %}{% load screen_access %}
-{% load static %}
+{% extends "base.html" %}{% load static %}{% load site_copy %}{% load screen_access %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}機種與售價｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}

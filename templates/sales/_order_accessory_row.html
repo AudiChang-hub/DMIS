@@ -9,6 +9,8 @@
       {% include "sales/_field.html" with field=accessory_form.accessory_category %}
       {% include "sales/_field.html" with field=accessory_form.accessory_product %}
     </div>
+    {# 手機窄版名稱太長、下拉框顯示不完時，JS 在這裡補完整名稱（T-250）；讀屏已能讀到下拉的值，所以 aria-hidden。 #}
+    <p class="accessory-row__fullname" data-accessory-fullname aria-hidden="true" hidden></p>
     <div data-custom-accessory hidden>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
   </div>
   <div class="accessory-row__quantity">{% include "sales/_field.html" with field=accessory_form.quantity %}</div>

@@ -16,8 +16,12 @@ test('寬版一個配件一列，數量、類型、金額依內容給固定欄�
   assert.match(css, /grid-template-areas: "name qty type price labor total actions" "note note note note note note note";/);
   assert.match(form, /class="accessory-head" aria-hidden="true"/);
 });
-test('窄版（手機）名稱與按鈕一列、數字分列，單件總額一行摘要；自訂名稱仍由選擇其他控制顯示', () => {
-  assert.match(css, /grid-template-areas: "name name name name actions actions" "qty qty type type type type" "price price price labor labor labor" "total total total total total total" "note note note note note note";/);
+// 使用者 2026-11-19 T-250「配件名稱或類別名稱會被吃掉」：窄版名稱只有 4/6 寬，備註、刪除擠在同一行。
+test('窄版（手機）類別與名稱下拉佔滿整行，備註與刪除移到總額下方自成一行；數字分列，單件總額一行摘要', () => {
+  assert.doesNotMatch(css, /"name name name name actions actions"/);
+  assert.match(css, /grid-template-areas: "name name name name name name" "qty qty type type type type" "price price price labor labor labor" "total total total total total total" "actions actions actions actions actions actions" "note note note note note note";/);
+  // 中、寬版維持名稱與按鈕同列（電腦版不變）。
+  assert.match(css, /grid-template-areas: "name name name name actions" "qty type price labor total" "note note note note note";/);
   assert.match(css, /\[data-custom-accessory\]\[hidden\]\{display:none!important\}/);
   assert.match(css, /\.accessory-section \.remove-row-button \{ position: static;/);
 });
@@ -36,4 +40,16 @@ test('刪除與備註鈕在同一列，備註需要時才展開，建單精靈�
   assert.equal((form.match(/sales\/_order_accessory_row\.html/g) || []).length, 2);
   assert.match(scripts, /notePanel\.hidden = !open;/);
   assert.match(scripts, /quantity === 1 \? "" : `本列 ×\$\{quantity\}＝/);
+});
+test('窄版名稱太長、下拉框顯示不完時，下方補一行完整名稱；中、寬版不顯示（T-250）', () => {
+  assert.match(row, /<p class="accessory-row__fullname" data-accessory-fullname aria-hidden="true" hidden><\/p>/);
+  assert.match(css, /\.accessory-section \.accessory-row__fullname \{ margin: 0;[^}]*overflow-wrap: anywhere; \}/);
+  assert.match(css, /@container accessory \(min-width: 560px\) \{ \.accessory-section \.accessory-row__fullname \{ display: none; \} \}/);
+  // 只有下拉真的放不下時才顯示；類別與名稱一起列出，選「自行填寫名稱」時不列名稱。
+  assert.match(scripts, /return accessoryNameMeasure\.measureText\(text\)\.width > room;/);
+  assert.match(scripts, /select\.value !== "other"/);
+  assert.match(scripts, /caption\.hidden = !names\.length \|\| !selects\.some\(accessorySelectClipped\);/);
+  // 換類別、換名稱、配件區寬度改變（轉向、展開側欄）都要重算。
+  assert.match(scripts, /row\.addEventListener\("change", \(\) => refreshAccessoryFullName\(row\)\);/);
+  assert.match(scripts, /new ResizeObserver\(refreshAccessoryFullNames\)\.observe\(byId\("accessory-forms"\)\)/);
 });

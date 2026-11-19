@@ -6134,14 +6134,14 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 [data-custom-accessory][hidden]{display:none!important}
 /* 配件精簡列（使用者 2026-10-21 T-50）：依配件區實際寬度（container query）排版，建單精靈與訂單頁共用。
    寬：一個配件一列，欄寬依內容，欄名放在上方表頭；中：名稱一列、數字一列；窄（手機）：名稱、數量類型總額、售價工資三列。
-   刪除與備註鈕在同列右側，備註需要時才展開成整列。 */
+   中、寬版刪除與備註鈕在名稱同列右側；窄版（手機）名稱佔滿整行，刪除與備註移到總額下方自成一行（T-250）。備註需要時才展開成整列。 */
 .accessory-section { container: accessory / inline-size; }
 .accessory-section #accessory-forms { display: grid; gap: var(--space-2); }
 .accessory-section .accessory-row {
   display: grid; align-items: start; gap: var(--space-2) var(--space-3); min-width: 0;
   padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft);
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-template-areas: "name name name name actions actions" "qty qty type type type type" "price price price labor labor labor" "total total total total total total" "note note note note note note";
+  grid-template-areas: "name name name name name name" "qty qty type type type type" "price price price labor labor labor" "total total total total total total" "actions actions actions actions actions actions" "note note note note note note";
 }
 /* 窄版：單件總額改成一行摘要（標籤在左、金額在右），不再佔一整格。 */
 .accessory-section .accessory-row__total .field { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); }
@@ -6153,6 +6153,9 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 /* 類別＋名稱並排（T-138）：類別窄、名稱寬；配件區太窄時上下排。 */
 .accessory-section .accessory-row__picker { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-2); }
 @container accessory (max-width: 359px) { .accessory-section .accessory-row__picker { grid-template-columns: minmax(0, 1fr); } }
+/* 窄版完整名稱（T-250）：類別或配件名稱太長、下拉框顯示不完時，由 JS 在下方補一行完整名稱；中、寬版不顯示。 */
+.accessory-section .accessory-row__fullname { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.45; overflow-wrap: anywhere; }
+@container accessory (min-width: 560px) { .accessory-section .accessory-row__fullname { display: none; } }
 .accessory-section .accessory-row__quantity { grid-area: qty; }
 .accessory-section .accessory-row__type { grid-area: type; }
 .accessory-section .accessory-row__price { grid-area: price; }

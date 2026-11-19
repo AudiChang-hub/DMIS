@@ -1381,7 +1381,33 @@
     if (items?.length) addLearnedAccessories(items, event.detail.accessory_category_order || []);
   });
 
+  // 手機窄版（T-250）：類別或配件名稱太長、下拉框顯示不完時，在下拉下方補一行完整名稱；中、寬版由 CSS 隱藏。
+  const accessoryNameMeasure = document.createElement("canvas").getContext("2d");
+  function accessorySelectClipped(select) {
+    const text = select?.selectedOptions[0]?.text.trim();
+    if (!text || !select.clientWidth || !accessoryNameMeasure) return false;
+    const style = getComputedStyle(select);
+    accessoryNameMeasure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const room = select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    return accessoryNameMeasure.measureText(text).width > room;
+  }
+  function refreshAccessoryFullName(row) {
+    const caption = row.querySelector("[data-accessory-fullname]");
+    if (!caption) return;
+    const selects = [row.querySelector('[name$="-accessory_category"]'), row.querySelector('[name$="-accessory_product"]')];
+    const names = selects.filter(select => select?.value && select.value !== "other")
+      .map(select => select.selectedOptions[0]?.text.trim()).filter(Boolean);
+    caption.textContent = names.join(" › ");
+    caption.hidden = !names.length || !selects.some(accessorySelectClipped);
+  }
+  function refreshAccessoryFullNames() {
+    document.querySelectorAll("#accessory-forms [data-accessory-row]").forEach(refreshAccessoryFullName);
+  }
+  if (window.ResizeObserver && byId("accessory-forms")) new ResizeObserver(refreshAccessoryFullNames).observe(byId("accessory-forms"));
+  document.fonts?.ready.then(refreshAccessoryFullNames);
+
   function bindAccessoryRow(row) {
+    row.addEventListener("change", () => refreshAccessoryFullName(row));
     const productInput = row.querySelector('[name$="-accessory_product"]');
     const categoryInput = row.querySelector('[name$="-accessory_category"]');
     categoryInput?.addEventListener("change", () => {
@@ -1415,6 +1441,7 @@
     });
     noteInput?.addEventListener('input', () => noteToggle?.classList.toggle('has-note', Boolean(noteInput.value.trim())));
     refreshAccessoryRequired(row);
+    refreshAccessoryFullName(row);
     bindRemoveRow(row);
   }
 

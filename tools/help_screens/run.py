@@ -30,7 +30,9 @@ SCREENS = ROOT / "static" / "help" / "screens"
 GROUPS = ("reports", "create_order", "mainline", "topics", "basics", "manage")  # reports 先拍（只含 seed 的 30 張）；mainline、topics 接著 create_order 建好的訂單；basics、manage 前先補管理類資料
 
 SETTINGS = '''from config.settings import *  # noqa: F401,F403
-DATABASES = {{"default": {{"ENGINE": "django.db.backends.sqlite3", "NAME": r"{db}"}}}}
+# 示範伺服器同時處理自動儲存、在線狀態與送出，SQLite 交易一律先取寫入鎖並等待，避免「database is locked」。
+DATABASES = {{"default": {{"ENGINE": "django.db.backends.sqlite3", "NAME": r"{db}",
+                         "OPTIONS": {{"transaction_mode": "IMMEDIATE", "timeout": 30}}}}}}
 MEDIA_ROOT = r"{media}"
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 '''
@@ -86,7 +88,8 @@ def main(groups):
                 state = login.storage_state()
                 login.close()
                 for name in GROUPS:
-                    needs_wang = name == "create_order" and ({"mainline", "topics"} & set(groups))
+                    # mainline、topics、manage（統一撥款對帳要入帳王小明的分期撥款）都接著 create_order 建好的王小明訂單。
+                    needs_wang = name == "create_order" and ({"mainline", "topics", "manage"} & set(groups))
                     if name not in groups and not needs_wang:
                         continue
                     if name in {"basics", "manage"} and not facts.get("manage_seeded"):

@@ -338,3 +338,11 @@
   .order-compact-bar__steps { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .order-step-entry, .order-step-overview, .order-step-entry__chevron { transition: none; } }
+/* T-251（使用者 2026-11-19）：手機版訂單頁頂端區塊已常駐客戶名稱、狀態與儲存狀態，頁首的大名稱列只留給讀屏
+   （h1 仍是頁面標題、儲存狀態仍會播報），畫面上不再重複；名稱旁的備註便條照常顯示。編輯模式沒有 .order-hero，不受影響。 */
+@media (max-width: 860px) {
+  .order-hero .title-with-status > :is(h1, .status-pill, .save-chip) {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+}

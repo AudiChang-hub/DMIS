@@ -396,11 +396,6 @@
     "default": "不影響日常開單，集中處理歷史資料與特殊文件格式。",
     "template": "templates/sales/data_maintenance.html"
   },
-  "data_maintenance.b3b6ca05df7a": {
-    "page": "資料維護區",
-    "default": "上傳車行／網路平台名冊，預覽差異與衝突後再確認寫入。銷貨、進貨匯入已停用。",
-    "template": "templates/sales/data_maintenance.html"
-  },
   "data_maintenance.1b821101b3e3": {
     "page": "資料維護區",
     "default": "維護信封、報件單、聲明書與點檢表的背景、欄位位置及印表機偏移。",

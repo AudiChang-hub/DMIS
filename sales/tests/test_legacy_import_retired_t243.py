@@ -1,6 +1,6 @@
-"""T-243：銷貨、進貨的 Excel 匯入停用，車行／網路平台名冊匯入保留；已匯入的資料與相關功能照常。"""
+"""T-243：舊 Excel 匯入（銷貨、進貨、車行名冊三種）停用，只拿掉入口；已匯入的資料與相關功能照常。"""
+from io import BytesIO
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
@@ -8,15 +8,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from sales.jobs import run_legacy_import_job
 from sales.legacy_import_retired import RETIRED_MESSAGE
 from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot, SalesOrder, SalesSource, Store
 from sales.services.home_favorites import LINKS
 from sales.services.legacy_import import build_import_preview, confirm_import, file_sha256
 from sales.services.order_search import rebuild_order_search_index
 from sales.tests.test_legacy_import import workbook_bytes
-
-XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 class LegacyImportRetiredTests(TestCase):
@@ -31,40 +28,37 @@ class LegacyImportRetiredTests(TestCase):
         self.addCleanup(tempdir.cleanup)
         self.counter = 0
 
-    def make_batch(self, kind="operations"):
+    def preview_batch(self):
         self.counter += 1
-        data = workbook_bytes(kind)
+        data = workbook_bytes()
         upload = SimpleUploadedFile(f"retired-{self.counter}.xlsx", data)
         batch = LegacyImportBatch.objects.create(
-            import_type=kind, source_file=upload, original_filename=upload.name,
+            import_type="operations", source_file=upload, original_filename=upload.name,
             file_sha256=file_sha256(upload), file_size=len(data), uploaded_by="tester",
         )
-        build_import_preview(batch, sheets=["銷貨"] if kind == "operations" else None)
+        build_import_preview(batch, sheets=["銷貨"])
         return batch
 
-    def upload(self, kind, **extra):
-        data = {"import_type": kind, "source_file": SimpleUploadedFile("upload.xlsx", workbook_bytes(kind), content_type=XLSX),
-                **extra}
-        return self.client.post(reverse("legacy_import_list"), data)
+    def imported_order(self):
+        batch = self.preview_batch()
+        confirm_import(batch, "tester")
+        return batch, SalesOrder.objects.get(legacy_snapshot__isnull=False)
 
     def assert_retired(self, response):
         self.assertRedirects(response, reverse("order_list"), fetch_redirect_response=False)
         self.assertIn(RETIRED_MESSAGE, [str(message) for message in get_messages(response.wsgi_request)])
 
-    def test_sales_and_inventory_uploads_are_always_refused(self):
-        for extra in ({"sheets": ["銷貨"]}, {"sheets": ["進貨"]}, {"sheets": ["銷貨", "進貨"]}, {}):
-            with self.subTest(extra=extra):
-                self.assert_retired(self.upload("operations", **extra))
-        self.assert_retired(self.client.post(reverse("legacy_import_list"), {}))
-        self.assertFalse(LegacyImportBatch.objects.exists())
-
-    def test_old_operations_batch_urls_redirect_and_never_import(self):
-        batch = self.make_batch()
+    def test_old_urls_redirect_to_the_order_list_and_never_import(self):
+        batch = self.preview_batch()
         row = batch.rows.filter(sheet_name="銷貨").first()
         rows_before = LegacyImportRow.objects.count()
         pk = {"pk": batch.pk}
         row_kwargs = {**pk, "row_pk": row.pk}
-        gets = [reverse("legacy_import_detail", kwargs=pk), reverse("legacy_import_status", kwargs=pk)]
+        gets = [
+            reverse("legacy_import_list"),
+            reverse("legacy_import_detail", kwargs=pk),
+            reverse("legacy_import_status", kwargs=pk),
+        ]
         posts = [
             reverse("legacy_import_confirm", kwargs=pk),
             reverse("legacy_import_delete", kwargs=pk),
@@ -85,6 +79,13 @@ class LegacyImportRetiredTests(TestCase):
         for url in posts:
             with self.subTest(url=url):
                 self.assert_retired(self.client.post(url, {"confirm": "1", "decision": "include"}))
+        # 上傳也只導回：銷貨、進貨、車行名冊三種都不建立新批次。
+        for kind, extra in (("operations", {"sheets": ["銷貨"]}), ("operations", {"sheets": ["進貨"]}), ("channels", {})):
+            with self.subTest(kind=kind, extra=extra):
+                upload = SimpleUploadedFile("new.xlsx", workbook_bytes(kind))
+                self.assert_retired(self.client.post(reverse("legacy_import_list"),
+                                                     {"import_type": kind, "source_file": upload, **extra}))
+        self.assertEqual(LegacyImportBatch.objects.count(), 1)
         batch.refresh_from_db()
         self.assertEqual(batch.status, LegacyImportBatch.Status.PREVIEW)
         self.assertIsNone(batch.archived_at)
@@ -92,56 +93,36 @@ class LegacyImportRetiredTests(TestCase):
         self.assertEqual(LegacyImportRow.objects.count(), rows_before)
         self.assertFalse(SalesOrder.objects.exists())
 
-    @patch("sales.views.django_rq.get_queue")
-    def test_channel_roster_import_still_works_end_to_end(self, get_queue):
-        page = self.client.get(reverse("legacy_import_list"))
-        self.assertEqual(page.status_code, 200)
-        self.assertEqual(list(page.context["form"].fields["import_type"].choices), [("channels", "車行／網路平台名冊")])
-        self.assertNotIn("sheets", page.context["form"].fields)
-        self.assertContains(page, "車行名冊 Excel 匯入")
-
-        response = self.upload("channels")
-        batch = LegacyImportBatch.objects.get()
-        self.assertEqual(batch.import_type, LegacyImportBatch.ImportType.CHANNELS)
-        self.assertRedirects(response, reverse("legacy_import_detail", args=[batch.pk]))
-        self.assertEqual(self.client.get(reverse("legacy_import_detail", args=[batch.pk])).status_code, 200)
-        self.assertEqual(self.client.get(reverse("legacy_import_status", args=[batch.pk])).status_code, 200)
-
-        get_queue.return_value.enqueue.return_value.id = "job-roster"
-        confirm = self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
-        self.assertRedirects(confirm, reverse("legacy_import_detail", args=[batch.pk]))
-        get_queue.return_value.enqueue.assert_called_once()
-        run_legacy_import_job(str(batch.pk), "tester")
+    def test_channel_roster_batch_urls_redirect_and_never_import(self):
+        data = workbook_bytes("channels")
+        upload = SimpleUploadedFile("roster.xlsx", data)
+        batch = LegacyImportBatch.objects.create(
+            import_type="channels", source_file=upload, original_filename=upload.name,
+            file_sha256=file_sha256(upload), file_size=len(data), uploaded_by="tester",
+        )
+        build_import_preview(batch)
+        sources_before = SalesSource.objects.count()
+        self.assert_retired(self.client.get(reverse("legacy_import_detail", args=[batch.pk])))
+        self.assert_retired(self.client.post(reverse("legacy_import_confirm", args=[batch.pk])))
         batch.refresh_from_db()
-        self.assertEqual(batch.status, LegacyImportBatch.Status.COMPLETED)
-        self.assertTrue(SalesSource.objects.filter(name="測試車行").exists())
+        self.assertEqual(batch.status, LegacyImportBatch.Status.PREVIEW)
+        self.assertEqual(SalesSource.objects.count(), sources_before)
 
-        # 名冊批次的封存／恢復照常；清單只列名冊批次。
-        operations = self.make_batch()
-        self.assertRedirects(self.client.post(reverse("legacy_import_archive", args=[batch.pk])), reverse("legacy_import_list"),
-                             fetch_redirect_response=False)
-        batch.refresh_from_db()
-        self.assertIsNotNone(batch.archived_at)
-        archived = self.client.get(reverse("legacy_import_list"), {"archived": "1"})
-        self.assertEqual([item.pk for item in archived.context["batches"]], [batch.pk])
-        self.client.post(reverse("legacy_import_restore", args=[batch.pk]))
-        listed = self.client.get(reverse("legacy_import_list"))
-        self.assertEqual([item.pk for item in listed.context["batches"]], [batch.pk])
-        self.assertNotContains(listed, str(operations.pk))
-
-    def test_roster_entry_is_still_reachable_from_menus_and_favorites(self):
-        old_name = "舊資料 Excel 匯入"
-        url = reverse("legacy_import_list")
+    def test_menus_maintenance_and_home_favorites_no_longer_link_to_the_import(self):
+        old_url = reverse("legacy_import_list")
+        for name in ("data_maintenance", "order_list", "dashboard"):
+            with self.subTest(page=name):
+                page = self.client.get(reverse(name))
+                self.assertEqual(page.status_code, 200)
+                self.assertNotContains(page, f'href="{old_url}"')
+        self.assertNotIn("imports", LINKS)
+        # 首頁的版本更新會提到「舊資料 Excel 匯入停用」，所以文字只檢查資料維護區。
         maintenance = self.client.get(reverse("data_maintenance"))
-        self.assertContains(maintenance, f'href="{url}"', count=2)  # 頂部選單與資料維護區卡片
-        self.assertContains(maintenance, "車行名冊 Excel 匯入")
-        self.assertNotContains(maintenance, old_name)
-        self.assertEqual(LINKS["imports"]["label"], "車行名冊 Excel 匯入")
+        self.assertNotContains(maintenance, "舊資料 Excel 匯入")
+        self.assertContains(maintenance, "系統狀態檢查")
 
     def test_imported_orders_snapshot_batch_and_search_still_work(self):
-        batch = self.make_batch()
-        confirm_import(batch, "tester")
-        order = SalesOrder.objects.get(legacy_snapshot__isnull=False)
+        batch, order = self.imported_order()
         snapshot = LegacySalesSnapshot.objects.get(order=order)
         self.assertEqual(snapshot.vehicle_identifier, "ab-123")
         batch.refresh_from_db()
@@ -164,13 +145,12 @@ class LegacyImportRetiredTests(TestCase):
 
 @override_settings(LEGACY_IMPORT_UI_ENABLED=True)
 class LegacyImportCodeKeptTests(LegacyImportRetiredTests):
-    """匯入程式本身保留：測試開關打開時營運匯入的舊頁面仍能開（只給保留的舊測試用）。"""
+    """匯入程式本身保留：測試開關打開時舊頁面仍能開（只給保留的舊測試用）。"""
     for _name in [name for name in dir(LegacyImportRetiredTests) if name.startswith("test_")]:
         locals()[_name] = None
     del _name
 
-    def test_operations_view_still_runs_behind_the_test_only_switch(self):
+    def test_old_view_still_runs_behind_the_test_only_switch(self):
         page = self.client.get(reverse("legacy_import_list"))
-        self.assertIn("sheets", page.context["form"].fields)
-        batch = self.make_batch()
-        self.assertEqual(self.client.get(reverse("legacy_import_detail", args=[batch.pk])).status_code, 200)
+        self.assertEqual(page.status_code, 200)
+        self.assertTemplateUsed(page, "sales/legacy_import_list.html")

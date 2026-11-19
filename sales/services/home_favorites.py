@@ -14,7 +14,6 @@ EXTRA_LINKS = (
     {"key": "operations", "label": "營運總表", "route": "operations_report"},
     {"key": "reconciliation", "label": "對帳作業", "route": "reconciliation_list"},
     {"key": "help", "label": "使用說明", "route": "user_guide"},
-    {"key": "imports", "label": "車行名冊 Excel 匯入", "route": "legacy_import_list"},
     {"key": "diagnostics", "label": "系統狀態檢查", "route": "system_diagnostics"},
     {"key": "integrity", "label": "系統完整性報告", "route": "system_integrity_report"},
     {"key": "report-design", "label": "報表設計管理", "route": "report_manage"},
@@ -31,7 +30,7 @@ GROUPS = (
     ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "settlement-costs", "catalog-manage", "inventory", "accessories", "dealer-reward-items")),
     ("people", "資料維護・通路與人員", "客戶、車行及工作分發", ("customers", "sales-sources", "network-platforms", "staff", "price-list-distribution", "gift-distribution")),
     ("rules", "資料維護・費率與規則", "獎勵、分期、補助與日曆", ("incentives", "dealer-sales-programs", "dealer-bonuses", "installment-companies", "subsidy-programs", "registration-fees", "business-holidays")),
-    ("tools", "資料維護・工具與管理", "匯入、列印、帳號及公告", ("imports", "print-templates", "diagnostics", "integrity", "user-management", "announcements", "site-copy")),
+    ("tools", "資料維護・工具與管理", "列印、帳號及公告", ("print-templates", "diagnostics", "integrity", "user-management", "announcements", "site-copy")),
     ("help", "使用說明", "隨時查閱操作方式", ("help",)),
 )
 DEFAULT_KEYS = ("orders", "new-order", "operations", "reports", "help")

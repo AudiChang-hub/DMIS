@@ -166,7 +166,6 @@ class ProductExperienceTests(TestCase):
             ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
             ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
             ("business_holiday_list", "工作日與假日設定", "business_holiday_list.html"),
-            ("legacy_import_list", "車行名冊 Excel 匯入", "legacy_import_list.html"),
             ("positioned_template_list", "列印範本設定", "positioned_template_list.html"),
             ("system_diagnostics", "系統狀態檢查", "system_diagnostics.html"),
             ("user_management", "帳號與權限", "user_management.html"),
@@ -593,7 +592,6 @@ class ProductExperienceTests(TestCase):
             "brand_registration_fee_rule_list": "data_maintenance",
             "settlement_cost_rule_list": "vehicle_model_list",  # T-205
             "incentive_rule_list": "data_maintenance",
-            "legacy_import_list": "data_maintenance",
             "positioned_template_list": "data_maintenance",
         }
         for route_name, parent_name in expected_parents.items():

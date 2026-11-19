@@ -1752,16 +1752,6 @@ class LegacyImportUploadForm(forms.ModelForm):
             )
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from sales.legacy_import_retired import operations_import_enabled
-        if not operations_import_enabled():
-            # T-243：銷貨、進貨匯入停用，只剩車行／網路平台名冊。
-            channels = LegacyImportBatch.ImportType.CHANNELS
-            self.fields["import_type"].choices = [(channels.value, channels.label)]
-            self.fields["import_type"].initial = channels.value
-            del self.fields["sheets"]
-
     def clean_source_file(self):
         return validate_excel_upload(self.cleaned_data.get("source_file"))
 

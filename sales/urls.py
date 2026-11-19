@@ -25,7 +25,7 @@ from . import site_copy_views
 from . import system_settings_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
-from .legacy_import_retired import channels_batch_only, channels_only_upload, retired as legacy_import_retired
+from .legacy_import_retired import retired as legacy_import_retired
 from .reporting import views as report_views
 from .reporting import classification_views
 from .reporting import payout_views
@@ -217,21 +217,21 @@ urlpatterns = [
     path("data/print-templates/<int:pk>/orders/<int:order_pk>/", views.positioned_template_preview, name="positioned_template_order_print"),
     path("data/print-templates/<int:pk>/delete/", views.positioned_template_delete, name="positioned_template_delete"),
     path("data/customers/", views.customer_list, name="customer_list"),
-    # T-243：銷貨、進貨匯入停用（導回全部訂單並說明）；車行／網路平台名冊匯入保留。
-    path("data/imports/", channels_only_upload(views.legacy_import_list), name="legacy_import_list"),
-    path("data/imports/<uuid:pk>/", channels_batch_only(views.legacy_import_detail), name="legacy_import_detail"),
+    # T-243：舊 Excel 匯入停用；舊網址一律導回全部訂單並說明（網址名稱保留給權限設定與舊版本說明）。
+    path("data/imports/", legacy_import_retired(views.legacy_import_list), name="legacy_import_list"),
+    path("data/imports/<uuid:pk>/", legacy_import_retired(views.legacy_import_detail), name="legacy_import_detail"),
     path("data/imports/<uuid:pk>/rows/<int:row_pk>/replace/<int:order_pk>/", legacy_import_retired(historical_buyer_replacement), name="historical_buyer_replacement"),
     path("data/imports/<uuid:pk>/rows/<int:row_pk>/date/<int:order_pk>/", legacy_import_retired(historical_date_change), name="historical_date_change"),
-    path("data/imports/<uuid:pk>/status/", channels_batch_only(views.legacy_import_status), name="legacy_import_status"),
-    path("data/imports/<uuid:pk>/confirm/", channels_batch_only(views.legacy_import_confirm), name="legacy_import_confirm"),
-    path("data/imports/<uuid:pk>/delete/", channels_batch_only(views.legacy_import_delete), name="legacy_import_delete"),
-    path("data/imports/<uuid:pk>/archive/", channels_batch_only(views.legacy_import_archive), name="legacy_import_archive"),
-    path("data/imports/<uuid:pk>/source/delete/", channels_batch_only(views.legacy_import_source_delete), name="legacy_import_source_delete"),
-    path("data/imports/<uuid:pk>/source/replace/", channels_batch_only(views.legacy_import_source_replace), name="legacy_import_source_replace"),
-    path("data/imports/<uuid:pk>/restore/", channels_batch_only(views.legacy_import_restore), name="legacy_import_restore"),
+    path("data/imports/<uuid:pk>/status/", legacy_import_retired(views.legacy_import_status), name="legacy_import_status"),
+    path("data/imports/<uuid:pk>/confirm/", legacy_import_retired(views.legacy_import_confirm), name="legacy_import_confirm"),
+    path("data/imports/<uuid:pk>/delete/", legacy_import_retired(views.legacy_import_delete), name="legacy_import_delete"),
+    path("data/imports/<uuid:pk>/archive/", legacy_import_retired(views.legacy_import_archive), name="legacy_import_archive"),
+    path("data/imports/<uuid:pk>/source/delete/", legacy_import_retired(views.legacy_import_source_delete), name="legacy_import_source_delete"),
+    path("data/imports/<uuid:pk>/source/replace/", legacy_import_retired(views.legacy_import_source_replace), name="legacy_import_source_replace"),
+    path("data/imports/<uuid:pk>/restore/", legacy_import_retired(views.legacy_import_restore), name="legacy_import_restore"),
     path(
         "data/imports/<uuid:pk>/rows/<int:row_pk>/decide/",
-        channels_batch_only(views.legacy_import_row_decide),
+        legacy_import_retired(views.legacy_import_row_decide),
         name="legacy_import_row_decide",
     ),
     path(
@@ -241,12 +241,12 @@ urlpatterns = [
     ),
     path(
         "data/imports/<uuid:pk>/master-data/<str:mapping_type>/resolve/",
-        channels_batch_only(views.legacy_import_master_resolve),
+        legacy_import_retired(views.legacy_import_master_resolve),
         name="legacy_import_master_resolve",
     ),
     path(
         "data/imports/<uuid:pk>/master-data/<str:mapping_type>/restore/",
-        channels_batch_only(views.legacy_import_master_restore),
+        legacy_import_retired(views.legacy_import_master_restore),
         name="legacy_import_master_restore",
     ),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),

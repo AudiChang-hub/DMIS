@@ -786,7 +786,6 @@ class OrderFlowTests(TestCase):
             "brand_registration_fee_rule_list",
             # T-205：結算成本的上一層改為機種與售價（另見 test_settlement_costs_in_models_t205）。
             "incentive_rule_list",
-            "legacy_import_list",
             "positioned_template_list",
             "system_diagnostics",
         ):

@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}
-{% block title %}車行名冊 Excel 匯入｜車輛銷售管理{% endblock %}
+{% block title %}舊資料 Excel 匯入｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
@@ -7,8 +7,7 @@
 <section class="hero-row compact-hero import-page-hero">
   <div>
     <p class="eyebrow">平行試營運資料轉換</p>
-    <h1>車行名冊 Excel 匯入</h1>
-    <p class="muted">銷貨、進貨的 Excel 匯入已停用；批次修改訂單請用全部訂單的匯出／匯回。</p>
+    <h1>舊資料 Excel 匯入</h1>
     <p class="muted">{% site_text 'legacy_import_list.ce35c1a42aca' %}</p>
   </div>
 </section>
@@ -40,7 +39,7 @@
     {% else %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div>
     <div class="import-upload-guidance">
       <strong>系統會先建立預覽，不會立即匯入</strong>
-      <span>依既定欄名解析；來源列消失不會刪除系統既有資料。</span>
+      <span>進銷貨表採既定欄名解析；來源列消失不會刪除系統既有資料。</span>
     </div>
     <button class="button primary" type="submit"{% if upload_blocked %} disabled aria-describedby="import-upload-blocked-reason"{% endif %}>上傳並開始檢查</button>
     {% if upload_blocked %}<small class="help-text" id="import-upload-blocked-reason">缺「查看淨利」權限，暫時不能上傳。</small>{% endif %}

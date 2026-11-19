@@ -119,7 +119,7 @@ def app_version(request):
         "data_vehicle_visible": any(access_policy.route(name) for name in ("vehicle_brand_list", "vehicle_model_list", "settlement_cost_rule_list", "inventory_list", "accessory_product_list", "catalog_manage")),
         "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution", "gift_distribution")),
         "data_rules_visible": any(access_policy.route(name) for name in ("incentive_rule_list", "dealer_sales_program_list", "dealer_reward_catalog_list", "dealer_volume_bonus_list", "installment_company_list", "subsidy_program_list", "brand_registration_fee_rule_list", "business_holiday_list")),
-        "data_tools_visible": any(access_policy.route(name) for name in ("legacy_import_list", "positioned_template_list", "system_diagnostics")),
+        "data_tools_visible": any(access_policy.route(name) for name in ("positioned_template_list", "system_diagnostics")),
         "app_version": get_app_version(),
         "intake_can_submit": access_policy.route("order_start"),
         "intake_finance_editable": access_policy.screen("order_finance", "operate"),

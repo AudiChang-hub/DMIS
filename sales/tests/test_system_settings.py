@@ -42,7 +42,7 @@ class AllocationRuleSettingTests(TestCase):
     def test_management_tools_are_grouped(self):
         self.client.force_login(self.admin)
         page = self.client.get(reverse("data_maintenance")).content.decode()
-        for title in ("帳號與系統規則", "公告、說明文字與列印", "報表設計", "資料匯入與系統檢查"):
+        for title in ("帳號與系統規則", "公告、說明文字與列印", "報表設計", "系統檢查"):  # T-243 舊 Excel 匯入停用
             self.assertIn(f'<h3 class="maintenance-subgroup__title">{title}</h3>', page)
             self.assertIn(f"<h3>{title}</h3>", page)  # 上方選單同樣分組
         self.assertIn(reverse("allocation_rule_settings"), page)

@@ -181,7 +181,9 @@
   document.addEventListener("keydown", (event) => {
     if (event.key.toLowerCase() !== "o" || event.ctrlKey || event.metaKey || event.altKey || dialog.open) return;
     if (event.target.closest?.("input, textarea, select, [contenteditable='true'], dialog")) return;
-    const trigger = document.querySelector("[data-order-overview-open]");
+    // T-250：手機版精簡列與電腦版側欄各有一個入口，取畫面上看得到的那個，關閉後焦點才回得去。
+    const triggers = [...document.querySelectorAll("[data-order-overview-open]")];
+    const trigger = triggers.find((el) => el.getClientRects().length) || triggers[0];
     if (!trigger) return;
     event.preventDefault();
     open(trigger);

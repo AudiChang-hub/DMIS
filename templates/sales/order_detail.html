@@ -53,8 +53,27 @@
     <span class="save-chip" data-save-chip data-state="idle"><span class="save-chip__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path class="save-chip__check" d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span data-save-chip-text>自動儲存</span></span>
     <span class="order-compact-bar__recipient">{% if order.source_type == 'platform' %}<small>訂單來源</small> <b data-compact-recipient>{{ order.get_source_type_display }}{% if order.source %}／{{ order.source }}{% endif %}</b>{% else %}<small>這台目前算給</small> <b data-compact-recipient>{{ order.effective_commission_recipient|default:'未指定車行' }}</b>{% endif %}</span>
     {% if inline_order_form or commission_form %}<button type="button" class="button secondary small" data-compact-change>{% if order.source_type == 'platform' %}變更來源{% else %}變更車行{% endif %}</button>{% endif %}
+    {# T-250 B 案（使用者 2026-11-19）：手機版精簡列常駐，下面一行是「第 N／7 步」換步驟鈕與總覽鈕；電腦版不顯示，步驟在左側欄。 #}
+    <div class="order-compact-bar__steps" data-order-step-entry>
+      <button type="button" class="order-step-entry" data-order-step-sheet-open aria-haspopup="dialog" aria-controls="order-step-sheet">
+        <span class="order-step-entry__text">{% for step in step_list %}{% if step.key == open_step %}<small data-order-step-entry-position>第 {{ step.number }}／{{ step_list|length }} 步・點這裡換步驟</small><strong data-order-step-entry-label>{{ step.title }}</strong>{% endif %}{% endfor %}{% for step in extra_step_list %}{% if step.key == open_step %}<small data-order-step-entry-position>其他・點這裡換步驟</small><strong data-order-step-entry-label>{{ step.title }}</strong>{% endif %}{% endfor %}</span>
+        <span class="order-step-entry__chevron ui-chevron" aria-hidden="true"></span>
+      </button>
+      {% url 'order_overview' order.pk as compact_overview_url %}
+      <a class="order-step-overview" href="{{ compact_overview_url }}" data-order-overview-open="{{ compact_overview_url }}" aria-haspopup="dialog" title="唯讀檢視整張訂單，方便查找與複製"><svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><rect x="3" y="2.5" width="14" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 7h7M6.5 10h7M6.5 13h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>總覽</span></a>
+    </div>
   </div>
 </div>
+{# 手機版步驟面板（T-250 B 案）：從底部升起；清單由 order-step-sheet.js 依左側步驟欄產生，狀態跟著步驟欄走。 #}
+<dialog class="order-step-sheet" id="order-step-sheet" aria-labelledby="order-step-sheet-title" data-order-step-sheet>
+  <div class="order-step-sheet__panel">
+    <header class="order-step-sheet__head">
+      <div><h2 id="order-step-sheet-title">訂單步驟</h2><p data-order-step-sheet-meta>{{ order.owner_name }}</p></div>
+      <button type="button" class="order-step-sheet__close" data-order-step-sheet-close aria-label="關閉訂單步驟">×</button>
+    </header>
+    <div class="order-step-sheet__body" data-order-step-sheet-body></div>
+  </div>
+</dialog>
 {% endif %}
 
 {# 存檔失敗提示列（T-130 第 2 層）：固定在頁面上方，重試成功或放棄修改後才消失。 #}
@@ -1095,6 +1114,7 @@
 <script src="{% static 'js/order-compact-bar.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-hero-note.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-step-sheet.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}

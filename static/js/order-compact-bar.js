@@ -26,9 +26,14 @@
     bar.toggleAttribute('inert', !shown);
     bar.setAttribute('aria-hidden', String(!shown));
   };
+  // T-250 B 案（使用者 2026-11-19）：手機版（≤860px）精簡列常駐在頂端、捲動時不縮小，下面一行是換步驟與總覽；
+  // 頁首裡的狀態與車行原地更新時，跟著同步。電腦版維持頁首捲走後才浮出。
+  const pinnedQuery = window.matchMedia('(max-width: 860px)');
   let observer = null;
   const observe = () => {
     observer?.disconnect();
+    if (pinnedQuery.matches) { setShown(true); return; }
+    setShown(false);
     const offset = Math.round(headerHeight());
     observer = new IntersectionObserver(([entry]) => {
       setShown(!entry.isIntersecting && entry.boundingClientRect.bottom <= offset + 1);
@@ -37,6 +42,14 @@
   };
   observe();
   window.addEventListener('resize', () => observe(), {passive: true});
+  new MutationObserver(() => { if (bar.classList.contains('is-shown')) sync(); })
+    .observe(hero, {childList: true, characterData: true, subtree: true});
+  // 跳到某一步時，標題停在精簡列下方（scroll-margin 用這個高度）。
+  const root = document.documentElement;
+  const publishHeight = () => root.style.setProperty('--order-compact-height', `${pinnedQuery.matches ? bar.offsetHeight : 0}px`);
+  if (window.ResizeObserver) new ResizeObserver(publishHeight).observe(bar);
+  publishHeight();
+  window.addEventListener('resize', publishHeight, {passive: true});
   // 「變更車行／變更來源」回到頁首，直接打開小卡的浮層。
   bar.querySelector('[data-compact-change]')?.addEventListener('click', () => {
     window.scrollTo({top: 0, behavior: 'instant'});

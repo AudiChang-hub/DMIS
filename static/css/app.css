@@ -6819,10 +6819,10 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   /* 面板的收合鈕放大到 44×44；釘選只在 1100px 以上有作用（比照機種清單），手機不顯示，免得按了沒反應。 */
   .side-nav__pin { display: none; }
   .side-nav__close { width: 44px; min-height: 44px; }
-  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand {
+  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned, .order-nav--sheet) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand {
     min-width: 44px; margin-left: calc(var(--nav-handle-width) + var(--space-3)); padding-right: 0; justify-content: center;
   }
-  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand-copy {
+  body:has(.side-nav:not([hidden], .is-pinned) .side-nav__handle, .order-nav:not(.is-pinned, .order-nav--sheet) .order-nav__handle, .model-nav:not(.is-pinned) .model-nav__handle) .brand-copy {
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
 }

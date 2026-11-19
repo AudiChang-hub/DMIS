@@ -66,7 +66,7 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
   const ns = 'http://www.w3.org/2000/svg', doc = chart.ownerDocument, svg = doc.createElementNS(ns, 'svg');
   const box = chart.getBoundingClientRect(), style = getComputedStyle(chart);
   const inner = box.width - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0) - parseFloat(style.borderLeftWidth || 0) - parseFloat(style.borderRightWidth || 0);
-  const width = Math.max(260, Math.round(inner > 0 ? inner : 640));
+  let width = Math.max(260, Math.round(inner > 0 ? inner : 640));
   const element = (tag, attrs, text) => {
     const item = doc.createElementNS(ns, tag);
     Object.entries(attrs).forEach(([key, value]) => item.setAttribute(key, String(value)));
@@ -87,8 +87,12 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
   svg.setAttribute('aria-label', chart.querySelector('h2').textContent + (columns ? ' 直向堆疊圖' : ' 水平堆疊圖'));
   const peak = totals.indexOf(Math.max(...totals)), latest = columns ? dated.length - 1 : -1;
   const tick = value => Number(value).toLocaleString('zh-TW');
+  let scroll = false;
   if (columns) {
-    const left = 44, right = 8, top = 24, plotHeight = width < 760 ? 200 : 240, bottom = top + plotHeight, plotWidth = width - left - right;
+    const left = 44, right = 8, top = 24, plotHeight = width < 760 ? 200 : 240, bottom = top + plotHeight;
+    // T-245：期數多到每期寬度不足 18px 時加寬繪製並水平捲動，直條不再擠成細線。
+    if ((width - left - right) / order.length < 18) { width = left + right + order.length * 18; scroll = true; }
+    const plotWidth = width - left - right;
     const step = plotWidth / order.length, barWidth = Math.max(4, Math.min(40, step * .66));
     for (let index = 0; index <= 4; index++) {
       const y = bottom - plotHeight * index / 4;
@@ -109,7 +113,8 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
       });
       if (index === peak || index === latest) element('text', {x:x + barWidth / 2, y:bottom - offset - 7, 'text-anchor':'middle', class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
       const parts = reportDateParts(item.label);
-      if (index % every === 0 || index === order.length - 1) {
+      // 最後一期固定標示；太靠近它的間隔標籤略過，避免文字重疊（T-245）。
+      if ((index % every === 0 && order.length - 1 - index >= every / 2) || index === order.length - 1) {
         element('text', {x:x + barWidth / 2, y:bottom + 17, 'text-anchor':'middle', class:'report-plot-tick'}, parts?.month ? `${Number(parts.month)}月` : item.label);
         if (parts?.month && parts.year !== lastYear) { element('text', {x:x + barWidth / 2, y:bottom + 32, 'text-anchor':'middle', class:'report-plot-tick report-plot-year'}, parts.year); lastYear = parts.year; }
       }
@@ -149,7 +154,12 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
     });
     svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 26}`);
   }
-  return {svg, columns};
+  if (!scroll) return {svg, columns, node: svg};
+  svg.style.width = `${width}px`; svg.style.maxWidth = 'none';
+  const node = doc.createElement('div'); node.className = 'report-plot-scroll'; node.tabIndex = 0;
+  node.setAttribute('role', 'region'); node.setAttribute('aria-label', `${chart.querySelector('h2').textContent}，可左右捲動`);
+  node.append(svg);
+  return {svg, columns, node};
 }
 function reportFraction(value, total) {
   if (!Number.isFinite(Number(value)) || !Number.isFinite(Number(total)) || Number(total) <= 0) return 0;
@@ -524,7 +534,8 @@ function initReportVisuals(root) {
         });
         svg.addEventListener('pointercancel',()=>{ brushStart=null; brushing=false; clearBrush(); });
         svg.addEventListener('click',event=>{ if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); } },true);
-        stacks.before(svg);
+        stacks.before(plot.node);
+        if (plot.node !== svg) plot.node.scrollLeft = plot.node.scrollWidth; // 直條時間由左到右，先看最新一期
       }
       // 已有可聚焦的圖形及提示；保留原 DOM 作為連結來源，不重複呈現展開操作。
       stacks.hidden = true;

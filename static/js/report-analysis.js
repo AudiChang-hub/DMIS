@@ -25,13 +25,13 @@ function renderReportAnalysis(chart, attach) {
       group.append(wrap, segment); return group;
     });
   }
-  const {svg} = reportStackPlot(chart, groups, rows, {
+  const {svg, node} = reportStackPlot(chart, groups, rows, {
     interactiveSegments: stacked,
     colorOf: (label, fallback) => reportAnalysisFill(label, chart.dataset.palette === 'accessible' && stacked ? fallback : fallback || 'var(--chart-s1)', chart.dataset.palette),
     attach,
   });
   svg.classList.add('report-analysis-plot');
-  const table = chart.querySelector('.report-table-wrap'); table.before(svg); table.hidden = true;
+  const table = chart.querySelector('.report-table-wrap'); table.before(node); if (node !== svg) node.scrollLeft = node.scrollWidth; table.hidden = true;
   const stacks = chart.querySelector('.report-stacks'); if (stacks) stacks.hidden = true;
 }
 if (typeof module !== 'undefined' && module.exports) module.exports = {reportAnalysisColor, reportAnalysisFill};

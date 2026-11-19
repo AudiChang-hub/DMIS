@@ -506,11 +506,30 @@ def numeric_text(value):
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
-def card_result(config, card, filters):
+def group_limit(card, full_list=False):
+    """T-245：時間類分類顯示篩選期間內全部期數；分類圖只在畫面取前 N 群，CSV（full_list）取完整清單。
+    兩者上限都是 MAX_GROUPS。"""
+    return MAX_GROUPS if full_list or card["dimension"] in DATE_DIMENSIONS else card["limit"]
+
+
+def truncation_note(card, truncated, over_max, *, surface="圖表", unit="群"):
+    """截斷提示；回傳空字串代表圖表已含全部群組。"""
+    if not truncated:
+        return ""
+    if card["dimension"] in DATE_DIMENSIONS:
+        unit = "期" if unit == "群" else unit
+        coarser = {"day": "，或把日期層級改成按月或按年", "month": "，或把日期層級改成按年"}.get(card["dimension"], "")
+        return (f"超過 {MAX_GROUPS} {unit}，{surface}與 CSV 只含排序後的前 {MAX_GROUPS} {unit}；"
+                f"請縮小篩選期間{coarser}。上方彙總仍包含完整篩選範圍。")
+    exported = f"CSV 含完整清單（上限 {MAX_GROUPS} {unit}，其餘未匯出）" if over_max else "CSV 含完整清單"
+    return f"{surface}顯示前 {card['limit']} {unit}，{exported}；上方彙總包含完整篩選範圍。"
+
+
+def card_result(config, card, filters, *, full_list=False):
     card = effective_card(card, filters)
     if card["chart"] == "table" and (card.get("series") or card.get("additional_metrics") or card["metric"] == "dealer_bonus"):
         from .summary_table import summary_result
-        return summary_result(config, card, filters)
+        return summary_result(config, card, filters, full_list=full_list)
     queryset = base_query(config, filters, card)
     if card["chart"] in ("donut", "stacked") and card["metric"] == "sale_total" and queryset.filter(vehicle_price__lt=0).exists():
         raise ValidationError("篩選範圍包含負車價，不適合以圓環或堆疊占比呈現，請改用資料表。")
@@ -544,10 +563,12 @@ def card_result(config, card, filters):
     rows = list(grouped[:MAX_GROUPS + 1])
     if len(rows) > MAX_GROUPS and metric == "formula":
         raise ValidationError("自訂試算超過 200 個群組，請縮小期間或改用其他維度。")
-    truncated = len(rows) > card["limit"]
+    limit = group_limit(card, full_list)
+    over_max = len(rows) > MAX_GROUPS
+    truncated = len(rows) > limit
     if metric == "formula" and card["sort"] in ("value", "value_asc"):
         rows.sort(key=lambda row: (value_of(row) is not None, value_of(row) or 0), reverse=card["sort"] == "value")
-    rows = rows[:card["limit"]]
+    rows = rows[:limit]
     dimension = card["dimension"]
     keys = [row["report_key"] for row in rows if row["report_key"] is not None]
     labels = dimension_labels(dimension, keys, queryset)
@@ -573,7 +594,8 @@ def card_result(config, card, filters):
         cells = list(dimension_query(groups.filter(primary), card["series"], config["date_basis"], "report_series")
                      .values("report_key", "report_series").annotate(**aggregates).order_by("report_key", "report_series")[:2001])
         if len(cells) > 2000:
-            raise ValidationError("堆疊圖超過 2000 個細分組合，請減少顯示群數或縮小篩選範圍。")
+            raise ValidationError("堆疊圖超過 2000 個細分組合，請縮小篩選期間或改用較粗的日期層級。" if dimension in DATE_DIMENSIONS
+                                  else "堆疊圖超過 2000 個細分組合，請減少顯示群數或縮小篩選範圍。")
         series_keys = list(dict.fromkeys(cell["report_series"] for cell in cells))
         series_totals = {key: 0 for key in series_keys}
         for cell in cells:
@@ -633,7 +655,8 @@ def card_result(config, card, filters):
             "classification_colors": (card.get('series') or card['dimension']) == 'legacy_motor_type',
             "series_truncated": series_truncated, "other_series_keys": other_series_keys,
             "raw_total": str(total) if total is not None else None,
-            "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": display_dimension(dimension, config, card)}
+            "truncated": truncated, "truncation_note": truncation_note(card, truncated, over_max),
+            "metric_label": METRICS[metric], "dimension_label": display_dimension(dimension, config, card)}
 
 
 def drill_query(config, card, filters, key):

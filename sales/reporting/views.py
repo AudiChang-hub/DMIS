@@ -569,7 +569,12 @@ def export(request, pk, index):
         _, filters = filters_for(request, report.published)
         config, _ = expand_cards(report.published, filters)
         card = selected_card(config, index)
-        result = card_result(config, card, card_filters(filters, index))
+        try:
+            # T-245：CSV 匯出完整清單（最多 MAX_GROUPS 群），圖上仍只畫前 N 群。
+            result = card_result(config, card, card_filters(filters, index), full_list=True)
+        except ValidationError:
+            # 完整清單超過堆疊細分上限時，退回圖上顯示的群組；圖本身也失敗則照常回報錯誤。
+            result = card_result(config, card, card_filters(filters, index))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     export_format = request.GET.get('format', 'excel')
@@ -612,7 +617,7 @@ def export(request, pk, index):
         for row in result["rows"]:
             writer.writerow([csv_safe(row["label"]), row["display"] if formatted or row["value"] is None else row["value"], *([row['count']] if include_count else [])])
     if include_notes and result["truncated"]:
-        writer.writerow(["提醒", "僅匯出目前圖表顯示群組，非全部群組"])
+        writer.writerow(["提醒", f"僅匯出前 {len(result['rows'])} 群，非全部群組"])
     if include_notes and result["series_truncated"]:
         writer.writerow(["細分系列", "其餘合併為其他" if card.get("series_other") else "未顯示系列未匯出；完整彙總仍包含"])
     return response

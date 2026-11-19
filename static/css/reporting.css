@@ -532,3 +532,5 @@
 /* 來源訂單面板（T-213）：面板本身是捲動容器，標題列（標題＋關閉明細）在面板內置頂，只讓下面的清單捲動；
    往上、左右延伸到面板內距並鋪底色，捲動中的清單不會從周圍露出；sticky 會扣掉捲動容器的內距，所以 top 為負的內距才貼齊面板上緣。 */
 .report-inline-detail > .report-card-toolbar { position: sticky; top: calc(-1 * var(--card-pad)); z-index: 2; margin-top: calc(-1 * var(--card-pad)); margin-inline: calc(-1 * var(--card-pad)); padding-top: var(--card-pad); padding-inline: var(--card-pad); background: var(--surface); }
+/* T-245：期數多的時間圖改為水平捲動，不把直條或折線點擠在一起。 */
+.report-plot-scroll{max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-bottom:var(--space-2)}.report-plot-scroll>svg{flex:none}.report-plot-scroll:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;border-radius:var(--radius-xs)}

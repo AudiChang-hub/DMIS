@@ -98,7 +98,15 @@ function renderReportLines(root) {
     if (!valid.length) return;
     const min = Math.min(0, ...valid), max = Math.max(1, ...valid), range = max - min;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 620 190");
+    // T-245：期數多到每點間距不足 16px 時改成 1:1 繪製並水平捲動，不把點擠在一起。
+    const host = chart.querySelector("[data-line-chart]");
+    const available = host?.clientWidth || 620, scale = Math.min(1, available / 620), step = 16;
+    // 卡片放得下就撐滿卡片寬度，放不下才捲動。
+    const dense = points.length > 1 && 550 / (points.length - 1) * scale < step;
+    const width = dense ? Math.max(70 + (points.length - 1) * step, Math.round(available)) : 620;
+    const plotRight = width - 48;
+    svg.setAttribute("viewBox", `0 0 ${width} 190`);
+    if (dense) { svg.style.width = `${width}px`; svg.style.maxWidth = "none"; if (width > available) host?.classList.add("report-plot-scroll"); }
     const addLine = segment => {
       if (!segment.length) return;
       const path = document.createElementNS(svg.namespaceURI, "polyline");
@@ -108,15 +116,15 @@ function renderReportLines(root) {
     // T-182：淡色水平格線與刻度（0、中間、最大），折線不再懸空。
     [0, .5, 1].forEach(ratio => {
       const y = 155 - ratio * 130, grid = document.createElementNS(svg.namespaceURI, "line");
-      for (const [key, value] of Object.entries({x1:22, x2:572, y1:y, y2:y, class:ratio ? "report-plot-grid" : "report-plot-base"})) grid.setAttribute(key, String(value));
+      for (const [key, value] of Object.entries({x1:22, x2:plotRight, y1:y, y2:y, class:ratio ? "report-plot-grid" : "report-plot-base"})) grid.setAttribute(key, String(value));
       const tick = document.createElementNS(svg.namespaceURI, "text");
-      for (const [key, value] of Object.entries({x:576, y:y + 4, class:"report-plot-tick"})) tick.setAttribute(key, String(value));
+      for (const [key, value] of Object.entries({x:plotRight + 4, y:y + 4, class:"report-plot-tick"})) tick.setAttribute(key, String(value));
       tick.textContent = Number(min + range * ratio).toLocaleString("zh-TW"); svg.append(grid, tick);
     });
     let segment = [];
     points.forEach((value, index) => {
       if (value === null || !Number.isFinite(value)) { addLine(segment); segment = []; return; }
-      const x = 22 + index / Math.max(1, points.length - 1) * 550;
+      const x = 22 + index / Math.max(1, points.length - 1) * (plotRight - 22);
       const y = 155 - (value - min) / range * 130;
       segment.push(`${x},${y}`);
       const dot = document.createElementNS(svg.namespaceURI, "circle");
@@ -127,6 +135,8 @@ function renderReportLines(root) {
     addLine(segment);
     const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", "20"); label.setAttribute("y", "183"); label.setAttribute("class", "report-plot-tick");
     label.textContent = `${rows[0].dataset.pointLabel} → ${rows.at(-1).dataset.pointLabel}（逐群數值詳見下表）`; svg.append(label);
-    chart.querySelector("[data-line-chart]")?.append(svg);
+    host?.append(svg);
+    // 捲動時先停在最新一期（日期由早到晚排序時在右邊）。
+    if (host?.classList.contains("report-plot-scroll") && rows[0].dataset.pointLabel < rows.at(-1).dataset.pointLabel) host.scrollLeft = host.scrollWidth;
   });
 }

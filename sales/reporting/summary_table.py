@@ -6,10 +6,10 @@ from .financial_query import with_saved_bonus
 from .reader_layouts import display_header
 
 
-def summary_result(config, card, filters):
+def summary_result(config, card, filters, *, full_list=False):
     from .engine import (AGGREGATES, METRICS, MAX_GROUPS, base_query, display_dimension,
                          dimension_query, dimension_labels, dimension_label, encode_key,
-                         format_value, scope_labels)
+                         format_value, group_limit, scope_labels, truncation_note)
 
     metrics = [card["metric"], *card.get("additional_metrics", [])]
     dimensions = [card["dimension"]] + ([card["series"]] if card.get("series") else [])
@@ -34,9 +34,12 @@ def summary_result(config, card, filters):
         ordering = [F(card["metric"]).desc(nulls_last=True), fields[0]]
     elif card['sort'] == 'value_asc':
         ordering = [F(card['metric']).asc(nulls_first=True), fields[0]]
-    rows = list(grouped.order_by(*ordering, *fields[1:])[:min(card["limit"], MAX_GROUPS) + 1])
-    truncated = len(rows) > card["limit"]
-    rows = rows[:card["limit"]]
+    # T-245：時間類分類不套用顯示群數；CSV 取完整清單。上限 MAX_GROUPS 列。
+    limit = group_limit(card, full_list)
+    rows = list(grouped.order_by(*ordering, *fields[1:])[:MAX_GROUPS + 1])
+    over_max = len(rows) > MAX_GROUPS
+    truncated = len(rows) > limit
+    rows = rows[:limit]
     labels = [dimension_labels(dimension, [row[field] for row in rows if row[field] is not None], queryset)
               for dimension, field in zip(dimensions, fields)]
     # 兩個維度之一是車色時，每列的色碼只取該列另一維度範圍內的訂單（T-231），
@@ -79,6 +82,8 @@ def summary_result(config, card, filters):
             note += " 範圍內有訂單缺少收支資料，受影響群組與總額暫不顯示。"
     return {"card": card, "rows": values, "total": total["display"], "raw_total": total["value"],
             "count": totals["count"], "truncated": truncated, "summary_table": True,
+            "truncation_note": truncation_note(card, truncated, over_max, surface="表格",
+                                               unit="列" if len(dimensions) == 2 else "群"),
             "table_dimension_labels": [display_dimension(key, config, card) for key in dimensions],
             "table_metric_labels": [METRICS[key] for key in metrics],
             "table_header_labels": [display_header(config, label) for label in

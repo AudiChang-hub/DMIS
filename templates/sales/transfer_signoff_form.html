@@ -50,7 +50,7 @@
       </div>
       <div class="field">
         <label for="transfer-dealer-name">主檔沒有的車行</label>
-        <input id="transfer-dealer-name" class="form-control" type="text" name="dealer_name" maxlength="120" value="{% if not data.dealer and not data.factory and not data.home_store %}{{ data.dealer_name }}{% endif %}" placeholder="例如：〔車行〕（有選主檔時可留空）">
+        <input id="transfer-dealer-name" class="form-control" type="text" name="dealer_name" maxlength="120" value="{% if not data.dealer and not data.factory and not data.home_store %}{{ data.dealer_name }}{% endif %}" placeholder="例如：○○車行（有選主檔時可留空）">
       </div>
       <div class="field field-span-2"><label for="transfer-note">備註</label><input id="transfer-note" class="form-control" type="text" name="note" maxlength="200" value="{{ data.note }}" placeholder="例如：含鑰匙兩副、附發票"></div>
     </div>

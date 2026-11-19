@@ -22,6 +22,23 @@ repo 或 commit 訊息。本文件不放任何真實名稱。
 3. 還沒推的 commit 訊息用 `git commit --amend` 或重新提交修正；已經推上 main 的訊息不改寫歷史、
    不 force push，回報 PM 另案處理。
 
+## 已知保留（2026-11-19 使用者決定，T-248 方案 B）
+
+下列位置刻意保留名稱，因為它們是比對邏輯、已執行的 migration 常數或歷史版本說明。改到這些行時 CI 會擋，請先找 PM：
+
+- 比對邏輯：
+  - `sales/reporting/source_compatibility.py` 的 `STORE_STAFF_NAMES`（報表「店內員工」）；
+  - `sales/services/legacy_import.py` 的 `SPECIAL_PLATFORM_SOURCE_RULES`；
+  - `sales/services/dealer_workbook_sync.py` 的 `DEALER_NAME_ALIASES`；
+  - `static/js/report-interactions.js` 平台總覽配色清單。
+- 已執行的 migration：
+  - `sales/migrations/` 0051、0090、0091、0092、0100、0101、0104 的名稱常數；
+  - 0090、0091、0100 的檔名不能改。
+- 歷史版本說明：`config/release_notes.py` 已發布版本的文字，原則上不覆寫。
+- 上述邏輯與 migration 對應的測試：
+  - `test_reporting.py`、`test_report_source_filters_t183.py`、`test_legacy_import.py`（平台員購規則）、`test_dealer_workbook_sync.py`；
+  - `test_holiday_gift_migration.py`，以及 0090、0091、0100、0092、0101 的 migration 測試。
+
 ## 清單怎麼建
 
 用 `tools/export_blocked_terms.py` 從正式站唯讀匯出（只做 SELECT）。主機、金鑰、專案目錄由參數或

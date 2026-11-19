@@ -1013,7 +1013,7 @@
   },
   "price_list_distribution_assignments.a1d2208a8f58": {
     "page": "分配與排序",
-    "default": "例如先篩「基隆市」並全選，再取消〔車行〕；篩「內湖區」後則只勾要負責的五家。",
+    "default": "例如先篩「基隆市」並全選，再取消其中一家；篩「內湖區」後則只勾要負責的五家。",
     "template": "templates/sales/price_list_distribution_assignments.html"
   },
   "price_list_distribution_assignments.d7c735bc53ac": {

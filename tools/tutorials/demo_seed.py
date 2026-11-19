@@ -91,7 +91,7 @@ def run():
         legal_name="示範機車行有限公司", tax_id="12345678", address="新北市示範區示範路 1 號", phone="02-1234-5678",
     ))
     SalesSource.objects.get_or_create(name="示範門市", defaults={"source_type": "store", "active": True})
-    for name in ("昌勝車行", "大發車行"):
+    for name in ("示範車行甲", "大發車行"):
         SalesSource.objects.get_or_create(name=name, defaults={"source_type": "dealer", "active": True})
     for name, price, labor in (("全罩式安全帽", 2800, 0), ("後扶手置物箱", 1800, 300)):
         AccessoryProduct.objects.get_or_create(name=name, defaults={"sale_price": price, "labor_fee": labor, "active": True})

@@ -30,7 +30,7 @@ legacy Odoo addons 不應進入 image。變更 `.dockerignore` 或 `Dockerfile.d
 正式 `.env.django` 使用兩組不同帳號：
 
 ```dotenv
-POSTGRES_USER=dmis_admin
+POSTGRES_USER=<管理角色>
 POSTGRES_PASSWORD=請替換為資料庫管理角色強密碼
 DJANGO_DB_USER=dmis_app
 DJANGO_DB_PASSWORD=請替換為應用程式資料庫強密碼
@@ -79,7 +79,7 @@ ports:
 ```
 
 正式 `.env.django` 的 `DJANGO_PORT` 只填主機 port，例如 `19999`，不要再填 IP。外部使用者
-只能經 `https://dmis.moto-core.com/` 與 Cloudflare Tunnel 進入；不得另外把 `19999`
+只能經 `https://dmis.example.com/` 與 Cloudflare Tunnel 進入；不得另外把 `19999`
 開放給區網或 Internet。`tunnel-proxy` 沿用既有來源名稱 `odoo:8069`，實際轉送 Django
 `web:8000`；此相容名稱不代表 Odoo 仍是正式服務。
 
@@ -90,7 +90,7 @@ docker compose -f docker-compose.django.yml \
   -f docker-compose.django.prod.yml config
 ss -ltnp | grep ':19999'
 curl --fail --silent --show-error http://127.0.0.1:19999/health/
-curl --fail --silent --show-error https://dmis.moto-core.com/health/
+curl --fail --silent --show-error https://dmis.example.com/health/
 ```
 
 `ss` 應顯示 `127.0.0.1:19999`，不得是 `0.0.0.0:19999` 或 `[::]:19999`。

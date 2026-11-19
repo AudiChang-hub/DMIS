@@ -15,7 +15,7 @@ docs/context/CURRENT_STATE.md、docs/context/BUSINESS_RULES.md、docs/context/HA
 ## 驗證結果
 
 - `python -m unittest discover -s tests/context` 通過；今日各次推送 CI 皆通過。
-- 正式站 SSH 唯讀核對：HEAD `439dda9`、web healthy、`/health/` 回 ok；帳號權限 admin／〔人員〕／〔人員〕／〔人員〕 皆有收支權限；目前無掛帳中訂單、無車行設額度。
+- 正式站 SSH 唯讀核對：HEAD `439dda9`、web healthy、`/health/` 回 ok；帳號權限 admin 與三個業務帳號皆有收支權限；目前無掛帳中訂單、無車行設額度。
 - 教學工具已在本機暫存環境試跑示範資料建立成功；完整錄影未跑。
 
 ## 尚未完成
@@ -26,7 +26,7 @@ docs/context/CURRENT_STATE.md、docs/context/BUSINESS_RULES.md、docs/context/HA
 
 - 多個工作階段可能同時發布；發布前先查 `gh run list` 與正式站 deployed-sha，避免重複打標籤或部署。
 - 教學錄影腳本 `scenarios/open_order.py` 寫於建立訂單改為多筆付款前，重錄前先試跑核對選擇器。
-- 正式主機 SSH：`ssh -i "C:/Users/user/.ssh/line_monitor_ubuntu_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes t470p "<指令>"`；專案目錄 `/home/audi/project/DMIS-next`；僅限已授權維運。
+- 正式主機 SSH：`ssh -i "<SSH 金鑰>" -o IdentitiesOnly=yes -o BatchMode=yes <正式主機別名> "<指令>"`；專案目錄 `/path/to/DMIS-next`（實際值記在本機，不放 repo）；僅限已授權維運。
 
 ## Rollback 注意事項
 

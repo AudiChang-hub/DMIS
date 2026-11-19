@@ -94,7 +94,7 @@
 2026/09/07 修正：Tunnel proxy 使用 Docker DNS 每 5 秒重新解析 web，避免重建容器後
 仍連到舊 IP 而持續回傳 502；發布時須同時驗證代理及正式網址。
 
-- [ ] 確認 T470P checkout、branch、乾淨工作樹、遠端 fast-forward 與回復 commit
+- [ ] 確認正式主機 checkout、branch、乾淨工作樹、遠端 fast-forward 與回復 commit
 - [ ] PostgreSQL 與媒體備份成功，且重大 migration／儲存異動已驗證還原方式
 - [ ] 部署腳本完成，資料庫、Redis 與同機其他服務未被不必要重啟
 - [ ] compose health、背景 workers、本機 `/health/` 及正式網域 `/health/` 正常

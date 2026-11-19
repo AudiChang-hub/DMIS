@@ -2,7 +2,7 @@
 
 ## 安全與完成條件
 
-- 先確認 T470P checkout、branch、工作樹、備份與可回復版本；只用 Django base＋prod compose。
+- 先確認正式主機 checkout、branch、工作樹、備份與可回復版本；只用 Django base＋prod compose。
 - 應用更新不得任意重啟 PostgreSQL、Redis 或同機其他服務。Web port 只綁 loopback，由 Cloudflare Tunnel 對外 HTTPS。
 - Django web／workers 使用非 superuser DB app role；管理角色只供初始化、維護與備份，不把管理帳密給 application containers。
 - 金鑰以環境或唯讀 secret mount 提供，不進 image／Git／log。
@@ -10,9 +10,9 @@
 - migration、儲存或重大財務異動前備份；還原步驟必須可操作，不用 `docker compose down` 或破壞性 Git 解決失敗。
 - 下列流程移自 README；執行前核對目前腳本及實際部署。文件整理本身不授權重啟或部署。
 
-## T470P 正式部署
+## 正式部署
 
-正式專案目錄為 `/home/audi/project/DMIS-next`。第一次設定：
+正式專案目錄為 `/path/to/DMIS-next`。第一次設定：
 
 ```bash
 cp .env.django.example .env.django
@@ -25,10 +25,10 @@ cp .env.django.example .env.django
 DJANGO_PORT=19999
 DJANGO_DEBUG=0
 DJANGO_ENV=production
-DJANGO_ALLOWED_HOSTS=dmis.moto-core.com,localhost,127.0.0.1
-DJANGO_CSRF_TRUSTED_ORIGINS=https://dmis.moto-core.com
+DJANGO_ALLOWED_HOSTS=dmis.example.com,localhost,127.0.0.1
+DJANGO_CSRF_TRUSTED_ORIGINS=https://dmis.example.com
 POSTGRES_DB=dmis
-POSTGRES_USER=dmis_admin
+POSTGRES_USER=<管理角色>
 POSTGRES_PASSWORD=請替換為資料庫管理角色強密碼
 DJANGO_DB_USER=dmis_app
 DJANGO_DB_PASSWORD=請替換為應用程式資料庫強密碼
@@ -55,8 +55,8 @@ docker compose -f docker-compose.django.yml \
 並同步更新 `DJANGO_DB_PASSWORD`。不要只改 `POSTGRES_PASSWORD` 就假設既有 volume 的管理
 角色密碼已變更。
 
-`19999` 是 T470P 上的本機健康檢查入口（綁在 `tunnel-proxy`），不應直接暴露給區網或 Internet。正式使用者
-只經 `https://dmis.moto-core.com/` 與 Cloudflare Tunnel 進入；
+`19999` 是正式主機上的本機健康檢查入口（綁在 `tunnel-proxy`），不應直接暴露給區網或 Internet。正式使用者
+只經 `https://dmis.example.com/` 與 Cloudflare Tunnel 進入；
 `docker-compose.django.prod.yml` 的 `tunnel-proxy` 保留舊來源名稱 `odoo:8069`，轉送到
 目前接流量的 `web-blue:8000` 或 `web-green:8000`（見下方「藍綠部署」）。Tunnel connector 固定使用 HTTP/2。
 `deployment/nginx/tunnel-proxy.conf` 必須轉送 `Upgrade`／`Connection`，訂單草稿即時共編
@@ -88,7 +88,7 @@ docker compose -f docker-compose.django.yml \
 bash scripts/smoke_django.sh http://127.0.0.1:19999
 docker compose -f docker-compose.django.yml \
   -f docker-compose.django.prod.yml exec -T web python manage.py check --deploy
-curl --fail --silent --show-error https://dmis.moto-core.com/health/
+curl --fail --silent --show-error https://dmis.example.com/health/
 ```
 
 `/health/` 只回報 Web 與資料庫能否使用，不顯示版本、密碼或環境內容。部署完成不只

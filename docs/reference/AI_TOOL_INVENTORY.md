@@ -94,7 +94,7 @@
 
 ### 桌面額外提供的 Sites
 
-Sites building／hosting／preview-troubleshooting 用於 Sites 管理，不是本 repo 的 Django 開發或 T470P 部署。
+Sites building／hosting／preview-troubleshooting 用於 Sites 管理，不是本 repo 的 Django 開發或正式主機部署。
 本專案同時停用 Sites 插件與其 connector；未刪除技能或改供應商檔案。先前桌面目錄回報的大小分別為 35,468／8,609／8,219 bytes，
 R/S 分別 11/0、2/2、0/0；這些是初始目錄快照，不屬於本次本機 39 份掃描結果。不可將遠端技能路徑不存在解讀成已卸載所有遠端能力。
 

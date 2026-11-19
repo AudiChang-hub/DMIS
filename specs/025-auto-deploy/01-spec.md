@@ -1,6 +1,6 @@
 # Spec：DMIS Git 自動部署
 
-1. T470P 每分鐘檢查 `origin/feat/015-dms-product-rebuild`。
+1. 正式主機每分鐘檢查 `origin/feat/015-dms-product-rebuild`。
 2. 無新 commit 時不重啟服務。
 3. 工作樹不乾淨或遠端不是 fast-forward 時停止部署並寫入日誌。
 4. 更新前備份 `dmis_dev` PostgreSQL database。

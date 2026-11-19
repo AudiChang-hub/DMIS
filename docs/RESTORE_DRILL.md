@@ -19,8 +19,8 @@
 安裝（audi 帳號）：
 
 ```bash
-mkdir -p /home/audi/.config/systemd/user
-install -m 0644 deployment/systemd/dmis-next-restore-drill.{service,timer} /home/audi/.config/systemd/user/
+mkdir -p ~/.config/systemd/user
+install -m 0644 deployment/systemd/dmis-next-restore-drill.{service,timer} ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now dmis-next-restore-drill.timer
 systemctl --user start dmis-next-restore-drill.service

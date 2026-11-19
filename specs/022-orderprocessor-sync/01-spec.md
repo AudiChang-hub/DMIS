@@ -4,7 +4,7 @@
 讓 OrderProcessor 處理完成的訂單資料，自動進入 DMIS 的 debug 暫存區，供解析驗證與問題排查使用；在 Excel 匯入仍存在的過渡期間，不得直接寫入 `dms.sale.order`，避免影響正式銷售資料與報表。
 
 ## 架構
-- docker-compose volume mount：`/home/audi/project/OrderProcessor/backup:/mnt/order_backup:ro`（唯讀）
+- docker-compose volume mount：`/path/to/OrderProcessor/backup:/mnt/order_backup:ro`（唯讀）
 - Odoo Scheduled Action（ir.cron）每 1 分鐘掃描 `/mnt/order_backup/`
 - 讀取各資料夾內的 `result.json`，解析後寫入 `dms.sync.log` 作為 staging/debug 記錄
 - `dms.sync.log` 同時保存原始 JSON、xlsx fallback 內容與標準化後欄位快照，供後續 debug 使用
@@ -40,7 +40,7 @@
   * 欄位映射：機種/型號→車輛型號、顏色→車輛顏色、車行→車行名稱、姓名→front.姓名、生日→front.出生年月日、身分證→front.身分證字號、戶籍→back.住址、手機→車主電話、車主Email、是否有汰舊、是否有分期、備註、配件
 - 車款：從「車輛型號」括號內取 SKU，搜尋 dms.product.model；找不到則留空，原始字串存 source_product_name
 - 顏色：取括號前名稱，ilike 搜尋 dms.product.color；找不到留空
-- 車行：先以原字串比對，再 fallback 去除全形/半形空白後重比（如「昌 億」→「〔車行〕」）；空白則 sale_type='store'
+- 車行：先以原字串比對，再 fallback 去除全形/半形空白後重比（如「昌 億」→「車行13」）；空白則 sale_type='store'
 - 預設車行：車行名稱空白時帶入店面（sale_type='store'，dealer_id=False）
 - 汰舊：「是否有汰舊」不是「否」→ is_trade_in=True
 - 分期：「是否有分期」不是「無」→ payment_method='installment'，解析分期公司
@@ -76,7 +76,7 @@
 2. docker compose exec odoo ls /mnt/order_backup（確認 mount）
 3. 手動觸發 Scheduled Action
 4. 銷售管理 > OrderProcessor 暫存區 → 確認有成功紀錄
-5. 確認欄位對應正確（以 旭昶_GIXXER SF 250 測資為準）
+5. 確認欄位對應正確（以 車行62_GIXXER SF 250 測資為準）
 6. 確認 `dms.sale.order` 不會新增 `sale_origin='order_processor'` 訂單
 7. 重複觸發 → 不重複建立第二筆暫存紀錄
 8. bash scripts/smoke_odoo.sh → OK: 303

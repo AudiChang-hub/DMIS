@@ -5,7 +5,7 @@
 - Django 5.1
 - PostgreSQL（正式環境）／SQLite（本機快速驗證）
 - Django Templates + 原生 CSS/JavaScript
-- Docker Compose 部署至 T470P Ubuntu
+- Docker Compose 部署至正式主機 Ubuntu
 - 私有媒體檔案由登入後的受控 view 提供，不公開暴露
 
 ## 第一個垂直切片

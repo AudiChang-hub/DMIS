@@ -2,7 +2,7 @@
 
 ## 目標
 
-當指定 Git branch 出現新 commit 時，由 T470P 自動、安全地更新 DMIS，
+當指定 Git branch 出現新 commit 時，由正式主機自動、安全地更新 DMIS，
 並保留資料庫備份、部署日誌與失敗診斷資訊。
 
 ## 非目標

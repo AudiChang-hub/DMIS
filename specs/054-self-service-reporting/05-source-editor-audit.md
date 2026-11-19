@@ -26,7 +26,7 @@ makemigrations --check --dry-run 無異動。完整 sales 測試 815 項完成�
 Escape 可關閉；桌機明細使用卡片排列。僅夜間主題及上述路徑，不代表全站／全部主題驗收。
 測試過程瀏覽器曾逾時，重新連接後繼續；暫時視窗尺寸已還原。
 正式訂單與帳務未寫入。後續交付確認：`d3ef855` CI 34188566810 全部通過，
-T470P 部署標記與 Git 均為此版本；正式健康檢查通過。唯讀登入驗證核對 1741 張
+正式主機部署標記與 Git 均為此版本；正式健康檢查通過。唯讀登入驗證核對 1741 張
 訂單及 7 群，明細、CSV 與 admin／一般帳號權限通過；臨時驗證工作階段已清除。
 22 頁完整映射及獎勵逐單發放仍待完成，不將本批共用功能列入逐頁完成數。
 
@@ -91,15 +91,15 @@ IFNULL(FriendlyBonusOut, 0)
 ```text
 CASE
  WHEN Dealer IS NULL OR Dealer = '' THEN '馭盛網推'
- WHEN REGEXP_MATCH(LOWER(Dealer), 'pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮') THEN '網路平台'
- WHEN REGEXP_MATCH(Dealer, '(〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕)') THEN '光陽'
- WHEN REGEXP_MATCH(Dealer, '(永湛|〔車行〕|〔車行〕|〔車行〕|百福|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|東永|〔車行〕)') THEN '三陽'
- WHEN REGEXP_MATCH(Dealer, '(馳機|天佑|旭昇|宏偉|尚勁|〔車行〕|凱弘|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|極昇|奕鈞|〔車行〕|岩谷|昌勝|〔車行〕|金利富|泳辰|源泰|〔車行〕|嘉仁|金泰發|日信|〔車行〕|昌勝(試乘車)|〔車行〕)') THEN '山葉'
- WHEN REGEXP_MATCH(Dealer, '(〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|上慶|〔車行〕|〔車行〕|湖州|〔車行〕)') THEN '一般車行'
- WHEN REGEXP_MATCH(Dealer, '(明輝|〔車行〕|旭昶|〔車行〕|〔車行〕|〔車行〕)') THEN '台鈴'
- WHEN REGEXP_MATCH(Dealer, '(〔車行〕|北野電能|北野)') THEN '睿能'
+ WHEN REGEXP_MATCH(LOWER(Dealer), '平台D|平台C|平台A|平台F|平台G|平台B|平台E|平台H') THEN '網路平台'
+ WHEN REGEXP_MATCH(Dealer, '(車行01|車行02|車行03|車行04|車行05|車行06|車行07|車行08)') THEN '光陽'
+ WHEN REGEXP_MATCH(Dealer, '(永湛|車行09|車行10|車行11|車行12|車行13|車行14|車行15|車行16|車行17|車行18|車行19|車行20)') THEN '三陽'
+ WHEN REGEXP_MATCH(Dealer, '(車行21|車行22|車行23|車行24|車行25|車行26|車行27|車行28|車行29|車行30|車行31|車行32|車行33|車行34|車行35|車行36|車行37|車行38|車行39|車行40|車行41|車行42|車行43|車行44|車行45|車行46|車行37(試乘車)|車行47)') THEN '山葉'
+ WHEN REGEXP_MATCH(Dealer, '(車行48|車行49|車行50|車行51|車行52|車行53|車行54|車行55|車行56|車行57|車行58)') THEN '一般車行'
+ WHEN REGEXP_MATCH(Dealer, '(車行60|車行61|車行62|車行63|車行64|車行65)') THEN '台鈴'
+ WHEN REGEXP_MATCH(Dealer, '(車行66|車行67|車行67)') THEN '睿能'
  WHEN REGEXP_MATCH(Dealer, '中古車') THEN '中古車'
- WHEN REGEXP_MATCH(Dealer, '〔車行〕') THEN '一般車行'
+ WHEN REGEXP_MATCH(Dealer, '車行59') THEN '一般車行'
  ELSE Dealer
 END
 ```

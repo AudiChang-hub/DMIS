@@ -1,4 +1,4 @@
-# T470P 舊 Odoo 退役評估
+# 正式主機舊 Odoo 退役評估
 
 評估日期：2026-08-22
 本文件僅盤點與提出可回復的退役順序；在完成備份與依賴確認前，不直接刪除容器、volume 或舊專案。
@@ -37,7 +37,7 @@
 
 1. 將舊 compose 改成不會因主機重啟而自動拉起 Odoo。
 2. 移除已停止的 Odoo／舊 tunnel 容器，但保留映像與三個 volume。
-3. 驗證 `dmis.moto-core.com`、19999、備份排程與 T470P 其他服務均正常。
+3. 驗證 `dmis.example.com`、19999、備份排程與正式主機其他服務均正常。
 
 ### 第 4 階段：永久清理
 
@@ -54,4 +54,4 @@
 - 不執行 `docker compose down -v`。
 - 不刪除 `dmis_db_data`、`dmis_odoo_data`、`dmis_metabase_data`。
 - 不停止仍在運作的 Metabase、舊 PostgreSQL 或 Metabase tunnel。
-- 不變更 T470P 其他服務。
+- 不變更正式主機其他服務。

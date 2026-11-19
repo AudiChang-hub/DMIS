@@ -214,7 +214,7 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 ### 分期欄位正規化
 
 - OrderProcessor 來源中的 `是否有分期` / `分期公司` 若出現 `18期`、`24期` 這類期數字串，需解析為 `installment_periods`，不得直接寫入 `finance_company` selection。
-- `finance_company` 僅接受既有選項：`和潤`、`遠信`、`仲信`、`other`；未知文字需轉入 `finance_company_other`，純期數則保留公司為空。
+- `finance_company` 僅接受既有選項：`分期公司A`、`分期公司B`、`分期公司C`、`other`；未知文字需轉入 `finance_company_other`，純期數則保留公司為空。
 
 ### Excel 匯入車型匹配
 

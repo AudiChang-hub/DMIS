@@ -37,15 +37,15 @@ IFNULL(FriendlyBonusOut, 0) + IFNULL(FirstSaleBonus, 0) + IFNULL(DealerCommOut, 
 ```sql
 CASE
   WHEN Dealer IS NULL OR Dealer = '' THEN '馭盛網推'
-  WHEN REGEXP_MATCH(LOWER(Dealer), 'pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮') THEN '網路平台'
-  WHEN REGEXP_MATCH(Dealer, '(〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕)') THEN '光陽'
-  WHEN REGEXP_MATCH(Dealer, '(永湛|〔車行〕|〔車行〕|〔車行〕|百福|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|東永|〔車行〕)') THEN '三陽'
-  WHEN REGEXP_MATCH(Dealer, '(馳機|天佑|旭昇|宏偉|尚勁|〔車行〕|凱弘|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|極昇|奕鈞|〔車行〕|岩谷|昌勝|〔車行〕|金利富|泳辰|源泰|〔車行〕|嘉仁|金泰發|日信|〔車行〕|昌勝(試乘車)|〔車行〕)') THEN '山葉'
-  WHEN REGEXP_MATCH(Dealer, '(〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|〔車行〕|上慶|〔車行〕|〔車行〕|湖州|〔車行〕)') THEN '一般車行'
-  WHEN REGEXP_MATCH(Dealer, '(明輝|〔車行〕|旭昶|〔車行〕|〔車行〕|〔車行〕)') THEN '台鈴'
-  WHEN REGEXP_MATCH(Dealer, '(〔車行〕|北野電能|北野)') THEN '睿能'
+  WHEN REGEXP_MATCH(LOWER(Dealer), '平台D|平台C|平台A|平台F|平台G|平台B|平台E|平台H') THEN '網路平台'
+  WHEN REGEXP_MATCH(Dealer, '(車行01|車行02|車行03|車行04|車行05|車行06|車行07|車行08)') THEN '光陽'
+  WHEN REGEXP_MATCH(Dealer, '(永湛|車行09|車行10|車行11|車行12|車行13|車行14|車行15|車行16|車行17|車行18|車行19|車行20)') THEN '三陽'
+  WHEN REGEXP_MATCH(Dealer, '(車行21|車行22|車行23|車行24|車行25|車行26|車行27|車行28|車行29|車行30|車行31|車行32|車行33|車行34|車行35|車行36|車行37|車行38|車行39|車行40|車行41|車行42|車行43|車行44|車行45|車行46|車行37(試乘車)|車行47)') THEN '山葉'
+  WHEN REGEXP_MATCH(Dealer, '(車行48|車行49|車行50|車行51|車行52|車行53|車行54|車行55|車行56|車行57|車行58)') THEN '一般車行'
+  WHEN REGEXP_MATCH(Dealer, '(車行60|車行61|車行62|車行63|車行64|車行65)') THEN '台鈴'
+  WHEN REGEXP_MATCH(Dealer, '(車行66|車行67|車行67)') THEN '睿能'
   WHEN REGEXP_MATCH(Dealer, '中古車') THEN '中古車'
-  WHEN REGEXP_MATCH(Dealer, '〔車行〕') THEN '一般車行'
+  WHEN REGEXP_MATCH(Dealer, '車行59') THEN '一般車行'
   ELSE Dealer
 END
 ```
@@ -128,8 +128,8 @@ REGEXP_EXTRACT(Address, r"(台北市|新北市|桃園市|台中市|台南市|高
 ```sql
 CASE
   WHEN Dealer IS NULL OR Dealer = "" OR Dealer = "中古車" THEN "馭盛"
-  WHEN REGEXP_MATCH(Dealer, "yahoo|百利市|momo|PC|Friday|燦坤|小樹購|蝦皮|YAHOO|Yahoo") THEN "網路平台"
-  WHEN REGEXP_MATCH(Dealer, "文傑") THEN "店內員工"
+  WHEN REGEXP_MATCH(Dealer, "平台A|平台B|平台C|平台D|平台E|平台F|平台G|平台H|平台A|平台A") THEN "網路平台"
+  WHEN REGEXP_MATCH(Dealer, "員工甲") THEN "店內員工"
   ELSE "車行"
 END
 ```
@@ -137,8 +137,8 @@ END
 ### 15. SalesType（維度，文字）
 ```sql
 CASE
-  WHEN Dealer IS NULL OR Dealer = '' OR REGEXP_MATCH(Dealer, '文傑') THEN '本店'
-  WHEN REGEXP_MATCH(LOWER(Dealer), '(pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮)') THEN '網路平台'
+  WHEN Dealer IS NULL OR Dealer = '' OR REGEXP_MATCH(Dealer, '員工甲') THEN '本店'
+  WHEN REGEXP_MATCH(LOWER(Dealer), '(平台D|平台C|平台A|平台F|平台G|平台B|平台E|平台H)') THEN '網路平台'
   ELSE '車行'
 END
 ```

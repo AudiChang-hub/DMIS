@@ -63,7 +63,7 @@ Controller (`addons/dms_report_ds/controllers/main.py`) 反向代理至 `/metaba
 
 | 設定項 | 值 | 備註 |
 |--------|-----|------|
-| Site URL | `https://dmis.moto-core.com` | 不可改為 `/metabase`，否則 public dashboard 404 |
+| Site URL | `https://dmis.example.com` | 不可改為 `/metabase`，否則 public dashboard 404 |
 | Database | `dmis_dev` (host=db, port=5432) | |
 | Collection | SUZUKI銷售統計 (id=5) | 21 個 Dashboard (D2-D21, D23) |
 | Dashboard width | `full` | 所有 21 個 Dashboard |

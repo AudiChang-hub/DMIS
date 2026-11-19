@@ -2,7 +2,7 @@
 
 ## 背景
 
-- `ds_sales_report` 目前只以空白 dealer、`網路平台` 與 `文傑` 關鍵字判斷內部通路，其餘一律歸為 `車行`。
+- `ds_sales_report` 目前只以空白 dealer、`網路平台` 與 `員工甲` 關鍵字判斷內部通路，其餘一律歸為 `車行`。
 - 現場資料中存在 `display_dealer_name = '朋友推薦'` 與 `display_dealer_name = '代申請補助'`，目前都不應被歸為 `車行`。
 
 ## 本次變更

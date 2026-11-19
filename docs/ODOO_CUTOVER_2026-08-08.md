@@ -2,9 +2,9 @@
 
 ## 切換範圍
 
-- 正式網域：`https://dmis.moto-core.com/`
-- 新系統：`/home/audi/project/DMIS-next`
-- 舊系統：`/home/audi/project/DMIS`
+- 正式網域：`https://dmis.example.com/`
+- 新系統：`/path/to/DMIS-next`
+- 舊系統：`/path/to/DMIS`
 - 正式網域沿用既有 Cloudflare Tunnel 與 `http://odoo:8069` 來源名稱；切換後
   由新系統 `tunnel-proxy` 在 `dmis-next_default` 專用網路接手該名稱並轉送至
   `http://web:8000`。Cloudflare connector 不再加入舊 `dmis_default` 網路，避免
@@ -62,10 +62,10 @@
 
 - `python manage.py test`
 - `python manage.py check --deploy`
-- `https://dmis.moto-core.com/health/` 回傳 200
+- `https://dmis.example.com/health/` 回傳 200
 - 登入頁與靜態檔正常
 - 主檔筆數與匯入報告相符
-- T470P 其他服務持續運作
+- 正式主機其他服務持續運作
 - 舊 Odoo 自動部署 timer 在切換成功後停用
 - `scripts/verify_django_public_route.sh` 連續檢查正式首頁，不得再出現 Odoo
   `/web` 導向或舊版頁面內容

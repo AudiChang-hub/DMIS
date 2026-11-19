@@ -1,6 +1,6 @@
 # Charter：dms_pricelist 價目管理模組
 
-> 歷史文件註記（2026-03-27）：原 `dms_pricelist` 已依 [`specs/014-module-removal/01-spec.md`](/home/audi/project/DMIS/specs/014-module-removal/01-spec.md) 整併至 `dms_sale`。本文件保留拆模時的設計脈絡，現行實作請以 [`specs/006-dms-sale/01-spec.md`](/home/audi/project/DMIS/specs/006-dms-sale/01-spec.md) 與 `014-module-removal` 系列文件為準。
+> 歷史文件註記（2026-03-27）：原 `dms_pricelist` 已依 [`specs/014-module-removal/01-spec.md`](../014-module-removal/01-spec.md) 整併至 `dms_sale`。本文件保留拆模時的設計脈絡，現行實作請以 [`specs/006-dms-sale/01-spec.md`](../006-dms-sale/01-spec.md) 與 `014-module-removal` 系列文件為準。
 
 ## 背景
 車行作業中，車款售價、精品定價、牌險費率、車行傭金等資料散落於各份 Excel，

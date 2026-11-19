@@ -133,7 +133,7 @@ class InventoryAcquisitionTests(TestCase):
         self.assertEqual(VehicleInventory.objects.count(), 2)
 
     def test_duplicate_message_names_vehicle_status_and_order(self):
-        # 〔客戶〕單：重複號碼要說出那台車的狀態、配給哪張單，並能點過去。
+        # 測試客戶甲單：重複號碼要說出那台車的狀態、配給哪張單，並能點過去。
         sold = self.vehicle("SOLD", status=VehicleInventory.Status.SOLD)
         order = self.make_order()[0]
         SalesOrder.objects.filter(pk=order.pk).update(allocated_vehicle=sold)

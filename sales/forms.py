@@ -2248,7 +2248,7 @@ OrderPageOtherFeeFormSet = inlineformset_factory(
 
 
 def existing_vehicle_message(vehicle):
-    """重複號碼要說清楚那台車在哪、什麼狀態、該怎麼處理，並連到車輛與訂單（UAT U-01、〔客戶〕單）。"""
+    """重複號碼要說清楚那台車在哪、什麼狀態、該怎麼處理，並連到車輛與訂單（UAT U-01、測試客戶甲單）。"""
     from django.urls import reverse
     Status = VehicleInventory.Status
     order = SalesOrder.objects.filter(allocated_vehicle=vehicle).only("pk", "number").first()

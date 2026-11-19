@@ -4553,7 +4553,7 @@ class OrderFlowTests(TestCase):
 
     def test_privacy_consent_uses_latest_order_name_date_and_plate(self):
         order = self.make_order()
-        order.owner_name = "〔客戶〕"
+        order.owner_name = "王小明"
         order.order_date = date(2026, 7, 29)
         order.final_plate_number = "ABC-1234"
         order.save()
@@ -4566,12 +4566,12 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(reader.pages), 1)
-        self.assertIn("〔客戶〕", extracted)
+        self.assertIn("王小明", extracted)
         self.assertIn("ABC-1234", extracted)
         self.assertIn("中華民國 115 年 07 月 29 日", extracted)
         self.assertIn("馭盛國際有限公司", extracted)
 
-        order.owner_name = "馮華薇"
+        order.owner_name = "陳美玲"
         order.order_date = date(2026, 8, 1)
         order.save()
         updated_response = self.client.get(
@@ -4582,9 +4582,9 @@ class OrderFlowTests(TestCase):
             page.extract_text()
             for page in PdfReader(BytesIO(updated_content)).pages
         )
-        self.assertIn("馮華薇", updated_text)
+        self.assertIn("陳美玲", updated_text)
         self.assertIn("中華民國 115 年 08 月 01 日", updated_text)
-        self.assertNotIn("〔客戶〕", updated_text)
+        self.assertNotIn("王小明", updated_text)
 
     def test_combined_signing_documents_have_three_pages(self):
         order = self.make_order()

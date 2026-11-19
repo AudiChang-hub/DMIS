@@ -106,7 +106,7 @@ class OrderArchiveTests(TestCase):
         self.assertFalse(moved.exists())
 
     def test_open_orders_get_folder_even_without_files(self):
-        # 1.74.2：未結案訂單沒有檔案也建資料夾（〔客戶〕這類匯入舊單）；已結案或已取消且沒檔案的不建。
+        # 1.74.2：未結案訂單沒有檔案也建資料夾（測試客戶乙這類匯入舊單）；已結案或已取消且沒檔案的不建。
         order = self.create_order()
         SalesOrder.objects.filter(pk=order.pk).update(id_front="", id_back="")
         OrderArchiveRecord.objects.filter(order=order).delete()

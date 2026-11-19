@@ -121,7 +121,7 @@ class ImportOrderReviewTests(TestCase):
         self.assertEqual(order.final_plate_number, "MAN-0001")
 
     def test_blank_identifier_in_excel_can_be_cleared_when_chosen(self):
-        """〔客戶〕情境：Excel 把號碼清空（號碼屬於另一位買家），可勾選清除既有訂單的號碼。"""
+        """測試客戶乙情境：Excel 把號碼清空（號碼屬於另一位買家），可勾選清除既有訂單的號碼。"""
         order = self.imported_order()
         second = self.batch(D4=None)
         row = self.row(second)

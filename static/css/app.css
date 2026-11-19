@@ -5968,7 +5968,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 @keyframes order-filter-sheet-in { from { transform: translateY(32px); opacity: 0; } }
 /* T-252 擴大範圍（使用者 2026-11-19：「分類頁籤和排序也一起壓縮，只改手機版」）：
    分類頁籤改一列可橫向滑動的小標籤（目前分類反白並捲進畫面）；排序收成「排序：目前排序 ▾」，點開從底部升起面板。電腦版不變。 */
-.order-sort-open, .order-sort-sheet__head { display: none; }
+.order-sort-open, .order-sort-sheet__head, .order-more-only { display: none; }
 .order-sort-controls .order-sort-sheet { display: contents; color: inherit; }
 @media (max-width: 860px) {
   .order-results .order-scope-tabs {
@@ -6017,6 +6017,14 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-sort-sheet .order-sort-mobile a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -2px; }
   .order-sort-sheet .sort-chip-list { margin: 0; }
   html.has-order-sort-open { overflow: hidden; }
+  /* 追加三項（使用者 2026-11-19「三項都做」）：「訂單管理」小字收起；「未完成草稿」改在「更多操作」裡（同一權限 order_create）；
+     「共 N 張訂單」與「每頁顯示」併成一行。 */
+  .order-list-hero .eyebrow { display: none; }
+  .order-list-hero .hero-actions > .order-more-only { display: flex; }
+  .order-drilldown > .order-drilldown__drafts { display: none; }
+  .order-drilldown:not(:has(> strong)), .order-drilldown.order-drilldown--chips { display: none; }
+  .order-results .order-list-summary { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
+  .order-results .order-list-summary__controls { width: auto; margin-left: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .order-filter-bar .order-filter-sheet[open], .order-sort-controls .order-sort-sheet[open] { animation: none; } .order-results .order-scope-tabs { scroll-behavior: auto; } }
 .announcement-card h3 { margin: var(--space-3) 0; }

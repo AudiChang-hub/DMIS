@@ -107,3 +107,22 @@ class OrderListTabsAndSortMobileTests(SimpleTestCase):
         self.assertIn('if (event.target.closest("a[href]")) { refocusSort = true; closeSort(false); }', js)
         self.assertIn('document.documentElement.classList.remove("has-order-sort-open");', js)
         self.assertIn("if (refocusSort) { refocusSort = false; openerOf()?.focus({ preventScroll: true }); }", js)
+
+
+class OrderListExtraCompressionTests(SimpleTestCase):
+    """使用者 2026-11-19：「三項都做」——訂單數與每頁筆數一行、未完成草稿併進更多操作、收起「訂單管理」小字。"""
+
+    def test_drafts_link_moves_into_more_actions_with_same_permission(self):
+        page = TEMPLATE.read_text(encoding="utf-8")
+        actions = re.search(r'<div class="hero-actions" id="order-list-actions">(.*?)</div>', page).group(1)
+        self.assertIn("{% if_access 'order_create' %}<a class=\"button ghost order-more-only\" href=\"{% url 'order_list' %}?drafts=1#drafts\">未完成草稿</a>{% endif_access %}", actions)
+        self.assertIn("{% if_access 'order_create' %}<a class=\"order-drilldown__drafts\" href=\"{% url 'order_list' %}?drafts=1#drafts\">未完成草稿</a>{% endif_access %}", page)
+
+    def test_mobile_rules_and_desktop_hides_menu_only_link(self):
+        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        self.assertIn(".order-sort-open, .order-sort-sheet__head, .order-more-only { display: none; }", css)
+        block = css[css.index("/* 追加三項"):]
+        self.assertIn(".order-list-hero .eyebrow { display: none; }", block)
+        self.assertIn(".order-list-hero .hero-actions > .order-more-only { display: flex; }", block)
+        self.assertIn(".order-drilldown > .order-drilldown__drafts { display: none; }", block)
+        self.assertIn(".order-results .order-list-summary { min-height: 0; flex-direction: row;", block)

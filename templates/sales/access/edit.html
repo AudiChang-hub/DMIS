@@ -13,7 +13,6 @@
 <p class="muted">{% site_text 'edit.4a78066416ae' %}</p>
 <p class="muted">{% site_text 'edit.d0562249ba5e' %}</p>
 {% if preview %}
-{% if import_without_profit %}<p class="access-notice" role="alert"><strong>提醒：</strong>{{ import_without_profit }}</p>{% endif %}
 <section class="access-notice"><h2>確認變更 · {{ changed_count }} 個項目</h2><p>{% site_text 'edit.d994cd9a96b0' %}</p>
 <details><summary>預覽可見功能（{{ visible_rows|length }} 項）</summary><ul>{% for row in visible_rows %}<li>{{ row.label }}</li>{% empty %}<li>不開放任何業務功能，只保留個人功能。</li>{% endfor %}</ul></details></section>
 {% else %}

@@ -66,7 +66,7 @@ class ScreenAccessMiddleware(MiddlewareMixin):
             raise PermissionDenied("沒有查詢訂單快照權限。")
         # 含淨利或原始財務資料的路由另需淨利授權；在 root／舊制捷徑前執行。
         from sales.services.profit_access import can_view_profit
-        sensitive = name in {"operations_report_export", "legacy_import_detail", "legacy_import_status"}
+        sensitive = name in {"operations_report_export"}  # T-244：舊匯入頁停用，legacy_import_detail／status 只導回
         if match.app_name == "admin" and name and name.startswith(("sales_orderoperationsprofile_", "sales_legacysalessnapshot_", "sales_orderchange_", "sales_salesordersearchindex_", "sales_legacyimportrow_")):
             sensitive = True
         if sensitive and policy.route(name, request.method, view_kwargs) and not can_view_profit(request):

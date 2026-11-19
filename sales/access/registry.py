@@ -47,8 +47,6 @@ SCREENS = (
     Screen("subsidy_programs", "補助方案", "subsidy_program_list"),
     Screen("fees", "領牌與強制險規則", "brand_registration_fee_rule_list"),
     Screen("holidays", "工作日與假日設定", "business_holiday_list"),
-    Screen("imports", "舊資料匯入與歷史修正", "legacy_import_list",
-           hint="上傳後的檢查預覽含 Excel 原始財務欄位，需同時勾選「查看淨利」才能完成匯入。"),
     Screen("templates", "列印範本設定", "positioned_template_list", True, True),
     Screen("diagnostics", "系統狀態檢查", "system_diagnostics", False),
     Screen("integrity", "系統完整性報告", "system_integrity_report", False, ceiling="superuser"),
@@ -64,7 +62,7 @@ SCREEN_GROUPS = (
         ("車輛與商品", ("brands", "models", "costs", "inventory", "accessories")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
         ("費率與規則", ("incentives", "commissions", "rewards", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
-        ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
+        ("工具與管理", ("templates", "diagnostics", "integrity", "accounts")),
     )),
 )
 # 一般端點：安全方法查看，其餘方法操作；混合列表 POST 亦受控。
@@ -151,8 +149,6 @@ register("installments", "installment_company_list installment_company_quick_cre
 register("subsidy_programs", "subsidy_program_list")
 register("fees", "brand_registration_fee_rule_list brand_registration_fee_rule_delete")
 register("holidays", "business_holiday_list business_holiday_delete")
-register("imports", "legacy_import_list legacy_import_detail legacy_import_status")
-register("imports", "legacy_import_confirm legacy_import_delete legacy_import_source_delete legacy_import_source_replace legacy_import_archive legacy_import_restore legacy_import_row_decide legacy_import_order_review legacy_import_master_resolve legacy_import_master_restore historical_buyer_replacement historical_date_change", "operate")
 register("templates", "positioned_template_list")
 register("templates", "positioned_template_create positioned_template_edit positioned_template_delete", "operate")
 register("templates", "positioned_template_preview", "export")
@@ -184,7 +180,9 @@ ROOT_ONLY.update({"catalog_photo_board", "catalog_photo_save", "catalog_photo_th
 ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_ignore_category", "official_catalog_fill_images"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.add("notification_list")
-PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊
+PERSONAL.add("suzuki_parts_manual")
+# T-244：舊 Excel 匯入已停用（T-243），權限頁拿掉「舊資料匯入與歷史修正」；舊網址只導回全部訂單並提示，登入即可。
+PERSONAL.update("legacy_import_list legacy_import_detail legacy_import_status legacy_import_confirm legacy_import_delete legacy_import_source_delete legacy_import_source_replace legacy_import_archive legacy_import_restore legacy_import_row_decide legacy_import_order_review legacy_import_master_resolve legacy_import_master_restore historical_buyer_replacement historical_date_change".split())  # 轉往台鈴官方公開零件圖冊
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("order_intake", "orders", "inventory", "models"),

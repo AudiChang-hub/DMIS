@@ -127,3 +127,77 @@
   mobile.addEventListener("change", () => { if (!mobile.matches && sheet.open) dismiss(); });
   renderChips();
 })();
+
+// 手機版分類頁籤與排序（T-252 擴大範圍，使用者 2026-11-19）：列表區由 order-tabs.js 局部替換，所以一律用事件委派、替換後重新對位。
+(() => {
+  const region = document.querySelector("[data-order-results]");
+  if (!region) return;
+  const mobile = window.matchMedia("(max-width: 860px)");
+
+  // 目前分類捲進可視範圍（只橫向捲動頁籤列，不捲動整頁）。
+  const revealActiveTab = () => {
+    const scroller = region.querySelector(".order-scope-tabs");
+    const tab = scroller?.querySelector('[aria-current="page"]');
+    if (!scroller || !tab || scroller.scrollWidth <= scroller.clientWidth + 1) return;
+    const left = tab.offsetLeft - (scroller.clientWidth - tab.offsetWidth) / 2;
+    scroller.scrollTo({ left: Math.max(0, left), behavior: "instant" });
+  };
+
+  // 排序面板：按鈕在列表區裡，替換後是新的元素，所以每次都重新找。
+  let refocusSort = false;
+  const sheetOf = () => region.querySelector("[data-order-sort-sheet]");
+  const openerOf = () => region.querySelector("[data-order-sort-open]");
+  const links = (sheet) => [...sheet.querySelectorAll(".order-sort-mobile a, a[data-sort-clear], .sort-chip-list a, button")];
+  const openSort = () => {
+    const sheet = sheetOf();
+    if (!sheet || typeof sheet.showModal !== "function") return;
+    sheet.showModal();
+    document.documentElement.classList.add("has-order-sort-open");
+    openerOf()?.setAttribute("aria-expanded", "true");
+    (sheet.querySelector(".order-sort-mobile a.is-active") || sheet.querySelector(".order-sort-mobile a"))?.focus();
+  };
+  const closeSort = (focus) => {
+    const sheet = sheetOf();
+    if (sheet?.open) sheet.close();
+    // close 事件是非同步的；列表若先被替換，事件到不了 document，所以這裡直接解除捲動鎖定。
+    document.documentElement.classList.remove("has-order-sort-open");
+    if (focus) openerOf()?.focus({ preventScroll: true });
+  };
+  // 以捕捉階段先關閉面板，再讓 order-sorting.js／order-tabs.js 照原本的方式載入新排序。
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-order-sort-open]")) { openSort(); return; }
+    const sheet = event.target.closest("[data-order-sort-sheet]");
+    if (!sheet || !sheet.open) return;
+    if (event.target === sheet || event.target.closest("[data-order-sort-close]")) { closeSort(true); return; }
+    if (event.target.closest("a[href]")) { refocusSort = true; closeSort(false); }
+  }, true);
+  // dialog 的 close 不會冒泡，用捕捉階段收。
+  document.addEventListener("close", (event) => {
+    if (!event.target.matches?.("[data-order-sort-sheet]")) return;
+    document.documentElement.classList.remove("has-order-sort-open");
+    openerOf()?.setAttribute("aria-expanded", "false");
+  }, true);
+  document.addEventListener("cancel", (event) => {
+    if (!event.target.matches?.("[data-order-sort-sheet]")) return;
+    event.preventDefault();
+    closeSort(true);
+  }, true);
+  document.addEventListener("keydown", (event) => {
+    const sheet = sheetOf();
+    if (!sheet?.open || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
+    const list = links(sheet);
+    const index = list.indexOf(document.activeElement);
+    if (index < 0) return;
+    event.preventDefault();
+    list[(index + (event.key === "ArrowDown" ? 1 : list.length - 1)) % list.length].focus();
+  });
+  mobile.addEventListener("change", () => { if (!mobile.matches) closeSort(false); });
+
+  new MutationObserver(() => {
+    revealActiveTab();
+    openerOf()?.setAttribute("aria-expanded", "false");
+    if (refocusSort) { refocusSort = false; openerOf()?.focus({ preventScroll: true }); }
+  }).observe(region, { childList: true });
+  openerOf()?.setAttribute("aria-expanded", "false");
+  revealActiveTab();
+})();

@@ -83,9 +83,13 @@
     </div>
   </div>
   <div class="order-sort-controls" data-order-sort="{{ sort_value }}">
+    {# T-252（使用者 2026-11-19）：手機版排序收成一顆按鈕，點開從底部升起面板（order-list-filters.js）；電腦版不顯示按鈕，面板以 display: contents 照舊攤開。 #}
+    <button type="button" class="button ghost order-sort-open" data-order-sort-open aria-haspopup="dialog" aria-controls="order-sort-sheet"><span class="order-sort-open__text">排序：{% if not sort_value %}預設（{{ default_sort_label }}）{% else %}{% for column in sort_active %}{{ column.label }}{{ column.direction_label }}{% if not forloop.last %} → {% endif %}{% endfor %}{% endif %}</span><span class="ui-chevron" aria-hidden="true"></span></button>
+    <dialog class="order-sort-sheet" id="order-sort-sheet" aria-labelledby="order-sort-sheet-title" data-order-sort-sheet>
+    <header class="order-sort-sheet__head"><h2 id="order-sort-sheet-title">排序</h2><button type="button" class="order-sort-sheet__close" data-order-sort-close aria-label="關閉排序">×</button></header>
     <span>點擊欄位追加排序，再點切換方向；可逐項移除或調整順位，不影響其他條件。</span>
     <a href="{% querystring sort='' page=None %}" data-sort-clear>全部清除</a>
-    <div class="order-sort-mobile">{% for column in sort_columns %}{% if not column.locked %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} · {{ column.direction_label }}（第 {{ column.rank }} 順位）{% else %} · 排序{% endif %}</a>{% endif %}{% endfor %}</div>
+    <div class="order-sort-mobile">{% for column in sort_columns %}{% if not column.locked %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}"{% if column.rank %} class="is-active" aria-current="true"{% endif %}>{{ column.label }}{% if column.rank %} · {{ column.direction_label }}（第 {{ column.rank }} 順位）{% else %} · 排序{% endif %}</a>{% endif %}{% endfor %}</div>
     <p aria-live="polite">目前排序：{% if not sort_value %}預設（{{ default_sort_label }}）{% endif %}</p>
     <ol class="sort-chip-list" aria-label="排序條件與優先順序">{% for column in sort_active %}<li>
       <a href="{{ column.url }}" data-order-sort-key="{{ column.key }}" aria-label="切換{{ column.label }}排序方向">{{ column.rank }}. {{ column.label }}：{{ column.direction_label }}</a>
@@ -93,6 +97,7 @@
       {% if column.down_url %}<a href="{{ column.down_url }}" aria-label="延後{{ column.label }}排序順位">延後</a>{% endif %}
       <a href="{{ column.remove_url }}" class="sort-remove" aria-label="移除{{ column.label }}排序">移除</a>
     </li>{% endfor %}</ol>
+    </dialog>
   </div>
   <div class="inventory-table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
     <table class="inventory-table inventory-table--fit"><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}

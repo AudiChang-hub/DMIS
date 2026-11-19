@@ -77,3 +77,33 @@ class OrderListMobileLayoutTests(SimpleTestCase):
 def mobile_rule_block(css):
     start = css.index("/* T-252（使用者 2026-11-19 選 A）")
     return css[start:css.index("@keyframes order-filter-sheet-in", start)]
+
+
+class OrderListTabsAndSortMobileTests(SimpleTestCase):
+    """使用者 2026-11-19：「要，分類頁籤和排序也一起壓縮，只改手機版」。"""
+
+    def test_scope_tabs_become_one_scrollable_row_on_mobile(self):
+        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        block = css[css.index("/* T-252 擴大範圍"):]
+        self.assertRegex(block, r"\.order-results \.order-scope-tabs \{\s*display: flex;[^}]*overflow-x: auto;")
+        self.assertIn(".order-scope-tabs .inventory-scope-tab { flex: 0 0 auto;", block)
+        js = (STATIC / "js/order-list-filters.js").read_text(encoding="utf-8")
+        self.assertIn('const tab = scroller?.querySelector(\'[aria-current="page"]\');', js)
+        self.assertIn("scroller.scrollTo({ left: Math.max(0, left), behavior: \"instant\" });", js)
+
+    def test_sort_collapses_into_button_and_sheet_marking_active_columns(self):
+        page = TEMPLATE.read_text(encoding="utf-8")
+        controls = page[page.index('<div class="order-sort-controls"'):page.index('<div class="inventory-table-wrap order-sort-table"')]
+        self.assertIn('data-order-sort-open aria-haspopup="dialog" aria-controls="order-sort-sheet"><span class="order-sort-open__text">排序：', controls)
+        self.assertIn('<dialog class="order-sort-sheet" id="order-sort-sheet" aria-labelledby="order-sort-sheet-title" data-order-sort-sheet>', controls)
+        self.assertIn('{% if column.rank %} class="is-active" aria-current="true"{% endif %}', controls)
+        self.assertIn("</dialog>", controls)
+        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        self.assertIn(".order-sort-controls .order-sort-sheet { display: contents; color: inherit; }", css)
+        self.assertIn(".order-sort-controls .order-sort-sheet:not([open]) { display: none; }", css)
+
+    def test_sort_sheet_closes_before_list_reload_and_returns_focus(self):
+        js = (STATIC / "js/order-list-filters.js").read_text(encoding="utf-8")
+        self.assertIn('if (event.target.closest("a[href]")) { refocusSort = true; closeSort(false); }', js)
+        self.assertIn('document.documentElement.classList.remove("has-order-sort-open");', js)
+        self.assertIn("if (refocusSort) { refocusSort = false; openerOf()?.focus({ preventScroll: true }); }", js)

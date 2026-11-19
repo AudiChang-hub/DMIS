@@ -5966,7 +5966,59 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-drilldown--chips > strong, .order-drilldown--chips > a.button { display: none; }
 }
 @keyframes order-filter-sheet-in { from { transform: translateY(32px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .order-filter-bar .order-filter-sheet[open] { animation: none; } }
+/* T-252 擴大範圍（使用者 2026-11-19：「分類頁籤和排序也一起壓縮，只改手機版」）：
+   分類頁籤改一列可橫向滑動的小標籤（目前分類反白並捲進畫面）；排序收成「排序：目前排序 ▾」，點開從底部升起面板。電腦版不變。 */
+.order-sort-open, .order-sort-sheet__head { display: none; }
+.order-sort-controls .order-sort-sheet { display: contents; color: inherit; }
+@media (max-width: 860px) {
+  .order-results .order-scope-tabs {
+    display: flex; margin-bottom: var(--space-3); padding: var(--space-1); gap: var(--space-1);
+    overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none;
+  }
+  .order-results .order-scope-tabs::-webkit-scrollbar { display: none; }
+  .order-scope-tabs .inventory-scope-tab { flex: 0 0 auto; min-height: 44px; padding: 0 var(--space-2) 0 var(--space-3); gap: var(--space-2); white-space: nowrap; scroll-snap-align: start; }
+  .order-scope-tabs .inventory-scope-tab b { min-width: 26px; height: 26px; font-size: var(--text-xs); }
+  .order-scope-tabs .inventory-scope-tab:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+  .section-block .order-sort-controls { padding: var(--space-2) var(--space-3); }
+  .order-sort-open {
+    display: flex; width: 100%; min-height: var(--control-h); padding-inline: var(--space-4); align-items: center; justify-content: space-between; gap: var(--space-3);
+    color: var(--ink); text-decoration: none;
+  }
+  .order-sort-open__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-sort-open .ui-chevron { margin-top: calc(-1 * var(--space-1)); }
+  .order-sort-open[aria-expanded="true"] .ui-chevron { margin-top: var(--space-1); transform: rotate(225deg); }
+  .order-sort-controls .order-sort-sheet:not([open]) { display: none; }
+  .order-sort-controls .order-sort-sheet[open] {
+    position: fixed; inset: auto 0 0 0; display: flex; width: 100%; max-width: 100vw; max-height: min(86dvh, 720px); margin: 0;
+    flex-direction: column; gap: var(--space-3); padding: 0 var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain; color: var(--ink); line-height: 1.6;
+    background: var(--surface-raised); border: 1px solid var(--line); border-bottom: 0; border-radius: var(--radius-lg, 18px) var(--radius-lg, 18px) 0 0;
+    box-shadow: 0 -16px 40px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
+    animation: order-filter-sheet-in var(--dur-3) var(--ease-out);
+  }
+  .order-sort-sheet::backdrop { background: color-mix(in srgb, var(--shadow-ink) 38%, transparent); }
+  .order-sort-sheet__head {
+    position: sticky; top: 0; z-index: 1; display: flex; flex: none; margin-inline: calc(-1 * var(--space-4));
+    padding: var(--space-5) var(--space-4) var(--space-3); align-items: center; justify-content: space-between; gap: var(--space-3);
+    background: var(--surface-raised); border-bottom: 1px solid var(--line-soft);
+  }
+  .order-sort-sheet__head::before { content: ""; position: absolute; top: var(--space-2); left: 50%; width: 40px; height: 4px; border-radius: var(--radius-pill); background: var(--line-strong); transform: translateX(-50%); }
+  .order-sort-sheet__head h2 { margin: 0; font-size: var(--text-lg); }
+  .order-sort-sheet__close { width: 44px; height: 44px; flex: none; color: var(--ink-soft); background: var(--surface); border: 1px solid var(--line); border-radius: 50%; font: inherit; font-size: var(--text-lg); line-height: 1; cursor: pointer; }
+  .order-sort-sheet__close:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+  .order-sort-sheet > span { color: var(--muted); font-size: var(--text-sm); }
+  .order-sort-sheet .order-sort-mobile { display: grid; gap: 2px; }
+  .order-sort-sheet .order-sort-mobile a {
+    display: flex; min-height: 44px; padding: 0 var(--space-3); align-items: center;
+    color: var(--ink); text-decoration: none; border: 1px solid transparent; border-radius: var(--radius-md);
+  }
+  .order-sort-sheet .order-sort-mobile a:hover { background: var(--surface-soft); }
+  .order-sort-sheet .order-sort-mobile a.is-active { color: var(--action-text); background: var(--surface); border-color: var(--line); box-shadow: inset 3px 0 0 var(--action-text); font-weight: 800; }
+  .order-sort-sheet .order-sort-mobile a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -2px; }
+  .order-sort-sheet .sort-chip-list { margin: 0; }
+  html.has-order-sort-open { overflow: hidden; }
+}
+@media (prefers-reduced-motion: reduce) { .order-filter-bar .order-filter-sheet[open], .order-sort-controls .order-sort-sheet[open] { animation: none; } .order-results .order-scope-tabs { scroll-behavior: auto; } }
 .announcement-card h3 { margin: var(--space-3) 0; }
 .announcement-body { white-space: pre-wrap; line-height: 1.8; }
 .announcement-form { display: grid; gap: var(--stack-gap); }

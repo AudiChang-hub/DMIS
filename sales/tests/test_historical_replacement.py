@@ -76,6 +76,7 @@ class ReplacementFixture:
                                        data=data if data is not None else self.data())
 
 
+@override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
 class HistoricalReplacementTests(ReplacementFixture, TestCase):
     def test_pending_amount_labels_show_explicit_conditional_required_markers(self):
         response = self.client.get(self.url)

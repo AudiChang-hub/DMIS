@@ -166,7 +166,7 @@ class ProductExperienceTests(TestCase):
             ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
             ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
             ("business_holiday_list", "工作日與假日設定", "business_holiday_list.html"),
-            ("legacy_import_list", "舊資料 Excel 匯入", "legacy_import_list.html"),
+            ("legacy_import_list", "車行名冊 Excel 匯入", "legacy_import_list.html"),
             ("positioned_template_list", "列印範本設定", "positioned_template_list.html"),
             ("system_diagnostics", "系統狀態檢查", "system_diagnostics.html"),
             ("user_management", "帳號與權限", "user_management.html"),

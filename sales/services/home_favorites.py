@@ -14,7 +14,7 @@ EXTRA_LINKS = (
     {"key": "operations", "label": "營運總表", "route": "operations_report"},
     {"key": "reconciliation", "label": "對帳作業", "route": "reconciliation_list"},
     {"key": "help", "label": "使用說明", "route": "user_guide"},
-    {"key": "imports", "label": "舊資料 Excel 匯入", "route": "legacy_import_list"},
+    {"key": "imports", "label": "車行名冊 Excel 匯入", "route": "legacy_import_list"},
     {"key": "diagnostics", "label": "系統狀態檢查", "route": "system_diagnostics"},
     {"key": "integrity", "label": "系統完整性報告", "route": "system_integrity_report"},
     {"key": "report-design", "label": "報表設計管理", "route": "report_manage"},

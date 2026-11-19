@@ -5,7 +5,7 @@ U-10：匯入需要搭配淨利。權限頁註明、只勾匯入沒勾淨利時�
 """
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
@@ -59,6 +59,7 @@ class AccessSetupHintTests(TestCase):
         self.assertContains(applied, "畫面權限已套用")
         self.assertContains(applied, IMPORT_WITHOUT_PROFIT)
 
+    @override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
     def test_import_page_blocks_upload_before_creating_a_batch_without_profit(self):
         self.client.force_login(self.stock)
         page = self.client.get(reverse("legacy_import_list"))

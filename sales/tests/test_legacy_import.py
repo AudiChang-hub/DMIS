@@ -152,6 +152,7 @@ def used_vehicle_resale_workbook_bytes(mark_as_used=True):
     return stream.getvalue()
 
 
+@override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
 class LegacyImportTests(TestCase):
     def test_deleted_import_is_not_recreated_by_stale_row_commit(self):
         from sales.services.order_deletion import change_deletion, confirmation_token

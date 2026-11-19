@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import close_old_connections, connection
-from django.test import Client, TestCase, TransactionTestCase
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -48,6 +48,7 @@ class DateChangeFixture(ReplacementFixture):
             "decision": "correct", "reason": "同一買家改預計領牌日期", **changes}
 
 
+@override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
 class HistoricalDateChangeTests(DateChangeFixture, TestCase):
     def test_regular_correction_goes_to_date_review_without_changing_orders(self):
         before = list(SalesOrder.objects.values())

@@ -14,6 +14,7 @@ from sales.services.legacy_import import build_import_preview, confirm_import, f
 from sales.tests.test_legacy_import import workbook_bytes
 
 
+@override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
 class ImportOrderReviewTests(TestCase):
     def setUp(self):
         Store.objects.create(name="總店", code="MAIN")

@@ -166,7 +166,7 @@
     <div class="maintenance-grid maintenance-grid--tools">
     {% if_access 'legacy_import_list' %}<a class="maintenance-card" href="{% url 'legacy_import_list' %}">
       <span class="maintenance-card__icon">匯</span>
-      <div><h2>舊資料 Excel 匯入</h2><p>{% site_text 'data_maintenance.b3b6ca05df7a' %}</p><strong>保留來源檔與逐列結果</strong></div>
+      <div><h2>車行名冊 Excel 匯入</h2><p>{% site_text 'data_maintenance.b3b6ca05df7a' %}</p><strong>保留來源檔與逐列結果</strong></div>
       <span aria-hidden="true">›</span>
     </a>{% endif_access %}
     {% if can_manage_screen_access %}<a class="maintenance-card" href="{% url 'official_catalog' %}"><span class="maintenance-card__icon">廠</span><div><h2>原廠車型比對</h2><p>檢查 SYM、SUZUKI 官網的新車款、改款與車色圖片，確認後補圖或建立停用車型。</p><strong>每週一自動檢查</strong></div><span aria-hidden="true">›</span></a>{% endif %}

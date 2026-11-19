@@ -3294,6 +3294,7 @@ def dealer_volume_bonus_detail(request, pk):
 
 @login_required
 def legacy_import_list(request):
+    from .legacy_import_retired import operations_import_enabled
     from .services.profit_access import can_view_profit
     # 檢查預覽含 Excel 原始財務欄位，需要淨利權限（UAT U-10 方案 B）：上傳前就說明並擋下，不先建立批次。
     upload_blocked = not can_view_profit(request)
@@ -3311,7 +3312,7 @@ def legacy_import_list(request):
         batch.save()
         try:
             is_operations = batch.import_type == LegacyImportBatch.ImportType.OPERATIONS
-            build_import_preview(batch, sheets=form.cleaned_data["sheets"] if is_operations else None)
+            build_import_preview(batch, sheets=form.cleaned_data.get("sheets") if is_operations else None)
         except Exception as exc:
             logger.exception("建立歷史資料匯入預覽失敗")
             batch.status = LegacyImportBatch.Status.FAILED
@@ -3324,6 +3325,8 @@ def legacy_import_list(request):
     show_archived = request.GET.get("archived") == "1"
     batches = LegacyImportBatch.objects.all()
     batches = batches.filter(archived_at__isnull=not show_archived)
+    if not operations_import_enabled():
+        batches = batches.filter(import_type=LegacyImportBatch.ImportType.CHANNELS)  # T-243：營運批次頁已停用
     return render(
         request,
         "sales/legacy_import_list.html",

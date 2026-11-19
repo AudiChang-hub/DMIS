@@ -1,10 +1,8 @@
 """偶爾用的後台工作與「設定與管理」篇章截圖（T-197 第二批）。每段寫到 static/help/screens/<篇名>/。
 
 在 seed_help_demo --manage 之後執行。會實際操作的只有：王小明的撥款入帳、快速進車 3 台（DEMOE00051～53）、
-審核刪除示範客戶33、價格表分工、建立「示範春節送禮」、上傳示範進貨表；其餘只填表不送出。全部都是合成資料。
+審核刪除示範客戶33、價格表分工、建立「示範春節送禮」；其餘只填表不送出。全部都是合成資料。
 """
-import io
-
 from shots import TEXT, common_parent, mark, shot, viewport
 from scenarios.topics import folder, order_pk
 
@@ -366,45 +364,6 @@ def print_templates(page, base, out, assets, facts):
     return {}
 
 
-# ── 舊資料 Excel 匯入 ────────────────────────────────────────────
-def demo_purchase_book():
-    """合成的進貨表：2 台對得上 SUI 125（型號 SUI125），1 台型號 DEMO-X 系統裡沒有。"""
-    from openpyxl import Workbook
-    book = Workbook()
-    sheet = book.active
-    sheet.title = "進貨"
-    sheet.append(["車種型號", "車身號碼", "進貨日期", "顏色", "數量", "出廠日期"])
-    for model, engine, color in (("SUI125", "DEMOE00061", "珍珠白"), ("SUI125", "DEMOE00062", "消光黑"), ("DEMO-X", "DEMOE00063", "亮白")):
-        sheet.append([model, engine, "2026/10/05", color, 1, "2026/09"])
-    data = io.BytesIO()
-    book.save(data)
-    return data.getvalue()
-
-
-def import_data(page, base, out, assets, facts):
-    out = folder(out, "import")
-    wide(page, 1100)
-    page.goto(f"{base}/data/imports/", wait_until="networkidle")
-    page.select_option("select[name=import_type]", "operations")
-    page.wait_for_timeout(300)
-    page.set_input_files("input[name=source_file]", files=[{"name": "示範進貨表.xlsx", "buffer": demo_purchase_book(),
-                                                             "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}])
-    page.locator("input[name=sheets]").evaluate_all("els=>els.forEach(e=>{e.checked=e.parentElement.textContent.includes('進貨')})")
-    shot(page, out / "01-upload.jpg", [{"sel": ".import-upload-form", "n": 1}], margin=30, max_height=900)
-    with page.expect_navigation():
-        page.click("main button:has-text('上傳並開始檢查')")
-    page.wait_for_load_state("networkidle")
-    for _ in range(20):
-        if page.locator(".import-status-tabs").count():
-            break
-        page.wait_for_timeout(1000)
-        page.reload(wait_until="networkidle")
-    body = page.evaluate(TEXT, "main")
-    shot(page, out / "02-detail.jpg", [{"sel": ".import-status-tabs", "n": 2}, {"sel": ".import-hero-actions", "n": 3}],
-         margin=30, max_height=1000)
-    return {"detail": body[:200]}
-
-
 # ── 系統狀態、公告與說明文字 ─────────────────────────────────────
 def system(page, base, out, assets, facts):
     out = folder(out, "system")
@@ -431,7 +390,7 @@ def rebuild(page, base, out, assets, facts):
 
 PARTS = (reconciliation, inventory, order_deletion, order_pricing, price_list, vehicle_models, accessories, catalog_photos,
          official_catalog, incentives, installment_rules, sales_sources, dealer_rules, accounts, report_design,
-         print_templates, import_data, system, rebuild)
+         print_templates, system, rebuild)
 
 
 def run(page, base, out, assets, facts):

@@ -7,7 +7,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
@@ -106,6 +106,7 @@ class FileOverviewDeleteTests(inplace.InplaceUploadTests.__bases__[0]):
         self.assertTrue(payment.proof)
 
 
+@override_settings(LEGACY_IMPORT_UI_ENABLED=True)  # T-243：舊匯入畫面已停用，這裡測保留下來的程式
 class ImportSourceDeleteTests(TestCase):
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser("admin", "", "test-pass-123")

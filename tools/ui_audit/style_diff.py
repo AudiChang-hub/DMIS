@@ -69,7 +69,7 @@ def main():
                         if other.get(prop) != value:
                             changes.append((element[-120:], f"{prop}: {value} → {other.get(prop)}"))
                 print(f"== {url}：{len(changes)} 處不同")
-                for element, change in changes[:40]:
+                for element, change in changes:
                     print("  ", element, "|", change)
             browser.close()
     finally:

@@ -62,6 +62,13 @@ def session_key(env):
 
 
 def start_server(env, port, log):
+    # 埠號已經有人在聽（例如上一次沒關掉的示範伺服器），會拍到舊程式或舊資料：直接停下。
+    try:
+        urllib.request.urlopen(f"http://127.0.0.1:{port}/login/", timeout=1)
+    except OSError:
+        pass
+    else:
+        raise RuntimeError(f"埠 {port} 已經有伺服器在跑，請先關掉，否則會拍到舊的程式")
     server = subprocess.Popen([sys.executable, str(SERVE), str(port)], cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
     for _ in range(240):
         try:

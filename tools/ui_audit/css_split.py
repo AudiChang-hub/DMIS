@@ -44,7 +44,62 @@ BATCHES = {
          "pages": ("sales/business_holiday_list.html",),
          "keep": (".holiday-calendar-hero", ".holiday-calendar-field input", ".holiday-calendar-active input")},
     ],
+    "2": [
+        {"css": "registration-fee-rules.css", "title": "領牌與強制險規則（T-242 自 app.css 搬出）",
+         "prefixes": ("registration-rule",), "pages": ("sales/brand_registration_fee_rule_list.html",),
+         "keep": (".registration-rule-panel__heading",)},
+        {"css": "vehicle-models.css", "title": "機種與售價、車輛品牌（T-242 自 app.css 搬出）",
+         "prefixes": ("vehicle-model", "vehicle-brand", "master-model"),
+         "pages": ("sales/vehicle_brand_list.html", "sales/vehicle_model_list.html", "sales/vehicle_model_form.html",
+                   "sales/vehicle_model_batch.html", "sales/vehicle_model_copy.html", "sales/vehicle_model_installment_batch.html",
+                   "sales/settlement_cost_rule_form.html", "sales/settlement_cost_rule_list.html",
+                   "sales/vehicle_model_price_versions.html", "sales/vehicle_model_settlement_costs.html",
+                   "sales/vehicle_model_commission.html", "sales/vehicle_model_incentives.html", "sales/vehicle_model_rules.html",
+                   "sales/catalog_edit.html", "sales/installment_plan_list.html"),
+         "keep": (".master-model-section", ".master-model-grid")},
+        {"css": "sales-sources.css", "title": "車行與年節送禮名單（T-242 自 app.css 搬出）",
+         "prefixes": ("source-line", "holiday-gift"),
+         "pages": ("sales/sales_source_list.html", "sales/sales_source_holiday_gift_manage.html"),
+         "keep": (".holiday-gift-summary",)},
+        {"css": "order-deletion-queue.css", "title": "刪除審核（T-242 自 app.css 搬出）",
+         "prefixes": ("deletion-review",), "pages": ("sales/order_deletion_queue.html",)},
+        {"css": "inventory-quick-entry.css", "title": "快速進車（T-242 自 app.css 搬出）",
+         "prefixes": ("quick-entry",), "pages": ("sales/inventory_quick_form.html",)},
+        {"css": "accessory-bulk.css", "title": "配件與工資批次修改（T-242 自 app.css 搬出）",
+         "prefixes": ("accessory-bulk",), "pages": ("sales/accessory_product_list.html",)},
+        {"css": "reconciliation.css", "title": "統一撥款對帳（T-242 自 app.css 搬出）",
+         "prefixes": ("reconciliation-table",), "pages": ("sales/reconciliation_list.html",)},
+    ],
 }
+
+
+def split_selector(selector):
+    """只在最外層逗號切開選擇器清單；:is(th, td) 這種括號裡的逗號不切。"""
+    parts, depth, current = [], 0, ""
+    for ch in selector:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        if ch == "," and depth == 0:
+            parts.append(current); current = ""
+        else:
+            current += ch
+    parts.append(current)
+    return [part for part in parts if part.strip()]
+
+
+def required_classes(part):
+    """選擇器一段裡「一定要有」的 class：括號外的才算。:is(.a, .b) 裡的只是其中一個選項，不能保證只在模組頁生效。"""
+    outside, depth = "", 0
+    for ch in part:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif depth == 0:
+            outside += ch
+    return set(CLASS.findall(outside))
 
 
 def template_closure(pages):
@@ -83,8 +138,11 @@ def plan(batch):
     for module in BATCHES[batch]:
         own = template_closure(module["pages"])
         for start, end, selector, conditions in rules:
-            parts = [part for part in selector.split(",") if part.strip()]
-            module_classes = [{c for c in CLASS.findall(part) if c.startswith(module["prefixes"])} for part in parts]
+            parts = split_selector(selector)
+            module_classes = [{c for c in required_classes(part) if c.startswith(module["prefixes"])} for part in parts]
+            if not any(module_classes) and any(c.startswith(module["prefixes"]) for c in CLASS.findall(selector)):
+                kept[module["css"]].append((selector, "模組 class 只出現在 :is() 等選項裡，其他頁也可能符合"))
+                continue
             if not any(module_classes):
                 continue
             if " ".join(selector.split()) in module.get("keep", ()):
@@ -155,7 +213,8 @@ def link_pages(batch):
             head = source.index("{% block head %}")
             if not re.search(r"{%\s*load\s[^%]*\bstatic\b", source[:head]):
                 source = re.sub(r"(?m)^{%\s*load static\s*%}\n", "", source, count=1)
-                source = source.replace('{% extends "base.html" %}', '{% extends "base.html" %}{% load static %}', 1)
+                # extends 可能用單引號或雙引號（例如 order_deletion_queue.html 用單引號）。
+                source = re.sub(r"({%\s*extends\s+['\"][^'\"]+['\"]\s*%})", r"\1{% load static %}", source, count=1)
             path.write_text(source, encoding="utf-8")
 
 

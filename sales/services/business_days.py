@@ -31,6 +31,12 @@ def add_business_days(start, days, holiday_dates=None):
     return current
 
 
+def registration_marks(today=None):
+    """全部訂單「領牌日期」標色（T-255）：今天（台灣時區）與下一個工作日（跳過週末與營業日設定的假日）。"""
+    today = today or timezone.localdate()
+    return {"today": today, "next_business_day": add_business_days(today, 1)}
+
+
 def build_dealer_reminders(today=None):
     today = today or timezone.localdate()
     holidays = set(

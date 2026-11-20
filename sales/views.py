@@ -4306,6 +4306,7 @@ def registration_fee_variance_confirm(request, pk):
 
 @login_required
 def order_list(request):
+    from sales.services.business_days import registration_marks
     from sales.services.order_intake import scoped_orders, scoped_drafts
     from sales.access.services import policy_for
     from sales.services.profit_access import profit_is_unlocked
@@ -4385,6 +4386,7 @@ def order_list(request):
             "order_tabs": order_tabs, "order_tab": order_tab,
             **sort_context(request.GET, sort_tokens, profit_unlocked=profit_visible),
             "default_sort_label": default_sort_label,
+            "registration_marks": registration_marks(),
         },
     )
 

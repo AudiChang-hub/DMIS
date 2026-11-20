@@ -1,0 +1,32 @@
+/* 全部訂單「領牌日期」標色（T-255）：今天綠、下個工作日黃；只在全部訂單頁載入。 */
+.registration-date-mark {
+  position: relative;
+  padding: 1px var(--space-1);
+  border: 1px solid var(--registration-mark-line);
+  border-radius: var(--radius-xs);
+  font-weight: 700;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.registration-date-mark--today {
+  --registration-mark-line: var(--green-border-strong);
+  color: var(--green-ink);
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+}
+.registration-date-mark--next {
+  --registration-mark-line: var(--amber-border-strong);
+  color: var(--amber-ink);
+  background: var(--amber-soft);
+}
+/* 手機卡片的欄位值是單行省略：標色框自己省略、框線改內陰影且不加上下內距，列高與未標色相同。 */
+.order-fact b .registration-date-mark {
+  display: inline-block;
+  max-width: 100%;
+  padding-block: 0;
+  overflow: hidden;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--registration-mark-line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}

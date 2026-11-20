@@ -145,6 +145,24 @@ class DiscountInternalNoteTests(IntakeFixtures):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "NOTE257X")
 
+    def test_note_not_on_positioned_template_pdf(self):
+        from sales.models import PositionedPrintField, PositionedPrintTemplate
+        from sales.services.positioned_template_pdf import (
+            PRINT_FIELD_CHOICES, build_positioned_template_pdf, order_print_values,
+        )
+        order = self.create_with_note()
+        template = PositionedPrintTemplate.objects.create(
+            name="T-257 套表", document_type=PositionedPrintTemplate.DocumentType.SUBMISSION, version=1)
+        # 每個可選的列印欄位都放上去，再加一個直接寫備註欄位名稱的欄位：之後有人把備註接進套表就會被抓到。
+        keys = [key for key, _label in PRINT_FIELD_CHOICES] + ["discount_internal_note"]
+        for index, key in enumerate(keys):
+            PositionedPrintField.objects.create(template=template, field_key=key, x_mm=10, y_mm=10 + index * 8,
+                                                width_mm=180, font_size=8, sort_order=index)
+        text = "\n".join(page.extract_text() or "" for page in PdfReader(build_positioned_template_pdf(template, order)).pages)
+        self.assertIn(order.owner_name, text)  # 確認讀得到套表 PDF 內容
+        self.assertNotIn("NOTE257X", text)
+        self.assertNotIn(NOTE, order_print_values(order).values())
+
     def test_note_not_in_export_or_reimport_columns(self):
         from sales.order_exchange import columns
         self.assertNotIn("discount_internal_note", {column.key for column in columns.COLUMNS})

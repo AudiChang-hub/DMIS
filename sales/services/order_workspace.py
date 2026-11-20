@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 
 from sales.access.services import policy_for
-from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm, YearMonthDateInput
+from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, DiscountNoteForm, OrderEditForm, SubsidyDataForm, YearMonthDateInput
 from sales.models import OrderOperationsProfile, SalesOrder
 from sales.services.audit_note import discount_summary
 from sales.services.order_filters import plate_fee_variance_q
@@ -133,7 +133,7 @@ def finance_context(request, order):
         **finance_overview_context(operations_form, profile, order),
         'workspace_finance': True,
         'workspace_finance_editable': finance_editable,
-        'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
+        'workspace_discount_editable': discount_editable(request),
         'profile': profile,
         'operations_form': operations_form,
         'operations_subsidy_form': subsidy_form,
@@ -145,6 +145,7 @@ def finance_context(request, order):
         'is_electric': order.vehicle_model.energy_type != 'gas',
         'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None}),
         'discount_decision_form': DiscountDecisionForm(initial={'decision': 'approve'}),
+        'discount_note_form': DiscountNoteForm(initial={'discount_internal_note': order.discount_internal_note}),
     }
 
 
@@ -188,12 +189,17 @@ def unsettled_volume_bonus(order):
         total=Sum("amount"))["total"] or 0
 
 
+def discount_editable(request):
+    """可調整內部折扣（含優惠備註）的人：財務編輯＋折扣核定權限。"""
+    return can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST')
+
+
 def apply_inline_discount(request, order, form):
     """已授權人員在同頁直接核定，保留樂觀鎖與前後稽核。"""
     from django.core.exceptions import PermissionDenied
     from sales.models import OrderChange, OrderEvent
     from sales.services.operations_sync import sync_order_operations
-    if not can_edit_finance(request.user) or not policy_for(request).route('order_discount_decide', 'POST'):
+    if not discount_editable(request):
         raise PermissionDenied
     if str(order.revision) != request.POST.get('_order_revision'):
         return save_error('訂單已更新，請重新載入再調整折扣。', status=409)
@@ -211,6 +217,27 @@ def apply_inline_discount(request, order, form):
         reason=discount_summary(before, order.approved_discount_amount),
         changes={'approved_discount_amount': {'before': str(before), 'after': str(order.approved_discount_amount)}})
     OrderEvent.objects.create(order=order, actor_name=request.user.get_username(), event_type='discount_decided', description='在金額收支頁核定折扣，未變更分期撥款、成本與佣金。')
+    return saved(request, order)
+
+
+def save_discount_note(request, order, form):
+    """T-257：內部折扣卡的優惠備註自動儲存；權限與折扣相同，只寫 discount_internal_note 並留修改紀錄。"""
+    from django.core.exceptions import PermissionDenied
+    from sales.models import OrderChange
+    if not discount_editable(request):
+        raise PermissionDenied
+    if str(order.revision) != request.POST.get('_order_revision'):
+        return save_error('訂單已更新，請重新載入再修改優惠備註。', status=409)
+    if not order.is_editable:
+        return save_error('此訂單狀態不可修改優惠備註（已交付、完成或進入取消流程）。')
+    if not form.is_valid():
+        return save_error('優惠備註未儲存，請修正欄位。', forms=(form,))
+    before, after = order.discount_internal_note, form.cleaned_data['discount_internal_note']
+    if before != after:
+        order.discount_internal_note = after
+        order.save(update_fields=['discount_internal_note', 'updated_at'])
+        OrderChange.objects.create(order=order, actor_name=request.user.get_username(), reason='修改優惠備註（內部）',
+                                   changes={'discount_internal_note': {'before': before, 'after': after}})
     return saved(request, order)
 
 

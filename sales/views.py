@@ -83,6 +83,7 @@ from .forms import (
     DealerRewardCostVersionFormSet,
     DiscountDecisionForm,
     DiscountRequestForm,
+    DiscountNoteForm,
     DeliveryCompletionForm,
     DeliveryPaymentForm,
     DepositStepForm,
@@ -4860,6 +4861,7 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     order.submitted_by = request.user
     from sales.services.print_company import initialize_company
     initialize_company(order, request.user)
+    order.discount_internal_note = form.cleaned_data.get("discount_internal_note", "")
     order.save()
     apply_order_price_snapshot(order)
     apply_order_installment_snapshot(order)
@@ -5755,6 +5757,17 @@ def order_operations(request, pk):
             "discount_decision_form": DiscountDecisionForm(initial={"decision": "approve"}),
         },
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def order_discount_note(request, pk):
+    """T-257：訂單頁內部折扣卡的優惠備註（內部，不印訂購單），只接受訂單頁的自動儲存。"""
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if not order_workspace.is_workspace_save(request):
+        return redirect("order_detail", pk=pk)
+    return order_workspace.save_discount_note(request, order, DiscountNoteForm(request.POST))
 
 
 @login_required

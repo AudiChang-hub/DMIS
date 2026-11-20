@@ -105,6 +105,12 @@
 .finance-strip__disclosure > summary { color: var(--action-text); font-size: var(--text-sm); }
 .finance-strip__disclosure > p { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
 .finance-strip__disclosure form { margin: 0; }
+/* T-257 優惠備註（內部）：在數字與「調整折扣」之間，單行輸入，桌面不拉滿整張卡。 */
+.finance-discount__note { margin: 0; }
+.finance-discount__note .field { display: grid; gap: var(--space-1); max-width: 40rem; }
+.finance-discount__note .help-text { color: var(--muted); font-size: var(--text-xs); }
+.finance-discount__note-text { display: grid; gap: var(--space-1); margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.finance-discount__note-text span { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 /* 領牌試算合計拆成「稅金＋強制險＝合計」（使用者 2026-11-12 p5） */
 .finance-registration .registration-breakdown__header { flex-wrap: wrap; row-gap: var(--space-2); }
 .finance-registration .registration-breakdown__header > div:first-child { flex: 1 1 14rem; min-width: 0; }

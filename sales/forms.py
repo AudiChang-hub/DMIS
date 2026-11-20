@@ -5369,6 +5369,18 @@ class DiscountRequestForm(forms.Form):
         return data
 
 
+class DiscountNoteForm(forms.Form):
+    """T-257：訂單頁內部折扣卡的優惠備註；只存 discount_internal_note，不印訂購單。"""
+    discount_internal_note = forms.CharField(label="優惠備註（內部）", max_length=250, required=False)
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("auto_id", "discount_note_%s")
+        super().__init__(*args, **kwargs)
+        self.fields["discount_internal_note"].widget.attrs.update(
+            {"class": "form-control", "placeholder": "例如 老客戶介紹、店長同意", "aria-describedby": "discount_note_help"}
+        )
+
+
 class DiscountDecisionForm(forms.Form):
     decision = forms.ChoiceField(
         label="處理結果",

@@ -36,6 +36,15 @@
     </dl>
     {% if order.discount_requested_at %}<p class="finance-strip__meta">最近調整：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</p>{% endif %}
     {% if order.is_editable and workspace_discount_editable %}
+    {# T-257：店內自己看的優惠備註，改了就自動儲存；只在這裡與建單優惠區塊出現，不印訂購單、不進總覽與匯出。 #}
+    {% with field=discount_note_form.discount_internal_note %}
+    <form class="finance-discount__note" data-workspace-save="discount_note" method="post" action="{% url 'order_discount_note' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
+      <div class="field{% if field.errors %} has-error{% endif %}" data-field-container>
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        <small class="help-text" id="discount_note_help">只有店內看得到，不會印在訂購單上。</small>
+      </div>
+    </form>
+    {% endwith %}
     <details class="finance-strip__disclosure" open>
       <summary>調整折扣</summary>
       <p class="muted">可自行輸入折數或總價減少金額；套用後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
@@ -44,7 +53,7 @@
         <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">套用折扣</button>
       </form>
     </details>
-    {% else %}<p class="finance-strip__meta">由具財務編輯與折扣權限的人員調整。</p>{% endif %}
+    {% else %}{% if order.discount_internal_note %}<p class="finance-discount__note-text"><span>優惠備註（內部）</span>{{ order.discount_internal_note }}</p>{% endif %}<p class="finance-strip__meta">由具財務編輯與折扣權限的人員調整。</p>{% endif %}
   </section>
   {% if plate_variance %}
   <section class="finance-strip__card plate-variance{% if plate_variance.confirmed %} is-confirmed{% endif %}" aria-labelledby="plate-variance-title">

@@ -46,6 +46,8 @@ class IntakeOrderForm(SalesOrderForm):
         label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2,
         min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False,
     )
+    # T-257：店內自己看的優惠備註，存進 discount_internal_note；不印訂購單（與 discount_reason 分開）。
+    discount_internal_note = forms.CharField(label="優惠備註（內部）", max_length=250, required=False)
 
     class Meta(SalesOrderForm.Meta):
         fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
@@ -87,6 +89,8 @@ class IntakeOrderForm(SalesOrderForm):
         self.fields["intake_discount_mode"].widget.attrs = {"class": "discount-mode__input"}
         self.fields["intake_discount_amount"].widget.attrs.update(inputmode="numeric", min="1", placeholder="例如 2000")
         self.fields["intake_discount_rate"].widget.attrs.update(inputmode="decimal", step="0.01", placeholder="例如 9.5")
+        self.fields["discount_internal_note"].help_text = "只有店內看得到，不會印在訂購單上。"
+        self.fields["discount_internal_note"].widget.attrs.update(placeholder="例如 老客戶介紹、店長同意")
         self.catalog_summary = None
         token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
         if token:

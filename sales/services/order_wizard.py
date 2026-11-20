@@ -53,7 +53,7 @@ STEP_FIELDS = {
     },
     "deposit": {
         "deposit_amount", "deposit_date", "deposit_method", "intake_discount_mode", "intake_discount_amount",
-        "intake_discount_rate", "note",
+        "intake_discount_rate", "discount_internal_note", "note",
     },
 }
 FORMSET_STEPS = {"accessories": "accessories", "other_fees": "deposit"}

@@ -3849,6 +3849,10 @@ class SalesOrder(TimeStampedModel):
     discount_decided_at = models.DateTimeField("折扣確認時間", blank=True, null=True, editable=False)
     discount_decided_by = models.CharField("折扣確認人", max_length=150, blank=True, editable=False)
     discount_decision_note = models.CharField("折扣確認備註", max_length=250, blank=True, editable=False)
+    # T-257：店內自己看的優惠備註，只在建單優惠區塊與訂單頁內部折扣卡顯示；不印訂購單、不進總覽／匯出／報表。
+    discount_internal_note = models.CharField(
+        "優惠備註（內部）", max_length=250, blank=True, default="", db_default="", editable=False
+    )
     installment_plan_option = models.ForeignKey(
         InstallmentPlanOption,
         on_delete=models.SET_NULL,

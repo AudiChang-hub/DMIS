@@ -30,6 +30,8 @@ INTERNAL_FIELDS = {
     "editing_session",
     "editing_at",
 }
+# 只供搜尋、不在命中摘要顯示內容的欄位（T-257 優惠備註：搜得到這張單，但結果列表不露出備註文字）。
+SEARCH_ONLY_FIELDS = {"discount_internal_note"}
 SENSITIVE_FIELDS = {
     "owner_id_number",
     "old_owner_id_number",
@@ -200,10 +202,13 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
                 "value": item["value"],
             }
             for item in cached
-            if any(_contains(item.get("value", ""), term) for term in search_terms)
+            if not item.get("search_only")
+            and any(_contains(item.get("value", ""), term) for term in search_terms)
         ]
     matches = []
     for field in _order_fields():
+        if field.name in SEARCH_ONLY_FIELDS:
+            continue
         raw_value = getattr(order, field.name)
         display_value = _display_value(order, field)
         values = [display_value]
@@ -337,7 +342,7 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
     return matches
 
 
-def _index_item(items, label, value, sensitive=False, *, private=False):
+def _index_item(items, label, value, sensitive=False, *, private=False, search_only=False):
     if isinstance(value, models.fields.files.FieldFile):
         value = PurePath(value.name).name if value else ""
     if value in (None, ""):
@@ -346,6 +351,8 @@ def _index_item(items, label, value, sensitive=False, *, private=False):
     item = {"label": str(label), "value": text, "sensitive": bool(sensitive)}
     if private:
         item["profit_private"] = True
+    if search_only:
+        item["search_only"] = True
     if item not in items:
         items.append(item)
 
@@ -359,6 +366,7 @@ def build_order_search_payload(order, *, include_private=True):
             field.verbose_name,
             _display_value(order, field),
             field.name in SENSITIVE_FIELDS,
+            search_only=field.name in SEARCH_ONLY_FIELDS,
         )
         if field.choices:
             _index_item(items, field.verbose_name, raw_value, field.name in SENSITIVE_FIELDS)

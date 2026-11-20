@@ -149,3 +149,40 @@ class DiscountInternalNoteTests(IntakeFixtures):
         from sales.order_exchange import columns
         self.assertNotIn("discount_internal_note", {column.key for column in columns.COLUMNS})
         self.assertNotIn("優惠備註（內部）", {column.label for column in columns.COLUMNS})
+
+
+class DiscountInternalNoteSearchTests(IntakeFixtures):
+    """使用者 2026-11-20：優惠備註保留可被搜尋，但結果列表與命中摘要不顯示備註內容（PM 選 B）。"""
+
+    def create_with_note(self):
+        response = self.submit(intake_discount_mode="amount", intake_discount_amount="1800", discount_internal_note=NOTE)
+        self.assertEqual(response.status_code, 302)
+        return SalesOrder.objects.latest("pk")
+
+    def test_note_text_finds_the_order(self):
+        order = self.create_with_note()
+        other = self.create_with_note()
+        SalesOrder.objects.filter(pk=other.pk).update(discount_internal_note="")
+        from sales.services.order_search import rebuild_order_search_index
+        rebuild_order_search_index(other.pk)
+        self.client.force_login(self.root)
+        response = self.client.get(reverse("order_list"), {"q": "NOTE257X"})
+        found = [row.pk for row in response.context["orders"]]
+        self.assertEqual(found, [order.pk])
+
+    def test_results_and_match_summary_never_show_note(self):
+        from sales.services.order_search import build_order_match_summary
+        order = self.create_with_note()
+        self.client.force_login(self.root)
+        page = self.client.get(reverse("order_list"), {"q": "NOTE257X"}).content.decode()
+        table = page.split("<tbody", 1)[1].split("</tbody>", 1)[0]
+        self.assertIn(order.number, table)
+        self.assertNotIn("NOTE257X", table)
+        self.assertNotIn("優惠備註", table)
+        # 有快取索引、沒有快取（即時比對）兩條路都不露出。
+        order = SalesOrder.objects.select_related("search_index").get(pk=order.pk)
+        self.assertEqual(build_order_match_summary(order, "NOTE257X"), [])
+        self.assertEqual(build_order_match_summary(order, "NOTE257X", profit_unlocked=False), [])
+        order.search_index.delete()
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertEqual(build_order_match_summary(order, "NOTE257X"), [])

@@ -5896,6 +5896,8 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-filter-bar :is(input:not([type=hidden]), select), .order-filter-bar .order-filter-submit { min-height: var(--control-h); padding-block: var(--space-2); }
   /* T-252：iOS 的原生日期欄位依內容決定寬度、不理會 width: 100%，兩欄時「日期迄」會撐出卡片；比照 .form-control 日期欄（f8202c91）拿掉原生外觀。 */
   .order-filter-bar input[type=date] { display: block; -webkit-appearance: none; appearance: none; max-width: 100%; height: var(--control-h); padding-inline: var(--space-3); }
+  /* T-254：同一根因的其他窄格日期欄（375 寬只有 153–157px、兩欄並排）：撥款對帳、車行給付、機種工具篩選。 */
+  :is(.operations-filters, .payout-filters, .model-tool-filters) input[type=date] { display: block; -webkit-appearance: none; appearance: none; max-width: 100%; min-width: 0; }
 }
 /* T-252（使用者 2026-11-19 選 A）：手機版全部訂單一進來就要看得到訂單。
    五顆操作鈕收成「更多操作」選單；搜尋框常駐，其他篩選收進底部面板（同一個 <dialog>，電腦版以 display: contents 照舊攤在篩選列）；

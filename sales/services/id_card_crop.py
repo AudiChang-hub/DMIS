@@ -27,6 +27,9 @@ REVIEW_ASPECT_DEVIATION = 0.18  # 四邊形長寬比與 85.6:54 相差約 20% �
 REVIEW_MIN_AREA = 0.03  # 卡片不到畫面 3%（拍得太遠或抓到卡片上的小色塊）
 REVIEW_MIN_FRONT_SCORE = 12  # 國民身分證正面：大頭照與左側文字區亮度差太小，上下方向沒把握
 REVIEW_MIN_BACK_SCORE = 20  # 國民身分證反面：條碼區與對稱區的水平梯度差太小
+# T-260（使用者 2026-11-20「四角走 1」）：只加提醒、不改偵測。
+REVIEW_BORDER_MARGIN = 0.01  # 任一角離照片邊界不到長寬的 1%：卡片被照片切到或框貼到邊緣，多半沒抓準
+REVIEW_MAX_SKEW_DEGREES = 8.0  # 上下（或左右）兩邊的方向差超過 8°：一般斜拍約 1–3°，明顯不平行表示抓錯邊
 CACHE_VERSION = 1
 CROP_HEIGHT = 638  # 54 mm @ 300 dpi
 CARD_ASPECT = 85.6 / 54.0
@@ -204,6 +207,13 @@ def review_reasons(src, corners, side, found_card, turn_score):
         reasons.append("卡片比例和身分證差很多")
     if abs(cv2.contourArea(np.asarray(corners, dtype=np.float32))) / float(src.shape[0] * src.shape[1]) < REVIEW_MIN_AREA:
         reasons.append("卡片在照片裡太小")
+    quad = np.asarray(corners, dtype=np.float32)
+    src_h, src_w = src.shape[:2]
+    margin_x, margin_y = src_w * REVIEW_BORDER_MARGIN, src_h * REVIEW_BORDER_MARGIN
+    if any(x <= margin_x or x >= src_w - 1 - margin_x or y <= margin_y or y >= src_h - 1 - margin_y for x, y in quad):
+        reasons.append("卡片貼到照片邊緣，可能沒抓準")
+    if max(_edge_skew(quad[0], quad[1], quad[3], quad[2]), _edge_skew(quad[0], quad[3], quad[1], quad[2])) > REVIEW_MAX_SKEW_DEGREES:
+        reasons.append("卡片對邊不平行，可能沒抓準")
     if turn_score is not None:
         score, used = turn_score
         if abs(score) < (REVIEW_MIN_BACK_SCORE if used == "back" else REVIEW_MIN_FRONT_SCORE):
@@ -338,6 +348,14 @@ def _side_lengths(quad):
     def dist(a, b):
         return float(math.hypot(a[0] - b[0], a[1] - b[1]))
     return (dist(quad[0], quad[1]) + dist(quad[3], quad[2])) / 2, (dist(quad[0], quad[3]) + dist(quad[1], quad[2])) / 2
+
+
+def _edge_skew(a, b, c, d):
+    """兩條對邊（a→b 與 c→d，同方向）的夾角，單位度。"""
+    first = math.atan2(float(b[1] - a[1]), float(b[0] - a[0]))
+    second = math.atan2(float(d[1] - c[1]), float(d[0] - c[0]))
+    diff = abs(math.degrees(first - second)) % 360
+    return min(diff, 360 - diff)
 
 
 def _aspect_score(quad):

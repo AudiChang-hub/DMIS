@@ -81,3 +81,13 @@
   /* 手機的浮層疊在小卡下方、與小卡同寬，不撐高頁首（頁首有 backdrop-filter，不能用 fixed）。 */
   .commission-attribution__panel { left: 0; right: 0; width: auto; max-height: calc(100dvh - 240px); overflow: auto; overscroll-behavior: contain; padding: var(--space-4); }
 }
+/* T-254（使用者 2026-11-20 選甲）：手機版訂單頁頂端區塊已常駐「車行」與「變更車行」，頁首小卡只留一行小字：
+   原訂單來源｜依原領牌期間計算（平台單為平台說明）、鎖定原因。「變更車行」的浮層由頂端區塊打開（order-compact-bar.js）。 */
+@media (max-width: 860px) {
+  .order-hero .commission-attribution { display: block; padding: 0; background: none; border: 0; box-shadow: none; }
+  .order-hero .commission-attribution__current { display: block; }
+  .order-hero :is(.commission-attribution__label, .commission-attribution__recipient) { display: none; }
+  .order-hero .commission-attribution__editor > summary { display: none; }
+  .order-hero .commission-attribution__meta { font-size: var(--text-xs); line-height: 1.6; white-space: normal; }
+  .order-hero .commission-attribution__locked { max-width: none; margin-top: var(--space-1); font-size: var(--text-xs); }
+}

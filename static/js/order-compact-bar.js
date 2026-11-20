@@ -56,6 +56,12 @@
     const editor = document.querySelector('#commission-attribution .commission-attribution__editor');
     if (!editor) return;
     editor.open = true;
-    editor.querySelector('summary')?.focus({preventScroll: true});
+    // 手機版小卡上的「變更車行」收起來了（T-254）：焦點直接進浮層的第一個欄位，並讓浮層在畫面內。
+    const summary = editor.querySelector('summary');
+    const panel = editor.querySelector('.commission-attribution__panel');
+    const target = summary?.getClientRects().length ? summary
+      : panel?.querySelector('select, input:not([type=hidden]), textarea, button:not([hidden])');
+    target?.focus({preventScroll: true});
+    panel?.scrollIntoView({block: 'nearest', behavior: 'instant'});
   });
 })();

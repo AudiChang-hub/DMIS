@@ -1,4 +1,4 @@
-"""報表中心固定頁：車行傭金／獎金給付（T-150 方案 A）。
+"""車行傭金／獎金給付（T-150 方案 A；T-259 從報表中心移到資料維護區「車行傭金與獎勵」的〈給付〉頁籤）。
 
 GET 只讀；勾選、取消、備註、確認差額走 POST，寫歷程後導回原篩選，由 inplace-regions.js 原地換入。
 權限由 `sales.access` 中介層依 `dealer_payouts` 畫面把關（查看／操作／匯出）。
@@ -18,7 +18,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from . import payouts
 from .payout_models import DealerPayoutEntry
-from .views import csv_safe, navigation
+from .views import csv_safe
 
 
 def _require(request, action):
@@ -27,6 +27,19 @@ def _require(request, action):
 
     if not policy_for(request).screen("dealer_payouts", action):
         raise PermissionDenied("沒有車行傭金／獎金給付的權限。")
+
+
+def legacy_redirect(name):
+    """T-259：報表中心的舊網址導到資料維護區的新頁籤，篩選與匯出條件照帶（權限由中介層照 dealer_payouts 檢查）。"""
+    from django.urls import reverse
+
+    @login_required
+    @require_GET
+    def view(request):
+        _require(request, "export" if name == "dealer_payout_export" else "view")
+        query = request.GET.urlencode()
+        return redirect(f"{reverse(name)}?{query}" if query else reverse(name))
+    return view
 
 
 def _actor(user):
@@ -98,8 +111,6 @@ def dealer_payout_list(request):
         "filters_active": active,
         "can_operate": policy.screen("dealer_payouts", "operate"),
         "can_export": policy.screen("dealer_payouts", "export"),
-        "navigation": navigation(request),
-        "reader_title": "車行傭金／獎金給付",
         "queried_at": timezone.now(),
         "next_url": request.get_full_path(),
     })

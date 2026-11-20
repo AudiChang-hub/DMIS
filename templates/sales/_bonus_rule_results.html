@@ -1,6 +1,6 @@
 {% for group in row.period_groups %}
 <div class="bonus-period-result">
-  <header><h3>{{ group.period.label }}</h3><p>{{ group.period.starts_on|date:'Y/m/d' }}－{{ group.period.ends_on|date:'Y/m/d' }} · {% if group.ended %}期間已結束；到報表中心〈車行傭金／獎金給付〉按結算才生效{% else %}統計中，金額為試算{% endif %}</p></header>
+  <header><h3>{{ group.period.label }}</h3><p>{{ group.period.starts_on|date:'Y/m/d' }}－{{ group.period.ends_on|date:'Y/m/d' }} · {% if group.ended %}期間已結束；到〈給付〉頁籤按結算才生效{% else %}統計中，金額為試算{% endif %}</p></header>
   <div class="inventory-table-wrap"><table class="inventory-table">
     <thead><tr><th>收款車行</th><th>符合台數</th><th>本期獎金</th><th>狀態</th><th>操作</th></tr></thead>
     <tbody>

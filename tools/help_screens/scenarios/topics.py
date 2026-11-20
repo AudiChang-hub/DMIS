@@ -31,9 +31,9 @@ def section(page, title, tag):
 def dealer_payouts(page, base, out, assets, facts):
     out = folder(out, "dealer-payouts")
     page.set_viewport_size({"width": 1440, "height": 1000})
-    page.goto(f"{base}/reports/dealer-payouts/", wait_until="networkidle")
+    page.goto(f"{base}/data/dealer-payouts/", wait_until="networkidle")
     dealer = page.locator("select[name=dealer] option:has-text('示範車行丙')").first.get_attribute("value")
-    page.goto(f"{base}/reports/dealer-payouts/?dealer={dealer}", wait_until="networkidle")
+    page.goto(f"{base}/data/dealer-payouts/?dealer={dealer}", wait_until="networkidle")
     page.wait_for_timeout(600)
     card = mark(page, "button:has-text('示範車行丙全部標記已給付')", "dealer-card", "section, article, details")
     text = page.evaluate(TEXT, "main")
@@ -43,7 +43,7 @@ def dealer_payouts(page, base, out, assets, facts):
     summary = leaf_text(page, "未給付金額", "payout-summary-title")
     page.evaluate("()=>{let x=document.querySelector('[data-help-shot=payout-summary-title]'); while(x && !/已給付金額/.test(x.innerText)) x=x.parentElement; x.setAttribute('data-help-shot','payout-summary')}")
     page.evaluate("window.scrollTo({top:0,behavior:'instant'})")
-    viewport(page, out / "01-filter-summary.jpg", [{"sel": filters, "n": 1}, {"sel": "[data-help-shot=payout-summary]", "n": 2}], height=640)
+    viewport(page, out / "01-filter-summary.jpg", [{"sel": filters, "n": 1}, {"sel": "[data-help-shot=payout-summary]", "n": 2}], height=860)  # T-259：多了返回列與頁籤
     first_row = mark(page, f"{card} >> text=抵扣應收", "commission-tag")
     bonus = mark(page, "text=示範十月台數獎金", "bonus-name")
     shot(page, out / "02-dealer-card.jpg", [{"sel": card, "n": 3, "pad": 2}, {"sel": first_row, "n": 4}, {"sel": bonus, "n": 5}], margin=24, max_height=980)

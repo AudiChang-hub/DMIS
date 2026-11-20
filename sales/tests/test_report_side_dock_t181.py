@@ -81,10 +81,12 @@ class SideDockTests(TestCase):
         self.assertNotIn("data-report-tree", html)
         self.assertIn('aria-current="page"', dock)
 
-    def test_payout_page_keeps_existing_navigation(self):
+    def test_payout_page_moved_out_of_report_center(self):
+        # T-259：給付頁移到資料維護區「車行傭金與獎勵」頁籤，不再有報表中心側欄。
         html = self.client.get(reverse("dealer_payout_list")).content.decode()
-        self.assertIn('<aside class="report-page-nav"><details open data-reader-pages>', html)
+        self.assertNotIn("report-page-nav", html)
         self.assertNotIn("data-report-side-dock", html)
+        self.assertIn('class="account-tabs dealer-reward-tabs"', html)
 
     def test_styles_cover_push_sticky_overlay_and_motion(self):
         css = (ROOT / "static/css/reporting.css").read_text(encoding="utf-8")

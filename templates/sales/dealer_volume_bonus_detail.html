@@ -16,7 +16,7 @@
       <div class="total"><dt>{% if group.settlement %}本期獎金（已結算）{% else %}本期獎金（試算）{% endif %}</dt><dd>&#36;{% if group.settlement %}{{ group.settlement.total_amount|floatformat:0 }}{% else %}{{ group.total|floatformat:0 }}{% endif %}</dd></div>
       {% if group.settlement %}<div><dt>結算</dt><dd>{{ group.settlement.settled_at|date:'Y/m/d H:i' }} {{ group.settlement.settled_by }}</dd></div>{% endif %}
     </dl>
-    <div class="note-box">{% if group.settlement %}已結算：各單獎金固定、已加進傭金支出；之後改領牌日、刪單、退車或改規則都不會改金額。{% if group.changes %}結算後有變：{{ group.changes|join:'；' }}。需要時到給付頁取消結算後重新結算。{% endif %}{% elif not rule.active %}此規則已停用，不計算獎金。{% elif group.ended %}期間已結束；到報表中心〈車行傭金／獎金給付〉按「結算」，獎金才加進各單的傭金支出。{% else %}統計期間尚未結束，金額會隨領牌台數變動；期間結束後到給付頁結算。{% endif %}台數獎金結算後另外發放給車行，不扣訂單應收或掛帳。{% if group.ended %} <a href="{% url 'dealer_payout_list' %}?dealer={{ group.dealer.pk }}">前往給付頁 →</a>{% endif %}</div>
+    <div class="note-box">{% if group.settlement %}已結算：各單獎金固定、已加進傭金支出；之後改領牌日、刪單、退車或改規則都不會改金額。{% if group.changes %}結算後有變：{{ group.changes|join:'；' }}。需要時到給付頁取消結算後重新結算。{% endif %}{% elif not rule.active %}此規則已停用，不計算獎金。{% elif group.ended %}期間已結束；到車行傭金與獎勵〈給付〉頁籤按「結算」，獎金才加進各單的傭金支出。{% else %}統計期間尚未結束，金額會隨領牌台數變動；期間結束後到給付頁結算。{% endif %}台數獎金結算後另外發放給車行，不扣訂單應收或掛帳。{% if group.ended %} <a href="{% url 'dealer_payout_list' %}?dealer={{ group.dealer.pk }}">前往給付頁 →</a>{% endif %}</div>
   </section>
   <section class="inventory-list-panel"><div class="inventory-list-summary"><strong>逐單明細 · 全部歸 {{ group.dealer }}</strong></div>
     <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>領牌日／訂單</th><th>原銷售車行／車型</th><th>本規則獎金</th><th>傭金支出</th></tr></thead><tbody>

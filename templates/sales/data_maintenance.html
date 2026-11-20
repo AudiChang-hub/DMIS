@@ -84,11 +84,11 @@
     <div><h2>原廠獎勵與補助</h2><p>{% site_text 'data_maintenance.275db464f367' %}</p><strong>{{ incentive_campaign_count }} 個啟用活動</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
-  {# 車行傭金與獎勵四頁共用一個入口（T-162），連到有權限的第一個分頁。 #}
-  {% can_access 'dealer_sales_program_list' as dr_commission %}{% can_access 'dealer_reward_campaign_list' as dr_campaign %}{% can_access 'dealer_reward_catalog_list' as dr_catalog %}{% can_access 'dealer_volume_bonus_list' as dr_bonus %}{% if dr_commission %}{% url 'dealer_sales_program_list' as dr_url %}{% elif dr_campaign %}{% url 'dealer_reward_campaign_list' as dr_url %}{% elif dr_catalog %}{% url 'dealer_reward_catalog_list' as dr_url %}{% elif dr_bonus %}{% url 'dealer_volume_bonus_list' as dr_url %}{% endif %}
+  {# 車行傭金與獎勵五頁共用一個入口（T-162；T-259 加給付），連到有權限的第一個分頁。 #}
+  {% can_access 'dealer_sales_program_list' as dr_commission %}{% can_access 'dealer_reward_campaign_list' as dr_campaign %}{% can_access 'dealer_reward_catalog_list' as dr_catalog %}{% can_access 'dealer_volume_bonus_list' as dr_bonus %}{% can_access 'dealer_payout_list' as dr_payout %}{% if dr_commission %}{% url 'dealer_sales_program_list' as dr_url %}{% elif dr_campaign %}{% url 'dealer_reward_campaign_list' as dr_url %}{% elif dr_catalog %}{% url 'dealer_reward_catalog_list' as dr_url %}{% elif dr_bonus %}{% url 'dealer_volume_bonus_list' as dr_url %}{% elif dr_payout %}{% url 'dealer_payout_list' as dr_url %}{% endif %}
   {% if dr_url %}<a class="maintenance-card" href="{{ dr_url }}">
     <span class="maintenance-card__icon">佣</span>
-    <div><h2>車行傭金與獎勵</h2><p>每台基礎傭金、獎勵活動與品項，以及自動計算的台數獎金。</p><strong>{% if dr_commission %}傭金 {{ dealer_sales_program_count }} 車型 · 活動 {{ dealer_reward_campaign_count }}{% endif %}{% if dr_catalog %}{% if dr_commission %} · {% endif %}品項 {{ dealer_reward_catalog_count }}{% endif %}{% if dr_bonus %}{% if dr_commission or dr_catalog %} · {% endif %}台數獎金 {{ dealer_bonus_rule_count }} 規則{% endif %}</strong></div>
+    <div><h2>車行傭金與獎勵</h2><p>每台基礎傭金、獎勵活動與品項、自動計算的台數獎金，以及給付追蹤與結算。</p><strong>{% if dr_commission %}傭金 {{ dealer_sales_program_count }} 車型 · 活動 {{ dealer_reward_campaign_count }}{% endif %}{% if dr_catalog %}{% if dr_commission %} · {% endif %}品項 {{ dealer_reward_catalog_count }}{% endif %}{% if dr_bonus %}{% if dr_commission or dr_catalog %} · {% endif %}台數獎金 {{ dealer_bonus_rule_count }} 規則{% endif %}</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif %}
   {% if_access 'installment_company_list' %}<a class="maintenance-card" href="{% url 'installment_company_list' %}">

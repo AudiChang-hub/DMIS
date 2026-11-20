@@ -31,12 +31,13 @@ class DealerRewardEntryTests(TestCase):
 
     def menu_entry(self, response):
         rules = MENU_RULES.search(response.content.decode())[1]
-        return re.findall(r'<a href="([^"]+)"><strong>車行傭金與獎勵</strong><small>基礎傭金、獎勵活動與品項、台數獎金</small></a>', rules)
+        return re.findall(r'<a href="([^"]+)"><strong>車行傭金與獎勵</strong><small>基礎傭金、獎勵活動與品項、台數獎金、給付</small></a>', rules)
 
-    def test_all_four_pages_share_tabs_and_mark_current(self):
+    def test_all_pages_share_tabs_and_mark_current(self):
         self.client.force_login(self.root)
         pages = (("dealer_sales_program_list", "基礎傭金"), ("dealer_reward_campaign_list", "獎勵活動"),
-                 ("dealer_reward_catalog_list", "獎勵品項"), ("dealer_volume_bonus_list", "台數獎金"))
+                 ("dealer_reward_catalog_list", "獎勵品項"), ("dealer_volume_bonus_list", "台數獎金"),
+                 ("dealer_payout_list", "給付"))  # T-259：給付頁從報表中心移來
         expected = [(reverse(name), label) for name, label in pages]
         for name, label in pages:
             with self.subTest(page=name):

@@ -111,7 +111,8 @@ class AccessPolicy:
         if name == "report_center":
             from sales.reporting.models import ReportDefinition
             if not hasattr(self, "_report_center_allowed"):
-                self._report_center_allowed = self.screen("dealer_payouts") or any(
+                # T-259：給付頁已移到資料維護區，報表中心只看已發布報表。
+                self._report_center_allowed = any(
                     self.report(report) for report in ReportDefinition.objects.filter(published__isnull=False))
             return self._report_center_allowed
         if name in REPORT_ROUTES:

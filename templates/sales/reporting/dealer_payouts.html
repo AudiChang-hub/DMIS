@@ -1,19 +1,21 @@
-{% extends 'sales/reporting/layout.html' %}{% load static sales_format screen_access %}
-{% block title %}車行傭金／獎金給付 · 報表中心{% endblock %}
-{% block page_class %}page-shell--wide report-reader-shell{% endblock %}
-{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}?v={{ app_version }}"><script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
-{% block report_content %}
-<div class="report-reader-layout">
-{% include 'sales/reporting/_reader_nav.html' with payout_page=True %}
-<div class="report-reader-main payout-page" data-payout-page>
-<header class="report-heading hero-row compact-hero">
+{% extends 'base.html' %}{% load static sales_format screen_access %}
+{# T-259：從報表中心移到資料維護區「車行傭金與獎勵」的「給付」頁籤；內容與操作不變。 #}
+{% block title %}車行傭金／獎金給付｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}?v={{ app_version }}"><script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<header class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">報表中心 · 給付追蹤</p>
+    <p class="eyebrow">車行傭金與獎勵</p>
     <h1>車行傭金／獎金給付</h1>
     <p class="muted">領牌完成後列出要給車行的傭金與實物。台數獎金在統計期間結束後列為「待結算」，按「結算」才加進傭金支出與淨利，之後另外發放給車行。勾「已給付」只做追蹤，不影響車行結算、掛帳與淨利。</p>
   </div>
   {% if can_export %}<div class="hero-actions"><a class="button ghost" href="{% url 'dealer_payout_export' %}?{{ request.GET.urlencode }}" data-no-busy>匯出 CSV</a></div>{% endif %}
 </header>
+{% include "sales/_dealer_reward_tabs.html" with current="payout" %}
+<div class="payout-page" data-payout-page>
 
 <form class="payout-filters" method="get" aria-label="篩選給付項目">
   <label class="payout-filters__field payout-filters__field--wide">車行
@@ -128,6 +130,5 @@
   {% endfor %}
 </div>
 </div>
-</div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/reporting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/dealer-payouts.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-payouts.js' %}?v={{ app_version }}" defer></script>{% endblock %}

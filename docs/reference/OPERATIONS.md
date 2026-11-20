@@ -169,7 +169,7 @@ python manage.py generate_price_list_distribution --month 2026-09
 ### 每日台數獎金同步
 
 `dmis-next-volume-bonus-sync.timer` 每日清晨依規則重算全部車行台數獎金的試算，補上漏掉的即時重算。
-2.18.0 起（T-203）不再自動入帳：要在報表中心〈車行傭金／獎金給付〉按「結算」才加進傭金支出；已結算的組不重算。可重複執行。
+2.18.0 起（T-203）不再自動入帳：要在車行傭金與獎勵〈給付〉頁籤按「結算」才加進傭金支出；已結算的組不重算。可重複執行。
 
 ```bash
 sudo bash scripts/install_django_volume_bonus_timer.sh

@@ -1,7 +1,6 @@
 /* 車行傭金／獎金給付（T-150）：報表中心固定頁。只用 app.css 設計參數，六種主題共用。 */
 
 .payout-page { display: grid; gap: var(--stack-gap); align-content: start; }
-.payout-page .report-heading { margin: 0; }
 
 /* 篩選列 */
 .payout-filters { display: grid; grid-template-columns: minmax(200px, 1.6fr) repeat(5, minmax(0, 1fr)); gap: var(--space-3) var(--stack-gap-sm); align-items: end; padding: var(--inset-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }

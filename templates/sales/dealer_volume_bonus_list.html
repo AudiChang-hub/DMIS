@@ -6,7 +6,7 @@
 {% url 'sales_source_list' as source_url %}{% url 'dealer_volume_bonus_list' as list_url %}
 {% include "sales/_page_back.html" with fallback_url=source_url label="返回車行" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}設定獎金條件後系統自動試算；期間結束後，到報表中心〈車行傭金／獎金給付〉按「結算」才加進傭金支出。{% else %}依領牌日期與獎金歸屬車行自動統計，各期間、各車行分開計算；結算前都是試算，不計入傭金支出與淨利。{% endif %}</p></div>
+  <div><p class="eyebrow">車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}設定獎金條件後系統自動試算；期間結束後，到〈給付〉頁籤按「結算」才加進傭金支出。{% else %}依領牌日期與獎金歸屬車行自動統計，各期間、各車行分開計算；結算前都是試算，不計入傭金支出與淨利。{% endif %}</p></div>
   {% if tab == 'rules' %}<a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>{% endif %}
 </section>
 {% include "sales/_dealer_reward_tabs.html" with current="bonus" %}

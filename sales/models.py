@@ -1524,7 +1524,7 @@ class OrderVolumeBonus(TimeStampedModel):
 class VolumeBonusSettlement(TimeStampedModel):
     """台數獎金結算紀錄（T-203，使用者 2026-11-17 選 C）：規則 × 期間 × 收款車行一組。
 
-    月底在報表中心〈車行傭金／獎金給付〉按「結算」建立；結算後各單獎金固定、加進傭金支出，另外發放給車行，
+    月底在車行傭金與獎勵〈給付〉頁籤按「結算」建立；結算後各單獎金固定、加進傭金支出，另外發放給車行，
     不扣應收或掛帳。取消結算只填 cancelled_at（保留紀錄），可再重新結算；同一組同時只有一筆有效結算。
     """
     rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="group_settlements", verbose_name="台數獎金規則")

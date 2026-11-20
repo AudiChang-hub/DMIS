@@ -192,7 +192,7 @@ class PayoutViewTests(PayoutTestBase):
         cls.nobody = get_user_model().objects.create_user("nobody", password="Test-Only-123")
         UserAccessState.objects.create(user=cls.nobody, configured=True)
 
-    def test_page_lists_rows_and_report_center_lands_on_it(self):
+    def test_page_lists_rows_and_is_no_longer_in_report_center(self):
         order = self.registered()
         self.client.force_login(self.admin)
         response = self.client.get(reverse("dealer_payout_list"))
@@ -200,7 +200,10 @@ class PayoutViewTests(PayoutTestBase):
         self.assertContains(response, order.number)
         self.assertContains(response, "結算車行")
         self.assertContains(response, "$2,300")
-        self.assertRedirects(self.client.get(reverse("report_center")), reverse("dealer_payout_list"))
+        # T-259：給付頁移到資料維護區，報表中心不再導到這裡、也不列入口。
+        center = self.client.get(reverse("report_center"))
+        self.assertEqual(center.status_code, 200)
+        self.assertNotContains(center, reverse("dealer_payout_list"))
 
     def test_get_does_not_write(self):
         self.registered()
@@ -225,7 +228,7 @@ class PayoutViewTests(PayoutTestBase):
         order = self.registered()
         self.client.force_login(self.viewer)
         self.assertEqual(self.client.get(reverse("dealer_payout_list")).status_code, 200)
-        self.assertEqual(self.client.get(reverse("report_center")).status_code, 302)
+        self.assertEqual(self.client.get(reverse("report_center")).status_code, 403)  # T-259：只有給付權限不再進得了報表中心
         self.assertEqual(self.client.post(reverse("dealer_payout_update"),
                                           {"action": "paid", "key": KEY.format(order.pk)}).status_code, 403)
         self.assertEqual(self.client.get(reverse("dealer_payout_export")).status_code, 403)

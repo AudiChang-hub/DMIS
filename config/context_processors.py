@@ -57,6 +57,7 @@ DATA_MAINTENANCE_ROUTES = {
     "vehicle_installment_plan_list",
     "subsidy_program_list",
     "dealer_volume_bonus_list",
+    "dealer_payout_list",  # T-259：給付頁移到資料維護區
     "dealer_volume_bonus_create",
     "dealer_volume_bonus_edit",
     "dealer_volume_bonus_delete",
@@ -118,7 +119,7 @@ def app_version(request):
         "reception_mode": request.resolver_match and request.resolver_match.url_name in {"catalog", "catalog_detail", "order_start", "order_submitted"},
         "data_vehicle_visible": any(access_policy.route(name) for name in ("vehicle_brand_list", "vehicle_model_list", "settlement_cost_rule_list", "inventory_list", "accessory_product_list", "catalog_manage")),
         "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution", "gift_distribution")),
-        "data_rules_visible": any(access_policy.route(name) for name in ("incentive_rule_list", "dealer_sales_program_list", "dealer_reward_catalog_list", "dealer_volume_bonus_list", "installment_company_list", "subsidy_program_list", "brand_registration_fee_rule_list", "business_holiday_list")),
+        "data_rules_visible": any(access_policy.route(name) for name in ("incentive_rule_list", "dealer_sales_program_list", "dealer_reward_catalog_list", "dealer_volume_bonus_list", "dealer_payout_list", "installment_company_list", "subsidy_program_list", "brand_registration_fee_rule_list", "business_holiday_list")),
         "data_tools_visible": any(access_policy.route(name) for name in ("positioned_template_list", "system_diagnostics")),
         "app_version": get_app_version(),
         "intake_can_submit": access_policy.route("order_start"),

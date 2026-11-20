@@ -29,7 +29,7 @@ SCREENS = (
            hint="寫入時仍逐區段檢查訂單頁相同的操作權限（訂車與配件、訂單作業）。"),
     Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
-    Screen("dealer_payouts", "車行傭金／獎金給付（報表中心）", "dealer_payout_list", True, True),
+    Screen("dealer_payouts", "車行傭金／獎金給付", "dealer_payout_list", True, True),
     Screen("inventory", "車輛庫存與歷程", "inventory_list"),
     Screen("brands", "車輛品牌", "vehicle_brand_list"),
     Screen("models", "機種、售價與分期方案", "vehicle_model_list"),
@@ -57,11 +57,11 @@ SCREEN_GROUPS = (
     ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing", "order_gift")),)),
     ("orders", "全部訂單", (("訂單與作業", ("orders", "order_documents", "work", "order_finance", "profit", "order_delete", "order_bulk_update")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
-    ("reports", "報表中心", (("給付追蹤", ("dealer_payouts",)),)),
+    ("reports", "報表中心", ()),  # 已發布報表逐張授權（access/views.grouped_rows）；給付 T-259 移到資料維護區
     ("data", "資料維護區", (
         ("車輛與商品", ("brands", "models", "costs", "inventory", "accessories")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
-        ("費率與規則", ("incentives", "commissions", "rewards", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
+        ("費率與規則", ("incentives", "commissions", "rewards", "bonuses", "dealer_payouts", "installments", "subsidy_programs", "fees", "holidays")),
         ("工具與管理", ("templates", "diagnostics", "integrity", "accounts")),
     )),
 )
@@ -110,6 +110,10 @@ register("reconciliation", "reconciliation_list reconciliation_update reconcilia
 register("dealer_payouts", "dealer_payout_list")
 register("dealer_payouts", "dealer_payout_update", "operate")
 register("dealer_payouts", "dealer_payout_export", "export")
+# T-259：給付頁從報表中心移到「車行傭金與獎勵」頁籤；舊網址照原權限導向新位置（舊頁面送出的表單仍可送到舊網址）。
+register("dealer_payouts", "dealer_payout_list_legacy")
+register("dealer_payouts", "dealer_payout_update_legacy", "operate")
+register("dealer_payouts", "dealer_payout_export_legacy", "export")
 register("inventory", "inventory_list")
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_history_photo_delete inventory_allocation_priority", "operate")
 # 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。

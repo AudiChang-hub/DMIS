@@ -33,6 +33,12 @@ REVIEW_MAX_SKEW_DEGREES = 8.0  # 上下（或左右）兩邊的方向差超過 8
 CACHE_VERSION = 1
 CROP_HEIGHT = 638  # 54 mm @ 300 dpi
 CARD_ASPECT = 85.6 / 54.0
+# T-262（使用者 2026-11-20「整個身分證的正反面都要完整的在框中」）：自動裁切抓到卡片外緣後，每邊再往外多留約 2.5%，
+# 抓得略小也不會切到國旗、標題、條碼等貼邊內容；只多一小圈證件套，不留大片桌面。手動調整不受影響。
+AUTO_MARGIN = 0.025
+# 抓到的框比例和身分證差這麼多（約 1.12 以下或 2.25 以上）就不是整張卡片，多半只框到某一區塊：不裁，保留整張照片並提醒。
+# 強烈斜拍但抓對的卡片約差 0.25，只提醒（REVIEW_ASPECT_DEVIATION）不放棄裁切。
+FAIL_ASPECT_DEVIATION = 0.35
 PARAMS_VERSION = 1
 MODES = ("auto", "manual", "full")
 MAX_SOURCE_PIXELS = 24_000_000
@@ -230,9 +236,33 @@ def auto_params(image, side=None):
     corners = detect_card(src)
     turn, turn_score = _turn_decision(src, corners, side)
     found_card = not np.allclose(corners, full_image(src.shape[1], src.shape[0]))
+    reasons = review_reasons(src, corners, side, found_card, turn_score)
+    if found_card and _aspect_off(corners):
+        # T-262：抓到的框和身分證比例差很多，多半抓錯（只框到某一區塊）：不硬裁，保留整張照片並提醒確認。
+        params = full_image_params(image.size)
+        params["needs_review"] = True
+        return params
+    if found_card:
+        corners = expand_quad(corners, AUTO_MARGIN, src.shape[1], src.shape[0])
     params = params_from_pixels(corners, turn, image.size, "auto" if found_card else "full")
-    params["needs_review"] = bool(review_reasons(src, corners, side, found_card, turn_score))
+    params["needs_review"] = bool(reasons)
     return params
+
+
+def _aspect_off(corners):
+    width, height = _side_lengths(np.asarray(corners, dtype=np.float32))
+    ratio = max(width, height) / max(1.0, min(width, height))
+    return abs(math.log(ratio / CARD_ASPECT)) > FAIL_ASPECT_DEVIATION
+
+
+def expand_quad(corners, margin, width, height):
+    """四邊形以中心往外放大（每邊約 margin），並限制在照片範圍內。"""
+    quad = np.asarray(corners, dtype=np.float32)
+    center = quad.mean(axis=0)
+    grown = center + (quad - center) * (1.0 + 2.0 * margin)
+    grown[:, 0] = np.clip(grown[:, 0], 0, width - 1)
+    grown[:, 1] = np.clip(grown[:, 1], 0, height - 1)
+    return grown
 
 
 def card_view(instance, model_name, field_name):

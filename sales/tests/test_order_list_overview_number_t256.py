@@ -96,3 +96,26 @@ class OrderListOverviewNumberTests(TestCase):
         with CaptureQueriesContext(connection) as many:
             self.page()
         self.assertEqual(len(many), len(few), [q["sql"][:120] for q in many.captured_queries])
+
+
+class MobileCardOverviewLinkTests(OrderListOverviewNumberTests):
+    """2.32.0 追加：手機卡片也有「訂單總覽」，放在右欄狀態下方，打開同一個總覽對話框。"""
+    for _name in [name for name in dir(OrderListOverviewNumberTests) if name.startswith("test_")]:
+        locals()[_name] = None
+    del _name
+
+    def test_card_has_overview_link_in_status_column(self):
+        order = self.make_order(self.gas, self.gas_color, owner="卡片總覽合成車主")
+        html = self.page()
+        url = reverse("order_overview", args=[order.pk])
+        card = html[html.index('<div class="order-row order-row--detailed">'):]
+        status = card[card.index('<span class="order-row-status">'):]
+        status = status[:status.index("</span>", status.index("order-card-overview"))]
+        self.assertIn(f'<a class="order-card-overview" href="{url}" data-order-overview-open="{url}"', status)
+        self.assertIn(f'data-overview-title="卡片總覽合成車主" data-overview-meta="{order.number}"', status)
+        self.assertEqual(html.count(f'data-order-overview-open="{url}"'), 2)  # 電腦版表格＋手機卡片各一個
+
+    def test_customer_page_rows_have_no_overview_link(self):
+        order = self.make_order(self.gas, self.gas_color)
+        html = self.client.get(reverse("customer_detail", args=[order.pk])).content.decode()
+        self.assertNotIn("order-card-overview", html)

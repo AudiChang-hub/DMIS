@@ -12,3 +12,20 @@
   white-space: pre;  /* 引擎號碼裡的空格照原樣顯示 */
 }
 .order-sort-table td .order-overview-link { margin-top: var(--space-1); }
+/* 手機卡片右欄（狀態下方）的「訂單總覽」：同一個總覽對話框；放在既有空白處，卡片不加高。 */
+.order-card-overview {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 var(--space-2);
+  color: var(--action-text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.order-card-overview:hover { background: var(--surface-tint); }
+.order-card-overview:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }

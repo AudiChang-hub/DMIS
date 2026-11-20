@@ -86,6 +86,31 @@ def commission_volume_bonus(order, profile=None):
     return posted_volume_bonus(order)
 
 
+COMMISSION_STATE_LABELS = {"manual": "人工輸入", "locked": "已固定", "estimate": "預估"}
+
+
+def order_commission_display(order, profile):
+    """領牌步驟「車行獎勵」卡的傭金列（T-258）：直接讀收入與支出的同一欄 `dealer_commission_expense`，不重算。
+
+    平台單不列；0 元不列。狀態只看傭金自己：人工輸入、已固定（`dealer_commission_locked_at`）、其餘預估。
+    已結算的台數獎金會併入這一欄（T-203），只標註含多少，不另列台數獎金。
+    """
+    if profile is None or order.source_type == SalesOrder.SourceType.PLATFORM:
+        return None
+    amount = profile.dealer_commission_expense or Decimal("0")
+    if not amount:
+        return None
+    manual = "dealer_commission_expense" in (profile.manual_financial_fields or [])
+    state = "manual" if manual else "locked" if profile.dealer_commission_locked_at else "estimate"
+    return {
+        "amount": amount,
+        "state": state,
+        "state_label": COMMISSION_STATE_LABELS[state],
+        "volume_bonus": commission_volume_bonus(order, profile),
+        "recipient": order.effective_commission_recipient or (order.source if order.source_id else None),
+    }
+
+
 def original_dealer_commission(order):
     """沿用原銷售車行的傭金金額，不因歸屬車行而改套費率。"""
     profile = OrderOperationsProfile.objects.filter(order=order).first()

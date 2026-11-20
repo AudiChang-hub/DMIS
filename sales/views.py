@@ -269,6 +269,7 @@ from .services.settlement_cost import (
     resolve_settlement_cost,
 )
 from .services.dealer_reward_campaign import order_dealer_rewards
+from .services.dealer_commission import order_commission_display
 from .services.incentive_rule import (
     apply_order_incentive_rule,
 )
@@ -5536,6 +5537,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 list(operations_profile.incentive_applications.all()) if operations_profile else []
             ),
             "dealer_rewards": order_dealer_rewards(order),
+            # 車行獎勵卡第一列的傭金（T-258），與收入與支出同一欄。
+            "dealer_commission": order_commission_display(order, operations_profile),
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,

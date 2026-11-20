@@ -457,19 +457,25 @@
         <p class="figure-card__meta">{% if operations_profile.incentive_registration_date %}{% if order.is_registration_complete %}依 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 領牌{% else %}依訂單成立日 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 預先觸發{% endif %}{% if incentive_applications %}符合的活動{% else %}的車型版本{% endif %} · {% endif %}{% if operations_profile.incentive_locked_at %}{{ operations_profile.incentive_locked_at|date:"Y/m/d H:i" }} 固定，不受後續活動異動影響{% else %}確認領牌後固定{% endif %}</p>
       </section>
       {% endif %}
-      {% if dealer_rewards.dealer or dealer_rewards.lines %}
+      {# 車行獎勵＝傭金＋活動獎勵（T-258）：傭金與收入與支出同一欄，狀態各自標示；台數獎金月底結算，不列在這裡。 #}
+      {% if dealer_commission or dealer_rewards.lines %}
       <section class="figure-card" aria-labelledby="figure-dealer-reward" data-order-dealer-rewards>
         <header class="figure-card__head">
           <h3 id="figure-dealer-reward">車行獎勵</h3>
-          {% if dealer_rewards.lines %}{% if dealer_rewards.locked %}<span class="ledger-tag ledger-tag--locked">已固定</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}{% endif %}
         </header>
+        {% if dealer_commission %}
+        <dl class="figure-list" data-dealer-commission>
+          <div class="figure-list__row"><dt>傭金 <span class="ledger-tag ledger-tag--{{ dealer_commission.state }}">{{ dealer_commission.state_label }}</span></dt><dd>${{ dealer_commission.amount|number_with_commas }}</dd></div>
+        </dl>
+        <p class="figure-card__meta">{% if dealer_commission.recipient %}{% if not dealer_rewards.lines or dealer_commission.recipient != dealer_rewards.dealer %}給 {{ dealer_commission.recipient.name }} · {% endif %}{% endif %}與「收入與支出」的傭金支出同一筆{% if dealer_commission.volume_bonus %}，含已結算台數獎金 ${{ dealer_commission.volume_bonus|number_with_commas }}{% endif %}{% if dealer_commission.state == "estimate" and not order.registration_completed_at %} · 確認領牌後固定{% endif %}</p>
+        {% endif %}
         {% if dealer_rewards.lines %}
-        <dl class="figure-list">
-          {% for total in dealer_rewards.totals %}<div class="figure-list__row"><dt>{{ total.name }}</dt><dd>{{ total.quantity }} {{ total.unit }}</dd></div>{% endfor %}
+        <dl class="figure-list" data-dealer-reward-lines>
+          {% for total in dealer_rewards.totals %}<div class="figure-list__row"><dt>{{ total.name }} {% if dealer_rewards.locked %}<span class="ledger-tag ledger-tag--locked">已固定</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}</dt><dd>{{ total.quantity }} {{ total.unit }}</dd></div>{% endfor %}
         </dl>
         <ul class="figure-card__sources">{% for line in dealer_rewards.lines %}<li><span>{{ line.campaign_name }}</span>{{ line.display_label }}</li>{% endfor %}</ul>
         <p class="figure-card__meta">給 {{ dealer_rewards.dealer.name }} · {% if dealer_rewards.pre_triggered %}依訂單成立日 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 預先觸發，確認領牌時依實際領牌日重新判斷{% else %}依 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 領牌符合的車行獎勵活動{% endif %} · {% if dealer_rewards.locked %}已固定，不受後續活動異動影響{% else %}確認領牌後固定{% endif %}</p>
-        {% else %}
+        {% elif dealer_rewards.dealer %}
         <p class="figure-card__meta">{% if order.registration_completed_at %}領牌時沒有符合的車行獎勵活動。{% else %}給 {{ dealer_rewards.dealer.name }}；訂單成立日 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 沒有符合的車行獎勵活動，確認領牌時依實際領牌日重新判斷。{% endif %}</p>
         {% endif %}
       </section>

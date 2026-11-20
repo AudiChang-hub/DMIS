@@ -94,3 +94,17 @@ test('建單附件只隨草稿上傳一次：未變更的檔案不重送，送�
   assert.match(order, /window\.addEventListener\("submit", async event => \{[\s\S]*?flushDraftUploads\(\)[\s\S]*?orderForm\.requestSubmit\(submitter\)/);
   assert.match(order, /window\.dmisBusy\.upload\("\{% url 'id_card_ocr' %\}"/);
 });
+
+// T-253（使用者 2026-11-20）：建立訂單時「正在上傳 39%（2.0／5.1 MB）」蓋住底部「刪除草稿／上一步／下一步」。
+test('上傳提示遇到黏在底部的操作列時抬到操作列上方，沒有操作列或已經夠高時照 CSS', () => {
+  const { liftedBottom } = require('../../static/js/busy-indicator.js');
+  // 390×844：操作列頂端 714、手機導覽 779；原本提示 bottom 84px（底緣 760）壓在操作列上。
+  assert.equal(liftedBottom(714, 844, 84), 142);
+  // 桌面：操作列頂端 814、提示 bottom 32px。
+  assert.equal(liftedBottom(814, 900, 32), 98);
+  // 操作列不在畫面上（捲到上面、還沒出現）：不動。
+  assert.equal(liftedBottom(900, 844, 84), null);
+  assert.equal(liftedBottom(Number.NaN, 844, 84), null);
+  // 提示本來就在操作列上方：不動。
+  assert.equal(liftedBottom(714, 844, 200), null);
+});

@@ -63,12 +63,21 @@
     return "處理中，請稍候…";
   }
 
+  // T-253（使用者 2026-11-20）：建立訂單、編輯訂單的底部操作列（.mobile-submit）是黏在畫面底部的，
+  // 提示原本固定在同一個高度，「正在上傳 39%…」會蓋住「刪除草稿／上一步／下一步」。
+  // 操作列在畫面上時，把提示抬到操作列上方 gap 的位置；沒有操作列或提示本來就夠高時回傳 null（照 CSS）。
+  function liftedBottom(barTop, viewportHeight, currentBottom, gap = 12) {
+    if (!Number.isFinite(barTop) || barTop >= viewportHeight) return null;
+    const needed = Math.ceil(viewportHeight - barTop + gap);
+    return needed > currentBottom ? needed : null;
+  }
+
   function hasDownloadCookie(cookieText) {
     return String(cookieText || "").split(";").some((part) => part.trim().startsWith(`${DOWNLOAD_COOKIE}=`));
   }
 
   if (typeof window === "undefined" || typeof document === "undefined") {
-    module.exports = {isTrackedLink, isTrackedForm, isActivationKey, messageFor, hasDownloadCookie};
+    module.exports = {isTrackedLink, isTrackedForm, isActivationKey, messageFor, hasDownloadCookie, liftedBottom};
     return;
   }
 
@@ -104,6 +113,15 @@
     watcher = null;
   }
 
+  function placeStatus() {
+    if (!status) return;
+    status.style.bottom = "";
+    const actionBar = [...document.querySelectorAll(".mobile-submit")].find((node) => node.getClientRects().length);
+    if (!actionBar) return;
+    const lifted = liftedBottom(actionBar.getBoundingClientRect().top, window.innerHeight, parseFloat(getComputedStyle(status).bottom) || 0);
+    if (lifted !== null) status.style.bottom = `${lifted}px`;
+  }
+
   function setText(text) {
     const node = status.querySelector(".busy-status__text");
     if (node.textContent !== text) node.textContent = text;
@@ -126,6 +144,7 @@
       return;
     }
     setText(messageFor(kind, idle >= SLOW_AFTER, progress));
+    if (status.classList.contains("is-visible")) placeStatus();
   }
 
   function start(nextKind) {
@@ -141,7 +160,7 @@
     clearTimers();
     startedAt = Date.now();
     timers.push(window.setTimeout(() => bar.classList.add("is-active"), SHOW_BAR_AFTER));
-    timers.push(window.setTimeout(() => status.classList.add("is-visible"), SHOW_STATUS_AFTER));
+    timers.push(window.setTimeout(() => { placeStatus(); status.classList.add("is-visible"); }, SHOW_STATUS_AFTER));
     watcher = window.setInterval(watch, WATCH_EVERY);
     document.documentElement.setAttribute("aria-busy", "true");
   }

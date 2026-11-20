@@ -187,6 +187,23 @@ class CameraCaptureOrientationTests(SimpleTestCase):
                 with self.subTest(corners=corners[0], orientation=orientation, already_upright=already_upright):
                     self.assert_whole_card_kept("back", corners, orientation, already_upright)
 
+    def test_portrait_card_near_top_keeps_flag_and_title(self):
+        """2.32.6（T-262 複驗回歸，驗收隨機組種子 23 第 22 張）：直式照片、卡片靠近上緣、沒有證件套。
+        2.32.5 先把近距結果補邊才判斷要不要採用大幅微調，多出來的區域只剩深色標題列，正確的大幅微調不被採用：
+        上緣斜進標題列、國旗被切掉，也沒有提醒。"""
+        corners = [[385.5, 43.2], [1167.6, 47.4], [1148.3, 549.4], [416.0, 537.3]]
+        image = Image.fromarray(real.scene("front", corners, size=(1200, 1600), sleeve=False, desk=(150, 115, 80)))
+        params = crop.auto_params(image, "front")
+        self.assertEqual(params["mode"], "auto")
+        quad = crop.pixel_corners(params)
+        self.assertTrue(contains(quad, corners), "四角")
+        matrix = cv2.getPerspectiveTransform(np.float32([[0, 0], [856, 0], [856, 540], [0, 540]]), np.float32(corners))
+        top = cv2.perspectiveTransform(np.float32([[[18, 10], [300, 12], [560, 12]]]), matrix)[0]
+        self.assertTrue(contains(quad, top), "國旗與標題上緣")
+        card = np.asarray(crop.apply_crop(image, params, 856, 540))
+        for name, color in real.MARKERS["front"].items():
+            self.assertTrue(real.marker_present(card, color), name)
+
     def test_far_refine_never_shrinks_the_card(self):
         image = np.asarray(Image.fromarray(real.scene("front", self.FILLS, size=(2016, 1512), sleeve=False)))
         quad = crop.detect_card(image)

@@ -503,7 +503,6 @@ def detect_card(src):
     support = cv2.Canny(gray, 30, 90)
     support = cv2.dilate(support, _KERNEL)
     near_quad, near_score = _refine(best, support, gray, card_shaped, 0.04)
-    near_quad = _keep_outer_edges(best, near_quad)
     far_quad, far_score = _refine(best, support, gray, card_shaped, 0.3)
     # 大幅微調多出來的區域若明顯比卡片暗（保護套、桌面），除非分數大幅領先，否則不採用。
     gained = _gained_brightness_ratio(gray, near_quad, far_quad)
@@ -512,9 +511,12 @@ def detect_card(src):
     # 不可以把框往內縮——標題列下緣是一條又長又直的強邊，會把上緣整條拉進卡片裡。比微調前小就不採用。
     if take_far and abs(cv2.contourArea(np.asarray(far_quad, dtype=np.float32))) < abs(cv2.contourArea(np.asarray(near_quad, dtype=np.float32))) * 0.98:
         take_far = False
-    best = far_quad if take_far else near_quad
-    if not take_far:
-        best = _borrow_outer_edges(near_quad, far_quad, gray)
+    if take_far:
+        best = far_quad
+    else:
+        # 2.32.6（T-262 複驗回歸）：要不要採用大幅微調，照 2.32.4 用原本的近距結果判斷；補邊只在沒採用大幅微調時才做。
+        # 先補邊再判斷，近距框變大會讓「多出來的區域」只剩深色標題列，正確的大幅微調反而不被採用（國旗被切掉）。
+        best = _borrow_outer_edges(_keep_outer_edges(best, near_quad), far_quad, gray)
     return (np.asarray(best, dtype=np.float32) / scale).astype(np.float32)
 
 

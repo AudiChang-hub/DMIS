@@ -21,6 +21,7 @@ from sales.services.price_version import (
 from sales.services.installment_plan import resolve_installment_plan_version
 from sales.services.catalog_selection import selection_data, sign_selection
 from sales.services.remote_image import RemoteImageError, fetch_image, validate_url
+from sales.services.upload_validation import IMAGE_FORMATS
 
 
 def listed_models():
@@ -180,8 +181,12 @@ def catalog_preview_image(request, pk, color_pk=None):
     return response
 
 
-# iPhone 相機的 JPEG 常帶附屬影像（MPF），Pillow 報 "MPO"，內容仍是 JPEG，一樣存成 .jpg（T-260，同 T-253 c3c16bc9）。
-IMAGE_EXT = {"JPEG": "jpg", "MPO": "jpg", "PNG": "png", "WEBP": "webp"}
+# 接受的格式沿用共用的 upload_validation.IMAGE_FORMATS（含 iPhone 相機 JPEG 的 MPO），不另外維護一份；
+# 格式 → 存檔副檔名取該格式在表中的第一個副檔名（JPEG／MPO → jpg、PNG → png、WEBP → webp）。
+IMAGE_EXT = {}
+for _extension, _formats in IMAGE_FORMATS.items():
+    for _format in _formats:
+        IMAGE_EXT.setdefault(_format, _extension.lstrip("."))
 
 
 def checked_upload(upload):

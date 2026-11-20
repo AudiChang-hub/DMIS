@@ -36,6 +36,21 @@ class CatalogIphoneJpegTests(SimpleTestCase):
         upload = CatalogForm.clean_image(form)
         self.assertTrue(upload.name.endswith(".jpg"))
 
+    def test_formats_come_from_shared_upload_validation(self):
+        """T-260 驗收（2.32.5）：選車不另外寫一份格式表（含 MPO），沿用 upload_validation.IMAGE_FORMATS。"""
+        from pathlib import Path
+
+        from django.conf import settings
+
+        from sales import catalog_views
+        from sales.services.upload_validation import IMAGE_FORMATS
+
+        self.assertEqual(set(catalog_views.IMAGE_EXT), set().union(*IMAGE_FORMATS.values()))
+        self.assertEqual(catalog_views.IMAGE_EXT, {"JPEG": "jpg", "MPO": "jpg", "PNG": "png", "WEBP": "webp"})
+        source = (Path(settings.BASE_DIR) / "sales" / "catalog_views.py").read_text(encoding="utf-8")
+        self.assertNotIn('"MPO"', source)
+        self.assertIn("from sales.services.upload_validation import IMAGE_FORMATS", source)
+
     def test_other_formats_still_rejected(self):
         gif = io.BytesIO()
         Image.new("RGB", (8, 8)).save(gif, "GIF")

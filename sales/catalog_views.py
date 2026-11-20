@@ -180,7 +180,8 @@ def catalog_preview_image(request, pk, color_pk=None):
     return response
 
 
-IMAGE_EXT = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
+# iPhone 相機的 JPEG 常帶附屬影像（MPF），Pillow 報 "MPO"，內容仍是 JPEG，一樣存成 .jpg（T-260，同 T-253 c3c16bc9）。
+IMAGE_EXT = {"JPEG": "jpg", "MPO": "jpg", "PNG": "png", "WEBP": "webp"}
 
 
 def checked_upload(upload):
@@ -244,11 +245,9 @@ class CatalogForm(forms.ModelForm):
             if upload.size > 8 * 1024 * 1024:
                 raise forms.ValidationError("圖片最多 8 MB。")
             fmt = getattr(getattr(upload, "image", None), "format", "")
-            if fmt not in {"JPEG", "PNG", "WEBP"}:
+            if fmt not in IMAGE_EXT:  # 與 checked_upload 共用同一份格式表
                 raise forms.ValidationError("請使用 JPEG、PNG 或 WebP 圖片。")
-            upload.name = (
-                f"{uuid.uuid4().hex}.{ {'JPEG':'jpg', 'PNG':'png', 'WEBP':'webp'}[fmt]}"
-            )
+            upload.name = f"{uuid.uuid4().hex}.{IMAGE_EXT[fmt]}"
         return upload
 
     def clean(self):

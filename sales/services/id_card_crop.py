@@ -30,7 +30,7 @@ REVIEW_MIN_BACK_SCORE = 20  # 國民身分證反面：條碼區與對稱區的�
 # T-260（使用者 2026-11-20「四角走 1」）：只加提醒、不改偵測。
 REVIEW_BORDER_MARGIN = 0.01  # 任一角離照片邊界不到長寬的 1%：卡片被照片切到或框貼到邊緣，多半沒抓準
 REVIEW_MAX_SKEW_DEGREES = 8.0  # 上下（或左右）兩邊的方向差超過 8°：一般斜拍約 1–3°，明顯不平行表示抓錯邊
-CACHE_VERSION = 1
+CACHE_VERSION = 2  # 2.32.5（T-262 驗收）：偵測改了，舊的自動偵測快取不再沿用
 CROP_HEIGHT = 638  # 54 mm @ 300 dpi
 CARD_ASPECT = 85.6 / 54.0
 # T-262（使用者 2026-11-20「整個身分證的正反面都要完整的在框中」）：自動裁切抓到卡片外緣後，每邊再往外多留約 3%，
@@ -249,6 +249,10 @@ def auto_params(image, side=None):
         return params
     if found_card:
         corners = expand_quad(corners, AUTO_MARGIN, src.shape[1], src.shape[0])
+    else:
+        # T-262 驗收：找不到卡片、自動改用整張照片時也照拍攝方向（不轉），訂單頁預覽、調整視窗、列印一致。
+        # 整張照片的辨識本來就四個方向都試（id_ocr），不靠這個轉向。
+        turn = 0
     params = params_from_pixels(corners, turn, image.size, "auto" if found_card else "full")
     params["needs_review"] = bool(reasons)
     return params
@@ -499,6 +503,7 @@ def detect_card(src):
     support = cv2.Canny(gray, 30, 90)
     support = cv2.dilate(support, _KERNEL)
     near_quad, near_score = _refine(best, support, gray, card_shaped, 0.04)
+    near_quad = _keep_outer_edges(best, near_quad)
     far_quad, far_score = _refine(best, support, gray, card_shaped, 0.3)
     # 大幅微調多出來的區域若明顯比卡片暗（保護套、桌面），除非分數大幅領先，否則不採用。
     gained = _gained_brightness_ratio(gray, near_quad, far_quad)
@@ -508,7 +513,83 @@ def detect_card(src):
     if take_far and abs(cv2.contourArea(np.asarray(far_quad, dtype=np.float32))) < abs(cv2.contourArea(np.asarray(near_quad, dtype=np.float32))) * 0.98:
         take_far = False
     best = far_quad if take_far else near_quad
+    if not take_far:
+        best = _borrow_outer_edges(near_quad, far_quad, gray)
     return (np.asarray(best, dtype=np.float32) / scale).astype(np.float32)
+
+
+INWARD_EDGE_TOLERANCE = 0.01
+
+
+def _keep_outer_edges(initial, refined):
+    """T-262 驗收：邊緣微調不可把任何一條邊（任一端）往卡片內部推超過對向邊長的 1%（例如背面條碼下緣、正面標題列下緣
+    這種又長又直的強邊，會把整條邊吸進卡片裡，切掉角落）。超過就保留輪廓偵測原本的那條邊，四角取相鄰兩邊的交點。
+    輪廓本身因膨脹多出的幾個像素在 1% 以內，照樣讓微調收緊。"""
+    initial = np.asarray(_order(np.asarray(initial, dtype=np.float32)), dtype=np.float32)
+    refined = np.asarray(_order(np.asarray(refined, dtype=np.float32)), dtype=np.float32)
+    width, height = _side_lengths(initial)
+    lines, changed = [], False
+    for index in range(4):
+        a, b = initial[index], initial[(index + 1) % 4]
+        direction = b - a
+        length = float(np.hypot(*direction))
+        if length < 1e-6:
+            return refined
+        normal = np.array([direction[1], -direction[0]], dtype=np.float32) / length  # 角點順時針，這是朝外的法線
+        p, q = refined[index], refined[(index + 1) % 4]
+        # 兩端各自量：微調也可能只把一端往內拉（整條邊斜進卡片），角落一樣被切掉。
+        inward = max(-float(np.dot(p - a, normal)), -float(np.dot(q - a, normal)))
+        limit = INWARD_EDGE_TOLERANCE * (height if index % 2 == 0 else width)
+        if inward > limit:
+            lines.append((a, b))
+            changed = True
+        else:
+            lines.append((p, q))
+    if not changed:
+        return refined
+    corners = [_intersect(*lines[(index - 1) % 4], *lines[index]) for index in range(4)]
+    if any(corner is None for corner in corners):
+        return refined
+    return np.asarray(corners, dtype=np.float32)
+
+
+BORROW_EDGE_LIMIT = 0.05
+
+
+def _borrow_outer_edges(near, far, gray):
+    """T-262 驗收：沒採用大幅微調時，個別邊若大幅微調找到的位置在外側不遠（對向邊長 5% 內），且多出來那一條是亮的
+    （還在淺色卡片上，不是證件套或桌面），就改用那一條邊。輪廓偵測有時整條邊斜進卡片（卡片幾乎填滿畫面時），
+    角落會差幾十像素；這樣只補回那條邊，其他邊照近距微調。"""
+    near = np.asarray(_order(np.asarray(near, dtype=np.float32)), dtype=np.float32)
+    far = np.asarray(_order(np.asarray(far, dtype=np.float32)), dtype=np.float32)
+    width, height = _side_lengths(near)
+    near_mask = np.zeros(gray.shape, dtype=np.uint8)
+    cv2.fillConvexPoly(near_mask, _int_points(near), 255)
+    near_mean = cv2.mean(gray, near_mask)[0]
+    lines, changed = [], False
+    for index in range(4):
+        a, b = near[index], near[(index + 1) % 4]
+        direction = b - a
+        length = float(np.hypot(*direction))
+        p, q = far[index], far[(index + 1) % 4]
+        if length >= 1e-6 and near_mean >= 1:
+            normal = np.array([direction[1], -direction[0]], dtype=np.float32) / length
+            outward = (float(np.dot(p - a, normal)), float(np.dot(q - a, normal)))
+            limit = BORROW_EDGE_LIMIT * (height if index % 2 == 0 else width)
+            if min(outward) > 0 and max(outward) <= limit:
+                strip = np.zeros(gray.shape, dtype=np.uint8)
+                cv2.fillConvexPoly(strip, _int_points(np.array([a, b, q, p], dtype=np.float32)), 255)
+                if cv2.countNonZero(strip) and cv2.mean(gray, strip)[0] >= near_mean * 0.75:
+                    lines.append((p, q))
+                    changed = True
+                    continue
+        lines.append((a, b))
+    if not changed:
+        return near
+    corners = [_intersect(*lines[(index - 1) % 4], *lines[index]) for index in range(4)]
+    if any(corner is None for corner in corners):
+        return near
+    return np.asarray(corners, dtype=np.float32)
 
 
 def _between(values, target):

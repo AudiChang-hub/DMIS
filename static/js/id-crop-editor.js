@@ -349,6 +349,14 @@
     return Boolean(params?.needs_review) && params.mode !== "manual";
   }
 
+  // 訂單頁證件卡片預覽怎麼畫（T-262）：只有自動偵測失敗、自動改用整張照片（mode=full 且還沒確認）時，
+  // 照原照片的比例、不轉向；使用者在調整視窗選「使用整張圖片」並套用的（needs_review 已清除），
+  // 照使用者選的轉向畫成卡片比例，和調整視窗、列印一致。
+  function previewShape(params) {
+    if (params?.mode === "full" && needsReview(params)) return {whole: true, params: {...params, turn: 0}};
+    return {whole: false, params};
+  }
+
   function describe(params) {
     if (!params) return "";
     if (needsReview(params)) return "建議確認裁切";
@@ -718,7 +726,7 @@
     dialog.querySelector(`[data-crop-handle="${state.params.turn}"]`).focus({preventScroll: true});
   }
 
-  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, adjustPixels, brightnessTable, cardState, recropPlan, needsReview,
+  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, adjustPixels, brightnessTable, cardState, recropPlan, needsReview, previewShape,
                exifOrientation, classifyProbe, orientationMatrix, canvasOrientationMode: () => canvasMode,
                orientationPending: image => orientationWaiters.has(image)};
   if (typeof window !== "undefined") window.dmisIdCrop = api;

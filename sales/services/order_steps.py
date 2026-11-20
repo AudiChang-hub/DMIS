@@ -35,6 +35,27 @@ STATE_LABELS = {
 }
 
 
+def _subsidy_step(order):
+    """補助步驟的狀態與摘要（T-261，使用者 2026-11-20）：有補助項目時，全部「已申請」才算完成，並列出 X／Y 項已申請。
+
+    只看申請狀態：附件一律選填（T-95）、撥款屬事後對帳，都不列入判斷。汰舊單仍需補助基本資料齊全；
+    沒有任何補助項目的訂單維持原本的顯示。
+    """
+    from sales.models import SubsidyItem
+
+    items = list(order.subsidy_items.all()) if order.pk else []
+    if not items:
+        if not order.is_trade_in_subsidy:
+            return "optional", "未申請（需要時可開啟）"
+        return ("done", "資料已齊") if order.is_subsidy_ready else ("todo", "補助資料待補")
+    applied = sum(item.status == SubsidyItem.Status.SUBMITTED for item in items)
+    data_ready = not order.is_trade_in_subsidy or order.is_subsidy_ready
+    if applied == len(items) and data_ready:
+        return "done", f"{len(items)} 項都已申請"
+    progress = f"{applied}／{len(items)} 項已申請"
+    return "todo", progress if data_ready else f"補助資料待補・{progress}"
+
+
 def order_step_url(order_pk, step, anchor=""):
     """訂單頁指定分頁的網址；anchor 為分頁內的區塊 id，未指定時以 #step-<步驟> 標示分頁。"""
     if step not in TAB_STEP:
@@ -120,12 +141,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             summary=(f"{order.delivered_at:%Y/%m/%d} 已交付" if order.is_delivered and order.delivered_at else
                      "已交付" if order.is_delivered else "收尾款並完成交車"),
         ),
-        "subsidy": dict(
-            number=None, title="補助",
-            state=("optional" if not order.is_trade_in_subsidy else "done" if order.is_subsidy_ready else "todo"),
-            summary="未申請（需要時可開啟）" if not order.is_trade_in_subsidy else
-                    "資料已齊" if order.is_subsidy_ready else "補助資料待補",
-        ),
+        "subsidy": dict(number=None, title="補助"),  # 狀態與摘要見 _subsidy_step（T-261）
         "closing": dict(
             number=None, title="取消與結案",
             state="done" if order.is_closed else ("todo" if order.is_delivered else "optional"),
@@ -140,6 +156,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             number=None, title="處理紀錄", state="reference", summary="處理經過與訂單變更紀錄",
         ),
     }
+    steps["subsidy"]["state"], steps["subsidy"]["summary"] = _subsidy_step(order)
     # 車行、網路平台的訂單也有這一步，但只列印、不請客人簽名（使用者 2026-11-13 T-174）。
     step_order = STEP_ORDER
     for number, key in enumerate(step_order, 1):

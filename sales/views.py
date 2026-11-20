@@ -4318,6 +4318,7 @@ def order_list(request):
         "color",
         "operations",
         "search_index",
+        "allocated_vehicle",  # T-256：機種下方顯示引擎／車身號碼
     )
     query = request.GET.get("q", "").strip()
     if query:

@@ -3,7 +3,7 @@
 {% load order_origin_tags %}
 {% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-vehicle-number.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
@@ -108,11 +108,11 @@
       </th>
     {% endif %}{% endfor %}</tr></thead>
     <tbody>{% for order in orders %}<tr>
-      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>
+      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}{% if_access 'order_overview' order.pk %}{% url 'order_overview' order.pk as overview_url %}<small><a class="button ghost small order-overview-link" href="{{ overview_url }}" data-order-overview-open="{{ overview_url }}" data-overview-title="{{ order.owner_name }}" data-overview-meta="{{ order.number }}" aria-haspopup="dialog" aria-label="訂單總覽 {{ order.number }}">訂單總覽</a></small>{% endif_access %}</td>
       <td>{% include "sales/_registration_date_mark.html" %}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
       <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><span class="order-owner-line"><strong>{{ order.owner_name }}</strong>{% include "sales/_payment_chip.html" %}{% include "sales/_trade_in_chip.html" %}</span><span class="order-number-stack"><small>{{ order.number }}</small>{% order_origin_badge order %}</span></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
-      <td class="order-table-machine">{% include 'sales/_compact_text.html' with value=order.vehicle_model.family.name|default:order.vehicle_model.name limit=10 %}</td>
+      <td class="order-table-machine">{% include 'sales/_compact_text.html' with value=order.vehicle_model.family.name|default:order.vehicle_model.name limit=10 %}{% include "sales/_order_vehicle_number.html" %}</td>
       <td>{{ order.color.label|default:"—" }}</td>
       <td>{{ order.source_display }}</td>
       <td>{% if order.is_closed and not order.deletion_requested_at %}<span class="status-pill status-completed">{{ order.display_status }}</span>{% if order.status != 'completed' %}<small class="order-registration-pending">領牌未完成</small>{% endif %}{% else %}<span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% endif %}{% if order.deletion_requested_at %}<small>原狀態：{{ order.get_status_display }}</small>{% endif %}{% if order.accepted_at %}<small class="muted">{{ order.accepted_name }} · {{ order.accepted_at|date:"m/d H:i" }}</small>{% endif %}{% if order.unsettled_due %}<small class="order-unsettled">款項未結清 ${{ order.unsettled_due|number_with_commas }}</small>{% endif %}{% if order.pending_subsidy_count %}<small class="order-subsidy-pending">補助待完成 {{ order.pending_subsidy_count }} 項</small>{% endif %}{% if not order.is_cancelled_sale and order.plate_fee_shortfall %}<small class="order-plate-shortfall" title="牌險費少於規費＋強制險，差額記為負的牌險手續費收入{% if not order.registration_date %}（規費依訂單日預估）{% endif %}">牌險少收</small>{% endif %}</td><td class="order-table-note">{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</td>
@@ -129,5 +129,24 @@
 </div>
 {% pagination page_obj aria_label="訂單分頁" %}
 </div>
+{# T-256：每列「訂單總覽」在這裡開同一份唯讀總覽（order-overview.js），標題跟著點的那張訂單換；清單頁不用快捷鍵 O。 #}
+<dialog class="order-overview-dialog" aria-labelledby="order-overview-title" data-order-overview-dialog data-overview-shortcut="off">
+  <div class="order-overview-dialog__sheet">
+    <header class="order-overview-dialog__head">
+      <div>
+        <p class="order-overview-dialog__eyebrow">訂單總覽・唯讀</p>
+        <h2 id="order-overview-title" data-overview-dialog-title></h2>
+        <p class="order-overview-dialog__meta" data-overview-dialog-meta></p>
+      </div>
+      <div class="order-overview-dialog__actions">
+        <button type="button" class="button primary small" data-overview-copy-all>複製全部</button>
+        <a class="button ghost small" href="#" target="_blank" rel="noopener" data-overview-dialog-page>新分頁開啟</a>
+        <button type="button" class="order-overview-dialog__close" data-overview-close aria-label="關閉訂單總覽">×</button>
+      </div>
+    </header>
+    <div class="order-overview-dialog__body" data-overview-body aria-busy="false"></div>
+  </div>
+  <p class="visually-hidden" role="status" aria-live="polite" data-overview-status></p>
+</dialog>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/order-list-filters.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-sorting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-tabs.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/order-list-filters.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-sorting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-tabs.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>{% endblock %}

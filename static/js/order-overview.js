@@ -146,6 +146,13 @@
   const open = (trigger) => {
     lastTrigger = trigger;
     const url = trigger.dataset.orderOverviewOpen;
+    // T-256：全部訂單頁同一個面板開不同訂單，標題、單號與「新分頁開啟」跟著點的那一列換。
+    const title = dialog.querySelector("[data-overview-dialog-title]");
+    if (title) title.textContent = trigger.dataset.overviewTitle || "";
+    const meta = dialog.querySelector("[data-overview-dialog-meta]");
+    if (meta) meta.textContent = trigger.dataset.overviewMeta || "";
+    const page = dialog.querySelector("[data-overview-dialog-page]");
+    if (page) page.href = url;
     if (!dialog.open) dialog.showModal();
     document.documentElement.classList.add("has-overview-open");
     loading = load(url);
@@ -180,6 +187,7 @@
   // 快捷鍵 O：在訂單頁任何地方（非輸入中）開啟總覽。
   document.addEventListener("keydown", (event) => {
     if (event.key.toLowerCase() !== "o" || event.ctrlKey || event.metaKey || event.altKey || dialog.open) return;
+    if (dialog.dataset.overviewShortcut === "off") return;  // T-256：全部訂單頁有很多張單，不用快捷鍵
     if (event.target.closest?.("input, textarea, select, [contenteditable='true'], dialog")) return;
     // T-250：手機版精簡列與電腦版側欄各有一個入口，取畫面上看得到的那個，關閉後焦點才回得去。
     const triggers = [...document.querySelectorAll("[data-order-overview-open]")];

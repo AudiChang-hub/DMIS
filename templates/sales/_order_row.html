@@ -8,7 +8,7 @@
     <div class="order-facts">
       <div class="order-fact order-fact--machine"><small>機種</small>{% firstof order.vehicle_model.family.name order.vehicle_model.name as machine_name %}{% include 'sales/_compact_text.html' with value=machine_name limit=10 %}{% include "sales/_order_vehicle_number.html" %}</div>
       <span class="order-fact"><small>顏色</small><b>{{ order.color.label|default:"—" }}</b></span>
-      <span class="order-fact"><small>領牌日期</small><b>{% include "sales/_registration_date_mark.html" %}</b></span>
+      <span class="order-fact order-fact--registration"><small>領牌日期</small><b>{% include "sales/_registration_date_mark.html" %}</b></span>
       <span class="order-fact"><small>訂單成立日期</small><b>{{ order.established_display }}</b></span>
       <span class="order-fact"><small>車號</small><b>{{ order.final_plate_number|default:"—" }}</b></span>
       <span class="order-fact order-fact--profit"><small>淨利</small>{% include 'sales/_order_profit.html' with profile=order.operations %}</span>

@@ -18,15 +18,16 @@
   color: var(--amber-ink);
   background: var(--amber-soft);
 }
-/* 手機卡片的欄位值是單行省略：標色框自己省略、框線改內陰影且不加上下內距，列高與未標色相同。 */
+/* 手機卡片的領牌日期完整顯示（2.32.0 追加）：這一欄不再單行省略，放不下就換行；
+   標色框改內陰影、不加上下內距，單行時列高與未標色相同，換行時框跟著每一行。 */
+.order-fact--registration b {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .order-fact b .registration-date-mark {
-  display: inline-block;
-  max-width: 100%;
   padding-block: 0;
-  overflow: hidden;
   border: 0;
   box-shadow: inset 0 0 0 1px var(--registration-mark-line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
 }

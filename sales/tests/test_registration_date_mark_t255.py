@@ -100,3 +100,26 @@ class OrderListRegistrationMarkTests(TestCase):
         html = response.content.decode()
         self.assertIn(order.number, html)
         self.assertNotIn("registration-date-mark", html)
+
+
+@patch("sales.services.business_days.timezone.localdate", return_value=FRIDAY)
+class MobileCardRegistrationFullTests(OrderListRegistrationMarkTests):
+    """2.32.0 追加：手機卡片的領牌日期完整顯示（換行，不再單行省略），只改這一欄。"""
+    for _name in [name for name in dir(OrderListRegistrationMarkTests) if name.startswith("test_")]:
+        locals()[_name] = None
+    del _name
+
+    def test_card_registration_fact_wraps_instead_of_truncating(self, _localdate):
+        self.make_order(FRIDAY)
+        html = self.page()
+        self.assertIn('<span class="order-fact order-fact--registration"><small>領牌日期</small><b>'
+                      + TODAY_MARK.format("預計 2026/11/20") + "</b></span>", html)
+        self.assertEqual(html.count("order-fact--registration"), 1)  # 其他欄位不加
+        from django.conf import settings
+        css = (settings.BASE_DIR / "static/css/order-registration-mark.css").read_text(encoding="utf-8")
+        rule = css[css.index(".order-fact--registration b {"):]
+        rule = rule[:rule.index("}")]
+        self.assertIn("white-space: normal;", rule)
+        self.assertIn("overflow: visible;", rule)
+        card_mark = css[css.index(".order-fact b .registration-date-mark {"):]
+        self.assertNotIn("nowrap", card_mark[:card_mark.index("}")])

@@ -39,6 +39,9 @@ AUTO_MARGIN = 0.025
 # 抓到的框比例和身分證差這麼多（約 1.12 以下或 2.25 以上）就不是整張卡片，多半只框到某一區塊：不裁，保留整張照片並提醒。
 # 強烈斜拍但抓對的卡片約差 0.25，只提醒（REVIEW_ASPECT_DEVIATION）不放棄裁切。
 FAIL_ASPECT_DEVIATION = 0.35
+# T-262 續（17:46 實拍「一樣」）：淺色卡片放在淺色桌面、沒有證件套時，卡片外緣對比太低，大頭照框（直式、比例剛好接近
+# 身分證）會被當成卡片，裁成一小塊又轉 90°。一般拍證件時卡片約佔畫面 20–60%，抓到的框不到 10% 就視為抓錯，不裁。
+FAIL_MIN_AREA = 0.10
 PARAMS_VERSION = 1
 MODES = ("auto", "manual", "full")
 MAX_SOURCE_PIXELS = 24_000_000
@@ -237,9 +240,11 @@ def auto_params(image, side=None):
     turn, turn_score = _turn_decision(src, corners, side)
     found_card = not np.allclose(corners, full_image(src.shape[1], src.shape[0]))
     reasons = review_reasons(src, corners, side, found_card, turn_score)
-    if found_card and _aspect_off(corners):
-        # T-262：抓到的框和身分證比例差很多，多半抓錯（只框到某一區塊）：不硬裁，保留整張照片並提醒確認。
-        params = full_image_params(image.size)
+    too_small = abs(cv2.contourArea(np.asarray(corners, dtype=np.float32))) < FAIL_MIN_AREA * src.shape[0] * src.shape[1]
+    if found_card and (_aspect_off(corners) or too_small):
+        # T-262：抓到的框和身分證比例差很多、或小到不像整張卡片（多半只框到某一區塊，例如大頭照）：
+        # 不硬裁，保留整張照片並提醒確認；照拍攝的方向顯示（不轉），免得整張照片被轉 90°。
+        params = params_from_pixels(full_image(src.shape[1], src.shape[0]), 0, image.size, "full")
         params["needs_review"] = True
         return params
     if found_card:

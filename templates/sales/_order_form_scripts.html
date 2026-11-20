@@ -1042,8 +1042,12 @@
     const ratio = window.devicePixelRatio || 1;
     const width = Math.max(1, Math.round((view.clientWidth || 320) * ratio));
     canvas.width = width;
-    canvas.height = Math.round(width * 54 / 85.6);
-    if (!window.dmisIdCrop.renderCard(preview, params, canvas) && window.dmisIdCrop.orientationPending(preview)) {
+    // T-262：自動裁切失敗、保留整張照片（mode=full）時，照原照片的比例與拍攝方向顯示，不擠進卡片框、不轉 90°。
+    const whole = params.mode === "full";
+    canvas.style.aspectRatio = whole ? `${preview.naturalWidth} / ${preview.naturalHeight}` : "";
+    canvas.height = whole ? Math.round(width * preview.naturalHeight / preview.naturalWidth) : Math.round(width * 54 / 85.6);
+    const drawParams = whole ? {...params, turn: 0} : params;
+    if (!window.dmisIdCrop.renderCard(preview, drawParams, canvas) && window.dmisIdCrop.orientationPending(preview)) {
       // 照片方向還在確認（T-253）：確認後再畫，這段時間不顯示半成品。
       show(false);
       preview.addEventListener("dmis-orientation", () => renderIdCard(fieldName), {once: true});

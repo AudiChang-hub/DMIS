@@ -78,11 +78,11 @@ def _warp(source, mask, corners, size):
     return warped, warped_mask
 
 
-def _table(size, seed=3):
+def _table(size, seed=3, color=(150, 115, 80)):
     width, height = size
     rng = np.random.default_rng(seed)
     base = np.zeros((height, width, 3), np.uint8)
-    base[:] = (150, 115, 80)  # 木頭桌面
+    base[:] = color  # 預設木頭桌面；淺色桌面（白、米色）時卡片外緣對比很低
     grain = rng.integers(0, 30, (height, 1, 1), dtype=np.uint8)
     base = cv2.add(base, np.repeat(np.repeat(grain, width, 1), 3, 2))
     noise = rng.integers(0, 18, (height, width, 1), dtype=np.uint8)
@@ -95,11 +95,15 @@ def _expand(corners, ratio):
     return center + (pts - center) * ratio
 
 
-def scene(side="front", corners=None, size=(1600, 1200), sleeve=True):
+def scene(side="front", corners=None, size=(1600, 1200), sleeve=True, desk=(150, 115, 80), flat_desk=False):
     """corners：卡片四角（左上、右上、右下、左下）貼到照片上的位置。sleeve：外圍黑色織紋證件套＋透明反光邊。"""
     if corners is None:
         corners = [[330, 300], [1270, 330], [1250, 920], [310, 890]]  # 輕微傾斜
-    image = _table(size)
+    if flat_desk:  # 幾乎沒有紋路的淺色桌面（白紙、白桌）：卡片外緣對比最低的情況
+        noise = np.random.default_rng(4).integers(0, 6, (size[1], size[0], 1), dtype=np.uint8)
+        image = cv2.add(np.full((size[1], size[0], 3), desk, np.uint8), np.repeat(noise, 3, 2))
+    else:
+        image = _table(size, color=desk)
     size_wh = (size[0], size[1])
     if sleeve:
         clear = np.full((CARD_H, CARD_W, 3), (205, 210, 212), np.uint8)  # 透明塑膠反光邊

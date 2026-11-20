@@ -59,3 +59,36 @@ class FullCardCropTests(SimpleTestCase):
         self.assertGreaterEqual(grown.min(), 0)
         self.assertLessEqual(grown[:, 0].max(), 100)
         self.assertLessEqual(grown[:, 1].max(), 60)
+
+
+class PhotoBlockFalseHitTests(SimpleTestCase):
+    """T-262 續（2.32.3 上線後 17:46 實拍「一樣」）：淺色卡片放在淺色桌面、沒有證件套、手機直拍，
+    卡片外緣對比太低，偵測抓到大頭照框（直式、比例剛好接近身分證），裁成一小塊又轉 90°，雖然有提醒卻仍然裁切。
+    改為：抓到的框不到畫面 10% 就視為抓錯，保留整張照片（照拍攝方向，不轉）並提醒確認。"""
+
+    PORTRAIT_SHOT = [[110, 520], [1090, 545], [1080, 1160], [100, 1135]]  # 直拍照片（1200×1600）裡橫放的卡片
+
+    def test_photo_block_is_not_used_as_the_card(self):
+        for desk in ((238, 236, 230), (240, 232, 205)):
+            for orientation in (6, 8):
+                with self.subTest(desk=desk, orientation=orientation):
+                    displayed = real.scene("front", self.PORTRAIT_SHOT, size=(1200, 1600), sleeve=False, desk=desk, flat_desk=True)
+                    params = crop.auto_params(crop.open_oriented(real.iphone_jpeg(displayed, orientation)), "front")
+                    self.assertEqual(params["mode"], "full")
+                    self.assertEqual(params["turn"], 0)
+                    self.assertTrue(params["needs_review"])
+
+    def test_card_in_sleeve_on_light_desk_is_still_cropped(self):
+        displayed = real.scene("front", self.PORTRAIT_SHOT, size=(1200, 1600), sleeve=True, desk=(238, 236, 230), flat_desk=True)
+        params = crop.auto_params(crop.open_oriented(real.iphone_jpeg(displayed, 6)), "front")
+        self.assertEqual(params["mode"], "auto")
+        self.assertTrue(contains(crop.pixel_corners(params), self.PORTRAIT_SHOT))
+
+    def test_preview_shows_whole_photo_as_shot_in_full_mode(self):
+        from pathlib import Path
+        from django.conf import settings
+
+        script = (Path(settings.BASE_DIR) / "templates" / "sales" / "_order_form_scripts.html").read_text(encoding="utf-8")
+        self.assertIn('const whole = params.mode === "full";', script)
+        self.assertIn("canvas.style.aspectRatio = whole ? `${preview.naturalWidth} / ${preview.naturalHeight}` : \"\";", script)
+        self.assertIn("const drawParams = whole ? {...params, turn: 0} : params;", script)

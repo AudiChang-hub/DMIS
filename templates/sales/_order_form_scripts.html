@@ -1043,7 +1043,12 @@
     const width = Math.max(1, Math.round((view.clientWidth || 320) * ratio));
     canvas.width = width;
     canvas.height = Math.round(width * 54 / 85.6);
-    window.dmisIdCrop.renderCard(preview, params, canvas);
+    if (!window.dmisIdCrop.renderCard(preview, params, canvas) && window.dmisIdCrop.orientationPending(preview)) {
+      // 照片方向還在確認（T-253）：確認後再畫，這段時間不顯示半成品。
+      show(false);
+      preview.addEventListener("dmis-orientation", () => renderIdCard(fieldName), {once: true});
+      return;
+    }
     const badge = view.querySelector("[data-id-card-badge]");
     badge.textContent = window.dmisIdCrop.describe(params);
     badge.classList.toggle("is-review", window.dmisIdCrop.needsReview(params));

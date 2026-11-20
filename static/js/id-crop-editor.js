@@ -36,19 +36,137 @@
     return b.map((value, index) => value / a[index][index]);
   }
 
+  // ---------- EXIF 方向（T-253，使用者 2026-11-20「圖片會異常扭曲，造成辨識出問題」） ----------
+  // iPhone 相機當場拍的照片是橫的像素＋EXIF 方向 6／8。若瀏覽器回報的 naturalWidth/Height 已轉正，
+  // 畫到 canvas 時卻用沒轉的像素，原圖會被擠進轉正後的框裡，卡片就拉伸變形。
+  // 用一張 2×1（左黑右白）、方向 6 的小圖實測這個瀏覽器：只有「尺寸已轉正、canvas 沒轉」時才自己依 EXIF 轉，
+  // 其他情況（目前 Chromium 系列實測 canvas 已轉正）照舊交給瀏覽器，行為不變。
+  const ORIENTATION_PROBE = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAYAAAAAAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAALCAABAAIBAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/AP6+f+CTv/KLL/gmn/2YB+xv/wCs6/Dmv//Z";
+  let canvasMode = typeof Image === "undefined" || typeof window === "undefined" ? "auto" : "unknown";
+  const orientationWaiters = new Set();
+
+  // JPEG 檔頭的 EXIF 方向（1–8）；不是 JPEG、沒有 EXIF 或讀不到都回 1。
+  function exifOrientation(buffer) {
+    const view = buffer instanceof DataView ? buffer : new DataView(buffer.buffer ? buffer.buffer : buffer, buffer.byteOffset || 0, buffer.byteLength);
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return 1;
+    let offset = 2;
+    while (offset + 4 <= view.byteLength) {
+      const marker = view.getUint16(offset);
+      if ((marker & 0xFF00) !== 0xFF00 || marker === 0xFFDA) return 1;
+      const length = view.getUint16(offset + 2);
+      if (marker === 0xFFE1 && offset + 10 <= view.byteLength && view.getUint32(offset + 4) === 0x45786966 && view.getUint16(offset + 8) === 0) {
+        const tiff = offset + 10;
+        if (tiff + 8 > view.byteLength) return 1;
+        const little = view.getUint16(tiff) === 0x4949;
+        const ifd = tiff + view.getUint32(tiff + 4, little);
+        if (ifd + 2 > view.byteLength) return 1;
+        const count = view.getUint16(ifd, little);
+        for (let i = 0; i < count; i += 1) {
+          const entry = ifd + 2 + i * 12;
+          if (entry + 12 > view.byteLength) return 1;
+          if (view.getUint16(entry, little) === 0x0112) {
+            const value = view.getUint16(entry + 8, little);
+            return value >= 1 && value <= 8 ? value : 1;
+          }
+        }
+        return 1;
+      }
+      offset += 2 + length;
+    }
+    return 1;
+  }
+
+  // 實測小圖的結果：naturalWidth/Height 是 1×2 表示 <img> 已轉正；上下兩點明顯不同表示 canvas 也轉了。
+  function classifyProbe(naturalWidth, naturalHeight, top, bottom) {
+    if (naturalWidth !== 1 || naturalHeight !== 2) return "legacy";  // 連 <img> 都沒轉：尺寸會和伺服器不符，卡片本來就不顯示
+    return Math.abs(top - bottom) > 64 ? "auto" : "manual";
+  }
+
+  // 把原始（未轉正）像素畫進轉正後 width×height 的 canvas 要用的轉換矩陣。
+  function orientationMatrix(orientation, width, height) {
+    switch (orientation) {
+      case 2: return [-1, 0, 0, 1, width, 0];
+      case 3: return [-1, 0, 0, -1, width, height];
+      case 4: return [1, 0, 0, -1, 0, height];
+      case 5: return [0, 1, 1, 0, 0, 0];
+      case 6: return [0, 1, -1, 0, width, 0];
+      case 7: return [0, -1, -1, 0, width, height];
+      case 8: return [0, -1, 1, 0, 0, height];
+      default: return [1, 0, 0, 1, 0, 0];
+    }
+  }
+
+  function wakeOrientationWaiters() {
+    orientationWaiters.forEach(image => image.dispatchEvent(new Event("dmis-orientation")));
+    orientationWaiters.clear();
+  }
+
+  function probeCanvasOrientation() {
+    if (canvasMode !== "unknown") return;
+    const probe = new Image();
+    probe.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = probe.naturalWidth;
+        canvas.height = probe.naturalHeight;
+        const context = canvas.getContext("2d", {willReadFrequently: true});
+        context.drawImage(probe, 0, 0, canvas.width, canvas.height);
+        const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        canvasMode = classifyProbe(probe.naturalWidth, probe.naturalHeight, data[0], data[data.length - 4]);
+      } catch (_) {
+        canvasMode = "auto";
+      }
+      wakeOrientationWaiters();
+    };
+    probe.onerror = () => { canvasMode = "auto"; wakeOrientationWaiters(); };
+    probe.src = ORIENTATION_PROBE;
+  }
+  if (canvasMode === "unknown") probeCanvasOrientation();
+
+  // 這張圖要不要自己轉、轉幾度；還在確認時回傳 null，確認後對圖片發 dmis-orientation 事件，呼叫端再畫一次。
+  function orientationFor(image) {
+    if (canvasMode === "unknown") { orientationWaiters.add(image); return null; }
+    if (canvasMode !== "manual") return 1;
+    if (image.dataset.exifSrc === image.currentSrc) return Number(image.dataset.exifOrientation) || 1;
+    if (!orientationWaiters.has(image)) {
+      orientationWaiters.add(image);
+      const src = image.currentSrc;
+      fetch(src).then(response => response.arrayBuffer()).then(buffer => exifOrientation(buffer)).catch(() => 1).then(value => {
+        if (image.currentSrc === src) {
+          image.dataset.exifSrc = src;
+          image.dataset.exifOrientation = String(value);
+        }
+        orientationWaiters.delete(image);
+        image.dispatchEvent(new Event("dmis-orientation"));
+      });
+    }
+    return null;
+  }
+
   // 原圖快照（縮到 SOURCE_MAX）。圖片還沒下載完（例如草稿自動儲存後預覽改載伺服器網址，
   // 尺寸已知但 complete 為 false）時 drawImage 畫不出東西，不拍快照也不快取，回傳 null（T-207）。
   function sourceOf(image) {
     if (!image?.complete || !image.naturalWidth) return null;
+    const orientation = orientationFor(image);
+    if (orientation === null) return null;
+    const key = `${image.currentSrc}#${orientation}`;
     const cached = sourceCache.get(image);
-    if (cached && cached.src === image.currentSrc) return cached;
+    if (cached && cached.src === key) return cached;
     const scale = Math.min(1, SOURCE_MAX / Math.max(image.naturalWidth, image.naturalHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
     const context = canvas.getContext("2d", {willReadFrequently: true});
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const entry = {src: image.currentSrc, canvas, data: context.getImageData(0, 0, canvas.width, canvas.height)};
+    if (orientation > 1) {
+      // 這個瀏覽器的 canvas 用的是沒轉正的像素：轉換後再畫，寬高 5–8 要對調。
+      context.setTransform(...orientationMatrix(orientation, canvas.width, canvas.height));
+      const swap = orientation >= 5;
+      context.drawImage(image, 0, 0, swap ? canvas.height : canvas.width, swap ? canvas.width : canvas.height);
+      context.setTransform(1, 0, 0, 1, 0, 0);
+    } else {
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
+    const entry = {src: key, canvas, data: context.getImageData(0, 0, canvas.width, canvas.height)};
     sourceCache.set(image, entry);
     return entry;
   }
@@ -569,6 +687,7 @@
     if (!dialog?.open) return;
     dialog.close();
     state?.image?.removeEventListener?.("load", state.onImageLoad);
+    state?.image?.removeEventListener?.("dmis-orientation", state.onImageLoad);
     document.documentElement.classList.remove("has-id-crop-dialog");
     state?.returnFocus?.focus?.({preventScroll: true});
     state = null;
@@ -588,6 +707,7 @@
       onImageLoad: () => { if (dialog.open) layout(); },
     };
     image.addEventListener("load", state.onImageLoad);
+    image.addEventListener("dmis-orientation", state.onImageLoad);
     dialog.querySelector("[data-crop-title]").textContent = options.title || "調整證件照片";
     dialog.querySelector("[data-crop-apply-ocr]").hidden = options.canRerun === false;
     status("");
@@ -598,7 +718,9 @@
     dialog.querySelector(`[data-crop-handle="${state.params.turn}"]`).focus({preventScroll: true});
   }
 
-  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, adjustPixels, brightnessTable, cardState, recropPlan, needsReview};
+  const api = {open, renderCard, parse, describe, fullParams, homography, warpPixels, adjustPixels, brightnessTable, cardState, recropPlan, needsReview,
+               exifOrientation, classifyProbe, orientationMatrix, canvasOrientationMode: () => canvasMode,
+               orientationPending: image => orientationWaiters.has(image)};
   if (typeof window !== "undefined") window.dmisIdCrop = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })();

@@ -101,3 +101,87 @@ class DealerRewardCommissionCardTests(campaigns.CampaignFixtureMixin, TestCase):
         order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
         self.save_registration(order, "2026-11-20")
         self.assertIsNone(self.card(order))
+
+
+class DealerRewardOverviewTests(campaigns.CampaignFixtureMixin, TestCase):
+    """訂單總覽的「車行獎勵」區段：與第 5 步卡片同一份資料（傭金欄位＋車行獎勵明細）。"""
+    setUp_fixtures = campaigns.RegistrationFlowTests.setUp
+    order_with_vehicle = campaigns.RegistrationFlowTests.order_with_vehicle
+    save_registration = campaigns.RegistrationFlowTests.save_registration
+
+    def setUp(self):
+        self.setUp_fixtures()
+        self.model.base_dealer_commission = Decimal("1500")
+        self.model.save(update_fields=["base_dealer_commission"])
+
+    def section(self, overview):
+        return next((section for section in overview["sections"] if section["key"] == "dealer_reward"), None)
+
+    def rows(self, overview):
+        return {row["label"]: row for row in self.section(overview)["rows"]}
+
+    def test_overview_lists_commission_rewards_campaigns_and_states(self):
+        from sales.services.order_overview import build_order_overview
+        order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
+        self.save_registration(order, "2026-11-20")
+        order = SalesOrder.objects.get(pk=order.pk)
+        SalesOrder.objects.filter(pk=order.pk).update(discount_internal_note="內部備註 NOTE257X")
+        order.refresh_from_db()
+        overview = build_order_overview(order)
+        keys = [section["key"] for section in overview["sections"]]
+        self.assertEqual(keys.index("dealer_reward"), keys.index("registration") + 1)
+        rows = self.rows(overview)
+        self.assertEqual((rows["傭金"]["value"], rows["傭金"]["copy"]), ("$1,500（已固定）", "1500"))
+        self.assertEqual(rows["活動獎勵"]["value"], "機油 5 罐、禮券 1000 元（已固定）")
+        self.assertEqual(rows["來源活動"]["value"], "四家車行 SUZUKI 油車送機油、全車行禮券")
+        self.assertEqual(rows["活動獎勵給"]["value"], "甲車行")
+        self.assertNotIn("傭金給", rows, "與活動獎勵同一車行時不重複")
+        self.assertNotIn("台數獎金", str(self.section(overview)))
+        # 「複製全部」涵蓋新列；T-257 的優惠備註仍不進總覽。
+        self.assertIn("【車行獎勵】\n傭金：$1,500（已固定）\n活動獎勵：機油 5 罐、禮券 1000 元（已固定）\n"
+                      "來源活動：四家車行 SUZUKI 油車送機油、全車行禮券", overview["plain_text"])
+        self.assertNotIn("NOTE257X", str(overview))
+        # 傭金改人工後與活動獎勵各自標示；與第 6 步同一欄。
+        profile = OrderOperationsProfile.objects.get(order=order)
+        profile.dealer_commission_expense = Decimal("1800")
+        profile.manual_financial_fields = sorted(set(profile.manual_financial_fields or []) | {"dealer_commission_expense"})
+        profile.save()
+        order = SalesOrder.objects.get(pk=order.pk)
+        rows = self.rows(build_order_overview(order))
+        self.assertEqual(rows["傭金"]["value"], "$1,800（人工輸入）")
+        self.assertTrue(rows["活動獎勵"]["value"].endswith("（已固定）"))
+        # 頁面也有這一區（搜尋與複製都以資料列為單位）。
+        page = self.client.get(reverse("order_overview", args=[order.pk]))
+        self.assertContains(page, 'id="overview-dealer_reward"')
+        self.assertContains(page, 'data-label="傭金" data-copy="1800"')
+
+    def test_overview_without_finance_access_keeps_rewards_only(self):
+        from sales.services.order_overview import build_order_overview
+        order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
+        self.save_registration(order, "2026-11-20")
+        rows = self.rows(build_order_overview(SalesOrder.objects.get(pk=order.pk), include_finance=False))
+        self.assertNotIn("傭金", rows)
+        self.assertIn("活動獎勵", rows)
+
+    def test_commission_only_overview_names_recipient(self):
+        from sales.services.order_overview import build_order_overview
+        DealerRewardCampaign.objects.all().delete()
+        order = self.order_with_vehicle(source=self.dealer_a, source_type=SalesOrder.SourceType.DEALER)
+        apply_order_dealer_commission(order)
+        rows = self.rows(build_order_overview(SalesOrder.objects.get(pk=order.pk)))
+        self.assertEqual(rows["傭金"]["value"], "$1,500（預估）")
+        self.assertEqual(rows["傭金給"]["value"], "甲車行")
+        self.assertNotIn("活動獎勵", rows)
+
+    def test_platform_order_has_no_dealer_reward_section(self):
+        from sales.services.order_overview import build_order_overview
+        platform = SalesSource.objects.create(name="示範平台", source_type="platform")
+        order = self.order_with_vehicle(source=platform, source_type=SalesOrder.SourceType.PLATFORM)
+        self.save_registration(order, "2026-11-20", plate="XYZ-0001")
+        profile = OrderOperationsProfile.objects.get(order=order)
+        profile.dealer_commission_expense = Decimal("800")
+        profile.manual_financial_fields = ["dealer_commission_expense"]
+        profile.save()
+        overview = build_order_overview(SalesOrder.objects.get(pk=order.pk))
+        self.assertIsNone(self.section(overview))
+        self.assertNotIn("【車行獎勵】", overview["plain_text"])

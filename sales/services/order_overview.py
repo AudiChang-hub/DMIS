@@ -75,6 +75,35 @@ def _join(*items, sep="／"):
     return sep.join(_text(item) for item in items if _text(item))
 
 
+def _dealer_reward_section(order, include_finance):
+    """車行獎勵＝傭金＋活動獎勵（T-258）：與訂單頁第 5 步卡片共用同一份資料，不另外重算。
+
+    平台單不列傭金、0 元不列；沒有傭金也沒有活動獎勵就不加這一區。傭金屬收支金額，
+    沒有訂單作業權限（include_finance=False）時不列，活動獎勵照列。
+    """
+    from sales.services.dealer_commission import order_commission_display
+    from sales.services.dealer_reward_campaign import order_dealer_rewards
+
+    commission = order_commission_display(order, getattr(order, "operations", None)) if include_finance else None
+    rewards = order_dealer_rewards(order)
+    if not commission and not rewards["lines"]:
+        return None
+    rows = []
+    if commission:
+        shown, raw = _money(commission["amount"])
+        note = f"，含已結算台數獎金 {_money(commission['volume_bonus'])[0]}" if commission["volume_bonus"] else ""
+        rows.append(_row("傭金", f"{shown}（{commission['state_label']}{note}）", copy=raw, mono=True))
+        if commission["recipient"] and (not rewards["lines"] or commission["recipient"] != rewards["dealer"]):
+            rows.append(_row("傭金給", commission["recipient"].name))
+    if rewards["lines"]:
+        state = "已固定" if rewards["locked"] else "預估"
+        totals = "、".join(f"{total['name']} {total['quantity']} {total['unit']}" for total in rewards["totals"])
+        rows.append(_row("活動獎勵", f"{totals}（{state}）", copy=totals, wide=True))
+        rows.append(_row("來源活動", "、".join(dict.fromkeys(line.campaign_name for line in rewards["lines"])), wide=True))
+        rows.append(_row("活動獎勵給", rewards["dealer"].name if rewards["dealer"] else ""))
+    return _section("dealer_reward", "車行獎勵", rows)
+
+
 def build_order_overview(order, *, include_finance=True):
     """回傳 {sections, tables, plain_text}；sections 為標籤／值，tables 為明細列。
 
@@ -139,6 +168,7 @@ def build_order_overview(order, *, include_finance=True):
                  if order.registration_rate_class else ""),
             _row("領牌完成", _join(_datetime(order.registration_completed_at), order.registration_completed_by, sep="　")),
         ]),
+        _dealer_reward_section(order, include_finance),
         _section("price", "金額與付款", [
             _money_row("車價", order.vehicle_price),
             _row("付款方式", "\n".join(order.payment_split_lines), wide=True),
@@ -158,6 +188,7 @@ def build_order_overview(order, *, include_finance=True):
             _money_row("尾款", order.customer_balance_due),
         ]),
     ]
+    sections = [section for section in sections if section]
 
     if order.installment_company or order.installment_periods:
         sections.append(_section("installment", "分期", [

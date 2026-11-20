@@ -33,9 +33,9 @@ REVIEW_MAX_SKEW_DEGREES = 8.0  # 上下（或左右）兩邊的方向差超過 8
 CACHE_VERSION = 1
 CROP_HEIGHT = 638  # 54 mm @ 300 dpi
 CARD_ASPECT = 85.6 / 54.0
-# T-262（使用者 2026-11-20「整個身分證的正反面都要完整的在框中」）：自動裁切抓到卡片外緣後，每邊再往外多留約 2.5%，
+# T-262（使用者 2026-11-20「整個身分證的正反面都要完整的在框中」）：自動裁切抓到卡片外緣後，每邊再往外多留約 3%，
 # 抓得略小也不會切到國旗、標題、條碼等貼邊內容；只多一小圈證件套，不留大片桌面。手動調整不受影響。
-AUTO_MARGIN = 0.025
+AUTO_MARGIN = 0.03
 # 抓到的框比例和身分證差這麼多（約 1.12 以下或 2.25 以上）就不是整張卡片，多半只框到某一區塊：不裁，保留整張照片並提醒。
 # 強烈斜拍但抓對的卡片約差 0.25，只提醒（REVIEW_ASPECT_DEVIATION）不放棄裁切。
 FAIL_ASPECT_DEVIATION = 0.35
@@ -503,6 +503,10 @@ def detect_card(src):
     # 大幅微調多出來的區域若明顯比卡片暗（保護套、桌面），除非分數大幅領先，否則不採用。
     gained = _gained_brightness_ratio(gray, near_quad, far_quad)
     take_far = far_score > near_score * 1.4 or (far_score > near_score * 1.05 and gained >= 0.75)
+    # T-262（使用者 2026-11-20 實拍：卡片幾乎填滿畫面時國旗與標題列被切掉）：大幅微調是用來把「只抓到一部分」的框補大，
+    # 不可以把框往內縮——標題列下緣是一條又長又直的強邊，會把上緣整條拉進卡片裡。比微調前小就不採用。
+    if take_far and abs(cv2.contourArea(np.asarray(far_quad, dtype=np.float32))) < abs(cv2.contourArea(np.asarray(near_quad, dtype=np.float32))) * 0.98:
+        take_far = False
     best = far_quad if take_far else near_quad
     return (np.asarray(best, dtype=np.float32) / scale).astype(np.float32)
 

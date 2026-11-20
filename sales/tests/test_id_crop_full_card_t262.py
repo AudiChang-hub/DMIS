@@ -10,6 +10,7 @@ from unittest import mock
 import cv2
 import numpy as np
 from django.test import SimpleTestCase
+from PIL import Image
 
 from sales.services import id_card_crop as crop
 from sales.tests import id_card_realistic as real
@@ -92,3 +93,55 @@ class PhotoBlockFalseHitTests(SimpleTestCase):
         self.assertIn('const whole = params.mode === "full";', script)
         self.assertIn("canvas.style.aspectRatio = whole ? `${preview.naturalWidth} / ${preview.naturalHeight}` : \"\";", script)
         self.assertIn("const drawParams = whole ? {...params, turn: 0} : params;", script)
+
+
+class CameraCaptureOrientationTests(SimpleTestCase):
+    """T-262 續（使用者 2026-11-20：「手機橫拿、證件橫放」；從圖庫選圖正常、直接拍照上傳才歪；
+    「應該直拿橫拿都要可以完成，不應該有差」）。
+
+    重現：卡片幾乎填滿畫面時，邊緣微調（可平移到 30%）把上緣拉到標題列下緣那條強直線，國旗與標題列被切掉。
+    與 EXIF 無關：橫拍 EXIF 1／3、直拍「像素未轉正＋EXIF 6／8」、「像素已轉正卻仍帶 EXIF 6／8」（伺服器多轉 90°）結果相同。
+    修正：大幅微調只能把框補大、不能往內縮。"""
+
+    FILLS = [[20, 70], [1996, 80], [1994, 1440], [18, 1432]]  # 2016×1512 橫幅照片，卡片幾乎填滿
+    NORMAL = [[300, 330], [1720, 360], [1700, 1250], [280, 1220]]
+
+    def photo(self, side, corners, orientation, already_upright):
+        displayed = Image.fromarray(real.scene(side, corners, size=(2016, 1512), sleeve=False))
+        if orientation in (6, 8) and not already_upright:
+            raw = displayed.transpose(Image.Transpose.ROTATE_90 if orientation == 6 else Image.Transpose.ROTATE_270)
+        elif orientation == 3:
+            raw = displayed.transpose(Image.Transpose.ROTATE_180)
+        else:
+            raw = displayed
+        exif = Image.Exif()
+        if orientation != 1:
+            exif[0x0112] = orientation
+        import io as _io
+        output = _io.BytesIO()
+        raw.save(output, "MPO", save_all=True, append_images=[raw.resize((raw.width // 4, raw.height // 4))], exif=exif, quality=90)
+        return crop.open_oriented(output.getvalue())
+
+    def test_every_capture_variant_keeps_flag_title_and_number(self):
+        variants = [(1, False), (3, False), (6, False), (8, False), (6, True), (8, True)]
+        for corners in (self.FILLS, self.NORMAL):
+            for orientation, already_upright in variants:
+                with self.subTest(corners=corners[0], orientation=orientation, already_upright=already_upright):
+                    image = self.photo("front", corners, orientation, already_upright)
+                    params = crop.auto_params(image, "front")
+                    card = np.asarray(crop.apply_crop(image, params, 856, 540))
+                    for name, color in real.MARKERS["front"].items():
+                        self.assertTrue(real.marker_present(card, color), name)
+
+    def test_back_keeps_barcode_seal_and_serial_when_card_fills_frame(self):
+        for orientation, already_upright in [(1, False), (3, False), (6, False), (6, True)]:
+            with self.subTest(orientation=orientation, already_upright=already_upright):
+                image = self.photo("back", self.FILLS, orientation, already_upright)
+                card = np.asarray(crop.apply_crop(image, crop.auto_params(image, "back"), 856, 540))
+                for name, color in real.MARKERS["back"].items():
+                    self.assertTrue(real.marker_present(card, color), name)
+
+    def test_far_refine_never_shrinks_the_card(self):
+        image = np.asarray(Image.fromarray(real.scene("front", self.FILLS, size=(2016, 1512), sleeve=False)))
+        quad = crop.detect_card(image)
+        self.assertLess(min(y for _, y in quad), 0.07 * 1512)  # 上緣在卡片頂（約 5%），不在標題列下緣（約 13%）

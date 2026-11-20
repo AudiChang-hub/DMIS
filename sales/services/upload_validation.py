@@ -29,17 +29,19 @@ ATTACHMENT_MAX_BYTES = 20 * MIB
 ZIP_MAX_UNCOMPRESSED_BYTES = 100 * MIB
 ZIP_MAX_ENTRIES = 10_000
 
+# iPhone 相機的 JPEG 常帶一張附屬影像（MPF，例如 HDR 增益圖）：檔頭仍是 JPEG，但 Pillow 報 "MPO"，
+# Django ImageField 也因此把 content_type 改成 image/mpo；兩者都當 JPEG（T-253，使用者 2026-11-20）。
 IMAGE_MIMES = {
-    ".jpg": {"image/jpeg", "image/jpg"},
-    ".jpeg": {"image/jpeg", "image/jpg"},
+    ".jpg": {"image/jpeg", "image/jpg", "image/mpo"},
+    ".jpeg": {"image/jpeg", "image/jpg", "image/mpo"},
     ".png": {"image/png"},
     ".webp": {"image/webp"},
 }
 IMAGE_FORMATS = {
-    ".jpg": "JPEG",
-    ".jpeg": "JPEG",
-    ".png": "PNG",
-    ".webp": "WEBP",
+    ".jpg": {"JPEG", "MPO"},
+    ".jpeg": {"JPEG", "MPO"},
+    ".png": {"PNG"},
+    ".webp": {"WEBP"},
 }
 PDF_MIMES = {"application/pdf", "application/x-pdf"}
 GENERIC_MIMES = {"", "application/octet-stream"}
@@ -114,7 +116,7 @@ def _validate_image(data: bytes, extension: str):
                 actual_format = (image.format or "").upper()
     except (Image.DecompressionBombError, Image.DecompressionBombWarning, OSError, SyntaxError, ValueError) as exc:
         raise forms.ValidationError("圖片已損壞、過大或不是真實的圖片檔。") from exc
-    if actual_format != IMAGE_FORMATS[extension]:
+    if actual_format not in IMAGE_FORMATS[extension]:
         raise forms.ValidationError(
             "圖片內容與副檔名不符，請改用正確格式後再上傳。"
         )

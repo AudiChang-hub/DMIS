@@ -52,6 +52,7 @@ def export_queryset(request, params):
     orders = sort_orders(orders, tokens or default_tokens)
     orders = orders.select_related(
         "source", "commission_recipient", "vehicle_model", "color", "allocated_vehicle", "operations",
+        "legacy_snapshot",
     ).prefetch_related("accessories", "other_fees", "subsidy_items",
                        Prefetch("payment_records", queryset=PaymentRecord.objects.all()))
     return orders, tab

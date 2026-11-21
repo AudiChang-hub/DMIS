@@ -44,12 +44,16 @@ def _subsidy_step(order):
     from sales.models import SubsidyItem
 
     items = list(order.subsidy_items.all()) if order.pk else []
+    # Excel 匯入單＝已人工處理完的歷史資料，不追蹤補助缺件（T-276）；之後另建的補助項目仍看申請狀態。
+    legacy = bool(order.pk) and hasattr(order, "legacy_snapshot")
     if not items:
         if not order.is_trade_in_subsidy:
             return "optional", "未申請（需要時可開啟）"
+        if legacy:
+            return "done", "匯入前已處理"
         return ("done", "資料已齊") if order.is_subsidy_ready else ("todo", "補助資料待補")
     applied = sum(item.status == SubsidyItem.Status.SUBMITTED for item in items)
-    data_ready = not order.is_trade_in_subsidy or order.is_subsidy_ready
+    data_ready = not order.is_trade_in_subsidy or legacy or order.is_subsidy_ready
     if applied == len(items) and data_ready:
         return "done", f"{len(items)} 項都已申請"
     progress = f"{applied}／{len(items)} 項已申請"

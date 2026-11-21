@@ -5470,7 +5470,9 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         order.is_registration_complete and not order.is_delivered and not order.is_cancelled_sale
     )
     registration_missing = order.missing_registration_requirements()
-    subsidy_missing = order.missing_subsidy_requirements()
+    # Excel 匯入單不追蹤補助缺件（T-276）：不顯示「補助資料尚缺」，也不因此預設打開補助分頁。
+    legacy_history = hasattr(order, "legacy_snapshot")
+    subsidy_missing = [] if legacy_history else order.missing_subsidy_requirements()
     next_actions = build_order_next_actions(
         order,
         registration_missing=registration_missing,
@@ -5535,6 +5537,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 document_type=SubsidyDocument.DocumentType.OTHER
             ),
             "subsidy_missing": subsidy_missing,
+            "legacy_history": legacy_history,
             "subsidy_document_progress": order.subsidy_document_progress(),
             "subsidy_form": SubsidyDataForm(instance=order, auto_id="subsidy_%s"),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),

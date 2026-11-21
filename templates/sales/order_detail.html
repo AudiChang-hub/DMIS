@@ -915,6 +915,9 @@
         {% if not order.is_trade_in_subsidy %}
           <strong>目前未啟用補助申請</strong>
           <p>{% site_text 'order_detail.38f944b02b9c' %}</p>
+        {% elif legacy_history %}
+          <strong>Excel 匯入單不追蹤補助資料</strong>
+          <p>匯入前已人工處理完，補助欄位只供查看。</p>
         {% elif subsidy_missing %}
           <strong>補助資料尚缺 {{ subsidy_missing|length }} 項</strong>
           <p>{{ subsidy_missing|join:"、" }}</p>

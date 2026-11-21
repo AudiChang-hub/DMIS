@@ -61,11 +61,15 @@ def filter_order_analysis(rows, params, *, business_default=False):
         rows = rows.filter(payment_category_q(params["pay"]))
     if params.get("energy_type") in {v for v, _ in VehicleModel.EnergyType.choices}:
         rows = rows.filter(vehicle_model__energy_type=params["energy_type"])
-    if params.get("payment_status") == "confirmed":
-        rows = rows.filter(operations__payment_confirmed=True)
-    elif params.get("payment_status") == "pending":
-        # 與「風險：未收」同口徑：已取消類的單沒有待收款（使用者 2026-11-06，T-113）。
-        rows = rows.exclude(operations__payment_confirmed=True).exclude(status__in=CANCELLED_STATUSES)
+    if params.get("payment_status") in ("confirmed", "pending"):
+        # Excel 匯入的歷史單一律算已收款（T-276），不論存檔時的收款確認。
+        from .payment_summary import settled_history_q
+        confirmed = Q(operations__payment_confirmed=True) | settled_history_q()
+        if params["payment_status"] == "confirmed":
+            rows = rows.filter(confirmed)
+        else:
+            # 與「風險：未收」同口徑：已取消類的單沒有待收款（使用者 2026-11-06，T-113）。
+            rows = rows.exclude(confirmed).exclude(status__in=CANCELLED_STATUSES)
     # 領牌（T-233，使用者 2026-11-18）：沿用 registration_confirmed_q，按過確認完成且有領牌日才算已領牌；
     # 只填預計日的單算未領牌。日期起訖依實際領牌日期，所以「未領牌」加日期範圍不會有結果。
     if params.get("registered") == "yes":

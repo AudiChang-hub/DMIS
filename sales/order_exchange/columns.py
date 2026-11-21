@@ -3,7 +3,8 @@
 每一欄只在這裡宣告一次：代碼、名稱、群組、取值、格式，以及之後的回匯能不能修改（`editable`）。
 
 - 前 92 欄依序就是舊「匯出營運資料（目前篩選）」的欄位（Q9）：表頭名稱、順序、取值與舊匯出相同，
-  預設全勾，不改勾選直接匯出時欄位內容跟舊的一樣；其後是舊匯出沒有的欄位，預設不勾。
+  預設全勾，不改勾選直接匯出時欄位內容跟舊的一樣（例外：「確認收款」「分期公司確認匯款」對 Excel 匯入的歷史單
+  一律輸出「是」，T-276）；其後是舊匯出沒有的欄位，預設不勾。
 - `editable`（使用者 2026-11-18 Q2／Q4）：訂單頁人工可以改的欄位都可回匯——車主資料、交車與選號、備註、
   舊車牌與舊車主、舊車與報廢、車控電池帳號，以及成交車價、牌險、付款與分期、來源與歸屬車行、收支頁人工金額。
   系統算出來的、同步帶入的、已停用的欄位與狀態只能看；個別訂單已鎖定（例如已入帳的撥款）由回匯逐張判斷。
@@ -116,6 +117,14 @@ def _flag(name):
     return lambda order: bool(_op(name, False)(order))
 
 
+def _settled_flag(name):
+    """Excel 匯入的歷史單＝已人工處理完，「確認收款」「分期公司確認匯款」一律輸出「是」；系統單照存檔值（T-276）。
+    判斷與 payment_summary 的 settled 同一口徑（is_settled_history）。"""
+    from sales.services.payment_summary import is_settled_history
+    stored = _flag(name)
+    return lambda order: is_settled_history(order) or stored(order)
+
+
 def _accessories(order):
     return "；".join(
         f"{line.name}×{line.quantity} {line.amount:,.0f}" if line.quantity != 1 else f"{line.name} {line.amount:,.0f}"
@@ -186,11 +195,11 @@ LEGACY_EXPORT = (
     Column("actual_disbursement", "實際撥款", "finance", _op("actual_disbursement", 0), MONEY, editable=True),
     Column("vehicle_cost", "成本", "finance", _op("vehicle_cost", 0), MONEY, editable=True),
     Column("total_received", "總收款金額", "finance", lambda o: _profile(o).total_received if _profile(o) else 0, MONEY),
-    Column("payment_confirmed", "確認收款", "pricing", _flag("payment_confirmed"), BOOL),
+    Column("payment_confirmed", "確認收款", "pricing", _settled_flag("payment_confirmed"), BOOL),
     Column("installment_company", "分期公司", "pricing", _attr("installment_company"), editable=True),
     Column("installment_periods", "期數", "pricing", _attr("installment_periods"), NUMBER, editable=True),
     Column("installment_monthly", "每期金額", "pricing", _attr("installment_monthly"), MONEY, editable=True),
-    Column("installment_transfer_confirmed", "分期公司確認匯款", "pricing", _flag("installment_transfer_confirmed"), BOOL),
+    Column("installment_transfer_confirmed", "分期公司確認匯款", "pricing", _settled_flag("installment_transfer_confirmed"), BOOL),
     Column("owner_id_number", "身分證字號", "pii", _attr("owner_id_number"), order_page_only=True),
     Column("owner_birth_date", "西元生日", "pii", _attr("owner_birth_date"), DATE, editable=True),
     Column("owner_birth_roc", "民國生日", "pii", _roc_birth),

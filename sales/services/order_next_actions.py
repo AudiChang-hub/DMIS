@@ -136,7 +136,9 @@ def _settlement_gap_action(order):
 def _subsidy_action(order, subsidy_missing):
     if not order.is_trade_in_subsidy:
         return None
-    if subsidy_missing:
+    # Excel 匯入單＝已人工處理完的歷史資料，不追蹤補助缺件（T-276）；之後另建的補助項目仍提醒送出申請。
+    legacy = hasattr(order, "legacy_snapshot")
+    if subsidy_missing and not legacy:
         return NextAction(
             key="subsidy",
             title=f"補齊補助資料（尚缺 {len(subsidy_missing)} 項）",
@@ -149,6 +151,8 @@ def _subsidy_action(order, subsidy_missing):
         )
 
     items = list(order.subsidy_items.all())
+    if not items and legacy:
+        return None
     if not items:
         title = "建立補助申請項目"
         description = "固定文件已齊，可逐筆記錄補助類別、金額與申請進度。"

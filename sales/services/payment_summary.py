@@ -9,6 +9,22 @@ CLOSED_SALE_STATUSES = {"cancelled", "cancel_refund_pending", "exception_closed"
 FINAL_CLOSED_STATUSES = {"cancelled", "exception_closed"}
 
 
+def is_settled_history(order):
+    """Excel 匯入、已離開進行中狀態的訂單＝已人工處理完的歷史資料，收款一律算已收清（T-276，使用者 2026-11-21 B 方案）。
+
+    只決定 payment_summary 的 settled（收款確認）；應收、尾款、溢收與舊應收列（legacy_settled）照舊，統計不受影響。
+    進行中的匯入單（imported_balance.OPEN_STATUSES）仍依實收判斷，交車前照常要收清。與 settled_history_q 同一口徑。"""
+    from .imported_balance import OPEN_STATUSES
+    return order.status not in OPEN_STATUSES and hasattr(order, "legacy_snapshot")
+
+
+def settled_history_q():
+    """is_settled_history 的查詢版本：篩選、報表讀已存的收款確認時，匯入歷史單一律算已收款，不寫資料。"""
+    from django.db.models import Q
+    from .imported_balance import OPEN_STATUSES
+    return Q(legacy_snapshot__isnull=False) & ~Q(status__in=OPEN_STATUSES)
+
+
 def payment_summary(order, records=None):
     from .customer_receivable import default_customer_balance
     from .operations_sync import _expected_installment_disbursement
@@ -77,8 +93,9 @@ def payment_summary(order, records=None):
                 unconfirmed_received=unconfirmed,
                 customer_settled=delivery_due <= 0, delivery_due=delivery_due,
                 legacy_settled=legacy_settled,
-                settled=bool((customer_expected + lender_expected > 0 or order.status in FINAL_CLOSED_STATUSES)
-                             and customer_due <= 0 and lender_due <= 0 and legacy_settled))
+                settled=is_settled_history(order) or bool(
+                    (customer_expected + lender_expected > 0 or order.status in FINAL_CLOSED_STATUSES)
+                    and customer_due <= 0 and lender_due <= 0 and legacy_settled))
 
 
 def balance_breakdown(order, summary=None, records=None):

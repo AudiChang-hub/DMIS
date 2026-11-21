@@ -43,7 +43,9 @@ class ReportReaderCleanupTests(TestCase):
             order.operations.payment_confirmed = True
             self.assertEqual(record_cells(order, ['payment_confirmed'])[0]['value'], '已收款')
             order.operations.payment_confirmed = False
-            self.assertEqual(record_cells(order, ['payment_confirmed'])[0]['value'], '未收款')
+            # T-276（使用者 2026-11-21 選 B）：Excel 匯入的歷史單一律算已收款，不論存檔值；
+            # 系統單存檔未收款＝「未收款」改由 test_legacy_settled_t276.test_report_record_column_and_sort 鎖住。
+            self.assertEqual(record_cells(order, ['payment_confirmed'])[0]['value'], '已收款')
 
     def test_csv_and_reader_share_columns(self):
         self.login()

@@ -1,6 +1,6 @@
 """報表明細白名單；不輸出證件、地址、電話、帳號或原始 JSON。"""
 from django.core.paginator import Paginator
-from django.db.models import F, Q, Case, When, Value, CharField, DecimalField, OuterRef, Subquery, Sum
+from django.db.models import F, Q, Case, When, Value, BooleanField, CharField, DecimalField, OuterRef, Subquery, Sum
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Coalesce, NullIf, Trim
 
@@ -12,7 +12,7 @@ RECORD_SORTS = {
     'legacy_source_name': 'record_sort_source', 'model_number': 'record_sort_model',
     'identifier': 'record_sort_identifier', 'energy': 'vehicle_model__energy_type',
     'color': 'color__name', 'owner_name': 'owner_name', 'subsidy': 'subsidy_type',
-    'payment_confirmed': 'operations__payment_confirmed', 'total_received': 'record_sort_received',
+    'payment_confirmed': 'record_sort_confirmed', 'total_received': 'record_sort_received',
     'historical_received_price': 'legacy_snapshot__historical_received_price',
     'legacy_sales_source': 'record_source_classification',
     'legacy_energy': 'record_energy_classification',
@@ -90,6 +90,13 @@ def record_queryset(config, filters):
             money = DecimalField(max_digits=16, decimal_places=2)
             received = PaymentRecord.objects.filter(order_id=OuterRef('pk'), confirmed=True).values('order_id').annotate(total=Sum('received_amount')).values('total')
             queryset = queryset.annotate(record_sort_received=Case(When(operations__isnull=True, then=Value(None, output_field=money)), default=Coalesce(Subquery(received, output_field=money), Value(0, output_field=money)), output_field=money))
+        if sort_name == 'payment_confirmed':
+            # 與明細顯示同一口徑：Excel 匯入的歷史單排在「已收款」（T-276）。
+            from sales.services.payment_summary import settled_history_q
+            queryset = queryset.annotate(record_sort_confirmed=Case(
+                When(operations__isnull=True, then=Value(None, output_field=BooleanField())),
+                When(settled_history_q(), then=Value(True)), default=F('operations__payment_confirmed'),
+                output_field=BooleanField()))
         if sort_name in ('legacy_source_name', 'model_number'):
             legacy_text = KeyTextTransform('dealer_name_raw' if sort_name == 'legacy_source_name' else 'model_number', 'legacy_snapshot__import_row__mapped_data')
             fallback = Value('非歷史匯入') if sort_name == 'legacy_source_name' else Coalesce(NullIf(F('vehicle_model__model_number'), Value('')), F('vehicle_model__name'))
@@ -121,6 +128,7 @@ def record_queryset(config, filters):
 
 
 def record_cells(order, columns):
+    from sales.services.payment_summary import is_settled_history
     legacy = getattr(order, "legacy_snapshot", None)
     operations = getattr(order, "operations", None)
     mapped = legacy.import_row.mapped_data if legacy else {}
@@ -145,7 +153,8 @@ def record_cells(order, columns):
         "identifier": identifier or (legacy.vehicle_identifier if legacy else "") or "尚未填寫",
         "energy": order.vehicle_model.get_energy_type_display(), "color": order.color.label, "owner_name": order.owner_name,
         "subsidy": order.subsidy_type or "未填寫",
-        "payment_confirmed": ("已收款" if operations.payment_confirmed else "未收款") if operations else "待補收支資料",
+        # Excel 匯入的歷史單一律算已收款（T-276），不論存檔時的收款確認。
+        "payment_confirmed": ("已收款" if operations.payment_confirmed or is_settled_history(order) else "未收款") if operations else "待補收支資料",
         "total_received": str(operations.total_received) if operations else "待補收支資料",
         "historical_received_price": str(legacy.historical_received_price) if legacy else "非歷史匯入",
         "legacy_gift_card": original_text("公司禮卷、匯款"),

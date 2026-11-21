@@ -117,6 +117,24 @@ def _identifier(order):
     return _text(getattr(snapshot, "vehicle_identifier", ""))
 
 
+def _company_phone_by_name(name):
+    """自訂分期沒有分期公司主檔（T-266）：用分期公司文字對到啟用中的主檔，取其客服電話。
+
+    名稱相同優先；否則取名稱互相包含的主檔（例如「和潤」對「和潤企業」）。
+    對到多家且電話不同、或都沒電話時回空字串，不猜。
+    """
+    name = _text(name)
+    if len(name) < 2:
+        return ""
+    from sales.models import InstallmentCompany
+    companies = list(InstallmentCompany.objects.filter(active=True).exclude(customer_service_phone="").only("name", "customer_service_phone"))
+    matches = [company for company in companies if company.name == name] or [
+        company for company in companies if company.name in name or name in company.name
+    ]
+    phones = {_text(company.customer_service_phone) for company in matches} - {""}
+    return phones.pop() if len(phones) == 1 else ""
+
+
 def _installment_lines(order, profile):
     info = _text(getattr(profile, "installment_info", ""))
     if not info and order.payment_type == order.PaymentType.INSTALLMENT:
@@ -128,8 +146,11 @@ def _installment_lines(order, profile):
             if order.installment_monthly:
                 info += f"，每期 {_money(order.installment_monthly)}"
     phone = _text(getattr(profile, "customer_service_phone", ""))
-    if not phone and order.payment_type == order.PaymentType.INSTALLMENT and order.installment_company_master_id:
-        phone = _text(order.installment_company_master.customer_service_phone)
+    if not phone and order.payment_type == order.PaymentType.INSTALLMENT:
+        if order.installment_company_master_id:
+            phone = _text(order.installment_company_master.customer_service_phone)
+        if not phone:
+            phone = _company_phone_by_name(order.installment_company)
     if phone and "客服" not in phone:
         phone = f"客服電話：{phone}"
     return info, phone

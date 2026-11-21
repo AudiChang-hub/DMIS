@@ -9,7 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from pypdf import PdfReader
 
-from sales.models import OrderEvent, OrderOperationsProfile, SalesOrder, VehicleModel
+from sales.models import InstallmentCompany, OrderEvent, OrderOperationsProfile, SalesOrder, VehicleModel
 from sales.services import form_print
 from sales.services.secret_fields import encrypt_secret
 from sales.tests import test_order_lifecycle as lifecycle
@@ -147,6 +147,63 @@ class FormPrintServiceTests(TestCase):
         self.assertIn("車型：EV076SZV", text)
         self.assertIn("車控密碼：0912345678", text)
         self.assertNotIn("{{", document)
+
+
+class EnvelopeServicePhoneTests(TestCase):
+    """T-266：信封客服電話依分期公司帶入；自訂分期沒有主檔，用名稱對到啟用中的分期公司主檔。"""
+
+    make_order = lifecycle.OrderLifecycleTests.make_order
+
+    def setUp(self):
+        lifecycle.OrderLifecycleTests.setUp(self)
+        self.order, _vehicle = self.make_order(dealer=True, deposit=Decimal("5000"))
+        InstallmentCompany.objects.create(name="和潤企業", customer_service_phone="0800-000-111")
+        InstallmentCompany.objects.create(name="遠信國際", customer_service_phone="0800-000-222")
+        InstallmentCompany.objects.create(name="停用分期", customer_service_phone="0800-000-999", active=False)
+
+    def custom_installment(self, company, phone=""):
+        # 自訂分期存檔後沒有分期公司主檔，只留分期公司文字（installment_plan.sync 的自訂分支）。
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            payment_type=SalesOrder.PaymentType.INSTALLMENT, installment_custom=True,
+            installment_company=company, installment_periods=24, installment_monthly=Decimal("3000"),
+            installment_company_master=None,
+        )
+        OrderOperationsProfile.objects.update_or_create(order=self.order, defaults={"customer_service_phone": phone})
+        return form_print.form_values(SalesOrder.objects.get(pk=self.order.pk))["customer_service_phone"]
+
+    def test_custom_hotai_installment_prints_master_phone(self):
+        self.assertEqual(self.custom_installment("和潤"), "客服電話：0800-000-111")
+
+    def test_custom_yuanxin_installment_prints_master_phone(self):
+        self.assertEqual(self.custom_installment("遠信"), "客服電話：0800-000-222")
+
+    def test_custom_installment_full_master_name_prints_phone(self):
+        self.assertEqual(self.custom_installment("遠信國際股份有限公司"), "客服電話：0800-000-222")
+
+    def test_unmatched_or_inactive_company_stays_blank(self):
+        self.assertEqual(self.custom_installment("其他分期"), "")
+        self.assertEqual(self.custom_installment("停用分期"), "")
+        self.assertEqual(self.custom_installment(""), "")
+
+    def test_operations_phone_wins(self):
+        self.assertEqual(self.custom_installment("和潤", phone="02-0000-0000"), "客服電話：02-0000-0000")
+
+    def test_master_without_phone_falls_back_to_name_match(self):
+        blank = InstallmentCompany.objects.create(name="和潤分期", customer_service_phone="")
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            payment_type=SalesOrder.PaymentType.INSTALLMENT, installment_company="和潤企業",
+            installment_company_master=blank,
+        )
+        OrderOperationsProfile.objects.update_or_create(order=self.order, defaults={"customer_service_phone": ""})
+        values = form_print.form_values(SalesOrder.objects.get(pk=self.order.pk))
+        self.assertEqual(values["customer_service_phone"], "客服電話：0800-000-111")
+
+    def test_cash_order_has_no_phone(self):
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            payment_type=SalesOrder.PaymentType.CASH, installment_company="和潤", installment_company_master=None,
+        )
+        values = form_print.form_values(SalesOrder.objects.get(pk=self.order.pk))
+        self.assertEqual(values["customer_service_phone"], "")
 
 
 class FormPrintViewTests(TestCase):

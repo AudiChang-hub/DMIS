@@ -42,7 +42,9 @@ from sales.services.dashboard_metrics import (
 )
 from sales.services.order_filters import new_orders_between
 from sales.services.order_next_actions import STALE_ALLOCATION_DAYS
-from sales.services.sales_metrics import CANCELLED_STATUSES, PAYMENT_CATEGORIES, money_bucket, payment_category
+from sales.services.business_days import DEALER_BALANCE_DAYS, DEALER_DOCUMENT_DAYS
+from sales.services.sales_metrics import (CANCELLED_STATUSES, DELIVERED_STATUSES, PAYMENT_CATEGORIES, money_bucket,
+                                          payment_category, payout_due)
 
 ZERO = Decimal("0")
 CACHE_VERSION = 1
@@ -83,6 +85,9 @@ MONEY_SPLIT_RISK = OrderedDict((("unsettled", "unsettled_delivered"), ("before_d
 AWAITING_PAYOUT_CATEGORIES = ("installment", "platform")
 UNSETTLED_LABELS = {"cash": "現金", "card": "刷卡", "installment": "分期，客人自付部分", "platform": "平台，客人自付部分"}
 RECONCILIATION_CHANNELS = (("installment", "分期撥款待入帳"), ("platform", "平台撥款待入帳"))
+# 車行尾款／領牌到期的依據（T-280）；工作日從交車日的下一天算，跳過週末與營業日設定的假日。
+DEALER_DUE_RULE = (f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清、"
+                   f"第 {DEALER_DOCUMENT_DAYS} 個工作天起領牌未完成")
 # 油電領牌（T-263）：未領牌＝訂單流程的待配車＋待領牌兩站。
 ENERGY_REGISTRATION = (("gas", "油車"), ("electric", "電車"))
 PENDING_REGISTRATION = ("allocation_pending", "allocated")
@@ -324,24 +329,30 @@ def dealer_credit_rows():
 
 
 def _money(metrics, today):
-    outstanding_total, unsettled, before_delivery, awaiting_payout = ZERO, [], 0, 0
-    split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": []}) for key, _label in PAYMENT_CATEGORIES)
-             for bucket in MONEY_SPLIT_RISK}
+    outstanding_total, unsettled, unsettled_payout = ZERO, [], ZERO
+    counts, amounts = Counter(), {bucket: ZERO for bucket in MONEY_SPLIT_RISK}
+    split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": [], "estimated": False})
+                                 for key, _label in PAYMENT_CATEGORIES) for bucket in MONEY_SPLIT_RISK}
     for order, summary in metrics["outstanding_summaries"]:
-        outstanding_total += max(summary["customer_due"], ZERO) + max(summary["lender_due"], ZERO)
+        summary = {**summary, "platform_due": metrics["platform_due"].get(order.pk)}
+        customer, payout = max(summary["customer_due"], ZERO), payout_due(summary)
+        outstanding_total += customer + payout
         # 三格和全部訂單 risk 共用 money_bucket；交車後未結清和「款項未結清」紅標同一口徑（order_list_unsettled）。
+        # 已交車待撥款：客戶已收清，只剩分期／平台撥款（事後對帳）；平台是收支的預估車價收入（T-278 B1-A）。
         bucket = money_bucket(order, summary)
+        # 三格金額（T-278 D1-A）：交車後未結清只算客人應收（同紅標），那幾張的撥款部分另列，合計才對得上。
+        amount = customer if bucket == "unsettled" else customer + payout
         if bucket == "unsettled":
             delivered = order.delivered_at or order.registration_completed_at
-            unsettled.append((summary["customer_due"], _age_days(today, delivered)))
-        elif bucket == "awaiting_payout":
-            awaiting_payout += 1     # 客戶已收清，只剩分期／平台撥款（事後對帳）；匯入單不算（is_legacy_history）
-        else:
-            before_delivery += 1
+            unsettled.append((customer, _age_days(today, delivered)))
+            unsettled_payout += payout
+        counts[bucket] += 1
+        amounts[bucket] += amount
         cell = split[bucket][payment_category(order)]
         cell["count"] += 1
+        cell["amount"] += amount
+        cell["estimated"] = cell["estimated"] or (bucket != "unsettled" and summary.get("platform_due") is not None)
         if bucket == "unsettled":
-            cell["amount"] += summary["customer_due"]
             cell["ages"].append(unsettled[-1][1])
     buckets = []
     for low, high, label in RECEIVABLE_AGE_BUCKETS:
@@ -349,16 +360,20 @@ def _money(metrics, today):
         buckets.append({"label": label, "count": len(rows), "amount": sum((row[0] for row in rows), ZERO),
                         "late": low > 30})
     ages = [row[1] for row in unsettled if row[1] is not None]
-    dealers = [{"name": row["dealer"].name, "amount": row["amount"], "limit": row["limit"], "over": row["over"]}
-               for row in dealer_credit_rows()]
+    dealers = [{"name": row["dealer"].name, "amount": row["amount"], "limit": row["limit"], "over": row["over"],
+                "orders": len(row["orders"])} for row in dealer_credit_rows()]
     return {
         "outstanding_count": metrics["risk"]["outstanding"],
         "outstanding_amount": outstanding_total,
         "unsettled_count": len(unsettled),
         "unsettled_amount": sum((row[0] for row in unsettled), ZERO),
         "unsettled_oldest": max(ages) if ages else None,
-        "before_delivery_count": before_delivery,
-        "awaiting_payout_count": awaiting_payout,
+        "unsettled_payout_amount": unsettled_payout,
+        "before_delivery_count": counts["before_delivery"],
+        "before_delivery_amount": amounts["before_delivery"],
+        "awaiting_payout_count": counts["awaiting_payout"],
+        "awaiting_payout_amount": amounts["awaiting_payout"],
+        "awaiting_payout_estimated": any(cell["estimated"] for cell in split["awaiting_payout"].values()),
         "aging": buckets,
         "unconfirmed": metrics["risk"]["unconfirmed"],
         "refund": metrics["risk"]["refund"],
@@ -366,6 +381,8 @@ def _money(metrics, today):
         "dealer_credit": dealers,
         "dealer_credit_total": sum((row["amount"] for row in dealers), ZERO),
         "dealer_credit_over": sum(1 for row in dealers if row["over"]),
+        "dealer_credit_orders": sum(row["orders"] for row in dealers),
+        "dealer_credit_unlimited": sum(1 for row in dealers if row["limit"] is None),
         "split": _money_split(split),
     }
 
@@ -379,22 +396,34 @@ def _money_split(split):
             if bucket == "awaiting_payout" and key not in AWAITING_PAYOUT_CATEGORIES and not cell["count"]:
                 continue
             ages = [age for age in cell["ages"] if age is not None]
-            rows.append({"key": key, "label": labels[key], "count": cell["count"],
-                         "amount": cell["amount"] if bucket == "unsettled" else None,
-                         "oldest": max(ages) if ages else None, "params": {"risk": risk, "pay": key}})
+            rows.append({"key": key, "label": labels[key], "count": cell["count"], "amount": cell["amount"],
+                         "estimated": cell["estimated"], "oldest": max(ages) if ages else None,
+                         "params": {"risk": risk, "pay": key}})
         result[bucket] = rows
     return result
 
 
 def _reconciliation(queryset):
-    # 待入帳算訂單張數（使用者 2026-11-21，和「已交車待撥款」同單位）；預計金額照舊把每筆撥款加總。
-    rows = list(queryset.filter(confirmed=False).values_list("expected_amount", "order_id", "order__source_type"))
+    # 待入帳算訂單張數（使用者 2026-11-21，和「已交車待撥款」同單位）；分期預計金額照舊把每筆撥款加總。
+    rows = list(queryset.filter(confirmed=False).values_list(
+        "expected_amount", "order_id", "order__source_type", "order__status", "order__operations__actual_disbursement"))
     channels = []
     # 依撥款來源拆列（T-275 第 9 項）：平台單算平台撥款，其餘是分期公司撥款，和對帳頁 channel 同一判斷。
     for key, label in RECONCILIATION_CHANNELS:
         part = [row for row in rows if (row[2] == SalesOrder.SourceType.PLATFORM) == (key == "platform")]
-        channels.append({"key": key, "label": label, "pending": len({row[1] for row in part}),
-                         "expected": sum((row[0] or ZERO for row in part), ZERO)})
+        if key == "platform":
+            # 平台撥款沒有預計金額（T-96），改列收支的預估車價收入，一張單算一次（T-278 D3-A）。
+            expected = sum({row[1]: max(row[4] or ZERO, ZERO) for row in part}.values(), ZERO)
+        else:
+            expected = sum((row[0] or ZERO for row in part), ZERO)
+        channel = {"key": key, "label": label, "pending": len({row[1] for row in part}), "expected": expected,
+                   "estimated": key == "platform"}
+        # 分期撥款待入帳拆已交車／交車前（T-278 D2-A）；已交車那部分就是「已交車待撥款・分期」的撥款。
+        for side, delivered in (("delivered", True), ("before", False)):
+            side_rows = [row for row in part if (row[3] in DELIVERED_STATUSES) == delivered]
+            channel[side] = {"count": len({row[1] for row in side_rows}),
+                             "expected": sum((row[0] or ZERO for row in side_rows), ZERO)}
+        channels.append(channel)
     return {"pending": len({row[1] for row in rows}), "expected": sum((row[0] or ZERO for row in rows), ZERO),
             "channels": channels}
 
@@ -456,6 +485,11 @@ def _flow(metrics, today, active=None):
         "stages": stages,
         "stuck": sum(stage["stuck"] for stage in stages),
         "dealer_due": len({item["order"].pk for item in metrics["dealer_reminders"]}),
+        "dealer_due_balance": len({item["order"].pk for item in metrics["dealer_reminders"]
+                                   if item["kind"] == "dealer_balance"}),
+        "dealer_due_documents": len({item["order"].pk for item in metrics["dealer_reminders"]
+                                     if item["kind"] == "registration_documents"}),
+        "dealer_due_rule": DEALER_DUE_RULE,
         "drafts": metrics["workload"]["drafts"],
     }
 
@@ -688,7 +722,8 @@ def _attention(data, flags):
             shown = flags["operations"] and row["expected"]
             items.append({"key": f"reconciliation_{row['key']}", "label": row["label"], "value": row["pending"],
                           "unit": "張", "amount": row["expected"] if shown else None,
-                          "detail": "預計金額" if shown else "", "severity": "amber",
+                          "detail": ("預估金額" if row["estimated"] else "預計金額") if shown else "",
+                          "severity": "amber",
                           "url": _url("reconciliation_list", {"status": "pending", "by_order": 1, "channel": row["key"]})
                           if links["reconciliation_list"] else ""})
     if flags["operations"]:
@@ -713,7 +748,9 @@ def _attention(data, flags):
             {"key": "stuck", "label": "流程卡關訂單", "value": flow["stuck"], "unit": "張",
              "detail": "、".join(f"{stage['label']} {stage['stuck']}" for stage in stuck), "severity": "amber",
              "url": order_url({"attention": "stuck"})},
-            {"key": "dealer_due", "label": "車行到期提醒", "value": flow["dealer_due"], "unit": "張",
+            {"key": "dealer_due", "label": "車行尾款／領牌到期", "value": flow["dealer_due"], "unit": "張",
+             "detail": f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清 {flow['dealer_due_balance']} 張、"
+                       f"第 {DEALER_DOCUMENT_DAYS} 個工作天起領牌未完成 {flow['dealer_due_documents']} 張",
              "severity": "amber", "url": order_url({"attention": "dealer"})},
         ]
     if flags["incentives"]:
@@ -750,7 +787,9 @@ def for_viewer(data, flags):
     }
     money = dict(data["money"])
     if not flags["operations"]:
-        for key in ("outstanding_amount", "unsettled_amount", "dealer_credit", "dealer_credit_total"):
+        for key in ("outstanding_amount", "unsettled_amount", "unsettled_payout_amount", "before_delivery_amount",
+                    "awaiting_payout_amount", "dealer_credit", "dealer_credit_total", "dealer_credit_orders",
+                    "dealer_credit_unlimited"):
             money.pop(key)
         money["aging"] = [{**bucket, "amount": None} for bucket in money["aging"]]
     money["split"] = OrderedDict(

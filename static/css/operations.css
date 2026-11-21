@@ -592,6 +592,22 @@ html[data-theme="night-blue"] .ops {
   text-decoration: none;
 }
 
+/* 數字的依據或拆分（T-278／T-280）：小一級、換行放在標籤或數字下方。 */
+.ops-facts__note {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* 有說明小字的列，數字那邊較長，標籤不跟著被擠斷（手機寬度）。 */
+.ops-facts > div:has(.ops-facts__note) dt {
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+
 .ops-hint,
 .ops-empty {
   margin: 0;

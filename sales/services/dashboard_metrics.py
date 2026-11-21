@@ -12,7 +12,8 @@ from sales.models import (
 )
 from sales.services.business_days import build_dealer_reminders
 from sales.services.payment_summary import payment_summary
-from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk, is_legacy_history, summarize_sales
+from sales.services.sales_metrics import (CANCELLED_STATUSES, filter_payment_risk, is_legacy_history, is_outstanding,
+                                          money_summary, summarize_sales)
 
 
 def _month_bounds(day):
@@ -133,9 +134,11 @@ def build_dashboard_metrics(today=None):
     # 未結清與溢收：條件和 filter_payment_risk 同一套，只是用上面已算好的 payment_summary，不再各自重載全部訂單。
     # Excel 匯入單＝歷史資料，一律視為已收款、已對帳，不算進待收與溢收（T-275 第 8 項，is_legacy_history）。
     money_orders = [order for order in open_orders if not is_legacy_history(order)]
-    outstanding = [order for order in money_orders
-                   if (summary := summaries[order.pk])['customer_due'] > 0 or summary['lender_due'] > 0
-                   or not summary['legacy_settled']]
+    # 平台撥款未入帳也算待收（T-278 B1-A，money_summary）；預估金額要讀收支，只補抓平台單的營運資料。
+    prefetch_related_objects([order for order in money_orders if order.source_type == SalesOrder.SourceType.PLATFORM],
+                             'operations')
+    money = {order.pk: money_summary(order, summaries[order.pk]) for order in money_orders}
+    outstanding = [order for order in money_orders if is_outstanding(money[order.pk])]
     outstanding_ids = [order.pk for order in outstanding]
     overpaid_ids = [order.pk for order in money_orders if order.cash_receivable_v2
                     and ((summary := summaries[order.pk])['customer_overpaid'] > 0 or summary['lender_overpaid'] > 0)]
@@ -177,6 +180,9 @@ def build_dashboard_metrics(today=None):
         'risk_orders': risk_orders,
         # 未結清的單與其 payment_summary（已載入的物件，營運總表「錢」直接用，不再重查）。
         'outstanding_summaries': [(order, summaries[order.pk]) for order in outstanding],
+        # 平台撥款預估（T-278 B1-A，只有待撥款的平台單）；「錢」用 money_summary 的同一個值。
+        'platform_due': {order.pk: money[order.pk]['platform_due'] for order in outstanding
+                         if money[order.pk]['platform_due'] is not None},
         'new_orders': all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES).count(),
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",

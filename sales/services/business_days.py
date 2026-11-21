@@ -37,6 +37,18 @@ def registration_marks(today=None):
     return {"today": today, "next_business_day": add_business_days(today, 1)}
 
 
+# 營運總表「車行尾款／領牌到期」的到期依據（T-280）：交車日的下一天起算工作日，到第 N 個工作天當天就算到期。
+DEALER_DOCUMENT_DAYS = 3
+DEALER_BALANCE_DAYS = 7
+
+
+def dealer_balance_owing(summary):
+    """車行尾款還沒收清：只看客人（車行）要付的部分 customer_due，和「款項未結清」紅標、車行掛帳同一口徑；
+    分期／平台撥款是事後對帳，跟車行無關（T-280，使用者 2026-11-21）。原本用 payment_confirmed，它連分期撥款
+    未入帳也算未收清，車行分期單客人早已收清，卻因撥款未到一直被列成車行到期。"""
+    return summary["customer_due"] > 0
+
+
 def build_dealer_reminders(today=None):
     today = today or timezone.localdate()
     holidays = set(
@@ -52,11 +64,14 @@ def build_dealer_reminders(today=None):
         )
         .exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
         .select_related("source", "operations", "vehicle_model")
+        .prefetch_related("payment_records", "accessories")
     )
+    from .payment_summary import payment_summary
+
     for order in orders:
         delivered_on = timezone.localtime(order.delivered_at).date()
         if not order.is_registration_complete:
-            due = add_business_days(delivered_on, 3, holidays)
+            due = add_business_days(delivered_on, DEALER_DOCUMENT_DAYS, holidays)
             reminders.append(
                 {
                     "order": order,
@@ -68,9 +83,8 @@ def build_dealer_reminders(today=None):
                     "is_due": today >= due,
                 }
             )
-        profile = getattr(order, "operations", None)
-        if not profile or not profile.payment_confirmed:
-            due = add_business_days(delivered_on, 7, holidays)
+        if dealer_balance_owing(payment_summary(order)):
+            due = add_business_days(delivered_on, DEALER_BALANCE_DAYS, holidays)
             reminders.append(
                 {
                     "order": order,

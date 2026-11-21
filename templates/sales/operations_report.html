@@ -40,6 +40,21 @@
   {% if c.trend.negative_profit_months %}<p class="ops-note ops-note--alert">平均單台淨利為負的月份：{{ c.trend.negative_profit_months|join:"、" }}。</p>{% endif %}
   {% if c.flags.operations %}<p class="ops-note">本期領牌訂單的累計實際收款額 ${{ c.pulse.received|number_with_commas }}（依這批訂單的收款明細，不等於本期現金流入）。</p>{% endif %}
 
+  <section class="ops-card ops-energy" aria-labelledby="ops-energy-title" data-side-nav-section="油電領牌">
+    <header class="ops-card__head"><h2 id="ops-energy-title">油電領牌</h2><small>已領牌 {{ c.windows.label }}{% if c.energy.show_pending %}｜未領牌：目前在手{% endif %}</small></header>
+    <div class="ops-energy__grid">{% for row in c.energy.rows %}
+      <div class="ops-energy__group">
+        <h3 class="ops-energy__label"><span class="ops-legend__swatch ops-series-{{ forloop.counter }}" aria-hidden="true"></span>{{ row.label }}{% if row.key == "electric" %}<small>含輕型、微型</small>{% endif %}</h3>
+        <div class="ops-energy__figs">
+          <div class="ops-fig"><strong>{% if row.registered_url and c.links.order_list %}<a href="{{ row.registered_url }}" aria-label="{{ row.label }}已領牌 {{ row.registered }} 台，查看訂單">{{ row.registered|number_with_commas }}</a>{% else %}{{ row.registered|number_with_commas }}{% endif %}</strong><span>已領牌</span></div>
+          {% if c.energy.show_pending %}<div class="ops-fig"><strong>{{ row.pending|number_with_commas }}</strong><span>未領牌</span>
+            <span class="ops-energy__stages">{% for stage in row.stages %}{% if stage.url and c.links.order_list %}<a href="{{ stage.url }}" aria-label="{{ row.label }}{{ stage.label }} {{ stage.count }} 張，查看訂單">{{ stage.label }} {{ stage.count }}</a>{% else %}<span>{{ stage.label }} {{ stage.count }}</span>{% endif %}{% endfor %}</span></div>{% endif %}
+        </div>
+      </div>{% endfor %}
+    </div>
+    <p class="ops-hint">已領牌與領牌台數同口徑，油＋電＝{{ c.energy.registered|number_with_commas }} 台{% if c.energy.show_pending %}；未領牌＝待配車＋待領牌，不隨期間切換，不含草稿、取消與例外結案{% endif %}。</p>
+  </section>
+
   <div class="ops-row ops-row--wide">
     <section class="ops-card" aria-labelledby="ops-attention-title" data-side-nav-section="需要處理">
       <header class="ops-card__head"><h2 id="ops-attention-title">需要處理</h2><small>紅色優先，同色依金額與件數排序</small></header>

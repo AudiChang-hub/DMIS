@@ -12,6 +12,7 @@ from django.utils import timezone
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import (
     IncentiveCampaign,
+    OrderDraft,
     OrderOperationsProfile,
     PaymentRecord,
     SalesOrder,
@@ -175,6 +176,82 @@ class CockpitTests(TestCase):
         self.assertEqual([bucket["count"] for bucket in stock["aging"]], [1, 0, 0, 2])
         self.assertEqual(stock["shortage"], ["駕駛艙電車"])
         self.assertEqual(stock["slow"], ["駕駛艙機種"])   # 在庫 3、90 天內 0 台
+
+    # ── 油電領牌（T-263，使用者 2026-11-21 選 A）──
+
+    def make_energy_orders(self, today):
+        light = VehicleModel.objects.create(brand="測試", name="駕駛艙輕型", energy_type="light_electric")
+        light_color = VehicleColor.objects.create(vehicle_model=light, name="灰")
+        self.make_order(today, model=self.model)                                   # 油車已領牌
+        self.make_order(today - timedelta(days=1))                                 # 油車已領牌
+        self.make_order(today, model=self.ev)                                      # 電車已領牌
+        SalesOrder.objects.create(                                                 # 輕型算電車
+            owner_name="駕駛艙合成測試", owner_phone="0912345678", owner_address="合成地址", owner_id_number="A123456789",
+            vehicle_model=light, color=light_color, registration_date=today, established_on=today, status="completed",
+            vehicle_price=80000, registration_completed_at=timezone.now())
+        self.make_order(date(today.year - 1, 6, 1))                                # 去年：哪個期間都不算
+        for status in ("cancelled", "cancel_refund_pending", "exception_closed"):
+            self.make_order(today, status=status)                                  # 取消／例外結案不算已領牌
+        self.make_order(status="allocation_pending")                               # 油車未領牌（待配車）
+        self.make_order(status="allocated")                                        # 油車未領牌（待領牌）
+        self.make_order(status="allocated")
+        self.make_order(status="allocation_pending", model=self.ev)                # 電車未領牌
+        for status in ("cancelled", "cancel_refund_pending", "exception_closed", "delivery_pending"):
+            self.make_order(status=status, model=self.ev)                          # 取消、例外結案、待交付不算
+        # 草稿另存在 OrderDraft（SalesOrder 存檔時 draft 會轉成待配車），不算未領牌。
+        OrderDraft.objects.create(data={"owner_name": "", "vehicle_model": self.ev.pk}, created_by="cockpit-admin")
+
+    def counts(self, energy):
+        return {row["key"]: (row["registered"], row["pending"], [stage["count"] for stage in row["stages"]])
+                for row in energy["rows"]}
+
+    def test_energy_registration_splits_gas_and_electric(self):
+        today = date(2026, 11, 13)
+        self.make_energy_orders(today)
+        data = operations_cockpit.build("month", today)
+        self.assertEqual(self.counts(data["energy"]), {"gas": (2, 3, [1, 2]), "electric": (2, 1, [1, 0])})
+        self.assertEqual(data["energy"]["registered"], data["pulse"]["count"]["value"])
+        self.assertEqual(data["energy"]["pending"], sum(stage["count"] for stage in data["flow"]["stages"][:2]))
+
+    def test_energy_pending_ignores_period_but_registered_follows_it(self):
+        today = date(2026, 11, 13)
+        self.make_energy_orders(today)
+        for period in ("month", "last_month", "ytd"):
+            data = operations_cockpit.build(period, today)
+            self.assertEqual([row["pending"] for row in data["energy"]["rows"]], [3, 1], period)
+            self.assertEqual(data["energy"]["registered"], data["pulse"]["count"]["value"], period)
+        self.assertEqual(operations_cockpit.build("last_month", today)["energy"]["registered"], 0)
+        self.assertEqual(operations_cockpit.build("ytd", today)["energy"]["registered"], 4)
+
+    def test_energy_gas_links_use_existing_order_filters(self):
+        from sales.services.order_filters import filter_order_analysis
+        from urllib.parse import parse_qsl, urlsplit
+        today = date(2026, 11, 13)
+        self.make_energy_orders(today)
+        gas = operations_cockpit.build("month", today)["energy"]["rows"][0]
+        expected = [gas["registered"]] + [stage["count"] for stage in gas["stages"]]
+        urls = [gas["registered_url"]] + [stage["url"] for stage in gas["stages"]]
+        for url, count in zip(urls, expected):
+            params = dict(parse_qsl(urlsplit(url).query))
+            self.assertEqual(filter_order_analysis(SalesOrder.objects.all(), params).count(), count, url)
+        electric = operations_cockpit.build("month", today)["energy"]["rows"][1]
+        self.assertEqual(electric["registered_url"], "")   # 能源別篩選一次只能選一種，電車不給連結
+        self.assertEqual({stage["url"] for stage in electric["stages"]}, {""})
+
+    def test_energy_section_renders_and_pending_follows_flow_permission(self):
+        today = timezone.localdate()
+        self.make_energy_orders(today)
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("operations_report"))
+        self.assertContains(response, "油電領牌")
+        self.assertContains(response, "未領牌")
+        self.assertContains(response, "energy_type=gas")
+        self.client.force_login(self.user_with("operations"))
+        cockpit = self.client.get(reverse("operations_report")).context["cockpit"]
+        self.assertNotIn("flow", cockpit)
+        self.assertFalse(cockpit["energy"]["show_pending"])
+        self.assertEqual([row["pending"] for row in cockpit["energy"]["rows"]], [None, None])
+        self.assertEqual([row["registered"] for row in cockpit["energy"]["rows"]], [2, 2])
 
     # ── 錢 ──
 

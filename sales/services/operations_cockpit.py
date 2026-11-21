@@ -76,6 +76,9 @@ STAGE_FILTERS = {
 SOURCE_MIX = (("store", "本店"), ("dealer", "車行"), ("platform", "網路平台"))
 ENERGY_MIX = (("gas", "油車"), ("electric", "電動（含輕型、微型）"))
 PAYMENT_MIX = (("cash", "現金／刷卡"), ("installment", "分期"))
+# 油電領牌（T-263）：未領牌＝訂單流程的待配車＋待領牌兩站。
+ENERGY_REGISTRATION = (("gas", "油車"), ("electric", "電車"))
+PENDING_REGISTRATION = ("allocation_pending", "allocated")
 
 
 def _url(name, params=None, *args):
@@ -244,6 +247,34 @@ def _mix(windows, source, trend_start, today):
     }
 
 
+def _energy_key(order):
+    # 與 `_mix` 同一寫法：油車以外（電動、輕型、微型）都算電車。訂單車型是必填外鍵，不會沒有車型。
+    return "gas" if order.vehicle_model.energy_type == VehicleModel.EnergyType.GAS else "electric"
+
+
+def _energy_registration(windows, source, active):
+    """油電領牌（T-263，使用者 2026-11-21 選 A）：口徑只寫在 BUSINESS_RULES「營運總表顯示門檻」。
+
+    已領牌＝本期領牌台數依能源拆開（油＋電＝領牌台數）；未領牌＝目前在手的待配車＋待領牌，不隨期間切換。
+    """
+    start, end = windows["current"]
+    registered = Counter(_energy_key(order) for order in _orders_between(source, start, end))
+    pending = Counter((_energy_key(order), order.status) for order in active if order.status in PENDING_REGISTRATION)
+    rows = []
+    for key, label in ENERGY_REGISTRATION:
+        stages = [{"key": status, "label": STAGE_LABELS[status], "count": pending[(key, status)],
+                   # 全部訂單的能源別篩選一次只能選一種，電車（含輕型、微型）沒有現成篩選，不給連結。
+                   "url": _url("order_list", {"status": STAGE_FILTERS[status], "energy_type": key})
+                   if key == "gas" else ""} for status in PENDING_REGISTRATION]
+        rows.append({"key": key, "label": label, "registered": registered[key],
+                     "registered_url": _url("order_list", {
+                         "energy_type": key, "date_from": start.isoformat(), "date_to": end.isoformat(),
+                         "business_only": "1"}) if key == "gas" else "",
+                     "pending": sum(stage["count"] for stage in stages), "stages": stages})
+    return {"rows": rows, "registered": sum(row["registered"] for row in rows),
+            "pending": sum(row["pending"] for row in rows)}
+
+
 def _movers(windows, source, limit=5):
     current = Counter(order.vehicle_model.name for order in _orders_between(source, *windows["current"]))
     last_year = Counter(order.vehicle_model.name for order in _orders_between(source, *windows["last_year"]))
@@ -324,9 +355,15 @@ def _payouts():
             "changed_count": result["changed_count"]}
 
 
-def _flow(metrics, today):
-    active = SalesOrder.objects.filter(status__in=list(STAGE_LIMITS)).only(
-        "status", "established_on", "allocated_at", "registration_completed_at", "registration_date", "delivered_at")
+def _active_orders():
+    """訂單流程四站的在手訂單；「油電領牌」的未領牌共用這一次查詢（T-263），所以一併帶車型能源別。"""
+    return list(SalesOrder.objects.filter(status__in=list(STAGE_LIMITS)).select_related("vehicle_model").only(
+        "status", "established_on", "allocated_at", "registration_completed_at", "registration_date", "delivered_at",
+        "vehicle_model__energy_type"))
+
+
+def _flow(metrics, today, active=None):
+    active = _active_orders() if active is None else active
     ages = {key: [] for key in STAGE_LIMITS}
     counts = Counter()
     for order in active:
@@ -443,6 +480,7 @@ def build(period, today):
     source = {order.pk: order for row in metrics["trend"] + metrics["trend_last_year"] for order in row["orders"]}
     source = list(source.values())
     trend_start = date.fromisoformat(metrics["trend"][0]["start"])
+    active = _active_orders()
 
     class _Request:
         GET = {}
@@ -458,7 +496,8 @@ def build(period, today):
         "money": _money(metrics, today),
         "reconciliation": _reconciliation(_reconciliation_queryset(_Request())),
         "payouts": _payouts(),
-        "flow": _flow(metrics, today),
+        "flow": _flow(metrics, today, active),
+        "energy": _energy_registration(windows, source, active),
         "stock": _stock(today),
         "fee_variances": metrics["registration_fee_variances"].count(),
         "volume_bonus": _volume_bonus(today),
@@ -623,6 +662,11 @@ def for_viewer(data, flags):
         view["volume_bonus"] = data["volume_bonus"]
     if flags["dashboard"]:
         view.update({"flow": data["flow"], "stock": data["stock"]})
+    # 已領牌和領牌台數一樣人人可看；未領牌與訂單流程同一批單，跟著訂單流程的權限（dashboard）。
+    energy = {**data["energy"], "show_pending": flags["dashboard"]}
+    if not flags["dashboard"]:
+        energy.update({"pending": None, "rows": [{**row, "pending": None, "stages": []} for row in energy["rows"]]})
+    view["energy"] = energy
     health = {}
     if flags["dashboard"]:
         health["fee_variances"] = data["fee_variances"]

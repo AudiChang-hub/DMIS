@@ -32,3 +32,15 @@ test('T-164 條件標籤最多列 3 項，其餘摘要為「等 N 項」', () =>
   assert.equal(designerChipText(['A', 'B', 'C', 'D', '']), 'A、B、C 等 4 項');
   assert.equal(designerChipText([]), '');
 });
+test('T-268 人口分析堆疊段落：style.backgroundColor 讀不到 var() 簡寫時改用 data-point-color，與圖例同色', () => {
+  const {reportAnalysisStackColor} = require('../../static/js/report-analysis.js');
+  // 根因：background:var(--chart-s3) 讀 style.backgroundColor 得到 ''，舊寫法一律退回 --chart-s1。
+  assert.equal(reportAnalysisStackColor('30-39歲', '', 'var(--chart-s3)', '', true), 'var(--chart-s3)');
+  assert.equal(reportAnalysisStackColor('30-39歲', '', 'var(--chart-s3)', 'accessible', true), 'var(--chart-s3)');
+  // 原本就固定配色的分類與中性分類不變。
+  assert.equal(reportAnalysisStackColor('男性', '', 'var(--chart-s5)', '', true), 'var(--chart-s1)');
+  assert.equal(reportAnalysisStackColor('生日未填', '', 'var(--chart-other)', '', true), 'var(--chart-other)');
+  // 非堆疊長條（每列一段、背景色以屬性設定，讀得到）照舊。
+  assert.equal(reportAnalysisStackColor('黑（消光）', 'var(--chart-s2)', undefined, '', false), 'var(--chart-s2)');
+  assert.equal(reportAnalysisStackColor('黑（消光）', '', undefined, '', false), 'var(--chart-s1)');
+});

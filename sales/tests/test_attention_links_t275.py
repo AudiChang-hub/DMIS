@@ -268,3 +268,33 @@ class AttentionLinkTests(FinanceLedgerTestBase):
         listed = keys(self.follow(item))
         self.assertEqual(item["value"], len(listed))
         self.assertEqual({f"commission:order:{pk}" for pk in orders}, listed)
+
+    # ── 車行到期提醒（QA 補測）──
+
+    def test_dealer_due_matches_order_list_attention_dealer(self):
+        from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
+        long_ago = timezone.now() - timedelta(days=20)
+
+        def dealer_order(status="completed", delivered_at=long_ago, source_type="dealer", legacy=False):
+            source = self.dealer if source_type == "dealer" else self.staff
+            order = self.make_order(source_type=source_type, source=source)
+            sync_order_operations(order.pk)
+            SalesOrder.all_objects.filter(pk=order.pk).update(status=status, delivered_at=delivered_at)
+            if legacy:
+                batch = LegacyImportBatch.objects.create(import_type="operations", original_filename="t275.xlsx",
+                                                         file_size=0)
+                row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷貨", source_row=order.pk,
+                                                     fingerprint=f"t275-dealer-due-{order.pk}")
+                LegacySalesSnapshot.objects.create(order=order, import_row=row)
+            return order.pk
+
+        # 尾款未確認且領牌文件未完成：同一張單兩則提醒，卡片與清單都只算一張。
+        due = {dealer_order("completed"), dealer_order("delivered_docs_pending"),
+               dealer_order("cancel_refund_pending")}
+        dealer_order("completed", delivered_at=timezone.now())     # 剛交車，還沒到期
+        dealer_order("completed", legacy=True)                      # Excel 匯入單：不提醒
+        dealer_order("completed", source_type="store")              # 本店單：不提醒
+        dealer_order("cancelled")                                   # 已取消：不提醒
+        dealer_order("completed", delivered_at=None)                # 尚未交車：不提醒
+        item = self.assert_same_batch("dealer_due", due, self.order_ids)
+        self.assertIn("attention=dealer", item["url"])

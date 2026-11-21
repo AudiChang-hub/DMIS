@@ -47,6 +47,8 @@ def build_dealer_reminders(today=None):
         SalesOrder.objects.filter(
             source_type=SalesOrder.SourceType.DEALER,
             delivered_at__isnull=False,
+            # Excel 匯入單＝歷史資料：尾款與領牌文件提醒都不列（T-275 第 8 項，使用者 2026-11-21）。
+            legacy_snapshot__isnull=True,
         )
         .exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
         .select_related("source", "operations", "vehicle_model")

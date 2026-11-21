@@ -335,7 +335,7 @@ def _money(metrics, today):
             delivered = order.delivered_at or order.registration_completed_at
             unsettled.append((summary["customer_due"], _age_days(today, delivered)))
         elif bucket == "awaiting_payout":
-            awaiting_payout += 1     # 客戶已收清，只剩分期／平台撥款（事後對帳）或匯入單收款待核
+            awaiting_payout += 1     # 客戶已收清，只剩分期／平台撥款（事後對帳）；匯入單不算（is_legacy_history）
         else:
             before_delivery += 1
         cell = split[bucket][payment_category(order)]

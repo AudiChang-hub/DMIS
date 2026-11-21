@@ -12,7 +12,7 @@ from sales.models import (
 )
 from sales.services.business_days import build_dealer_reminders
 from sales.services.payment_summary import payment_summary
-from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk, summarize_sales
+from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk, is_legacy_history, summarize_sales
 
 
 def _month_bounds(day):
@@ -131,11 +131,13 @@ def build_dashboard_metrics(today=None):
                        'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
     all_orders = SalesOrder.objects.all()
     # 未結清與溢收：條件和 filter_payment_risk 同一套，只是用上面已算好的 payment_summary，不再各自重載全部訂單。
-    outstanding = [order for order in open_orders
+    # Excel 匯入單＝歷史資料，一律視為已收款、已對帳，不算進待收與溢收（T-275 第 8 項，is_legacy_history）。
+    money_orders = [order for order in open_orders if not is_legacy_history(order)]
+    outstanding = [order for order in money_orders
                    if (summary := summaries[order.pk])['customer_due'] > 0 or summary['lender_due'] > 0
                    or not summary['legacy_settled']]
     outstanding_ids = [order.pk for order in outstanding]
-    overpaid_ids = [order.pk for order in open_orders if order.cash_receivable_v2
+    overpaid_ids = [order.pk for order in money_orders if order.cash_receivable_v2
                     and ((summary := summaries[order.pk])['customer_overpaid'] > 0 or summary['lender_overpaid'] > 0)]
     open_queryset = all_orders.exclude(status__in=CANCELLED_STATUSES)
     risk_orders = {

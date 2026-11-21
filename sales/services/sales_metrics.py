@@ -10,6 +10,16 @@ CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFU
 DELIVERED_STATUSES = (SalesOrder.Status.DELIVERED_DOCS_PENDING, SalesOrder.Status.COMPLETED)
 # 營運總表款項依付款方式拆列（T-275 第 9 項，使用者 2026-11-21）：沿用既有欄位，不新增判斷資料。
 PAYMENT_CATEGORIES = (("cash", "現金"), ("card", "刷卡"), ("installment", "分期"), ("platform", "平台"))
+# 款項類的收款風險（T-275 第 8 項）：Excel 匯入單＝歷史資料，一律視為已收款、已對帳，這些篩選都不算匯入單。
+MONEY_RISKS = ("outstanding", "unsettled_delivered", "unconfirmed", "refund", "overpaid", "before_delivery",
+               "awaiting_payout")
+
+
+def is_legacy_history(order):
+    """Excel 匯入單（有 legacy_snapshot）＝歷史資料，統計與篩選一律視為已收款、已對帳（T-275 第 8 項，使用者
+    2026-11-21）。只用在營運總表／首頁款項、全部訂單收款風險、款項未結清紅標、車行到期提醒；不改 payment_summary、
+    統一撥款對帳、交車掛帳額度檢查與收款帳，也不寫資料。呼叫端要先 select_related("legacy_snapshot")。"""
+    return hasattr(order, "legacy_snapshot")
 
 
 def payment_category(order):
@@ -32,7 +42,7 @@ def payment_category_q(key):
 
 
 def is_outstanding(summary):
-    """待收款：客人或分期／平台撥款還有應收，或匯入單收款未核（和 filter_payment_risk outstanding 同一口徑）。"""
+    """待收款：客人或分期／平台撥款還有應收，或收款未核（和 filter_payment_risk outstanding 同一口徑；匯入單由呼叫端先排除）。"""
     return summary['customer_due'] > 0 or summary['lender_due'] > 0 or not summary['legacy_settled']
 
 
@@ -76,6 +86,8 @@ def summarize_sales(orders):
 
 
 def filter_payment_risk(orders, risk):
+    if risk in MONEY_RISKS:
+        orders = orders.filter(legacy_snapshot__isnull=True)   # 匯入單＝已收款已對帳（is_legacy_history）
     if risk == 'refund':
         return orders.filter(status=SalesOrder.Status.CANCEL_REFUND_PENDING)
     if risk == 'outstanding':

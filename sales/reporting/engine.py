@@ -635,7 +635,13 @@ def card_result(config, card, filters, *, full_list=False):
         series_keys = series_keys[:card.get("series_limit", 200)]
         series_labels = all_series_labels
         colors = {key: dimension_color(card["series"], key, index) for index, key in enumerate(series_keys)}
-        series_legend = [{"label": dimension_label(card["series"], key, series_labels), "color": colors[key]} for key in series_keys]
+        # T-274：細分系列是車色時依車色名稱配實際顏色（同圖不重複），淺色另標 outline；其他系列與依車色分組的圖不變。
+        car_series = card["series"] == "color"
+        if car_series:
+            from .car_colors import car_series_colors, outline
+            colors = car_series_colors(series_keys)
+        marks = (lambda key: {"outline": outline(colors[key])}) if car_series else (lambda key: {})
+        series_legend = [{"label": dimension_label(card["series"], key, series_labels), "color": colors[key], **marks(key)} for key in series_keys]
         if other_series_keys and card.get("series_other"):
             series_legend.append({"label": "其他系列（合併）", "color": OTHER_COLOR})
         primary_values = {row["key"]: row for row in values}
@@ -650,7 +656,7 @@ def card_result(config, card, filters, *, full_list=False):
             label = dimension_label(card["series"], cell["report_series"], series_labels)
             parent["segments"].append({"key": "c:" + json.dumps([parent["key"], encode_key(cell["report_series"])], separators=(",", ":")),
                 "label": label, "point_label": parent["label"] + " · " + label, "value": str(value), "display": display_value(value),
-                "count": cell["count"], "color": colors[cell["report_series"]],
+                "count": cell["count"], "color": colors[cell["report_series"]], **marks(cell["report_series"]),
                 "width": float(value / Decimal(parent["value"]) * 100) if Decimal(parent["value"]) else 0})
         if other_series_keys and card.get("series_other"):
             for parent in values:

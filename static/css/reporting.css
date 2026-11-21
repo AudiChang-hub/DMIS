@@ -540,3 +540,6 @@
   .report-kpi--text { grid-column: 1 / -1; } /* 文字型摘要（例：本店／未指定通路）佔整列，不在半格裡拆成兩行 */
   .report-filter-chip__value { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 }
+/* T-274：車色系列的淺色（白）在白底看不到，圖例、分段加一圈邊框。 */
+.report-series-legend i[data-outline],.report-stack-segment[data-outline]{box-shadow:inset 0 0 0 1px var(--line-strong)}
+.report-plot-segment--outline{stroke:var(--line-strong);stroke-width:1}

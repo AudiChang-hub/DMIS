@@ -493,7 +493,8 @@ function initReportVisuals(root) {
     const layout = overview?.dataset.readerLayout;
     const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),REPORT_NEUTRAL_LABELS.has(entry.textContent.trim()) ? REPORT_OTHER_COLOR : reportSlotColor(i)]));
     const contrast = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
-    const overviewColor = (label, fallback) => chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : chart.dataset.classificationColors === 'true' ? fallback : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
+    // T-274：系列是車色時用引擎依車色名稱配的顏色，不套版型的固定配色（高辨識配色仍照使用者選擇）。
+    const overviewColor = (label, fallback) => chart.dataset.series === 'color' && chart.dataset.palette !== 'accessible' ? fallback : chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : chart.dataset.classificationColors === 'true' ? fallback : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
     if (overview || chart.dataset.palette === 'accessible') {
       rows.forEach(row => { row.dataset.pointColor = overviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
       chart.querySelectorAll('.report-series-legend span').forEach(entry => {

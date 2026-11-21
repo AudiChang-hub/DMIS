@@ -12,8 +12,11 @@ function reportAnalysisFill(label, fallback, palette) {
 }
 /* T-268 根因：堆疊段的顏色寫在 style="background:var(--chart-sN)"（簡寫＋變數），讀 style.backgroundColor 會得到空字串，
    人口分析的堆疊圖因此除了固定配色的分類（男性、女性、白…）以外全部退回第一色。改用段落上的 data-point-color（與圖例同色）。 */
-function reportAnalysisStackColor(label, fallback, pointColor, palette, stacked) {
+/* T-274：細分系列是車色（carSeries）時，引擎已依車色名稱配好顏色且同圖不重複，不再套固定配色表（原本「藍」會被蓋成 s5）。 */
+function reportAnalysisStackColor(label, fallback, pointColor, palette, stacked, carSeries = false) {
   const own = fallback || pointColor;
+  // 用引擎給的色碼（data-point-color），不用 style 讀回的 rgb()，邊框判斷才對得上。
+  if (carSeries && palette !== 'accessible') return pointColor || fallback || 'var(--chart-s1)';
   return reportAnalysisFill(label, palette === 'accessible' && stacked ? own : own || 'var(--chart-s1)', palette);
 }
 function renderReportAnalysis(chart, attach) {
@@ -21,6 +24,7 @@ function renderReportAnalysis(chart, attach) {
   if (!rows.length) return;
   const stacked = chart.dataset.chart === 'stacked';
   let groups = [...chart.querySelectorAll('.report-stack-row')];
+  const carSeries = stacked && chart.dataset.series === 'color';
   const seriesColors = new Map([...chart.querySelectorAll('[data-stack-segment][data-point-color]')].map(segment => [segment.dataset.seriesLabel, segment.dataset.pointColor]));
   if (!stacked) {
     // 單一系列的長條：每列當成只有一段的堆疊，顏色依分類固定。
@@ -35,10 +39,15 @@ function renderReportAnalysis(chart, attach) {
   }
   const {svg, node} = reportStackPlot(chart, groups, rows, {
     interactiveSegments: stacked,
-    colorOf: (label, fallback) => reportAnalysisStackColor(label, fallback, seriesColors.get(label), chart.dataset.palette, stacked),
+    colorOf: (label, fallback) => reportAnalysisStackColor(label, fallback, seriesColors.get(label), chart.dataset.palette, stacked, carSeries),
     attach, wrapLabels: chart.dataset.dimension === 'family_color',
   });
   svg.classList.add('report-analysis-plot');
+  // 淺色車色（白）加邊框，否則在白底上看不到。
+  if (carSeries) {
+    const outlined = new Set([...chart.querySelectorAll('[data-stack-segment][data-outline]')].map(segment => segment.dataset.pointColor));
+    svg.querySelectorAll('.report-plot-segment').forEach(rect => { if (outlined.has(rect.getAttribute('fill'))) rect.classList.add('report-plot-segment--outline'); });
+  }
   const table = chart.querySelector('.report-table-wrap'); table.before(node); if (node !== svg) node.scrollLeft = node.scrollWidth; table.hidden = true;
   const stacks = chart.querySelector('.report-stacks'); if (stacks) stacks.hidden = true;
 }

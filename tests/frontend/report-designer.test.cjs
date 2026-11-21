@@ -63,3 +63,14 @@ test('T-268 車型＋顏色橫條標籤：放得下就一行，放不下在「 �
   assert.ok(long.length >= 3);
   assert.ok(long.every(line => !line.includes('…')));
 });
+test('T-274 系列是車色時保留引擎給的車色，不被固定配色表蓋掉（藍、金不同色）', () => {
+  const {reportAnalysisStackColor} = require('../../static/js/report-analysis.js');
+  // 重現：「藍」在人口分析固定配色表是 --chart-s5（粉紅），「金」沒有對應時也落在同一色。
+  const blue = reportAnalysisStackColor('藍', '', '#2f6fd6', '', true, true);
+  const gold = reportAnalysisStackColor('金', '', '#e0a800', '', true, true);
+  assert.equal(blue, '#2f6fd6');
+  assert.equal(gold, '#e0a800');
+  assert.notEqual(blue, gold);
+  // 系列不是車色（例如性別）時照舊用固定配色。
+  assert.equal(reportAnalysisStackColor('男性', '', '#123456', '', true, false), 'var(--chart-s1)');
+});

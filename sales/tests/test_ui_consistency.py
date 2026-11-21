@@ -543,6 +543,115 @@ class MobileFoundationTests(SimpleTestCase):
         self.assertIn("@media (prefers-reduced-motion: reduce), (max-width: 860px) {\n  main, .hero-row { animation: none; }", self.app)
 
 
+def phone_blocks(css):
+    """回傳 860px 以下（含 600px 等更窄斷點）每個 @media 區塊的內容，註解先拿掉。"""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    for match in re.finditer(r"@media\s*\(\s*max-width:\s*(\d+)(?:\.\d+)?px\s*\)\s*\{", css):
+        if int(match.group(1)) > 860:
+            continue
+        depth, index = 1, match.end()
+        while depth:
+            depth += {"{": 1, "}": -1}.get(css[index], 0)
+            index += 1
+        yield css[match.end():index - 1]
+
+
+class MobileTextTests(SimpleTestCase):
+    """T-267：手機版文字不截斷、不怪斷行；改動只在 860px 以下，電腦版不變。"""
+
+    app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")
+
+    def test_phone_blocks_never_hide_text(self):
+        """手機斷點裡不能用省略號或行數限制把文字藏起來（要完整顯示、放不下就換行）。"""
+        offenders = []
+        for path in sorted(CSS_DIR.glob("*.css")):
+            if path.name == "form-print.css":  # 列印版面，不在手機上顯示
+                continue
+            for block in phone_blocks(path.read_text(encoding="utf-8")):
+                for rule in re.finditer(r"([^{}]+)\{([^{}]*)\}", block):
+                    if re.search(r"text-overflow:\s*ellipsis|(?<!-)line-clamp:\s*\d", rule.group(2)):
+                        offenders.append(f"{path.name}: {rule.group(1).strip()[:80]}")
+        self.assertEqual(offenders, [])
+
+    def test_base_ellipsis_is_undone_on_phones(self):
+        """各元件在所有寬度共用的省略號／行數限制，手機斷點要改回完整顯示。"""
+        undone = {
+            "app.css": (
+                ".recent-field-values__option", ".account-menu__identity strong", ".search-match mark", ".order-origin__meta",
+                ".field-editor-badge", ".upload-queue__name", ".source-system-info dd", ".home-link__label",
+                ".source-list-note > span:not(.gift-not-required)", ".order-row--detailed .order-fact :is(b, .order-machine-color)",
+                ".order-row--detailed .order-fact .order-vehicle-number", ".order-row--detailed .order-fact--note b",
+            ),
+            "order-workspace.css": (".order-compact-bar__name", ".order-compact-bar__recipient b", ".order-hero-note__text"),
+            "order-steps.css": (".ledger__hint",),
+            "catalog-photo-board.css": (".photo-cell__meta strong",),
+            "report-designer.css": (".designer-chip__value",),
+            "reporting.css": (".report-filter-chip__value",),
+            "vehicle-model-tools.css": (".model-tool-switch__item span", ".model-installment-cond > summary"),
+            "vehicle-models.css": (
+                ".vehicle-brand-group__identity strong", ".master-model-table .vm-reward-cell small",
+                ".master-model-table td span.color-peek__names",
+            ),
+            "business-holidays.css": (".holiday-calendar-day strong",),
+        }
+        for filename, selectors in undone.items():
+            phone = "\n".join(phone_blocks((CSS_DIR / filename).read_text(encoding="utf-8")))
+            for selector in selectors:
+                self.assertIn(selector, phone, f"{filename} 手機斷點沒有處理 {selector}")
+
+    def test_table_cards_put_label_above_value(self):
+        """表格在 600px 以下變卡片：欄名在上、內容在下（單欄），不再用固定寬的欄名欄把內容擠成一個字一行。"""
+        phone = "\n".join(phone_blocks(self.app))
+        rule = re.search(r"\n  \.inventory-table td \{([^}]*)\}", phone)
+        self.assertIsNotNone(rule)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", rule.group(1))
+        self.assertNotRegex(phone, r"\.inventory-table td \{[^}]*grid-template-columns: \d+px")
+        # 依附舊「第二欄」位置的規則要跟著改成單欄，否則會多撐出隱含欄。
+        for path in sorted(CSS_DIR.glob("*.css")):
+            for block in phone_blocks(path.read_text(encoding="utf-8")):
+                self.assertNotRegex(
+                    block, r"(sales-source-table|settlement-cost-table|model-copy-preview|model-reward-table)[^{]*\{[^}]*grid-column: 2;", path.name)
+        overview = (CSS_DIR / "order-overview.css").read_text(encoding="utf-8")
+        self.assertIn('.order-overview__table td:is(:first-child, [data-label="備註"]) { grid-column: 1 / -1; }', overview)
+
+    def test_order_cards_use_full_card_width(self):
+        """全部訂單手機卡片：欄位排滿整張卡寬，不擠在姓名欄（日期不再拆兩行、車行不再省略）。"""
+        phone = "\n".join(phone_blocks(self.app))
+        self.assertIn(".order-row--detailed > .order-main { display: contents; }", phone)
+        self.assertIn(".order-row--detailed .order-facts { grid-column: 2 / -1; grid-row: 3; }", phone)
+
+    def test_order_overview_has_phone_back_bar(self):
+        """訂單總覽手機版：頂端固定「← 返回」（44px、避開瀏海），返回手勢只關總覽、不離開頁面；電腦版不顯示。"""
+        for name in ("sales/_order_step_nav.html", "sales/order_list.html"):
+            html = (TEMPLATES / name).read_text(encoding="utf-8")
+            self.assertRegex(html, r'<button type="button" class="order-overview-dialog__back" data-overview-close[^>]*>', name)
+        css = (CSS_DIR / "order-overview.css").read_text(encoding="utf-8")
+        self.assertIn(".order-overview-dialog__back { display: none; }", css)
+        phone = "\n".join(phone_blocks(css))
+        self.assertIn("calc(env(safe-area-inset-top) + var(--space-2))", phone)
+        back = re.search(r"\n  \.order-overview-dialog__back \{([^}]*)\}", phone)
+        self.assertIsNotNone(back)
+        self.assertIn("min-height: var(--control-h);", back.group(1))
+        script = Path("static/js/order-overview.js").read_text(encoding="utf-8")
+        self.assertIn('window.matchMedia("(max-width: 860px)")', script)
+        self.assertIn("history.pushState({ ...(history.state || {}), orderOverview: true }", script)
+        self.assertIn("if (ownsHistory) { history.back(); return; }", script)
+        self.assertRegex(script, r'window\.addEventListener\("popstate", \(event\) => \{[^}]*stopImmediatePropagation\(\);[^}]*\}, true\);')
+
+    def test_phone_full_text_for_single_line_fields(self):
+        """下拉與單行欄位放不下時，手機在下方補一行完整文字；只在 860px 以下執行，電腦版不插入元素也沒有樣式。"""
+        base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+        self.assertIn("js/phone-full-text.js", base)
+        script = Path("static/js/phone-full-text.js").read_text(encoding="utf-8")
+        self.assertIn('window.matchMedia("(max-width: 860px)")', script)
+        self.assertIn('caption.setAttribute("aria-hidden", "true");', script)
+        phone = "\n".join(phone_blocks(self.app))
+        self.assertIn(".phone-full-text { display: block;", phone)
+        outside = re.sub(r"@media\s*\(\s*max-width:[^{]*\{(?:[^{}]|\{[^{}]*\})*\}", "", re.sub(r"/\*.*?\*/", "", self.app, flags=re.S))
+        self.assertNotIn("phone-full-text", outside)
+        self.assertNotIn("is-phone-wide", outside)
+
+
 class PageStylesheetSplitTests(SimpleTestCase):
     """T-242 A 案：只有單一模組用到的樣式放在 static/css/<模組>.css，由該頁 {% block head %} 載入，不回到 app.css。"""
 

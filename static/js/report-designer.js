@@ -18,7 +18,11 @@ function designerChipText(values) {
   const list = values.filter(Boolean);
   return list.length > 3 ? `${list.slice(0, 3).join('、')} 等 ${list.length} 項` : list.join('、');
 }
-if (typeof module !== 'undefined') module.exports = {designerScale, designerCanvasWidth, designerChipText};
+/* T-268：「依什麼分」或「再細分」選了「顏色（不分車型）」時，提示各車型的同色會合在一起，可改選「車型＋顏色」。 */
+function designerColorHint(dimension, series) {
+  return dimension === 'color' || series === 'color';
+}
+if (typeof module !== 'undefined') module.exports = {designerScale, designerCanvasWidth, designerChipText, designerColorHint};
 if (typeof document !== 'undefined') (() => {
   'use strict';
   const editor = document.querySelector('[data-report-editor]');
@@ -135,6 +139,8 @@ if (typeof document !== 'undefined') (() => {
     panels().forEach(panel => {
       const hint = panel.querySelector('[data-motor-type-hint]');
       if (hint) hint.hidden = ![field(panel, 'dimension'), field(panel, 'series')].some(input => input?.value === 'legacy_motor_type');
+      const colorHint = panel.querySelector('[data-family-color-hint]');
+      if (colorHint) colorHint.hidden = !designerColorHint(field(panel, 'dimension')?.value, field(panel, 'series')?.value);
     });
   }
 

@@ -32,6 +32,13 @@ test('T-164 條件標籤最多列 3 項，其餘摘要為「等 N 項」', () =>
   assert.equal(designerChipText(['A', 'B', 'C', 'D', '']), 'A、B、C 等 4 項');
   assert.equal(designerChipText([]), '');
 });
+test('T-268 選了「顏色（不分車型）」才提示改用「車型＋顏色」', () => {
+  const {designerColorHint} = require('../../static/js/report-designer.js');
+  assert.equal(designerColorHint('color', 'age_group'), true);
+  assert.equal(designerColorHint('family', 'color'), true);
+  assert.equal(designerColorHint('family_color', 'age_group'), false);
+  assert.equal(designerColorHint('month', ''), false);
+});
 test('T-268 人口分析堆疊段落：style.backgroundColor 讀不到 var() 簡寫時改用 data-point-color，與圖例同色', () => {
   const {reportAnalysisStackColor} = require('../../static/js/report-analysis.js');
   // 根因：background:var(--chart-s3) 讀 style.backgroundColor 得到 ''，舊寫法一律退回 --chart-s1。

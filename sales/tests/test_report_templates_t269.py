@@ -170,3 +170,20 @@ class TemplateLibraryT269Tests(TestCase):
         self.assertEqual(segments("finance_monthly"), {"2026/10": {"示範融資": 1, "測試分期": 1, "未填": 4}, "2026/11": {"測試分期": 1}})
         self.assertEqual(segments("platform_monthly"), {"2026/10": {"示範平台": 1}})
         self.assertEqual(segments("model_sex"), {"SUZUKI／示範油車": {"公司或其他": 3}, "eReady／示範電車": {"公司或其他": 7}})
+
+    def test_designer_plain_names_keep_keys(self):
+        options = dict(choice for _, group in designer_dimension_choices() for choice in group)
+        self.assertEqual(set(options), set(DIMENSIONS))  # 只改顯示名稱，鍵值不變
+        self.assertEqual(options["source"], "賣出車行（含平台）")
+        self.assertEqual(options["recipient"], "傭金歸屬車行")
+        self.assertEqual(options["finance_company"], "分期公司")
+        self.assertTrue(options["family"].startswith("車型（同車型各年式合併）"))
+        # 讀者頁與 CSV 的維度名稱不變。
+        self.assertEqual(DIMENSIONS["source"], "原銷售車行／通路")
+
+    def test_help_article_explains_templates_and_dealers(self):
+        from sales.help.articles import ARTICLES
+        article = next(item for item in ARTICLES if item.slug == "report-design")
+        text = repr(article)
+        for phrase in ("車型 × 顏色 × 年齡層", "車型＋顏色", "賣出車行（含平台）", "傭金歸屬車行", "分期公司"):
+            self.assertIn(phrase, text)

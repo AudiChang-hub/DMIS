@@ -12,10 +12,29 @@ from .tree_filter import TREE_FIELDS, per_model_slots, tree_chips
 # T-164：沿用原 Excel 報表的比對條件與分類，只在設計器分組與改顯示名稱，鍵值與讀者頁不變。
 # 銷售來源（T-183）已是主要來源條件，不再收在原 Excel 比對區。
 LEGACY_SCOPES = {"model_presence", *MODEL_TEXT_SCOPES}
-COMMON_DIMENSIONS = ("month", "year", "day", "brand", "family", "model", "color", "energy", "legacy_energy",
-                     "legacy_motor_type", "source_type", "source", "recipient")
+COMMON_DIMENSIONS = ("month", "year", "day", "brand", "family", "family_color", "color", "model", "energy", "legacy_energy",
+                     "legacy_motor_type", "legacy_sales_source", "source", "recipient", "finance_company", "age_group", "sex",
+                     "source_type")
 # T-189：設計器不知道最後的固定條件，車行／平台名稱一律顯示中性名稱。
-DESIGNER_DIMENSION_LABELS = {"legacy_motor_type": "車種類別（白牌、綠牌、速克達…）", "legacy_dealer": "車行／平台"}
+# T-269：分組選單用白話名稱說清楚「每一根長條是什麼」；只改設計器的顯示名稱，鍵值、讀者頁與已存報表都不變。
+DESIGNER_DIMENSION_LABELS = {
+    "month": "月份", "year": "年份", "day": "日期",
+    "brand": "品牌",
+    "family": "車型（同車型各年式合併）",
+    "family_color": "車型＋顏色（例如 Saluto 125 · 盧卡綠）",
+    "color": "顏色（不分車型）",
+    "model": "車型年式／型號（每個年式分開）",
+    "energy": "能源別（油車、電動、輕型電動…）",
+    "legacy_energy": "油車／電車",
+    "legacy_motor_type": "車種類別（白牌、綠牌、速克達…）",
+    "source": "賣出車行（含平台）",
+    "recipient": "傭金歸屬車行",
+    "legacy_dealer": "車行／平台",
+    "finance_company": "分期公司",
+    "age_group": "年齡層（生日未填、公司另列）",
+    "sex": "性別（公司或其他另列）",
+    "source_type": "來源類型（本店／車行／平台）",
+}
 
 
 def designer_dimension_choices():

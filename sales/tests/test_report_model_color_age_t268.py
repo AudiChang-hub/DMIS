@@ -208,6 +208,11 @@ class ModelColorAgeT268Tests(TestCase):
         report = self.publish_from_designer("model_color_age")
         self.assertEqual(report.published, model_color_age_analysis())
 
+    def test_designer_hint_for_plain_color(self):
+        response = self.client.get(reverse("report_create") + "?start=blank")
+        self.assertContains(response, "data-family-color-hint")
+        self.assertContains(response, "?start=model_color_age")
+
     def test_migration_creates_published_report_once_and_reverse_removes_only_it(self):
         self.assertEqual(MIGRATION.CONFIG, model_color_age_analysis())
         other = ReportDefinition.objects.create(draft=starter_config("trend"), published=starter_config("trend"), version=3)

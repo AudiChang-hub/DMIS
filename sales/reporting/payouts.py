@@ -523,16 +523,20 @@ def totals(items):
     counted = [item for item in items if not item.estimate and not item.pending_settle and not item.prior_settled]
     pending = [item for item in items if item.pending_settle]
     prior = [item for item in items if item.prior_settled]
+    paid_amount = sum((i.paid_snapshot_amount for i in counted), ZERO)
+    prior_settled_amount = sum((i.amount for i in prior), ZERO)
     return {
         "unpaid_amount": sum((i.amount for i in counted if not i.paid and not i.is_quantity), ZERO),
-        "paid_amount": sum((i.paid_snapshot_amount for i in counted), ZERO),
+        "paid_amount": paid_amount,
+        # 摘要「已給付金額」＝一般已給付＋匯入前已結清（T-277，使用者 2026-11-21「已給付金額應該要全部加總」）。
+        "paid_total_amount": paid_amount + prior_settled_amount,
         "unpaid_count": sum(1 for i in counted if not i.paid),
         "changed_count": sum(1 for i in counted if i.changed),
         "settle_changed_count": sum(1 for i in counted if i.settle_changes),
         "settle_amount": sum((i.amount for i in pending), ZERO),
         "settle_count": len(pending),
         "prior_settled_count": len(prior),
-        "prior_settled_amount": sum((i.amount for i in prior), ZERO),
+        "prior_settled_amount": prior_settled_amount,
         "dealer_count": len({i.dealer.pk for i in items}),
         "item_count": len(items),
     }

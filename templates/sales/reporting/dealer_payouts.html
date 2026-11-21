@@ -48,7 +48,7 @@
       {% if totals.settle_count %}<a class="payout-summary__settle" href="?{% if selected.dealer %}dealer={{ selected.dealer }}&amp;{% endif %}status=settle">台數獎金待結算 {{ totals.settle_count }} 組 · ${{ totals.settle_amount|number_with_commas }}<small>結算後才算進未給付</small></a>{% endif %}
     </div>
     <dl class="payout-summary__facts">
-      <div><dt>已給付金額</dt><dd>${{ totals.paid_amount|number_with_commas }}</dd>{% if totals.prior_settled_count %}<small>另有匯入前已結清 {{ totals.prior_settled_count }} 項 · ${{ totals.prior_settled_amount|number_with_commas }}</small>{% endif %}</div>
+      <div><dt>已給付金額</dt><dd>${{ totals.paid_total_amount|number_with_commas }}</dd>{% if totals.prior_settled_count %}<small>含匯入前已結清 {{ totals.prior_settled_count }} 項 · ${{ totals.prior_settled_amount|number_with_commas }}</small>{% endif %}</div>
       <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if attention_count %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.settle_changed_count %}{% if totals.changed_count %} · {% endif %}結算後有變 {{ totals.settle_changed_count }}{% endif %}{% if orphans %}{% if totals.changed_count or totals.settle_changed_count %} · {% endif %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
       <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌，更早的 Excel 匯入單列為匯入前已結清</dd><small>傭金依領牌日、台數獎金依期間結束日、車行獎勵未確認領牌時依訂單日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
     </dl>

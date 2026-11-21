@@ -149,15 +149,51 @@ html.has-overview-open { overflow: hidden; }
 /* 完整頁面：工具列不需要抵銷面板內距。 */
 .order-overview-hero + .order-overview .order-overview__tools { margin: 0; padding: var(--space-3) 0; background: color-mix(in srgb, var(--paper) 92%, transparent); border-bottom: 0; top: 78px; }
 
+/* 手機版返回鍵：電腦版不顯示（用右上角 ×）。 */
+.order-overview-dialog__back { display: none; }
+
+/* T-267 手機版：全螢幕面板。頂端一列固定「← 返回」與複製／新分頁，避開瀏海與動態島（viewport-fit=cover）；
+   下面是姓名與單號，內容在下方捲動，頂端那列一直看得到。 */
 @media (max-width: 860px) {
-  .order-overview-dialog__head { padding: var(--space-4); flex-wrap: wrap; align-items: flex-start; }
-  .order-overview-dialog__head h2 { font-size: var(--text-xl); }
-  .order-overview-dialog__actions { width: 100%; }
-  .order-overview-dialog__actions .button { flex: 1; }
-  .order-overview-dialog__close { position: absolute; top: var(--space-3); right: var(--space-3); }
-  .order-overview-dialog__body { padding: 0 var(--space-4) var(--space-5); }
-  .order-overview__tools { margin: 0 calc(var(--space-4) * -1); padding: var(--space-3) var(--space-4); }
+  .order-overview-dialog { width: 100vw; }
+  .order-overview-dialog__sheet { border-left: 0; box-shadow: none; }
+  .order-overview-dialog__head {
+    display: grid; padding: calc(env(safe-area-inset-top) + var(--space-2)) var(--space-4) var(--space-3);
+    grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "back actions" "title title"; align-items: center; gap: var(--space-3);
+  }
+  .order-overview-dialog__head > div:not(.order-overview-dialog__actions) { grid-area: title; min-width: 0; }
+  .order-overview-dialog__head h2 { font-size: var(--text-xl); overflow-wrap: anywhere; }
+  .order-overview-dialog__back {
+    display: inline-flex; grid-area: back; min-width: 88px; min-height: var(--control-h); padding: 0 var(--space-4) 0 var(--space-3);
+    align-items: center; justify-content: center; gap: var(--space-2);
+    color: var(--ink); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-pill);
+    font: inherit; font-size: var(--text-sm-plus); font-weight: 800; white-space: nowrap; cursor: pointer;
+    transition: background var(--dur-2) var(--ease-out), transform var(--dur-1) var(--ease-out);
+  }
+  .order-overview-dialog__back span { font-size: var(--text-lg); line-height: 1; }
+  .order-overview-dialog__back:active { transform: scale(.97); background: var(--surface-tint); }
+  .order-overview-dialog__back:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+  .order-overview-dialog__actions { grid-area: actions; justify-content: flex-end; min-width: 0; }
+  .order-overview-dialog__actions .button { min-height: var(--control-h); padding-inline: var(--space-3); white-space: nowrap; }
+  .order-overview-dialog__close { display: none; }
+  .order-overview-dialog__body { padding: 0 var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom)); }
+  /* 頂端已有固定的返回列：搜尋與區塊跳轉跟著內容捲走，跳轉膠囊折行全部顯示，不做左右捲動藏字。 */
+  .order-overview__tools { position: static; margin: 0 calc(var(--space-4) * -1); padding: var(--space-3) var(--space-4); background: var(--paper); backdrop-filter: none; }
+  .order-overview__jump { flex-wrap: wrap; overflow: visible; }
+  .order-overview__jump a { display: inline-flex; min-height: 36px; align-items: center; }
+  .order-overview__grid { columns: auto; }
   .order-overview__row { grid-template-columns: 1fr; gap: 2px; }
+  .order-overview__card-head { flex-wrap: wrap; }
+  .order-overview__copy-section { min-height: var(--control-h); }
+  .order-overview__copy { min-height: var(--control-h); min-width: var(--control-h); justify-content: center; }
+}
+/* 明細表手機卡片：名稱與備註整列，金額、日期、方式兩兩一列的小格（欄名在上）。 */
+@media (max-width: 600px) {
+  .order-overview__table tr { padding-inline: var(--space-4); }
+  .order-overview__table td { padding: var(--space-2) 0; }
+  .order-overview__table td:is(:nth-child(2), :nth-child(3)) { grid-column: auto; }
+  .order-overview__table td:is(:first-child, [data-label="備註"]) { grid-column: 1 / -1; }
+  .order-overview__table td:first-child { font-size: var(--text-sm-plus); }
 }
 @media (prefers-reduced-motion: reduce) {
   .order-overview-dialog[open], .order-overview-dialog[open]::backdrop, .order-overview-dialog.is-closing, .order-overview-dialog.is-closing::backdrop,

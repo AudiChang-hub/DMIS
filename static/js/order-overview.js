@@ -5,6 +5,8 @@
   const body = dialog?.querySelector("[data-overview-body]");
   let lastTrigger = null;
   let loading = null;
+  let ownsHistory = false;
+  const phone = window.matchMedia("(max-width: 860px)");
 
   const statusFor = (node) => (node.closest("dialog") || document).querySelector("[data-overview-status]");
   const announce = (node, message) => {
@@ -153,13 +155,22 @@
     if (meta) meta.textContent = trigger.dataset.overviewMeta || "";
     const page = dialog.querySelector("[data-overview-dialog-page]");
     if (page) page.href = url;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+      // T-267：手機版總覽是全螢幕，返回手勢／返回鍵要關掉總覽、不離開頁面：開啟時多推一筆同網址的歷史。
+      if (phone.matches) {
+        history.pushState({ ...(history.state || {}), orderOverview: true }, "", location.href);
+        ownsHistory = true;
+      }
+    }
     document.documentElement.classList.add("has-overview-open");
     loading = load(url);
     dialog.dataset.url = url;
   };
   const close = () => {
     if (!dialog.open) return;
+    // 手機版按「← 返回」或 Esc：退回開啟前那一筆歷史，由下面的 popstate 收起面板。
+    if (ownsHistory) { history.back(); return; }
     dialog.classList.add("is-closing");
     const finish = () => {
       dialog.classList.remove("is-closing");
@@ -168,6 +179,14 @@
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
     else window.setTimeout(finish, 180);
   };
+
+  // 捕獲階段先處理：這次返回只是關總覽，不讓列表分頁（order-tabs.js）等其他 popstate 重新載入頁面。
+  window.addEventListener("popstate", (event) => {
+    if (!ownsHistory || !dialog.open) return;
+    ownsHistory = false;
+    event.stopImmediatePropagation();
+    close();
+  }, true);
 
   document.addEventListener("click", (event) => {
     const trigger = event.target.closest("[data-order-overview-open]");
@@ -181,6 +200,7 @@
   });
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("close", () => {
+    if (ownsHistory) { ownsHistory = false; history.back(); }  // 不是經由返回關掉的，也要收回多推的那一筆
     document.documentElement.classList.remove("has-overview-open");
     lastTrigger?.focus({ preventScroll: true });
   });

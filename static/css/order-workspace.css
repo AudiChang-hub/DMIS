@@ -316,8 +316,8 @@
     transition: border-color var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out);
   }
   .order-step-entry__text { display: grid; min-width: 0; line-height: 1.3; }
-  .order-step-entry__text small { overflow: hidden; color: var(--muted); font-size: var(--text-2xs); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-  .order-step-entry__text strong { overflow: hidden; color: var(--ink); font-size: var(--text-md, 1rem); font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+  .order-step-entry__text small { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; text-wrap: balance; } /* T-267：步驟名稱完整顯示，放不下換行（原本省略號） */
+  .order-step-entry__text strong { color: var(--ink); font-size: var(--text-md, 1rem); font-weight: 850; text-wrap: balance; }
   .order-step-entry__chevron { margin: calc(-1 * var(--space-1)) var(--space-1) 0 0; color: var(--ink-soft); }
   .order-step-entry[aria-expanded="true"] .order-step-entry__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
   .order-step-overview {
@@ -338,6 +338,11 @@
   .order-compact-bar__steps { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .order-step-entry, .order-step-overview, .order-step-entry__chevron { transition: none; } }
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  :is(.order-compact-bar__name, .order-compact-bar__recipient b) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .order-hero-note__text { display: block; overflow: visible; -webkit-line-clamp: none; }
+}
 /* T-251（使用者 2026-11-19）：手機版訂單頁頂端區塊已常駐客戶名稱、狀態與儲存狀態，頁首的大名稱列只留給讀屏
    （h1 仍是頁面標題、儲存狀態仍會播報），畫面上不再重複；名稱旁的備註便條照常顯示。編輯模式沒有 .order-hero，不受影響。 */
 @media (max-width: 860px) {

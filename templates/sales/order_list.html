@@ -137,6 +137,8 @@
 <dialog class="order-overview-dialog" aria-labelledby="order-overview-title" data-order-overview-dialog data-overview-shortcut="off">
   <div class="order-overview-dialog__sheet">
     <header class="order-overview-dialog__head">
+      {# T-267：手機版頂端固定的返回鍵（電腦版隱藏，用右上角 ×）。 #}
+      <button type="button" class="order-overview-dialog__back" data-overview-close aria-label="返回，關閉訂單總覽"><span aria-hidden="true">←</span>返回</button>
       <div>
         <p class="order-overview-dialog__eyebrow">訂單總覽・唯讀</p>
         <h2 id="order-overview-title" data-overview-dialog-title></h2>

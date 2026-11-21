@@ -30,8 +30,9 @@ def audit_financial_consistency(sample_limit=30):
         calculated = order.calculate_balance()
         if order.calculated_balance != calculated:
             report("balance_formula_mismatch", order, f"保存 {order.calculated_balance}／公式 {calculated}")
+        # Excel 匯入單＝已完成的歷史資料（T-276）：不比對存檔的收清旗標，不論存的是已收款或未收款。
         confirmed = payment_summary(order, payments)["settled"]
-        if profile.payment_confirmed != confirmed:
+        if not hasattr(order, "legacy_snapshot") and profile.payment_confirmed != confirmed:
             report("payment_confirmation_mismatch", order, "收清狀態不符逐筆收款")
         effective = effective_records(payments)
         for field, value in (("card_fee_income", sum(p.card_fee_charged for p in effective)),

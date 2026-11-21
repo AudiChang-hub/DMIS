@@ -106,11 +106,16 @@ class LegacySettledTests(FinanceLedgerTestBase):
         PaymentRecord.objects.filter(order=imported).first().save()
         self.assertTrue(self.profile(imported).payment_confirmed)
 
-    def test_audit_no_longer_flags_imported_orders_saved_as_confirmed(self):
-        self.pair(confirmed=True)
-        codes = [sample["code"] for sample in audit_financial_consistency(sample_limit=100)["samples"]
-                 if sample["code"] == "payment_confirmation_mismatch"]
-        self.assertEqual(len(codes), 1)  # 只剩系統單
+    def test_audit_never_flags_imported_orders_payment_confirmation(self):
+        """存檔不論是已收款（舊算法不符）還是未收款（新規則不符），匯入單都不列「收清狀態不符」，只剩系統單。"""
+        for saved in (True, False):
+            with self.subTest(saved=saved):
+                system, imported = self.pair(confirmed=saved)
+                flagged = {sample["order"] for sample in audit_financial_consistency(sample_limit=100)["samples"]
+                           if sample["code"] == "payment_confirmation_mismatch"}
+                self.assertNotIn(imported.number, flagged)
+                if saved:
+                    self.assertIn(system.number, flagged)  # 系統單存已收款、實際未收清，照舊列出
 
     # ── 收款：讀存檔旗標的篩選與報表 ──
 

@@ -61,6 +61,7 @@
   position: absolute; top: 8px; right: 8px; padding: 2px var(--space-2); color: var(--on-status);
   background: var(--blue); border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 900;
 }
+.holiday-calendar-names { display: none; } /* T-267：只在手機顯示（見 720px 以下） */
 .holiday-calendar-day strong {
   display: -webkit-box; overflow: hidden; margin-top: var(--space-1); font-size: var(--text-sm); line-height: 1.35;
   overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
@@ -117,7 +118,18 @@
   .holiday-calendar-day { min-height: 70px; padding: var(--space-2) var(--space-1); gap: 3px; }
   .holiday-calendar-day__number { font-size: var(--text-sm); }
   .holiday-calendar-day__today { top: 5px; right: 4px; padding: 1px var(--space-1); font-size: var(--text-2xs); }
-  .holiday-calendar-day strong { margin-top: 1px; font-size: var(--text-2xs); line-height: 1.25; -webkit-line-clamp: 2; }
+  /* T-267：格子只有約 33px 寬，假日名稱放不下（原本截成兩行「臺灣光復暨…」）；格子只留日期與來源記號，名稱在月曆下方整行列出。 */
+  .holiday-calendar-day strong { display: none; }
+  .holiday-calendar-names { display: grid; margin: var(--space-3) 0 0; padding: 0; gap: var(--space-2); list-style: none; }
+  .holiday-calendar-names li {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 2px var(--space-3);
+    padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--line-soft); border-left: 4px solid var(--amber); border-radius: var(--radius-sm);
+  }
+  .holiday-calendar-names li.is-official { border-left-color: var(--red); }
+  .holiday-calendar-names li.is-inactive { border-left-color: var(--muted); }
+  .holiday-calendar-names b { font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .holiday-calendar-names span { font-size: var(--text-sm); font-weight: 700; overflow-wrap: anywhere; }
+  .holiday-calendar-names small { grid-column: 2; color: var(--muted); font-size: var(--text-xs); }
   .holiday-calendar-day__source { font-size: var(--text-2xs); }
   .holiday-calendar-day__weekend,
   .holiday-calendar-day__workday { display: none; }

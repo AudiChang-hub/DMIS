@@ -132,6 +132,10 @@
           {% endfor %}
         {% endfor %}
       </div>
+      {# T-267：手機格子太窄（約 33px），假日名稱改在月曆下方整行列出，格子裡只留日期與來源記號；電腦版不顯示這份清單。 #}
+      {% if holidays %}<ul class="holiday-calendar-names" aria-hidden="true">
+        {% for holiday in holidays %}<li class="{% if not holiday.active %}is-inactive{% elif holiday.source == 'dgpa' %}is-official{% else %}is-manual{% endif %}"><b>{{ holiday.date|date:"n/j" }}（{{ holiday.date|date:"D" }}）</b><span>{{ holiday.name }}</span><small>{% if holiday.source == 'dgpa' %}官方{% else %}人工{% endif %}{% if not holiday.active %} · 不排除{% endif %}</small></li>{% endfor %}
+      </ul>{% endif %}
       {% endif %}
     </div>
 

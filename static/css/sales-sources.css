@@ -121,6 +121,6 @@
     left: 14px; width: auto; margin: 0; flex-wrap: wrap;
   }
   .holiday-gift-save-actions > div { width: 100%; }
-  .holiday-gift-save-actions .button { flex: 1; }
+  .holiday-gift-save-actions .button { flex: 1; white-space: nowrap; } /* T-267：「套用年節送禮名單」不拆兩行 */
   .holiday-gift-form { padding-bottom: 140px; }
 }

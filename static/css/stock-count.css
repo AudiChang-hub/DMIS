@@ -123,6 +123,8 @@
   .inventory-table.stock-count-table td::before, .inventory-table.stock-count-table th::before { display: none; content: none; }
   .inventory-table.stock-count-table .is-number { text-align: right; }
   .inventory-table.stock-count-table thead th.is-number, .inventory-table.stock-count-table td.is-number { width: 40px; }
+  .inventory-table.stock-count-table :is(th.is-number, td.is-number, .stock-qty-toggle) { white-space: nowrap; } /* T-267：數量「20」不拆成兩行；數字欄依內容加寬 */
+  .inventory-table.stock-count-table .stock-qty-toggle { padding-inline: var(--space-1); }
   .stock-model__head { padding: var(--space-2); }
   .stock-model__title { font-size: var(--text-base); }
   .stock-off-tag { display: table; margin: 2px 0 0; }

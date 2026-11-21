@@ -80,6 +80,8 @@
 @media (max-width: 600px) {
   .login-showcase { padding: var(--space-5) var(--space-4); }
   .login-showcase h1 { font-size: var(--text-3xl); }
+  .login-points li { padding: var(--space-3); gap: var(--space-2); }
+  .login-points strong { font-size: var(--text-base); white-space: nowrap; } /* T-267：三格並排時「選車看價」不拆成兩行 */
 }
 @media (prefers-reduced-motion: reduce) {
   .login-points li { animation: none; }

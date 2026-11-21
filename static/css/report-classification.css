@@ -85,6 +85,7 @@
   .classification-batch{position:static;box-shadow:none}
   .classification-batch [data-batch-count]{flex-basis:100%}
   .classification-batch select{flex:1;min-width:0}
+  .classification-batch .button{flex:1 1 100%} /* T-267：按鈕自成一列，下拉有足夠寬度顯示「請選擇類別」 */
   .classification-search input{max-width:none}
 }
 @media(prefers-reduced-motion:reduce){.classification-section>summary::after{transition:none}}

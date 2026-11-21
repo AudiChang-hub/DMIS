@@ -3,6 +3,9 @@
 - 應付項目每次即時計算，不另存應付帳；`DealerPayoutEntry` 只記勾選、給付當下快照與備註。
 - 一個應付項目一列：車行 × 訂單 × 項目（傭金、每個實物品項）；台數獎金每期 × 每家車行 × 每條規則一列。
 - 只列領牌日 `PAYOUT_START_DATE`（含）以後、已完成領牌的車行單；取消、例外結案（含退車）、刪除的單不列。
+  例外：Excel 匯入的車行單（T-275，使用者 2026-11-21 選 A）領牌日更早也列傭金，程式判定「匯入前已結清」：
+  不寫給付紀錄、不算未給付；使用者可個別「改回未給付」（這時才建立紀錄）。匯入單的傭金＝Excel 四欄加總
+  （`LEGACY_COMMISSION_FIELDS`），不重算。台數獎金、實物獎勵不放寬。
   例外：車行實物獎勵依訂單成立日預先觸發（T-176，使用者 2026-11-14），尚未確認領牌的單也列、也能勾已給付，
   判斷日改看訂單成立日。
 - 已給付後金額變了：不自動取消，標「金額有變」，由使用者「確認差額」。來源消失：列在「來源已不存在」。
@@ -29,6 +32,13 @@ from .payout_models import DealerPayoutEntry, DealerPayoutEvent
 # 使用者 2026-11-11：領牌日 2026-10-05（含）以後才列；之前多為 Excel 匯入的歷史單，推定已付清。
 PAYOUT_START_DATE = date(2026, 10, 5)
 ZERO = Decimal("0")
+# T-275：匯入單付給車行的錢＝Excel 這四欄加總（照原紀錄，不重算）；山葉、友善車行獎金「收入」是本店收入，不列。
+LEGACY_COMMISSION_FIELDS = (
+    ("dealer_commission_expense", "車行傭金"),
+    ("friendly_dealer_bonus_expense", "友善車行獎金"),
+    ("first_sale_bonus_expense", "首賣獎金"),
+    ("volume_bonus_expense", "台數獎金"),
+)
 EXCLUDED_STATUSES = ("draft", "cancel_refund_pending", "cancelled", "exception_closed")
 
 KIND_LABELS = dict(DealerPayoutEntry.Kind.choices)
@@ -38,6 +48,7 @@ STATUS_LABELS = OrderedDict((
     ("changed", "給付後金額有變"),
     ("settle", "待結算"),
     ("estimate", "預估"),
+    ("prior_settled", "匯入前已結清"),
 ))
 METHOD_LABELS = OrderedDict((("deduction", "抵扣應收"), ("separate", "另付")))
 
@@ -59,6 +70,8 @@ class PayoutItem:
     details: list = field(default_factory=list)
     reward_name: str = ""
     pre_triggered: bool = False
+    # T-275：領牌日早於 PAYOUT_START_DATE 的匯入車行單傭金；沒有給付紀錄時判定「匯入前已結清」。
+    imported_before_start: bool = False
     entry: DealerPayoutEntry | None = None
     # 台數獎金結算（T-203）：""＝不適用、"pending"＝期間已結束待結算、"settled"＝已結算。
     settle_state: str = ""
@@ -86,6 +99,15 @@ class PayoutItem:
         return (self.entry.paid_amount or ZERO) if self.paid and not self.is_quantity else ZERO
 
     @property
+    def prior_settled(self):
+        """匯入前已結清：程式規則，不寫資料；使用者改回未給付後（有給付紀錄）就照一般流程。"""
+        return self.imported_before_start and self.entry is None
+
+    @property
+    def settled(self):
+        return self.paid or self.prior_settled
+
+    @property
     def deduction(self):
         return self.deduction_amount > ZERO
 
@@ -95,17 +117,22 @@ class PayoutItem:
 
     @property
     def methods(self):
-        """抵扣與另付可能並存（分期車行單：傭金先抵應向車行收的費用，其餘另付，T-154）；篩選兩邊都列。"""
+        """抵扣與另付可能並存（分期車行單：傭金先抵應向車行收的費用，其餘另付，T-154）；篩選兩邊都列。
+        匯入前已結清的不屬於任何一種。"""
+        if self.prior_settled:
+            return ()
         if not self.deduction:
             return ("separate",)
         return ("deduction",) if not self.separate_amount else ("deduction", "separate")
 
     @property
     def method(self):
-        return self.methods[0]
+        return self.methods[0] if self.methods else "prior_settled"
 
     @property
     def method_label(self):
+        if self.prior_settled:
+            return STATUS_LABELS["prior_settled"]
         if len(self.methods) > 1:
             return f"抵扣 ${self.deduction_amount:,.0f}／另付 ${self.separate_amount:,.0f}"
         return METHOD_LABELS[self.method]
@@ -137,6 +164,8 @@ class PayoutItem:
     def status(self):
         if self.estimate:
             return "estimate"
+        if self.prior_settled:
+            return "prior_settled"
         if self.settle_state == "pending":
             return "settle"
         if self.changed:
@@ -168,14 +197,17 @@ class PayoutItem:
 def _payout_orders():
     from sales.models import SalesOrder
 
+    from django.db.models import Q
+
     return (
         SalesOrder.objects.filter(
+            Q(registration_date__gte=PAYOUT_START_DATE) | Q(legacy_snapshot__isnull=False),
             source_type=SalesOrder.SourceType.DEALER,
-            registration_date__gte=PAYOUT_START_DATE,
             registration_completed_at__isnull=False,
+            registration_date__isnull=False,
         )
         .exclude(status__in=EXCLUDED_STATUSES)
-        .select_related("source", "commission_recipient", "vehicle_model", "color", "operations")
+        .select_related("source", "commission_recipient", "vehicle_model", "color", "operations", "legacy_snapshot")
         .order_by("registration_date", "pk")
     )
 
@@ -211,6 +243,14 @@ def _bonus_in_commission(order, profile):
     return commission_volume_bonus(order, profile)
 
 
+def _legacy_commission(profile):
+    """匯入單付給車行的金額與組成（Excel 四欄，T-275）。"""
+    parts = [(label, getattr(profile, name) or ZERO) for name, label in LEGACY_COMMISSION_FIELDS]
+    parts = [(label, value) for label, value in parts if value]
+    text = "＋".join(f"{label} ${value:,.0f}" for label, value in parts)
+    return sum((value for _label, value in parts), ZERO), f"Excel：{text}" if text else ""
+
+
 def commission_items():
     items = []
     for order in _payout_orders():
@@ -218,7 +258,11 @@ def commission_items():
         dealer = order.effective_commission_recipient
         if profile is None or dealer is None:
             continue
-        amount = (profile.dealer_commission_expense or ZERO) - _bonus_in_commission(order, profile)
+        imported = hasattr(order, "legacy_snapshot")
+        if imported:
+            amount, breakdown = _legacy_commission(profile)
+        else:
+            amount, breakdown = (profile.dealer_commission_expense or ZERO) - _bonus_in_commission(order, profile), ""
         if amount <= ZERO:
             continue
         items.append(PayoutItem(
@@ -230,6 +274,8 @@ def commission_items():
             order=order,
             deduction_amount=deduction_amount(order, amount),
             day=order.registration_date,
+            period_label=breakdown,
+            imported_before_start=imported and order.registration_date < PAYOUT_START_DATE,
         ))
     return items
 
@@ -427,7 +473,7 @@ def summarize(items):
         group = dealers.setdefault(item.dealer.pk, {
             "dealer": item.dealer, "orders": OrderedDict(), "bonuses": [],
             "unpaid_amount": ZERO, "paid_amount": ZERO, "unpaid_goods": OrderedDict(), "count": 0, "attention": 0,
-            "settle_amount": ZERO, "settle_count": 0, "settle_changed": 0,
+            "settle_amount": ZERO, "settle_count": 0, "settle_changed": 0, "prior_settled_count": 0,
         })
         group["count"] += 1
         if item.kind == DealerPayoutEntry.Kind.VOLUME_BONUS:
@@ -440,6 +486,9 @@ def summarize(items):
         if item.pending_settle:
             group["settle_amount"] += item.amount
             group["settle_count"] += 1
+            continue
+        if item.prior_settled:
+            group["prior_settled_count"] += 1
             continue
         if item.changed:
             group["attention"] += 1
@@ -457,7 +506,7 @@ def summarize(items):
     for group in dealers.values():
         group["orders"] = list(group["orders"].values())
         for row in group["orders"]:
-            row["all_paid"] = all(item.paid for item in row["items"])
+            row["all_paid"] = all(item.settled for item in row["items"])
         group["unpaid_goods"] = [
             {"label": label, "unit": unit, "quantity": _quantity_text(quantity)}
             for (label, unit), quantity in group["unpaid_goods"].items()
@@ -467,8 +516,9 @@ def summarize(items):
 
 
 def totals(items):
-    counted = [item for item in items if not item.estimate and not item.pending_settle]
+    counted = [item for item in items if not item.estimate and not item.pending_settle and not item.prior_settled]
     pending = [item for item in items if item.pending_settle]
+    prior = [item for item in items if item.prior_settled]
     return {
         "unpaid_amount": sum((i.amount for i in counted if not i.paid and not i.is_quantity), ZERO),
         "paid_amount": sum((i.paid_snapshot_amount for i in counted), ZERO),
@@ -477,6 +527,8 @@ def totals(items):
         "settle_changed_count": sum(1 for i in counted if i.settle_changes),
         "settle_amount": sum((i.amount for i in pending), ZERO),
         "settle_count": len(pending),
+        "prior_settled_count": len(prior),
+        "prior_settled_amount": sum((i.amount for i in prior), ZERO),
         "dealer_count": len({i.dealer.pk for i in items}),
         "item_count": len(items),
     }
@@ -550,6 +602,13 @@ def set_paid(source_keys, paid, actor_name):
     items = [_require_item(key, items_by_key) for key in keys]
     changed = 0
     for item in sorted(items, key=lambda row: row.source_key):
+        if item.prior_settled:
+            # 匯入前已結清（T-275）：勾已給付不寫入；改回未給付才建立紀錄，之後照一般流程。
+            if not paid:
+                entry = _locked_entry(item)
+                _event(entry, DealerPayoutEvent.Action.UNPAID, actor_name, item=item)
+                changed += 1
+            continue
         if not paid and item.entry is None:
             continue
         entry = _locked_entry(item)
@@ -587,6 +646,8 @@ def save_note(source_key, note, actor_name):
         item = current_item(source_key)
         if item is None:
             raise ValidationError("這個項目已不在給付列表，請重新整理。")
+        if item.prior_settled:
+            raise ValidationError("匯入前已結清的項目不能加備註；確定其實沒付，請先改回未給付。")
         if not note:
             return False
         entry = _locked_entry(item)

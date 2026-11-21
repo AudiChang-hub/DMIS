@@ -63,6 +63,9 @@
 .payout-method { padding: 2px var(--space-2); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 650; }
 .payout-method--deduction { background: var(--teal-soft); color: var(--teal-ink); }
 .payout-method--separate { background: var(--blue-soft); color: var(--blue-ink); }
+/* T-275：Excel 匯入、10/05 前領牌的車行單，推定已結清 */
+.payout-method--prior_settled { background: var(--line-soft); color: var(--ink-soft); }
+.payout-item--prior_settled .payout-item__value { color: var(--muted); }
 
 /* 台數獎金和訂單列同欄對齊：左欄放標題，右欄放項目。 */
 .payout-bonuses { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: var(--stack-gap); padding: var(--space-4) var(--card-pad); border-top: 1px solid var(--line-soft); }

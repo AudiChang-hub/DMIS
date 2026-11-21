@@ -7,7 +7,7 @@ from .reader_layouts import display_header
 
 
 def summary_result(config, card, filters, *, full_list=False):
-    from .engine import (AGGREGATES, METRICS, MAX_GROUPS, base_query, display_dimension,
+    from .engine import (AGGREGATES, KEY_SORTERS, METRICS, MAX_GROUPS, base_query, display_dimension,
                          dimension_query, dimension_labels, dimension_label, encode_key,
                          format_value, group_limit, scope_labels, truncation_note)
 
@@ -37,6 +37,17 @@ def summary_result(config, card, filters, *, full_list=False):
     # T-245：時間類分類不套用顯示群數；CSV 取完整清單。上限 MAX_GROUPS 列。
     limit = group_limit(card, full_list)
     rows = list(grouped.order_by(*ordering, *fields[1:])[:MAX_GROUPS + 1])
+    # T-268：年齡層、車型＋顏色依分類本身的順序（穩定排序：先排次要欄，再排主要欄）。
+    if card["sort"] in ("key", "key_desc") and any(dimension in KEY_SORTERS for dimension in dimensions):
+        position = {}
+        for index, row in enumerate(rows):
+            position.setdefault(row[fields[0]], index)
+        if len(dimensions) == 2 and dimensions[1] in KEY_SORTERS:
+            rows.sort(key=lambda row: KEY_SORTERS[dimensions[1]](row[fields[1]]))
+        if dimensions[0] in KEY_SORTERS:
+            rows.sort(key=lambda row: KEY_SORTERS[dimensions[0]](row[fields[0]]), reverse=card["sort"] == "key_desc")
+        else:
+            rows.sort(key=lambda row: position[row[fields[0]]])
     over_max = len(rows) > MAX_GROUPS
     truncated = len(rows) > limit
     rows = rows[:limit]

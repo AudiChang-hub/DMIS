@@ -14,6 +14,7 @@ from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .demographics import DEMOGRAPHIC_DIMENSIONS, demographic_query
+from .combined_dimensions import family_color_expression, family_color_labels, family_color_sort_key
 from .reader_layouts import READER_LAYOUTS
 
 
@@ -28,6 +29,10 @@ DIMENSIONS = {
     "legacy_dealer": "原報表車行／平台名稱（比對用）",
 }
 DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
+# T-268／T-269：只新增鍵，既有維度與已存報表不變。
+DIMENSIONS.update({"family_color": "車型＋顏色"})
+# 依分類本身的順序排列（「分類順序」排序與細分系列的名稱排序用）；其餘維度照原本的鍵值／名稱排序。
+KEY_SORTERS = {"family_color": family_color_sort_key}
 
 # T-189：車行／平台名稱維度依報表＋圖卡固定的銷售來源顯示「車行」「平台」或「車行／平台」；鍵值與篩選參數不變。
 SCOPED_DEALER_LABELS = {frozenset({"車行"}): "車行", frozenset({"網路平台"}): "平台"}
@@ -390,6 +395,8 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
         return source_model_query(queryset).annotate(**{alias: motor_type_expression()})
     if dimension == "legacy_sales_source":
         return sales_source_query(queryset).annotate(**{alias: sales_source_expression()})
+    if dimension == "family_color":
+        return queryset.annotate(**{alias: family_color_expression()})
     if dimension == "color":
         # 同一廣告色依年式分開的車色（「盧卡綠（UC125D）」）統計時合併成同一色（T-228）。
         from .colors import report_color_expression
@@ -442,6 +449,8 @@ def dimension_labels(dimension, keys, queryset=None):
     if dimension == "color":
         from .colors import report_color_labels
         return report_color_labels(queryset if queryset is not None else SalesOrder.objects.all(), keys)
+    if dimension == "family_color":
+        return family_color_labels(queryset if queryset is not None else SalesOrder.objects.all(), keys)
     if dimension in ("source", "recipient"):
         return dict(SalesSource.objects.filter(pk__in=keys).values_list("pk", "name"))
     if dimension == "model":
@@ -472,7 +481,7 @@ def encode_key(raw):
 
 
 def decode_key(dimension, key):
-    if not isinstance(key, str) or len(key) > 202:
+    if not isinstance(key, str) or len(key) > (402 if dimension == "family_color" else 202):
         raise ValueError
     if key == "__none__":
         return None
@@ -561,6 +570,8 @@ def card_result(config, card, filters, *, full_list=False):
     if metric != "formula" and card["sort"] == "value_asc":
         grouped = grouped.order_by(metric, "report_key")
     rows = list(grouped[:MAX_GROUPS + 1])
+    if card["dimension"] in KEY_SORTERS and card["sort"] in ("key", "key_desc"):
+        rows.sort(key=lambda row: KEY_SORTERS[card["dimension"]](row["report_key"]), reverse=card["sort"] == "key_desc")
     if len(rows) > MAX_GROUPS and metric == "formula":
         raise ValidationError("自訂試算超過 200 個群組，請縮小期間或改用其他維度。")
     limit = group_limit(card, full_list)
@@ -604,6 +615,8 @@ def card_result(config, card, filters, *, full_list=False):
         all_series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None], queryset)
         if card.get("series_sort", "value") == "value":
             series_keys.sort(key=lambda key: series_totals[key], reverse=True)
+        elif card["series"] in KEY_SORTERS:
+            series_keys.sort(key=KEY_SORTERS[card["series"]], reverse=card["series_sort"] == "key_desc")
         else:
             series_keys.sort(key=lambda key: dimension_label(card["series"], key, all_series_labels), reverse=card["series_sort"] == "key_desc")
         other_series_keys = series_keys[card.get("series_limit", 200):]

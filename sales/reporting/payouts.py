@@ -72,6 +72,8 @@ class PayoutItem:
     pre_triggered: bool = False
     # T-275：領牌日早於 PAYOUT_START_DATE 的匯入車行單傭金；沒有給付紀錄時判定「匯入前已結清」。
     imported_before_start: bool = False
+    # Excel 匯入單（含匯入後有人修改的）：已給付後不標「給付後金額有變」（使用者 2026-11-21：「不需要再改」）。
+    imported: bool = False
     entry: DealerPayoutEntry | None = None
     # 台數獎金結算（T-203）：""＝不適用、"pending"＝期間已結束待結算、"settled"＝已結算。
     settle_state: str = ""
@@ -147,8 +149,8 @@ class PayoutItem:
 
     @property
     def changed(self):
-        """已給付後金額或數量變了。"""
-        if not self.paid:
+        """已給付後金額或數量變了；匯入單不標（照人員改過的值，不需要再改）。"""
+        if not self.paid or self.imported:
             return False
         if self.is_quantity:
             return self.entry.paid_quantity != self.quantity
@@ -276,6 +278,7 @@ def commission_items():
             day=order.registration_date,
             period_label=breakdown,
             imported_before_start=imported and order.registration_date < PAYOUT_START_DATE,
+            imported=imported,
         ))
     return items
 
@@ -308,7 +311,7 @@ def reward_items():
             quantity__gt=0,
         )
         .exclude(order__status__in=EXCLUDED_STATUSES)
-        .select_related("order", "order__vehicle_model", "order__color", "dealer")
+        .select_related("order", "order__vehicle_model", "order__color", "order__legacy_snapshot", "dealer")
         .order_by("order__registration_date", "order__established_on", "order_id", "campaign_id", "id")
     )
     items = OrderedDict()
@@ -330,6 +333,7 @@ def reward_items():
             period_label=f"{line.campaign_name}・依訂單日，待領牌確認" if early else line.campaign_name,
             reward_name=line.name,
             pre_triggered=early,
+            imported=hasattr(line.order, "legacy_snapshot"),
         )
     return list(items.values())
 

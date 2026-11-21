@@ -166,3 +166,56 @@ class LegacyPayoutViewTests(LegacyPayoutBase):
         self.client.post(reverse("dealer_payout_update"), {"action": "unpaid", "key": KEY.format(order.pk)})
         self.assertFalse(DealerPayoutEntry.objects.get(source_key=KEY.format(order.pk)).paid)
         self.assertEqual(payouts.current_item(KEY.format(order.pk)).status, "unpaid")
+
+
+class LegacyPayoutEditedAndPaidTests(LegacyPayoutBase):
+    """使用者 2026-11-21：「Excel 匯入已修改」的單同樣算已完成，金額照人員改過的值；匯入單已給付後
+    「不要標成給付後金額有變，不需要再改」（10-05 前後都一樣）。"""
+
+    def edit(self, order, **fields):
+        """模擬人員修改：寫一筆使用者修改事件，並改財務欄位（營運資料目前的值）。"""
+        from sales.models import OrderEvent
+        from sales.services.operations_sync import sync_order_operations
+        from sales.services.order_origin import IMPORTED_EDITED, current_order_origin
+
+        OrderEvent.objects.create(order=order, event_type="operations_updated", actor_name="Staffc",
+                                  description="修改營運資料（1 個欄位）")
+        OrderOperationsProfile.objects.filter(order=order).update(**fields)
+        sync_order_operations(order.pk)  # 系統不重算、不覆蓋人員改過的值
+        order = SalesOrder.objects.get(pk=order.pk)
+        self.assertEqual(current_order_origin(order).key, IMPORTED_EDITED)
+        return order
+
+    def test_edited_imported_order_uses_current_values_not_snapshot(self):
+        for day, status in ((BEFORE, "prior_settled"), (AFTER, "unpaid")):
+            with self.subTest(day=day):
+                order = self.edit(self.imported(day=day), dealer_commission_expense=2500)
+                item = payouts.current_item(KEY.format(order.pk))
+                self.assertEqual(item.amount, Decimal("6700"))  # 2500＋3000＋1000＋200
+                self.assertEqual(item.status, status)
+                self.assertIn("車行傭金 $2,500", item.period_label)
+
+    def test_paid_imported_order_never_shows_changed_after_amount_edit(self):
+        for day in (BEFORE, AFTER):
+            with self.subTest(day=day):
+                order = self.imported(day=day)
+                key = KEY.format(order.pk)
+                if day == BEFORE:
+                    payouts.set_paid([key], False, "staffb")  # 改回未給付才有紀錄
+                self.assertEqual(payouts.set_paid([key], True, "staffb"), 1)
+                self.edit(order, friendly_dealer_bonus_expense=0)
+                item = payouts.current_item(key)
+                self.assertEqual(item.amount, Decimal("3200"))
+                self.assertFalse(item.changed)
+                self.assertIsNone(item.difference)
+                self.assertEqual(item.status, "paid")
+                self.assertEqual(item.paid_snapshot_amount, Decimal("6200"))
+                self.assertNotIn(key, [i.source_key for i in payouts.filter_items(payouts.collect_items(),
+                                                                                   status="changed")])
+
+    def test_paid_system_order_still_shows_changed(self):
+        order = self.registered(day=AFTER)
+        key = KEY.format(order.pk)
+        self.assertEqual(payouts.set_paid([key], True, "staffb"), 1)
+        OrderOperationsProfile.objects.filter(order=order).update(dealer_commission_expense=999)
+        self.assertEqual(payouts.current_item(key).status, "changed")

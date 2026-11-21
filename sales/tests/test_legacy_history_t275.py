@@ -112,6 +112,29 @@ class LegacyHistoryTests(FinanceLedgerTestBase):
         self.assertIn((system.pk, "registration_documents"), kinds)
         self.assertFalse({pk for pk, _kind in kinds} & {imported.pk})
 
+    # ── Excel 匯入已修改（使用者 2026-11-21：匯入後有人改過也算已完成，處理同其他匯入單）──
+
+    def test_edited_imported_orders_are_still_settled_history(self):
+        from sales.models import OrderEvent
+        from sales.services.order_origin import IMPORTED_EDITED, current_order_origin
+
+        owing = {"expected_amount": 500, "received_amount": 100, "confirmed": True}
+        system, edited = self.pair("completed", owing, source_type="dealer", source=self.dealer)
+        OrderEvent.objects.create(order=edited, event_type="updated", actor_name="Staffc",
+                                  description="修改訂單（2 個項目）")
+        self.assertEqual(current_order_origin(SalesOrder.objects.get(pk=edited.pk)).key, IMPORTED_EDITED)
+        SalesOrder.all_objects.filter(pk__in=[system.pk, edited.pk]).update(
+            delivered_at=timezone.now() - timedelta(days=40))
+        for risk in MONEY_RISKS:
+            self.assertNotIn(edited.pk, self.ids(risk), risk)
+        self.assertIn(system.pk, self.ids("unsettled_delivered"))
+        marks = {o.pk: o.unsettled_due for o in mark_unsettled(list(SalesOrder.objects.filter(
+            pk__in=[system.pk, edited.pk])))}
+        self.assertIsNone(marks[edited.pk])
+        self.assertNotIn(edited.pk, {item["order"].pk for item in build_dealer_reminders(self.today)})
+        money = operations_cockpit.build("month", self.today)["money"]
+        self.assertEqual(money["unsettled_count"], 1)
+
     # ── 不適用範圍：payment_summary 不變 ──
 
     def test_payment_summary_of_imported_order_is_unchanged(self):

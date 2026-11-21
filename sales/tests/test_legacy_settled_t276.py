@@ -5,20 +5,23 @@
   應收、尾款、legacy_settled 與統計不變。進行中的匯入單仍依實收判斷。
 - 補助：匯入單不追蹤補助缺件（_subsidy_action、_subsidy_step、訂單頁 subsidy_missing），不預設打開補助分頁。
 - 訂單匯出：「確認收款」「分期公司確認匯款」匯入單輸出「是」。
+- 「Excel 匯入已修改」（匯入後有人改過，order_origin）比照匯入單；金額用人員改過的值，系統不重算、不覆蓋。
 每一項都配一張同條件的系統單，證明系統單行為不變。
 """
 from decimal import Decimal
 
 from django.urls import reverse
 
-from sales.models import (LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot, OrderOperationsProfile,
+from sales.models import (LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot, OrderEvent, OrderOperationsProfile,
                           PaymentRecord, SalesOrder, payment_ledger_maintenance)
 from sales.order_exchange.columns import COLUMN_BY_KEY
 from sales.reporting.records import record_cells, record_queryset
 from sales.services.financial_audit import audit_financial_consistency
 from sales.services.operations_sync import payment_confirmation_changes
 from sales.services.order_filters import filter_order_analysis
+from sales.services.operations_sync import sync_order_operations
 from sales.services.order_next_actions import build_order_next_actions
+from sales.services.order_origin import IMPORTED_EDITED, current_order_origin
 from sales.services.order_steps import _subsidy_step
 from sales.services.order_workspace import receipt_status
 from sales.services.payment_summary import payment_summary
@@ -184,3 +187,47 @@ class LegacySettledTests(FinanceLedgerTestBase):
             getter = COLUMN_BY_KEY[key].getter
             self.assertIs(getter(imported), True, key)
             self.assertIs(getter(system), False, key)
+
+    # ── Excel 匯入已修改（使用者 2026-11-21 補充）──
+
+    def edited(self, **kwargs):
+        _system, imported = self.pair(**kwargs)
+        OrderEvent.objects.create(order=imported, event_type="operations_updated", actor_name="Staffc",
+                                  description="修改收支（2 個欄位）")
+        imported = SalesOrder.objects.get(pk=imported.pk)
+        self.assertEqual(current_order_origin(imported).key, IMPORTED_EDITED)
+        return imported
+
+    def test_edited_imported_order_is_settled_like_other_imports(self):
+        order = self.edited(payment_type="installment", is_trade_in_subsidy=True, confirmed=False)
+        self.assertTrue(payment_summary(order)["settled"])
+        self.assertTrue(receipt_status(order, payment_summary(order))["settled"])
+        rows = SalesOrder.objects.filter(pk=order.pk)
+        self.assertFalse(filter_order_analysis(rows, {"payment_status": "pending"}).exists())
+        self.assertEqual(record_cells(order, ["payment_confirmed"])[0]["value"], "已收款")
+        for key in ("payment_confirmed", "installment_transfer_confirmed"):
+            self.assertIs(COLUMN_BY_KEY[key].getter(order), True, key)
+        self.assertEqual(_subsidy_step(order), ("done", "匯入前已處理"))
+        self.assertNotIn("subsidy", self.action_keys(order))
+
+    def test_edited_imported_order_keeps_staff_amounts(self):
+        order = self.edited(confirmed=True)
+        OrderOperationsProfile.objects.filter(order=order).update(
+            vehicle_cost=Decimal("55555"), registration_tax_expense=Decimal("999"), agency_fee_income=Decimal("321"))
+        # 人員補登一筆實收（已確認的收款不能直接改，要沖銷；補登是人員修改匯入單收款的路徑）。
+        PaymentRecord.objects.create(order=order, item_name="補收", received_amount=Decimal("2000"),
+                                     receipt_kind="customer", confirmed=True, payment_method="現金")
+        order = SalesOrder.objects.get(pk=order.pk)
+        order.owner_phone = "0922333444"
+        order.save()
+        sync_order_operations(order.pk, update_receivables=True)
+        profile = self.profile(order)
+        self.assertEqual((profile.vehicle_cost, profile.registration_tax_expense, profile.agency_fee_income),
+                         (Decimal("55555"), Decimal("999"), Decimal("321")))
+        receipt = PaymentRecord.objects.get(order=order, system_key="legacy_cash")
+        self.assertEqual((receipt.expected_amount, receipt.received_amount), (Decimal("0"), Decimal("70000")))
+        summary = payment_summary(SalesOrder.objects.get(pk=order.pk))
+        self.assertEqual((summary["customer_expected"], summary["customer_received"], summary["customer_due"]),
+                         (Decimal("0"), Decimal("72000"), Decimal("0")))
+        self.assertTrue(summary["settled"])
+        self.assertTrue(profile.payment_confirmed)

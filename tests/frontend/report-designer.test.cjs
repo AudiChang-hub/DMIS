@@ -44,3 +44,15 @@ test('T-268 人口分析堆疊段落：style.backgroundColor 讀不到 var() 簡
   assert.equal(reportAnalysisStackColor('黑（消光）', 'var(--chart-s2)', undefined, '', false), 'var(--chart-s2)');
   assert.equal(reportAnalysisStackColor('黑（消光）', '', undefined, '', false), 'var(--chart-s1)');
 });
+test('T-268 車型＋顏色橫條標籤：放得下就一行，放不下在「 · 」處換行、單段太長再逐字換行，不加省略號', () => {
+  const {reportWrapLabel} = require('../../static/js/report-interactions.js');
+  assert.deepEqual(reportWrapLabel('Fun · 白 EW1', 160), ['Fun · 白 EW1']);
+  assert.deepEqual(reportWrapLabel('New NEX 125 · 白 RB5／W13', 100), ['New NEX 125 ·', '白 RB5／W13']);
+  const long = reportWrapLabel('Saluto 125 · 盧卡綠 N34／T94／Q11／Z22', 90);
+  const squash = text => text.replace(/\s+/g, '');
+  assert.equal(squash(long.join(' ')), squash('Saluto 125 · 盧卡綠 N34／T94／Q11／Z22'));  // 只在空白處斷行，文字不少
+  // 優先在空白處換行，不把 125 拆成「12」「5」。
+  assert.ok(reportWrapLabel('New NEX 125 · 白', 70).every(line => !/12$/.test(line)));
+  assert.ok(long.length >= 3);
+  assert.ok(long.every(line => !line.includes('…')));
+});

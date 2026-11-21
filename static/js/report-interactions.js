@@ -62,7 +62,7 @@ function reportDateParts(label) {
 }
 /* 堆疊圖（T-182）：依卡片實際寬度繪製，不再固定 740px 再撐出橫向捲動。
    月／年資料且卡片夠寬時畫直條（時間由左到右），其餘畫橫條；字級 12–13px，直條只標最高與最新的數字。 */
-function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false, colorOf, attach}) {
+function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false, colorOf, attach, wrapLabels = false}) {
   const ns = 'http://www.w3.org/2000/svg', doc = chart.ownerDocument, svg = doc.createElementNS(ns, 'svg');
   const box = chart.getBoundingClientRect(), style = getComputedStyle(chart);
   const inner = box.width - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0) - parseFloat(style.borderLeftWidth || 0) - parseFloat(style.borderRightWidth || 0);
@@ -123,11 +123,18 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
     });
     svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 40}`);
   } else {
-    const labelWidth = Math.round(interactiveSegments ? Math.min(180, width * .34) : Math.min(96, width * .26));
-    const valueWidth = 52, top = 4, rowHeight = 30, barHeight = 18, plotWidth = width - labelWidth - valueWidth - 12;
-    const bottom = top + rowHeight * order.length;
+    // T-268 wrapLabels 在窄卡片（手機）把名稱放在橫條上方，橫條用滿整行寬度。
+    const above = wrapLabels && width < 480;
+    const labelWidth = above ? 0 : Math.round(wrapLabels ? Math.min(260, width * .34) : interactiveSegments ? Math.min(180, width * .34) : Math.min(96, width * .26));
+    const valueWidth = 52, top = 4, barHeight = 18, plotWidth = width - labelWidth - valueWidth - 12, lineHeight = 15;
     // 估算字寬（中文約 13px、英數約 7.5px），超出標籤欄才截斷並保留完整名稱於提示。
     const fit = text => { let used = 0, out = ''; for (const ch of text) { used += ch.codePointAt(0) > 255 ? 13 : 7.5; if (used > labelWidth - 12) return out.slice(0, -1) + '…'; out += ch; } return out; };
+    // T-268 wrapLabels：完整顯示、不截斷（車型＋顏色），放不下就換行，該列跟著加高；其餘圖表照舊一行。
+    const lines = item => wrapLabels ? reportWrapLabel(item.label, above ? width - 8 : labelWidth - 12) : [fit(item.label)];
+    const labelLines = order.map(lines);
+    const rowHeights = labelLines.map(parts => above ? parts.length * lineHeight + 34 : Math.max(30, parts.length * lineHeight + 10));
+    const rowTops = rowHeights.map((_, index) => top + rowHeights.slice(0, index).reduce((sum, height) => sum + height, 0));
+    const bottom = top + rowHeights.reduce((sum, height) => sum + height, 0);
     const steps = plotWidth < 260 ? 2 : 4; // 窄卡片只留 0、中間、最大三個刻度，數字不擠在一起。
     for (let index = 0; index <= steps; index++) {
       const x = labelWidth + plotWidth * index / steps;
@@ -135,21 +142,31 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
       element('text', {x, y:bottom + 18, 'text-anchor':index === 0 ? 'start' : index === steps ? 'end' : 'middle', class:'report-plot-tick'}, tick(maximum * index / steps));
     }
     order.forEach((item, index) => {
-      const y = top + index * rowHeight;
-      const short = fit(item.label);
-      const name = element('text', {x:labelWidth - 10, y:y + rowHeight / 2 + 4, 'text-anchor':'end', class:'report-plot-label'}, short);
-      if (short !== item.label) { const title = doc.createElementNS(ns, 'title'); title.textContent = item.label; name.append(title); }
+      const y = rowTops[index], rowHeight = rowHeights[index], parts = labelLines[index];
+      const short = parts.join('');
+      const labelX = above ? 2 : labelWidth - 10, labelBand = parts.length * lineHeight + 6;
+      // 名稱在上方時：名稱一行（或數行）＋其下橫條；名稱在左側時：名稱與橫條垂直置中。
+      const barY = above ? y + labelBand + 2 : y + (rowHeight - barHeight) / 2;
+      const name = element('text', {x:labelX, y:above ? y + lineHeight : y + rowHeight / 2 + 4 - (parts.length - 1) * lineHeight / 2, 'text-anchor':above ? 'start' : 'end', class:'report-plot-label'}, parts.length > 1 ? undefined : short);
+      // 名稱在上方時會跨過格線：描一圈卡片底色，文字不被線切過。
+      if (above) Object.entries({'paint-order':'stroke', stroke:'var(--surface)', 'stroke-width':'4', 'stroke-linejoin':'round'}).forEach(([key, value]) => name.setAttribute(key, value));
+      if (parts.length > 1) parts.forEach((part, line) => {
+        const span = doc.createElementNS(ns, 'tspan'); span.setAttribute('x', String(labelX)); span.setAttribute('dy', line ? String(lineHeight) : '0');
+        span.textContent = part; name.append(span);
+      });
+      if (!wrapLabels && short !== item.label) { const title = doc.createElementNS(ns, 'title'); title.textContent = item.label; name.append(title); }
       let offset = 0;
       item.group.querySelectorAll('[data-stack-segment]').forEach(segment => {
         const value = Math.max(0, Number(segment.dataset.pointValue || 0)), w = value / maximum * plotWidth;
         if (!w) return;
-        const rect = element('rect', {x:labelWidth + offset, y:y + (rowHeight - barHeight) / 2, width:w, height:barHeight, fill:colorOf(segment.dataset.seriesLabel, segment.style.backgroundColor), class:'report-plot-segment'});
+        const rect = element('rect', {x:labelWidth + offset, y:barY, width:w, height:barHeight, fill:colorOf(segment.dataset.seriesLabel, segment.style.backgroundColor), class:'report-plot-segment'});
         if (interactiveSegments) attach(rect, segment); else rect.setAttribute('aria-hidden', 'true');
         offset += w;
       });
-      element('text', {x:labelWidth + offset + 8, y:y + rowHeight / 2 + 4, class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
+      element('text', {x:labelWidth + offset + 8, y:barY + barHeight / 2 + 4, class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
       // 整列包含短小系列與空白處，滑鼠提示及點選皆使用該分類，不誤變為分類加系列。
-      const hit = element('rect', {x:interactiveSegments ? 0 : labelWidth, y:y + 1, width:interactiveSegments ? labelWidth - 5 : plotWidth, height:rowHeight - 2, fill:'transparent'});
+      const hit = above && interactiveSegments ? element('rect', {x:0, y:y + 1, width, height:labelBand, fill:'transparent'})
+        : element('rect', {x:interactiveSegments ? 0 : labelWidth, y:y + 1, width:interactiveSegments ? labelWidth - 5 : plotWidth, height:rowHeight - 2, fill:'transparent'});
       hit.classList.add('report-month-target'); attach(hit, item.row);
     });
     svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 26}`);
@@ -160,6 +177,27 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
   node.setAttribute('role', 'region'); node.setAttribute('aria-label', `${chart.querySelector('h2').textContent}，可左右捲動`);
   node.append(svg);
   return {svg, columns, node};
+}
+/* 依估算字寬把標籤拆成數行、不加省略號：先在「 · 」處分段，單段仍太長再逐字換行。 */
+function reportWrapLabel(text, maxWidth) {
+  const width = ch => ch.codePointAt(0) > 255 ? 13 : 7.5;
+  if ([...text].reduce((sum, ch) => sum + width(ch), 0) <= maxWidth) return [text];
+  const out = [];
+  text.split(' · ').forEach((part, index, all) => {
+    let line = '', used = 0;
+    for (const ch of part + (index < all.length - 1 ? ' ·' : '')) {
+      if (used + width(ch) > maxWidth && line) {
+        // 優先在空白處換行，不把英數字（例如 125）從中間拆開。
+        const cut = line.lastIndexOf(' ');
+        const rest = cut > 0 ? line.slice(cut + 1) : '';
+        out.push(cut > 0 ? line.slice(0, cut) : line);
+        line = rest; used = [...rest].reduce((sum, item) => sum + width(item), 0);
+      }
+      line += ch; used += width(ch);
+    }
+    if (line) out.push(line);
+  });
+  return out.length ? out : [text];
 }
 function reportFraction(value, total) {
   if (!Number.isFinite(Number(value)) || !Number.isFinite(Number(total)) || Number(total) <= 0) return 0;
@@ -300,7 +338,7 @@ function reportDetailReturnTarget(trigger, root) {
   }
   return root.querySelector(".report-row-selected a") || root.querySelector("[data-report-exploration]");
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
+if (typeof module !== "undefined" && module.exports) module.exports = {reportWrapLabel, reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
 if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError, reportMultiSummary, reportDetailTrigger, reportDetailReturnTarget});
 function initReportVisuals(root) {
   "use strict";

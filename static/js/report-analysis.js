@@ -36,7 +36,7 @@ function renderReportAnalysis(chart, attach) {
   const {svg, node} = reportStackPlot(chart, groups, rows, {
     interactiveSegments: stacked,
     colorOf: (label, fallback) => reportAnalysisStackColor(label, fallback, seriesColors.get(label), chart.dataset.palette, stacked),
-    attach,
+    attach, wrapLabels: chart.dataset.dimension === 'family_color',
   });
   svg.classList.add('report-analysis-plot');
   const table = chart.querySelector('.report-table-wrap'); table.before(node); if (node !== svg) node.scrollLeft = node.scrollWidth; table.hidden = true;

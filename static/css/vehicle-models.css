@@ -223,7 +223,7 @@
   .master-model-table .vm-year-cell > strong { flex-wrap: wrap; row-gap: var(--space-1); }
   .master-model-table .color-peek { max-width: none; }
   .vehicle-brand-group .master-model-table .vm-color-cell { min-width: 0; }
-  .master-model-table td span.color-peek__names { -webkit-line-clamp: 3; line-clamp: 3; }
+  .master-model-table td span.color-peek__names { display: block; overflow: visible; -webkit-line-clamp: none; line-clamp: none; } /* T-267：車色全部列出，不截成三行 */
   .master-model-table .vehicle-model-row-actions .button.small { min-height: 36px; padding: 0 var(--space-3); }
   .master-model-section .section-heading { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
 }
@@ -348,4 +348,10 @@
 .vehicle-model-catalog__toolbar .vm-photo-board-link__icon{display:grid;width:28px;height:28px;place-items:center;border-radius:50%;background:var(--surface-subtle);color:var(--forest)}
 @media(max-width:700px) {
   .vehicle-model-catalog__toolbar:has(.vm-photo-board-link){flex-wrap:wrap}
+}
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .vehicle-model-correction__summary-action { flex-shrink: 0; white-space: nowrap; } /* 「資料修正」不拆兩行 */
+  :is(.vehicle-brand-group__identity strong, .master-model-table .vm-reward-cell small) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 }

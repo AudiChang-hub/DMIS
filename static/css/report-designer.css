@@ -150,3 +150,8 @@ body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .repor
   [data-report-editor] .report-savebar .report-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)}
 }
 @media(prefers-reduced-motion:reduce){.designer-toolbar__status[data-state=busy]::before{animation:none}.designer-title-input{transition:none}}
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .designer-chip__value { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}

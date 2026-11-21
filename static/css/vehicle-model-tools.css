@@ -454,7 +454,7 @@
   .model-chip__detail { max-width: none; }
   .model-copy-preview tbody tr, .model-batch-preview tbody tr { grid-template-columns: minmax(0, 1fr); }
   .model-copy-preview td, .model-batch-preview td { grid-column: 1 / -1; align-items: start; }
-  .model-copy-preview td > :is(.model-chip, .model-chip__detail, .model-copy-extras) { grid-column: 2; justify-self: start; align-self: start; margin-top: 0; }
+  .model-copy-preview td > :is(.model-chip, .model-chip__detail, .model-copy-extras) { grid-column: 1; justify-self: start; align-self: start; margin-top: 0; }
   .model-batch-preview tbody th[rowspan] { border-top: 0; }
   .inventory-table.model-installment-table { min-width: 0; }
   .model-installment-wrap { max-height: none; overflow: visible; }
@@ -468,9 +468,15 @@
   .model-reward-item__fields { grid-template-columns: minmax(0, 1fr) auto; }
   .model-reward-item__catalog { grid-column: 1 / -1; }
   .model-reward-table td[data-reward-outcome] { width: auto; }
-  .model-reward-table td > :is(.model-chip, .model-chip__detail, .model-reward-current) { grid-column: 2; justify-self: start; }
+  .model-reward-table td > :is(.model-chip, .model-chip__detail, .model-reward-current) { grid-column: 1; justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .model-tool-switch__item, .model-batch-row, .model-batch-cell__input, .model-reward-item { transition: none; }
+}
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .model-tool-fixed > .button { flex-shrink: 0; white-space: nowrap; } /* 「改選其他機種」不被左邊說明擠成兩行 */
+  :is(.model-tool-switch__item span, .model-installment-cond > summary) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 }

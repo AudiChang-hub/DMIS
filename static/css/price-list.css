@@ -172,16 +172,16 @@
     align-items: center; gap: 2px var(--space-3);
   }
   .price-distribution-card__identity { display: contents; }
-  .price-distribution-card__identity h2 { grid-area: name; display: flex; min-width: 0; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-base); line-height: 1.35; }
-  .price-distribution-card__identity h2 small { flex: 0 1 auto; max-width: 55%; margin: 0; overflow: hidden; font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
-  .price-distribution-card__identity h2 span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .price-distribution-card__identity p { grid-area: addr; overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
-  .price-distribution-card__meta { grid-area: meta; display: flex; min-width: 0; align-items: center; gap: var(--space-1); overflow: hidden; }
+  .price-distribution-card__identity h2 { grid-area: name; display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); margin: 0; font-size: var(--text-base); line-height: 1.35; }
+  .price-distribution-card__identity h2 small { flex: 0 1 auto; margin: 0; font-size: var(--text-xs); overflow-wrap: anywhere; } /* T-267：車行名稱、地址、價格表名稱完整顯示，放不下就換行（原本省略號） */
+  .price-distribution-card__identity h2 span { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .price-distribution-card__identity p { grid-area: addr; font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .price-distribution-card__meta { grid-area: meta; display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
   .price-distribution-card__brands { flex: none; flex-wrap: nowrap; gap: var(--space-1); }
   .price-distribution-card__assignment { display: contents; font-size: var(--text-xs); }
   .price-distribution-card__assignment b { flex: none; order: -1; margin: 0; padding: 1px var(--space-1); font-size: var(--text-xs); white-space: nowrap; }
   .price-distribution-card__assignment span { display: none; }
-  .price-distribution-card__assignment strong { flex: 0 1 auto; order: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--text-xs); font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+  .price-distribution-card__assignment strong { flex: 0 1 auto; order: 1; min-width: 0; overflow: visible; color: var(--muted); font-size: var(--text-xs); font-weight: 750; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .price-distribution-card__assignment.is-unassigned strong { color: var(--amber); }
   .price-distribution-note-toggle {
     display: inline-flex; grid-area: note; justify-self: end; min-height: 26px; padding: 0 var(--space-2); align-items: center; gap: 3px; white-space: nowrap;

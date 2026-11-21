@@ -102,7 +102,7 @@ class SettlementCostNarrowRowsTests(TestCase):
     def test_narrow_layout_gives_each_cell_a_full_row(self):
         css = APP_CSS.read_text(encoding="utf-8")
         rules = (".settlement-cost-table tr > td { grid-column: 1 / -1; }",
-                 ".settlement-cost-table td:not(.inventory-row-action) > * { grid-column: 2; }")
+                 ".settlement-cost-table td:not(.inventory-row-action) > * { grid-column: 1; }")
         for rule in rules:
             position = css.index(rule)
             media = css[:position].rindex("@media")

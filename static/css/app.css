@@ -2919,7 +2919,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .site-pagination { gap: var(--space-2); padding: var(--space-3) var(--space-3); }
   .site-pagination__status { order: -2; flex-basis: 100%; text-align: center; }
   .site-pagination__jump { order: -1; flex-basis: 100%; justify-content: center; }
-  .site-pagination__link { flex: 1 1 calc(25% - 8px); min-width: 0; padding-inline: var(--space-2); }
+  .site-pagination__link { flex: 1 1 calc(50% - var(--space-2) / 2); min-width: 0; min-height: var(--control-h); padding-inline: var(--space-2); white-space: nowrap; } /* T-267：四顆排一列時「第一頁」被拆成兩行，改兩兩一列 */
 }
 .inventory-photo-preview {
   display: grid; margin: var(--stack-gap-sm) var(--stack-gap) 0; padding: var(--inset-pad); grid-template-columns: 1fr 160px;
@@ -4216,6 +4216,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .master-filters.sales-source-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .master-filters.sales-source-filters .inventory-filter-actions > * { flex: 1; }
   .master-filters.sales-source-filters:has(.source-filter--line) .source-filter--gift { grid-column: 1 / -1; }
+  .master-filters.sales-source-filters:not(:has(.source-filter--line)) .source-filter--gift { grid-column: 1 / -1; } /* T-267：已停用頁沒有 LINE 篩選，桌面的 span 4 會在兩欄格線多撐出隱含欄，整排擠成一字一行 */
   .maintenance-grid { grid-template-columns: 1fr; }
   .account-summary { grid-template-columns: 1fr 1fr; }
   .account-filter { grid-template-columns: 1fr 1fr; }
@@ -4456,18 +4457,19 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   .inventory-table, .inventory-table tbody, .inventory-table tr, .inventory-table td { display: block; width: 100%; }
   .inventory-table tr { display: grid; padding: var(--space-3) var(--space-4); grid-template-columns: 1fr 1fr; gap: 0 var(--stack-gap-sm); border-bottom: 1px solid var(--line); }
   .inventory-table tbody tr:last-child { border-bottom: 0; }
-  .inventory-table td { display: grid; min-width: 0; padding: var(--space-2) 0; grid-template-columns: 92px minmax(0, 1fr); gap: var(--space-2); border: 0; }
-  .inventory-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+  /* T-267：欄名在上、內容在下。原本每格左邊固定 92px 欄名、卡片又分兩欄，半欄的內容只剩約 50px，名稱變成一個字一行。 */
+  .inventory-table td { display: grid; min-width: 0; padding: var(--space-2) 0; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 2px; border: 0; overflow-wrap: anywhere; }
+  .inventory-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--text-xs); font-weight: 800; line-height: 1.4; overflow-wrap: normal; }
   .inventory-table td:nth-child(2), .inventory-table td:nth-child(3), .inventory-row-action { grid-column: 1 / -1; }
   /* 現有庫存多一欄優先配車，改以欄位名稱維持整列；識別號碼不換行，半欄會與狀態重疊。 */
   .inventory-table td:is([data-label="車型／車色"], [data-label="識別號碼"]) { grid-column: 1 / -1; }
   .sales-source-table tr[data-source-row] { grid-template-columns: 1fr; }
   .sales-source-table tr[data-source-row] > td { grid-column: 1 / -1; }
-  .sales-source-table .source-identity__label, .sales-source-table .source-identity > span { grid-column: 2; }
+  .sales-source-table .source-identity__label, .sales-source-table .source-identity > span { grid-column: 1; }
   .sales-source-table .source-status-cell { align-items: flex-start; }
   /* 車輛結算成本（T-210）：半欄放不下日期與狀態開關，窄寬度每格整列，值的多行內容都靠右欄。 */
   .settlement-cost-table tr > td { grid-column: 1 / -1; }
-  .settlement-cost-table td:not(.inventory-row-action) > * { grid-column: 2; }
+  .settlement-cost-table td:not(.inventory-row-action) > * { grid-column: 1; }
   .source-active-toggle { min-height: 40px; }
   .inventory-table td[colspan] { display: block; grid-column: 1 / -1; }
   .inventory-table tbody th { display: block; grid-column: 1 / -1; padding: var(--space-2) 0; border: 0; }
@@ -5986,7 +5988,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
     display: flex; width: 100%; min-height: var(--control-h); padding-inline: var(--space-4); align-items: center; justify-content: space-between; gap: var(--space-3);
     color: var(--ink); text-decoration: none;
   }
-  .order-sort-open__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-sort-open__text { min-width: 0; padding-block: var(--space-2); text-align: start; text-wrap: pretty; } /* T-267：完整顯示目前排序，放不下就換行，不用省略號 */
   .order-sort-open .ui-chevron { margin-top: calc(-1 * var(--space-1)); }
   .order-sort-open[aria-expanded="true"] .ui-chevron { margin-top: var(--space-1); transform: rotate(225deg); }
   .order-sort-controls .order-sort-sheet:not([open]) { display: none; }
@@ -7074,4 +7076,49 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   :is(.hero-actions > .button, .hero-actions > form, .order-drilldown > a:not(.button), .order-drilldown > .button) { flex: 1 1 calc(50% - var(--space-3) / 2); min-height: var(--control-h); padding-inline: var(--space-3); justify-content: center; font-size: var(--text-sm-plus); white-space: nowrap; }
   .hero-actions > form > .button { width: 100%; min-height: var(--control-h); }
   .order-drilldown > strong { flex: 1 1 100%; }
+}
+
+/* ===== T-267：手機版文字不截斷、不怪斷行（只在 860px／600px 以下，電腦版不變） =====
+   原則：值要完整顯示，放不下就自然換行；不用省略號、行數限制或固定窄欄把字藏起來。 */
+@media (max-width: 860px) {
+  /* 全部訂單卡片：欄位改用整張卡寬（原本擠在姓名欄，右邊被狀態欄佔走，日期被拆成兩行、車行被省略）。
+     .order-main 用 display: contents 讓姓名、單號、欄位直接排進卡片格線：姓名與單號在左、狀態在右，欄位整列。 */
+  .order-row--detailed { grid-template-columns: 8px minmax(0, 1fr) auto 16px; row-gap: var(--space-1); }
+  .order-row--detailed > .order-main { display: contents; }
+  .order-row--detailed > .status-dot { grid-column: 1; grid-row: 1; }
+  .order-row--detailed .order-owner-line { grid-column: 2; grid-row: 1; }
+  .order-row--detailed .order-number-stack { grid-column: 2; grid-row: 2; align-self: start; }
+  .order-row--detailed > .order-row-status { grid-column: 3; grid-row: 1 / span 2; align-self: start; }
+  .order-row--detailed > .chevron { grid-column: 4; grid-row: 1; }
+  .order-row--detailed .order-facts { grid-column: 2 / -1; grid-row: 3; }
+  .order-row--detailed .search-match-list { grid-column: 2 / -1; grid-row: 4; }
+  .order-row--detailed > .order-row-footer { grid-row: 5; }
+  .order-row--detailed .order-fact :is(b, .order-machine-color) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .order-row--detailed .order-fact .order-vehicle-number { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; } /* 引擎號碼的空格照原樣，放不下才換行 */
+  .order-row--detailed .order-fact--note b { display: block; -webkit-line-clamp: none; }
+  .order-row--detailed .order-fact .compact-text-wide { display: block; overflow-wrap: anywhere; }
+  /* 單行欄位放不下：提示文字縮成 14px（欄位本身維持 16px，iOS 不放大）；選到或填好的內容由 phone-full-text.js 在下方補一行完整文字。 */
+  :is(input, textarea)::placeholder { font-size: var(--phone-placeholder-size, var(--text-sm)); }
+  input[style*="--phone-placeholder-size"]::placeholder { font-size: var(--phone-placeholder-size) !important; } /* phone-full-text.js 算出放得下的字級（最小 12px） */
+  .has-phone-caption { flex-wrap: wrap; }
+  :is(input, textarea).has-phone-hint::placeholder { color: transparent !important; } /* 整句提示已移到欄位下方 */
+  .is-phone-wide { flex: 1 1 100% !important; grid-column: 1 / -1; width: 100% !important; max-width: none !important; } /* 放不下的欄位先佔滿整列（各元件常寫死寬度，所以用 !important） */
+  .searchable-select:has(.is-phone-wide) { flex: 1 1 100%; grid-column: 1 / -1; width: 100%; }
+  .phone-full-text--hint { color: var(--muted); font-weight: 500; }
+  .phone-full-text { display: block; flex: 1 1 100%; grid-column: 1 / -1; margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-sm); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+  /* 標題列與摘要列：左邊是標題與說明、右邊是筆數或短按鈕。右邊維持一行，不被左邊的長說明擠成一字一行，說明自己換行。 */
+  :is(.section-title > :is(span, small, b, strong, a, .button):not(:first-child), .inventory-list-summary > strong) { flex-shrink: 0; white-space: nowrap; }
+  .order-row--detailed .order-fact--machine .compact-text-wide { color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; line-height: 1.35; } /* 機種與其他欄位的值同一種字 */
+  .order-row--detailed .order-fact .compact-text-narrow { display: none; }
+}
+@media (max-width: 600px) {
+  /* 表格卡片：欄名在上之後，勾選框靠左對齊欄名，不在整格置中。 */
+  .inventory-table td > label:has(> input[type=checkbox]) { justify-self: start; }
+}
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  :is(.recent-field-values__option, .account-menu__identity strong, .account-menu__identity small, .search-match mark, .order-origin__meta, .field-editor-badge, .upload-queue__name, .source-system-info dd, .home-link__label) { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+  .search-match mark { max-width: none; }
+  .source-list-note > span:not(.gift-not-required) { display: block; overflow: visible; -webkit-line-clamp: none; }
 }

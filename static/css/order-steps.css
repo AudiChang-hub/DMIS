@@ -391,3 +391,8 @@ html.has-step-sheet-open { overflow: hidden; }
 .order-step-sheet__overview:focus-visible, .order-step-sheet__item:focus-visible, .order-step-sheet__close:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
 @media (min-width: 860.02px) { .order-step-sheet { display: none; } }
 @media (prefers-reduced-motion: reduce) { .order-step-sheet[open], .order-step-sheet[open]::backdrop { animation: none; } }
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .ledger__hint { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}

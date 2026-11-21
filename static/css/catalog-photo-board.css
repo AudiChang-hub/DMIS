@@ -103,3 +103,10 @@
 @media(prefers-reduced-motion:reduce) {
   .photo-board__hero,.photo-cell__media,.photo-cell__media img,.photo-cell__link,.photo-cell__badge,.photo-board__ring-value,.photo-board__switch,.photo-board__switch::after{animation:none!important;transition:none!important}
 }
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .photo-board__toolbar.has-phone-caption { flex-wrap: wrap; }
+  .photo-board__toolbar > .phone-full-text { order: 3; margin-top: 0; } /* 搜尋提示排在搜尋框與「只看缺圖」那一列下面 */
+  .photo-cell__meta strong { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}

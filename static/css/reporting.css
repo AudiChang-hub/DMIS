@@ -534,3 +534,9 @@
 .report-inline-detail > .report-card-toolbar { position: sticky; top: calc(-1 * var(--card-pad)); z-index: 2; margin-top: calc(-1 * var(--card-pad)); margin-inline: calc(-1 * var(--card-pad)); padding-top: var(--card-pad); padding-inline: var(--card-pad); background: var(--surface); }
 /* T-245：期數多的時間圖改為水平捲動，不把直條或折線點擠在一起。 */
 .report-plot-scroll{max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-bottom:var(--space-2)}.report-plot-scroll>svg{flex:none}.report-plot-scroll:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px;border-radius:var(--radius-xs)}
+
+/* T-267：手機版完整顯示文字，放不下就換行；不用省略號或行數限制把字藏起來（電腦版不變）。 */
+@media (max-width: 860px) {
+  .report-kpi--text { grid-column: 1 / -1; } /* 文字型摘要（例：本店／未指定通路）佔整列，不在半格裡拆成兩行 */
+  .report-filter-chip__value { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+}

@@ -3,7 +3,7 @@
 {% load order_origin_tags %}
 {% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-vehicle-number.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-vehicle-number.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-delete-column.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
@@ -100,15 +100,17 @@
     </li>{% endfor %}</ol>
     </dialog>
   </div>
+  {# T-264（使用者 2026-11-21）：「刪除訂單」移到每列最右邊的獨立欄，離「訂單總覽」遠一點免得誤觸；沒有刪除權限就不出這一欄。 #}
+  {% can_access 'order_delete' as can_delete_orders %}
   <div class="inventory-table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
     <table class="inventory-table inventory-table--fit"><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}
       <th scope="col" aria-sort="{% if column.key == 'owner_name' and sort_number_column.rank == 1 %}{{ sort_number_column.aria_sort }}{% else %}{{ column.aria_sort }}{% endif %}">
         {% if column.locked %}<span>{{ column.label }}<small>未授權</small></span>{% else %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}<small>{% if column.rank %}{{ column.direction_label }} · 第 {{ column.rank }} 順位{% else %}點擊排序{% endif %}</small></a>{% endif %}
         {% if column.key == 'owner_name' %}<a class="order-number-sort" href="{{ sort_number_column.url }}" data-order-sort-key="number">訂單編號{% if sort_number_column.rank %} · {{ sort_number_column.direction_label }} · {{ sort_number_column.rank }}{% else %}排序{% endif %}</a>{% endif %}
       </th>
-    {% endif %}{% endfor %}</tr></thead>
+    {% endif %}{% endfor %}{% if can_delete_orders %}<th scope="col" class="order-table-delete">刪除</th>{% endif %}</tr></thead>
     <tbody>{% for order in orders %}<tr>
-      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}{% if_access 'order_overview' order.pk %}{% url 'order_overview' order.pk as overview_url %}<small><a class="button ghost small order-overview-link" href="{{ overview_url }}" data-order-overview-open="{{ overview_url }}" data-overview-title="{{ order.owner_name }}" data-overview-meta="{{ order.number }}" aria-haspopup="dialog" aria-label="訂單總覽 {{ order.number }}">訂單總覽</a></small>{% endif_access %}</td>
+      <td>{{ order.established_display }}{% if_access 'order_overview' order.pk %}{% url 'order_overview' order.pk as overview_url %}<small><a class="button ghost small order-overview-link" href="{{ overview_url }}" data-order-overview-open="{{ overview_url }}" data-overview-title="{{ order.owner_name }}" data-overview-meta="{{ order.number }}" aria-haspopup="dialog" aria-label="訂單總覽 {{ order.number }}">訂單總覽</a></small>{% endif_access %}</td>
       <td>{% include "sales/_registration_date_mark.html" %}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
       <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><span class="order-owner-line"><strong>{{ order.owner_name }}</strong>{% include "sales/_payment_chip.html" %}{% include "sales/_trade_in_chip.html" %}</span><span class="order-number-stack"><small>{{ order.number }}</small>{% order_origin_badge order %}</span></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
@@ -117,7 +119,8 @@
       <td>{{ order.source_display }}</td>
       <td>{% if order.is_closed and not order.deletion_requested_at %}<span class="status-pill status-completed">{{ order.display_status }}</span>{% if order.status != 'completed' %}<small class="order-registration-pending">領牌未完成</small>{% endif %}{% else %}<span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% endif %}{% if order.deletion_requested_at %}<small>原狀態：{{ order.get_status_display }}</small>{% endif %}{% if order.accepted_at %}<small class="muted">{{ order.accepted_name }} · {{ order.accepted_at|date:"m/d H:i" }}</small>{% endif %}{% if order.unsettled_due %}<small class="order-unsettled">款項未結清 ${{ order.unsettled_due|number_with_commas }}</small>{% endif %}{% if order.pending_subsidy_count %}<small class="order-subsidy-pending">補助待完成 {{ order.pending_subsidy_count }} 項</small>{% endif %}{% if not order.is_cancelled_sale and order.plate_fee_shortfall %}<small class="order-plate-shortfall" title="牌險費少於規費＋強制險，差額記為負的牌險手續費收入{% if not order.registration_date %}（規費依訂單日預估）{% endif %}">牌險少收</small>{% endif %}</td><td class="order-table-note">{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</td>
       <td>{% include 'sales/_order_profit.html' with profile=order.operations %}</td>
-    </tr>{% empty %}<tr><td colspan="10">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
+      {% if can_delete_orders %}<td class="order-table-delete">{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>{% endif %}
+    </tr>{% empty %}<tr><td colspan="{% if can_delete_orders %}11{% else %}10{% endif %}">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
   </div>
   <div class="order-list order-sort-cards">
   {% for order in orders %}

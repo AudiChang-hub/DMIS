@@ -50,7 +50,7 @@
     <dl class="payout-summary__facts">
       <div><dt>已給付金額</dt><dd>${{ totals.paid_amount|number_with_commas }}</dd>{% if totals.prior_settled_count %}<small>另有匯入前已結清 {{ totals.prior_settled_count }} 項 · ${{ totals.prior_settled_amount|number_with_commas }}</small>{% endif %}</div>
       <div class="{% if attention_count %}is-attention{% endif %}"><dt>待確認</dt><dd>{{ attention_count }}</dd><small>{% if attention_count %}{% if totals.changed_count %}金額有變 {{ totals.changed_count }}{% endif %}{% if totals.settle_changed_count %}{% if totals.changed_count %} · {% endif %}結算後有變 {{ totals.settle_changed_count }}{% endif %}{% if orphans %}{% if totals.changed_count or totals.settle_changed_count %} · {% endif %}來源已不存在 {{ orphans|length }}{% endif %}{% else %}沒有需要確認的項目{% endif %}</small></div>
-      <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌</dd><small>更早的 Excel 匯入單傭金列為匯入前已結清 · 傭金依領牌日、台數獎金依期間結束日、車行獎勵未確認領牌時依訂單日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
+      <div><dt>列入範圍</dt><dd class="payout-summary__range">{{ start_date|date:'Y/m/d' }} 起領牌，更早的 Excel 匯入單列為匯入前已結清</dd><small>傭金依領牌日、台數獎金依期間結束日、車行獎勵未確認領牌時依訂單日 · 查詢 {{ queried_at|date:'m/d H:i' }}</small></div>
     </dl>
   </section>
 
@@ -125,7 +125,7 @@
   {% empty %}
   <div class="empty-state payout-empty">
     <span class="empty-state__icon" aria-hidden="true">✓</span>
-    {% if filters_active %}<h3>沒有符合篩選的項目</h3><p>換個車行、日期或狀態，或按「清除」看全部。</p>{% else %}<h3>目前沒有要給車行的項目</h3><p>{{ start_date|date:'Y/m/d' }} 起領牌完成的車行單，有傭金或實物獎勵就會列在這裡；台數獎金在期間結束後列為待結算。</p>{% endif %}
+    {% if filters_active %}<h3>沒有符合篩選的項目</h3><p>換個車行、日期或狀態，或按「清除」看全部。</p>{% else %}<h3>目前沒有要給車行的項目</h3><p>{{ start_date|date:'Y/m/d' }} 起領牌完成的車行單，有傭金或實物獎勵就會列在這裡，更早的 Excel 匯入單列為匯入前已結清；台數獎金在期間結束後列為待結算。</p>{% endif %}
   </div>
   {% endfor %}
 </div>

@@ -121,6 +121,8 @@
   --chart-s7: #2b8cb5;
   --chart-s8: #a0612f;
   --chart-other: #8a8f98;
+  --chart-other-2: #6c717a;
+  --chart-other-3: #4b4f56;
   --select-chevron: var(--ink-soft);
   /* 操作色：--action-text 用於綠色文字與連結，深色主題改為淺色以維持對比。 */
   --action-text: #2f40e3;
@@ -215,6 +217,8 @@ html[data-theme="night-blue"] {
   --chart-s7: #2793b8;
   --chart-s8: #b0703a;
   --chart-other: #6b7380;
+  --chart-other-2: #8d95a2;
+  --chart-other-3: #b4bac4;
   --shadow-ink: #000000;
   --ink: #eef1f5;
   --muted: #a3acb8;
@@ -323,6 +327,8 @@ html[data-theme="night-blue"] {
     --chart-s7: #2793b8;
     --chart-s8: #b0703a;
     --chart-other: #6b7380;
+    --chart-other-2: #8d95a2;
+    --chart-other-3: #b4bac4;
     --shadow-ink: #000000;
     --ink: #eef1f5;
     --muted: #a3acb8;

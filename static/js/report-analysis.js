@@ -2,7 +2,8 @@
    T-182：改用與其他堆疊圖相同的橫向長條（report-interactions.js 的 reportStackPlot），依卡片寬度繪製，手機不再左右捲動。 */
 function reportAnalysisColor(label, fallback) {
   const neutral = ['公司或其他', '生日未填', '生日異常', '其他', '其他系列（合併）'];
-  if (neutral.includes(label)) return 'var(--chart-other)';
+  // T-268：年齡層的生日未填／生日異常／公司或其他由引擎給三種灰階（--chart-other、-2、-3），照用；其他中性分類維持原本的灰。
+  if (neutral.includes(label)) return /^var\(--chart-other-[23]\)$/.test(fallback || '') ? fallback : 'var(--chart-other)';
   const slots = {'男性':1, '女性':2, '灰':3, '白':4, '藍':5, '帕瑪森白':6, '黑':7, '魔綠幻紫':8, '黃':1, '海神藍':2};
   return label in slots ? `var(--chart-s${slots[label]})` : fallback;
 }

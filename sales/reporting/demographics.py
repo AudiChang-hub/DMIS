@@ -50,3 +50,19 @@ def demographic_query(queryset, dimension, alias):
         ]
         fallback = "60歲以上"
     return queryset.annotate(**{alias: Case(*conditions, default=Value(fallback), output_field=CharField())})
+
+
+# T-268：年齡層依年齡排序並固定配色（使用者 2026-11-21 同意）。原本用字串排序，「20-29歲」會排在「20歲以下」前面，
+# 細分系列又依出現順序配色，同一年齡層在不同圖顏色不同。只改順序與顏色，分組與數字不變。
+AGE_DIMENSIONS = ("age_group", "legacy_age_group")
+AGE_GROUP_ORDER = ("20歲以下", "20-29歲", "30-39歲", "40-49歲", "50-59歲", "60歲以上", "生日未填", "生日異常", "公司或其他")
+AGE_GROUP_COLORS = {
+    "20歲以下": "var(--chart-s1)", "20-29歲": "var(--chart-s2)", "30-39歲": "var(--chart-s3)",
+    "40-49歲": "var(--chart-s4)", "50-59歲": "var(--chart-s5)", "60歲以上": "var(--chart-s6)",
+    # 三個獨立列示的類別用三種灰階，堆疊在一起時仍分得出來。
+    "生日未填": "var(--chart-other)", "生日異常": "var(--chart-other-2)", "公司或其他": "var(--chart-other-3)",
+}
+
+
+def age_sort_key(label):
+    return (AGE_GROUP_ORDER.index(label) if label in AGE_GROUP_ORDER else len(AGE_GROUP_ORDER), label or "")

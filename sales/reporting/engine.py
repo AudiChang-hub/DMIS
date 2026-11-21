@@ -13,7 +13,7 @@ from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFami
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
-from .demographics import DEMOGRAPHIC_DIMENSIONS, demographic_query
+from .demographics import AGE_DIMENSIONS, AGE_GROUP_COLORS, DEMOGRAPHIC_DIMENSIONS, age_sort_key, demographic_query
 from .combined_dimensions import family_color_expression, family_color_labels, family_color_sort_key
 from .reader_layouts import READER_LAYOUTS
 
@@ -32,7 +32,7 @@ DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
 # T-268／T-269：只新增鍵，既有維度與已存報表不變。
 DIMENSIONS.update({"family_color": "車型＋顏色"})
 # 依分類本身的順序排列（「分類順序」排序與細分系列的名稱排序用）；其餘維度照原本的鍵值／名稱排序。
-KEY_SORTERS = {"family_color": family_color_sort_key}
+KEY_SORTERS = {**{key: age_sort_key for key in AGE_DIMENSIONS}, "family_color": family_color_sort_key}
 
 # T-189：車行／平台名稱維度依報表＋圖卡固定的銷售來源顯示「車行」「平台」或「車行／平台」；鍵值與篩選參數不變。
 SCOPED_DEALER_LABELS = {frozenset({"車行"}): "車行", frozenset({"網路平台"}): "平台"}
@@ -73,6 +73,8 @@ def dimension_color(dimension, raw, index):
         category = next((c for c in published_snapshot()[0]['categories'] if c['name'] == raw), None)
         if category:
             return category['color']
+    if dimension in AGE_DIMENSIONS and raw in AGE_GROUP_COLORS:
+        return AGE_GROUP_COLORS[raw]
     if dimension in ("legacy_sales_source", "legacy_motor_type", "sex", "legacy_sex", "age_group"):
         if raw in NEUTRAL_LABELS:
             return OTHER_COLOR

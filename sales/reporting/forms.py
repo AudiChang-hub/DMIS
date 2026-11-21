@@ -34,6 +34,7 @@ class ScopeForm(forms.Form):
         choices = {
             "brand": [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()],
             "energy": VehicleModel.EnergyType.choices,
+            "payment_type": SalesOrder.PaymentType.choices,
             "source_type": SalesOrder.SourceType.choices,
             "source": [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")],
             "model": [(str(model.pk), str(model)) for model in VehicleModel.objects.order_by("brand", "name", "pk")],

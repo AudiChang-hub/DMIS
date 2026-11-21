@@ -83,10 +83,10 @@ def dimension_color(dimension, raw, index):
     return PALETTE[index % len(PALETTE)]
 
 
-SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
+SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type", "payment_type": "payment_type",
                  "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id", "legacy_source": "report_legacy_source"}
 # 設計器依此順序列條件；銷售來源（T-183）取代來源類型的位置，來源類型只為舊設定保留。
-SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "legacy_source": "銷售來源", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型"}
+SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "payment_type": "付款方式", "legacy_source": "銷售來源", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型"}
 SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
 SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
 SCOPE_LOOKUPS["legacy_energy"] = "report_legacy_energy"
@@ -114,7 +114,8 @@ def validate_scope(scope):
                 raise ValidationError("固定條件格式不正確。")
             if key in ("model", "source") and (not value.isascii() or not value.isdigit() or not 0 < int(value) <= 9223372036854775807):
                 raise ValidationError("固定條件的資料編號不正確。")
-            choices = dict(VehicleModel.EnergyType.choices) if key == "energy" else dict(SalesOrder.SourceType.choices) if key == "source_type" else None
+            choices = (dict(VehicleModel.EnergyType.choices) if key == "energy" else dict(SalesOrder.SourceType.choices) if key == "source_type"
+                       else dict(SalesOrder.PaymentType.choices) if key == "payment_type" else None)
             if choices is not None and value not in choices:
                 raise ValidationError("固定條件的分類不正確。")
             if key == "legacy_source" and value not in SOURCE_CLASSIFICATIONS:
@@ -139,6 +140,8 @@ def scope_labels(scope):
             labels = dict(VehicleModel.EnergyType.choices)
         elif key == "source_type":
             labels = dict(SalesOrder.SourceType.choices)
+        elif key == "payment_type":
+            labels = dict(SalesOrder.PaymentType.choices)
         elif key == "model_presence":
             labels = MODEL_PRESENCE
         elif key == "age_scope":

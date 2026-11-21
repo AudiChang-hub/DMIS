@@ -3,7 +3,7 @@
 {% load order_origin_tags %}
 {% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-vehicle-number.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-delete-column.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-registration-mark.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-vehicle-number.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-list-delete.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}

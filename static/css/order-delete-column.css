@@ -1,7 +1,0 @@
-/* 全部訂單電腦版表格最右邊的「刪除訂單」欄（T-264）；只在全部訂單頁載入。 */
-/* 1440px 以下表格固定欄寬，多一欄會把每欄擠窄，第一欄的日期與「訂單總覽」、刪除鈕都會折行。
-   有刪除欄時，第一欄與刪除欄各留一顆按鈕寬；沒有刪除權限的帳號沒有這一欄，版面照舊。 */
-@media (max-width: 1440px) and (min-width: 860.02px) {
-  .order-sort-table:has(th.order-table-delete) th:first-child,
-  .order-sort-table th.order-table-delete { width: 9.2%; }
-}

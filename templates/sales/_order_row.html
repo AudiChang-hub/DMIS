@@ -15,8 +15,6 @@
       <span class="order-fact"><small>車行</small><b>{{ order.source_display }}</b></span>
       <div class="order-fact order-fact--note{% if not order.note %} is-empty{% endif %}"><small>備註</small>{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</div>
     </div>
-    {# T-241：刪除放在卡片最後，不再壓在姓名下方搶眼；只在手機卡片顯示（桌面是表格列）。 #}
-    {% if_access 'order_delete' order.pk %}<a class="button danger-outline small order-row-delete" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a>{% endif_access %}
     {% endif %}
     {% if order.search_matches %}
     <span class="search-match-list" aria-label="符合搜尋的欄位"{% if profit_unlocked %} data-profit-value{% endif %}>
@@ -30,5 +28,7 @@
   {% if not show_order_details %}<span class="order-source">{{ order.source_display }}</span>{% endif %}
   <span class="order-row-status"><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% if order.pending_subsidy_count %}<small class="order-subsidy-pending">補助未申請 {{ order.pending_subsidy_count }} 項</small>{% endif %}{% if not order.is_cancelled_sale and order.plate_fee_shortfall %}<small class="order-plate-shortfall" title="牌險費少於規費＋強制險，差額記為負的牌險手續費收入{% if not order.registration_date %}（規費依訂單日預估）{% endif %}">牌險少收</small>{% endif %}{% if show_order_details %}{% if_access 'order_overview' order.pk %}{% url 'order_overview' order.pk as overview_url %}<a class="order-card-overview" href="{{ overview_url }}" data-order-overview-open="{{ overview_url }}" data-overview-title="{{ order.owner_name }}" data-overview-meta="{{ order.number }}" aria-haspopup="dialog" aria-label="訂單總覽 {{ order.number }}">訂單總覽</a>{% endif_access %}{% endif %}</span>
   {% if show_order_details %}<a class="chevron" href="{% url 'order_detail' order.pk %}" aria-label="查看 {{ order.number }} 訂單">›</a>{% else %}<span class="chevron">›</span>{% endif %}
+  {# T-241：刪除只在手機卡片顯示（桌面是表格列）。T-264：移出左欄，放卡片最下面靠右自成一列，離「訂單總覽」與姓名等連結最遠；沒有刪除權限就整列不出現。 #}
+  {% if show_order_details %}{% if_access 'order_delete' order.pk %}<div class="order-row-footer"><a class="button danger-outline small order-row-delete" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></div>{% endif_access %}{% endif %}
 {% if show_order_details %}</div>{% else %}</a>{% endif %}
 

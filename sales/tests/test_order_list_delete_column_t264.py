@@ -1,9 +1,12 @@
-"""T-264（使用者 2026-11-21）：全部訂單電腦版表格的「刪除訂單」移到每列最右邊的獨立欄（淨利之後）。
+"""T-264（使用者 2026-11-21）：全部訂單的「刪除訂單」移開，離「訂單總覽」遠一點免得誤觸。
 
-原本放在第一欄日期底下、緊貼「訂單總覽」，容易誤觸。「訂單總覽」留在第一欄；
-沒有刪除權限的帳號不多出空白欄或表頭；手機卡片不變。
+電腦版表格：原本放在第一欄日期底下、緊貼「訂單總覽」；改到每列最右邊的獨立欄（淨利之後），
+「訂單總覽」留在第一欄，沒有刪除權限的帳號不多出空白欄或表頭。
+手機卡片：原本在左欄資料下方；改到卡片最下面靠右、自成一列（order-row-footer），
+「訂單總覽」仍在右上角狀態下方，沒有刪除權限時整列不出現。
 """
 from html.parser import HTMLParser
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -137,11 +140,42 @@ class OrderListDeleteColumnTests(TestCase):
             self.assertEqual(len(table.rows), 1)
             self.assertEqual(table.rows[0][0]["attrs"].get("colspan"), str(len(table.head)))
 
-    def test_mobile_card_delete_unchanged(self):
-        order = self.make_order()
-        self.client.force_login(self.admin)
+    def card(self, user, order):
+        self.client.force_login(user)
         html = self.client.get(reverse("order_list"), {"tab": "all"}).content.decode()
         cards = html[html.index('<div class="order-list order-sort-cards">'):]
+        detail = reverse("order_detail", args=[order.pk])
+        card = cards[cards.rindex('<div class="order-row order-row--detailed">', 0, cards.index(f'href="{detail}"')):]
+        return html, card[:card.index('<div class="order-row order-row--detailed">', 1)] if card.count('<div class="order-row order-row--detailed">') > 1 else card[:card.index("<dialog")]
+
+    def test_mobile_card_delete_is_last_row_after_overview(self):
+        order = self.make_order("卡片刪除合成車主")
+        html, card = self.card(self.admin, order)
         url = reverse("order_delete", args=[order.pk])
-        self.assertIn(f'class="button danger-outline small order-row-delete" href="{url}"', cards)
+        button = f'<a class="button danger-outline small order-row-delete" href="{url}"'
+        self.assertIn(f'<div class="order-row-footer">{button}', card)
+        footer = card.index('<div class="order-row-footer">')
+        # 刪除在卡片最後：在左欄資料、右上角「訂單總覽」與箭頭之後，且不在左欄或狀態欄裡面
+        main = card[card.index('<div class="order-main">'):card.index('<span class="order-row-status">')]
+        status = card[card.index('<span class="order-row-status">'):card.index('<a class="chevron"')]
+        self.assertNotIn("order-row-delete", main)
+        self.assertNotIn("order-row-delete", status)
+        self.assertIn("order-card-overview", status)
+        self.assertLess(card.index("order-card-overview"), footer)
+        self.assertLess(card.index('<a class="chevron"'), footer)
+        self.assertNotIn("<a ", card[card.index("</div>", footer):])  # 刪除列之後卡片裡沒有其他可點的連結
         self.assertEqual(html.count(f'href="{url}"'), 2)  # 電腦版表格最後一欄＋手機卡片各一個
+
+    def test_mobile_card_without_delete_has_no_footer(self):
+        order = self.make_order("卡片無刪除合成車主")
+        html, card = self.card(self.staff(), order)
+        self.assertNotIn("order-row-footer", html)
+        self.assertNotIn("order-row-delete", html)
+        self.assertIn("order-card-overview", card)
+
+    def test_mobile_footer_style_has_44px_touch_target(self):
+        from django.conf import settings
+        css = (Path(settings.BASE_DIR) / "static" / "css" / "order-list-delete.css").read_text(encoding="utf-8")
+        self.assertIn(".order-row-footer .order-row-delete { min-height: 44px;", css)
+        self.assertIn("grid-column: 2 / -1;", css)
+        self.assertIn("justify-content: flex-end;", css)

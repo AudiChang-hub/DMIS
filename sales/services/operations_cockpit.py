@@ -299,14 +299,32 @@ def _age_days(today, value):
     return (today - day).days
 
 
-def _money(metrics, today):
+def dealer_credit_rows():
+    """有掛帳的車行（現金新版應收的已交車單，依車行加總）；營運總表與「車行掛帳超過額度」清單共用（T-275）。"""
     from sales.services.dealer_credit import ON_ACCOUNT_STATUSES, on_account_orders
+
+    dealer_ids = SalesOrder.objects.filter(
+        source_type=SalesOrder.SourceType.DEALER, status__in=ON_ACCOUNT_STATUSES, cash_receivable_v2=True,
+        source__isnull=False).values_list("source_id", flat=True).distinct()
+    rows = []
+    for dealer in SalesSource.objects.filter(pk__in=list(dealer_ids)):
+        orders = on_account_orders(dealer.pk)
+        amount = sum((due for _order, due in orders), ZERO)
+        if amount > 0:
+            rows.append({"dealer": dealer, "amount": amount, "limit": dealer.credit_limit, "orders": orders,
+                         "over": dealer.credit_limit is not None and amount > dealer.credit_limit})
+    rows.sort(key=lambda row: -row["amount"])
+    return rows
+
+
+def _money(metrics, today):
+    from sales.services.order_list_unsettled import is_unsettled_after_delivery
 
     outstanding_total, unsettled, before_delivery, awaiting_payout = ZERO, [], 0, 0
     for order, summary in metrics["outstanding_summaries"]:
         outstanding_total += max(summary["customer_due"], ZERO) + max(summary["lender_due"], ZERO)
         # 交車後未結清：和全部訂單的「款項未結清」紅標同一口徑（order_list_unsettled）。
-        if order.status in DELIVERED and summary["customer_due"] > 0:
+        if is_unsettled_after_delivery(order, summary):
             delivered = order.delivered_at or order.registration_completed_at
             unsettled.append((summary["customer_due"], _age_days(today, delivered)))
         elif order.status in DELIVERED:
@@ -319,16 +337,8 @@ def _money(metrics, today):
         buckets.append({"label": label, "count": len(rows), "amount": sum((row[0] for row in rows), ZERO),
                         "late": low > 30})
     ages = [row[1] for row in unsettled if row[1] is not None]
-    dealer_ids = SalesOrder.objects.filter(
-        source_type=SalesOrder.SourceType.DEALER, status__in=ON_ACCOUNT_STATUSES, cash_receivable_v2=True,
-        source__isnull=False).values_list("source_id", flat=True).distinct()
-    dealers = []
-    for dealer in SalesSource.objects.filter(pk__in=list(dealer_ids)):
-        amount = sum((due for _order, due in on_account_orders(dealer.pk)), ZERO)
-        if amount > 0:
-            dealers.append({"name": dealer.name, "amount": amount, "limit": dealer.credit_limit,
-                            "over": dealer.credit_limit is not None and amount > dealer.credit_limit})
-    dealers.sort(key=lambda row: -row["amount"])
+    dealers = [{"name": row["dealer"].name, "amount": row["amount"], "limit": row["limit"], "over": row["over"]}
+               for row in dealer_credit_rows()]
     return {
         "outstanding_count": metrics["risk"]["outstanding"],
         "outstanding_amount": outstanding_total,
@@ -348,8 +358,9 @@ def _money(metrics, today):
 
 
 def _reconciliation(queryset):
-    rows = list(queryset.filter(confirmed=False).values_list("expected_amount", "order__order_date"))
-    return {"pending": len(rows), "expected": sum((row[0] or ZERO for row in rows), ZERO)}
+    # 待入帳算訂單張數（使用者 2026-11-21，和「已交車待撥款」同單位）；預計金額照舊把每筆撥款加總。
+    rows = list(queryset.filter(confirmed=False).values_list("expected_amount", "order_id"))
+    return {"pending": len({row[1] for row in rows}), "expected": sum((row[0] or ZERO for row in rows), ZERO)}
 
 
 def _payouts():
@@ -366,27 +377,44 @@ def _active_orders():
         "vehicle_model__energy_type"))
 
 
+def stage_age(order, today):
+    """訂單在目前這一站停留的天數（各站起算日見 BUSINESS_RULES「營運總表顯示門檻」）；沒有起算日回傳 None。"""
+    start = {
+        "allocation_pending": order.established_on,
+        "allocated": order.allocated_at,
+        "delivery_pending": order.registration_completed_at or order.registration_date,
+        "delivered_docs_pending": order.delivered_at,
+    }[order.status]
+    return _age_days(today, start)
+
+
+def is_stuck(order, today):
+    """流程卡關：停留超過該站門檻（STAGE_LIMITS）；營運總表與全部訂單 attention=stuck 共用（T-275）。"""
+    age = stage_age(order, today)
+    return age is not None and age > STAGE_LIMITS[order.status]
+
+
+def stuck_order_ids(today=None):
+    today = today or timezone.localdate()
+    return [order.pk for order in _active_orders() if is_stuck(order, today)]
+
+
 def _flow(metrics, today, active=None):
     active = _active_orders() if active is None else active
     ages = {key: [] for key in STAGE_LIMITS}
-    counts = Counter()
+    counts, stuck_counts = Counter(), Counter()
     for order in active:
         counts[order.status] += 1
-        start = {
-            "allocation_pending": order.established_on,
-            "allocated": order.allocated_at,
-            "delivery_pending": order.registration_completed_at or order.registration_date,
-            "delivered_docs_pending": order.delivered_at,
-        }[order.status]
-        age = _age_days(today, start)
+        age = stage_age(order, today)
         if age is not None:
             ages[order.status].append(age)
+        if is_stuck(order, today):
+            stuck_counts[order.status] += 1
     stages = []
     for key, limit in STAGE_LIMITS.items():
         oldest = max(ages[key]) if ages[key] else None
-        stuck = sum(1 for age in ages[key] if age > limit)
         stages.append({"key": key, "label": STAGE_LABELS[key], "count": counts[key], "oldest": oldest,
-                       "limit": limit, "stuck": stuck,
+                       "limit": limit, "stuck": stuck_counts[key],
                        "url": _url("order_list", {"status": STAGE_FILTERS[key]})})
     return {
         "stages": stages,
@@ -396,15 +424,19 @@ def _flow(metrics, today, active=None):
     }
 
 
-def _stock(today):
-    live = list(VehicleInventory.objects.filter(status__in=ON_HAND_STATUSES).select_related("vehicle_model")
+def aged_stock_cutoff(today, days=STOCK_AGE_ALERT_DAYS):
+    """進車日在這天（含）以前＝庫齡達 days 天；營運總表與車輛庫存 age_min 共用（T-275）。"""
+    return today - timedelta(days=days)
+
+
+def _on_hand():
+    return list(VehicleInventory.objects.filter(status__in=ON_HAND_STATUSES).select_related("vehicle_model")
                 .only("status", "received_on", "vehicle_model__name", "vehicle_model__family_id"))
-    status_counts = Counter(vehicle.status for vehicle in live)
-    ages = [(today - vehicle.received_on).days for vehicle in live if vehicle.received_on]
-    age_buckets = []
-    for low, high, label in ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上")):
-        age_buckets.append({"label": label, "count": sum(1 for age in ages if age >= low and (high is None or age <= high)),
-                            "alert": low >= STOCK_AGE_ALERT_DAYS})
+
+
+def model_velocity(today, live=None):
+    """各車型在庫、近 90 天領牌、可銷天數與缺貨／滯銷判斷；營運總表與「缺貨風險車型」清單共用（T-275）。"""
+    live = _on_hand() if live is None else live
     since = today - timedelta(days=VELOCITY_DAYS)
     sold = Counter(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
                    .filter(registration_confirmed_q(), registration_date__gt=since, registration_date__lte=today)
@@ -421,17 +453,30 @@ def _stock(today):
         if not on_hand and not shortage:
             continue
         family = families.get(model_id)
-        rows.append({"name": names.get(model_id, "—"), "on_hand": on_hand, "sold": recent, "cover": cover,
+        rows.append({"model_id": model_id, "name": names.get(model_id, "—"), "on_hand": on_hand, "sold": recent, "cover": cover,
                      "shortage": shortage, "slow": slow,
                      "url": _url("inventory_list", {"vehicle_family": family} if family else {"q": names.get(model_id, "")})})
     rows.sort(key=lambda row: (not row["shortage"], not row["slow"], -row["on_hand"], row["name"]))
+    return rows
+
+
+def _stock(today):
+    live = _on_hand()
+    status_counts = Counter(vehicle.status for vehicle in live)
+    ages = [(today - vehicle.received_on).days for vehicle in live if vehicle.received_on]
+    age_buckets = []
+    for low, high, label in ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上")):
+        age_buckets.append({"label": label, "count": sum(1 for age in ages if age >= low and (high is None or age <= high)),
+                            "alert": low >= STOCK_AGE_ALERT_DAYS})
+    rows = model_velocity(today, live)
+    cutoff = aged_stock_cutoff(today)
     return {
         "on_hand": len(live),
         "available": status_counts[VehicleInventory.Status.AVAILABLE],
         "reserved": status_counts[VehicleInventory.Status.RESERVED],
         "issues": status_counts[VehicleInventory.Status.CONDITION_ISSUE],
         "aging": age_buckets,
-        "aged": sum(1 for age in ages if age >= STOCK_AGE_ALERT_DAYS),
+        "aged": sum(1 for vehicle in live if vehicle.received_on and vehicle.received_on <= cutoff),
         "oldest": max(ages) if ages else None,
         "models": rows[:6],
         "model_count": len(rows),
@@ -464,13 +509,19 @@ def _volume_bonus(today):
     return rows
 
 
+def campaign_is_ending(campaign, today, days=CAMPAIGN_ENDING_DAYS):
+    """啟用中、已開始、結束日在今天起 days 天內（含今天）；營運總表與原廠獎勵 ending_within 共用（T-275）。"""
+    return (campaign.active and campaign.effective_from <= today and campaign.effective_to is not None
+            and today <= campaign.effective_to <= today + timedelta(days=days))
+
+
 def _campaigns(today):
     rows = []
     for campaign in IncentiveCampaign.objects.filter(active=True, effective_from__lte=today).exclude(
             effective_to__lt=today).order_by("effective_to", "name"):
         days_left = (campaign.effective_to - today).days if campaign.effective_to else None
         rows.append({"name": campaign.name, "kind": campaign.get_kind_display(), "ends_on": campaign.effective_to,
-                     "days_left": days_left, "ending": days_left is not None and days_left <= CAMPAIGN_ENDING_DAYS})
+                     "days_left": days_left, "ending": campaign_is_ending(campaign, today)})
     rows.sort(key=lambda row: (row["days_left"] is None, row["days_left"] or 0, row["name"]))
     return rows
 
@@ -572,7 +623,8 @@ def viewer_flags(policy, profit):
         "incentives": policy.screen("incentives"),
         "links": {name: policy.route(name) for name in (
             "order_list", "inventory_list", "reconciliation_list", "dealer_payout_list", "report_center",
-            "dealer_volume_bonus_list", "incentive_rule_list", "operations_report_export")},
+            "dealer_volume_bonus_list", "incentive_rule_list", "operations_report_export", "inventory_shortage",
+            "operations_dealer_credit")},
     }
 
 
@@ -585,7 +637,7 @@ def _attention(data, flags):
          "amount": money["unsettled_amount"] if flags["operations"] else None,
          "detail": f"最久 {money['unsettled_oldest']} 天" if money["unsettled_oldest"] is not None else "",
          "severity": "red" if (money["unsettled_oldest"] or 0) > 30 else "amber",
-         "url": order_url({"risk": "outstanding"})},
+         "url": order_url({"risk": "unsettled_delivered"})},
         {"key": "refund", "label": "取消待退款", "value": money["refund"], "unit": "張", "severity": "red",
          "url": order_url({"risk": "refund"})},
         {"key": "overpaid", "label": "溢收待退", "value": money["overpaid"], "unit": "張", "severity": "red",
@@ -595,13 +647,15 @@ def _attention(data, flags):
     ]
     if flags["reconciliation"]:
         recon = data["reconciliation"]
-        items.append({"key": "reconciliation", "label": "分期／平台撥款待入帳", "value": recon["pending"], "unit": "筆",
+        items.append({"key": "reconciliation", "label": "分期／平台撥款待入帳", "value": recon["pending"], "unit": "張",
                       "amount": recon["expected"] if flags["operations"] and recon["expected"] else None,
                       "detail": "預計金額" if flags["operations"] and recon["expected"] else "", "severity": "amber",
-                      "url": _url("reconciliation_list", {"status": "pending"}) if links["reconciliation_list"] else ""})
+                      "url": _url("reconciliation_list", {"status": "pending", "by_order": 1})
+                      if links["reconciliation_list"] else ""})
     if flags["operations"]:
         items.append({"key": "dealer_credit", "label": "車行掛帳超過額度", "value": money["dealer_credit_over"],
-                      "unit": "家", "severity": "red", "url": ""})
+                      "unit": "家", "severity": "red",
+                      "url": _url("operations_dealer_credit") if links.get("operations_dealer_credit") else ""})
     if flags["dealer_payouts"]:
         payouts = data["payouts"]
         items.append({"key": "payouts", "label": "車行傭金／獎金未給付", "value": payouts["unpaid_count"], "unit": "項",
@@ -612,13 +666,14 @@ def _attention(data, flags):
         items += [
             {"key": "aged", "label": f"庫齡 {STOCK_AGE_ALERT_DAYS} 天以上", "value": stock["aged"], "unit": "台",
              "detail": f"最久 {stock['oldest']} 天" if stock["oldest"] is not None else "", "severity": "red",
-             "url": _url("inventory_list", {"sort": "received_asc"}) if links["inventory_list"] else ""},
+             "url": _url("inventory_list", {"age_min": STOCK_AGE_ALERT_DAYS, "sort": "received_asc"})
+             if links["inventory_list"] else ""},
             {"key": "shortage", "label": "缺貨風險車型", "value": len(stock["shortage"]), "unit": "款",
              "detail": "、".join(stock["shortage"][:3]), "severity": "amber",
-             "url": _url("inventory_list") if links["inventory_list"] else ""},
+             "url": _url("inventory_shortage") if links.get("inventory_shortage") else ""},
             {"key": "stuck", "label": "流程卡關訂單", "value": flow["stuck"], "unit": "張",
              "detail": "、".join(f"{stage['label']} {stage['stuck']}" for stage in stuck), "severity": "amber",
-             "url": stuck[0]["url"] if stuck and links["order_list"] else ""},
+             "url": order_url({"attention": "stuck"})},
             {"key": "dealer_due", "label": "車行到期提醒", "value": flow["dealer_due"], "unit": "張",
              "severity": "amber", "url": order_url({"attention": "dealer"})},
         ]
@@ -626,7 +681,8 @@ def _attention(data, flags):
         ending = [row for row in data["campaigns"] if row["ending"]]
         items.append({"key": "campaigns", "label": f"原廠獎勵 {CAMPAIGN_ENDING_DAYS} 天內結束", "value": len(ending),
                       "unit": "項", "detail": "、".join(row["name"] for row in ending[:2]), "severity": "amber",
-                      "url": _url("incentive_rule_list") if links["incentive_rule_list"] else ""})
+                      "url": _url("incentive_rule_list", {"ending_within": CAMPAIGN_ENDING_DAYS})
+                      if links["incentive_rule_list"] else ""})
     for item in items:
         item.setdefault("amount", None)
         item.setdefault("detail", "")

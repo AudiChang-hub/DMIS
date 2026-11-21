@@ -104,6 +104,7 @@ register("work", "form_print_id_crop", "operate")  # T-190：套表預覽調整�
 register("work", "order_owner_declaration_pdf", "export")
 register("work", "order_id_copy", "export")  # T-208：單張訂單的身分證影本頁（預覽與列印同套表列印權限）
 register("operations", "operations_report")
+register("operations", "operations_dealer_credit")  # T-275：營運總表「車行掛帳超過額度」明細，同財務彙總權限
 register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
 # 車行傭金／獎金給付（T-150）：查看列表、勾選與備註屬操作、CSV 屬匯出。
@@ -115,6 +116,7 @@ register("dealer_payouts", "dealer_payout_list_legacy")
 register("dealer_payouts", "dealer_payout_update_legacy", "operate")
 register("dealer_payouts", "dealer_payout_export_legacy", "export")
 register("inventory", "inventory_list")
+register("inventory", "inventory_shortage")  # T-275：營運總表「缺貨風險車型」明細，同車輛庫存查看權限
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_history_photo_delete inventory_allocation_priority", "operate")
 # 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。
 register("inventory", "transfer_signoff_list transfer_signoff_detail inventory_receipt_list")

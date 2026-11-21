@@ -31,10 +31,12 @@
   <div><label for="reconcile-status">入帳狀態</label><select id="reconcile-status" name="status"><option value="">全部</option><option value="pending"{% if selected.status == 'pending' %} selected{% endif %}>待入帳</option><option value="confirmed"{% if selected.status == 'confirmed' %} selected{% endif %}>已入帳</option></select></div>
   <div><label for="reconcile-from">訂單日期起</label><input id="reconcile-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
   <div><label for="reconcile-to">訂單日期迄</label><input id="reconcile-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
+  {% if order_count is not None %}<input type="hidden" name="by_order" value="1">{% endif %}
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'reconciliation_list' %}">清除</a><button class="button primary" type="submit">套用</button></div>
 </form>
 <section class="section-block operations-table-shell reconciliation-shell" data-reconciliation>
-  <div class="section-title"><div><p class="eyebrow">待核對與歷史結果</p><h2>{{ page_obj.paginator.count }} 筆</h2></div><span>待入帳優先排列</span></div>
+  {% if order_count is not None %}<div class="section-title"><div><p class="eyebrow">依訂單計算</p><h2>{{ order_count }} 張</h2></div><span>共 {{ page_obj.paginator.count }} 筆撥款，同一張訂單的撥款排在一起</span></div>
+  {% else %}<div class="section-title"><div><p class="eyebrow">待核對與歷史結果</p><h2>{{ page_obj.paginator.count }} 筆</h2></div><span>待入帳優先排列</span></div>{% endif %}
   <div class="table-scroll">
     <table class="inventory-table reconciliation-table">
       <thead><tr><th>訂單／車主</th><th>對帳對象</th><th>預計金額</th><th>實際金額</th><th>差額</th><th>確認日期</th><th><span class="visually-hidden">操作</span></th></tr></thead>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}缺貨風險車型｜車輛銷售管理{% endblock %}
+{% block content %}
+{% url 'operations_report' as report_url %}
+{% include "sales/_page_back.html" with fallback_url=report_url label="營運總表" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">營運總表・需要處理</p><h1>缺貨風險車型</h1><p class="muted">近 {{ velocity_days }} 天領牌 {{ min_sold }} 台以上，照目前在庫只夠賣不到 {{ cover_days }} 天的車型。可銷天數＝在庫台數 × {{ velocity_days }} ÷ 近 {{ velocity_days }} 天領牌台數，算到 {{ today|date:"Y/m/d" }}。</p></div>
+  <div class="hero-actions"><a class="button ghost" href="{% url 'inventory_list' %}">車輛庫存</a></div>
+</section>
+
+<section class="inventory-list-panel" aria-label="缺貨風險車型清單">
+  <div class="inventory-list-summary"><strong>共 {{ rows|length }} 款</strong><span>點車型看這個機種的在庫車輛</span></div>
+  {% if rows %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="缺貨風險車型，可左右捲動查看完整欄位">
+    <table class="inventory-table inventory-table--fit">
+      <thead><tr><th scope="col">車型</th><th scope="col" class="is-number">在庫台數</th><th scope="col" class="is-number">近 {{ velocity_days }} 天領牌</th><th scope="col" class="is-number">可銷天數</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <th scope="row" data-label="車型"><a href="{{ row.url }}">{{ row.name }}</a></th>
+          <td data-label="在庫台數" class="is-number">{{ row.on_hand }} 台</td>
+          <td data-label="近 {{ velocity_days }} 天領牌" class="is-number">{{ row.sold }} 台</td>
+          <td data-label="可銷天數" class="is-number">{{ row.cover }} 天</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state small"><h3>目前沒有缺貨風險車型</h3><p>近 {{ velocity_days }} 天賣得快的車型，在庫都還夠賣 {{ cover_days }} 天以上。</p></div>
+  {% endif %}
+</section>
+{% endblock %}

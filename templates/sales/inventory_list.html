@@ -36,6 +36,7 @@
 <form method="get" class="inventory-filters inventory-filters--stock{% if selected.scope == 'sold' %} inventory-filters--sold{% endif %}" aria-label="庫存篩選">
   <input type="hidden" name="scope" value="{{ selected.scope }}">
   <input type="hidden" name="sort" value="{{ selected.sort }}">
+  {% if selected.age_min %}<input type="hidden" name="age_min" value="{{ selected.age_min }}">{% endif %}
   <div class="inventory-filter-fields">
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
@@ -95,6 +96,7 @@
   <div class="inventory-list-summary">
     <strong>{% if selected.scope == 'history' %}停用車輛{% elif selected.scope == 'sold' %}已售出／調出{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
+    {% if selected.age_min %}<span>只列庫齡 {{ selected.age_min }} 天以上（{{ selected.age_cutoff|date:"Y/m/d" }} 以前進車） · <a href="{% url 'inventory_list' %}?scope={{ selected.scope }}">顯示全部</a></span>{% endif %}
   </div>
   {# 手機版表格改成卡片、沒有表頭，排序改用這一列（桌面隱藏）。 #}
   <nav class="inventory-sort-bar" aria-label="排序方式">

@@ -18,6 +18,7 @@ from . import subsidy_program_views
 from . import vehicle_model_tool_views
 from . import campaign_views
 from . import gift_views
+from . import attention_views
 from . import print_company_views
 from . import form_print_views
 from . import order_overview_views
@@ -344,6 +345,7 @@ urlpatterns = [
     ),
     path("orders/", views.order_list, name="order_list"),
     path("operations/", views.operations_report, name="operations_report"),
+    path("operations/dealer-credit/", attention_views.operations_dealer_credit, name="operations_dealer_credit"),
     path(
         "operations/reconciliation/",
         views.reconciliation_list,
@@ -607,6 +609,7 @@ urlpatterns = [
         name="subsidy_document_file",
     ),
     path("data/inventory/", views.inventory_list, name="inventory_list"),
+    path("data/inventory/shortage/", attention_views.inventory_shortage, name="inventory_shortage"),
     path("data/subsidy-programs/", subsidy_program_views.subsidy_program_list, name="subsidy_program_list"),
     path("data/inventory/transfer-signoffs/", transfer_signoff_views.transfer_signoff_list, name="transfer_signoff_list"),
     path("data/inventory/transfer-signoffs/new/", transfer_signoff_views.transfer_signoff_create, name="transfer_signoff_create"),

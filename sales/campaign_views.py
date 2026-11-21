@@ -125,11 +125,20 @@ def incentive_campaign_list(request):
             if campaign.hit_models or folded in campaign.name.casefold() or folded in (campaign.note or "").casefold():
                 matched.append(campaign)
         campaigns = matched
+    # 即將結束（T-275）：營運總表「原廠獎勵 30 天內結束」點進來帶 ending_within；只在帶參數時篩選，條件與卡片共用。
+    ending_within = request.GET.get("ending_within", "")
+    if ending_within.isdigit():
+        from sales.services.operations_cockpit import campaign_is_ending
+        today = timezone.localdate()
+        campaigns = [campaign for campaign in campaigns if campaign_is_ending(campaign, today, int(ending_within))]
+    else:
+        ending_within = ""
     rows = {
         "active": _status_filtered([campaign for campaign in campaigns if campaign.active], status),
         "inactive": _status_filtered([campaign for campaign in campaigns if not campaign.active], ""),
     }
-    kept = {key: value for key, value in (("q", keyword), ("kind", kind), ("status", status)) if value}
+    kept = {key: value for key, value in (("q", keyword), ("kind", kind), ("status", status),
+                                           ("ending_within", ending_within)) if value}
     tabs = [
         {"key": key, "label": label, "hint": hint, "count": len(rows[key]), "active": key == tab,
          "url": f"{request.path}?{urlencode({**kept, 'tab': key})}"}
@@ -145,7 +154,7 @@ def incentive_campaign_list(request):
         # 狀態頁籤共用 _status_tabs.html（T-210）；筆數照舊套用搜尋與類型。
         "status_tabs": {"status": tab, "counts": {item["key"]: item["count"] for item in tabs},
                         "urls": {item["key"]: item["url"] for item in tabs}},
-        "selected": {"q": keyword, "kind": kind, "status": status, "tab": tab},
+        "selected": {"q": keyword, "kind": kind, "status": status, "tab": tab, "ending_within": ending_within},
     }
     template = ("sales/_incentive_campaign_results.html"
                 if request.headers.get("X-Requested-With") == "XMLHttpRequest" else "sales/incentive_campaign_list.html")

@@ -24,6 +24,7 @@
     <select id="campaign-kind" name="kind"><option value="">全部</option>{% for value, label in kinds %}<option value="{{ value }}"{% if selected.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   </div>
   <input type="hidden" name="tab" value="{{ selected.tab }}">
+  {% if selected.ending_within %}<input type="hidden" name="ending_within" value="{{ selected.ending_within }}">{% endif %}
   {# 狀態只分啟用中的活動；停用頁籤不顯示，但保留原值，切回啟用中時照舊套用（T-166）。 #}
   {% if selected.tab == 'active' %}<div class="inventory-filter">
     <label for="campaign-status">狀態</label>

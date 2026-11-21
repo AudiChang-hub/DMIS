@@ -1,7 +1,7 @@
 {% load screen_access pagination_tags %}{# 頁籤放在結果區內，篩選自動套用時筆數與連結一起更新；切換頁籤保留其他篩選（T-166）。T-210 改用共用 _status_tabs.html。 #}
 {% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="原廠獎勵活動狀態" active_label="啟用中活動" inactive_label="已停用活動" %}
 <section class="inventory-list-panel" data-status-tab="{{ selected.tab }}" data-status-tab-labels="啟用中活動,已停用活動">
-<div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong>{% if selected.q %}<span>符合「{{ selected.q }}」的車型或活動</span>{% endif %}</div>
+<div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個活動</strong>{% if selected.q %}<span>符合「{{ selected.q }}」的車型或活動</span>{% endif %}{% if selected.ending_within %}<span>只列已開始、{{ selected.ending_within }} 天內結束的活動 · <a href="{% url 'incentive_rule_list' %}?tab={{ selected.tab }}">顯示全部</a></span>{% endif %}</div>
 <div class="inventory-table-wrap">
   <table class="inventory-table campaign-table">
     <thead><tr><th>活動</th><th>適用車輛</th><th>項目</th><th>通路與車行</th><th>期間</th><th>狀態</th><th></th></tr></thead>

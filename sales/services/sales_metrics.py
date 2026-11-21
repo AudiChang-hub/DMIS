@@ -49,6 +49,13 @@ def filter_payment_risk(orders, risk):
             if summary['customer_due'] > 0 or summary['lender_due'] > 0 or not summary['legacy_settled']:
                 ids.append(order.pk)
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
+    if risk == 'unsettled_delivered':
+        # 營運總表「交車後未結清」（T-275）：條件與卡片共用 is_unsettled_after_delivery，比「待收款」窄。
+        from .order_list_unsettled import is_unsettled_after_delivery
+        from .payment_summary import payment_summary
+        candidates = orders.filter(status__in=DELIVERED_STATUSES).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')
+        ids = [order.pk for order in candidates if is_unsettled_after_delivery(order, payment_summary(order))]
+        return orders.filter(pk__in=ids)
     if risk == 'unconfirmed':
         ids = PaymentRecord.objects.filter(received_amount__gt=0, confirmed=False).values('order_id')
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)

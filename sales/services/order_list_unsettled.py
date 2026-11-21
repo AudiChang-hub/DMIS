@@ -10,6 +10,11 @@ from .order_tabs import DELIVERED
 from .payment_summary import payment_summary
 
 
+def is_unsettled_after_delivery(order, summary):
+    """營運總表「交車後未結清」與全部訂單 risk=unsettled_delivered 共用（T-275）：已交車且客戶應收未收清。"""
+    return order.status in DELIVERED and summary["customer_due"] > 0
+
+
 def mark_unsettled(orders):
     rows = [order for order in orders if order.status in DELIVERED]
     prefetch_related_objects(rows, "payment_records", "accessories")

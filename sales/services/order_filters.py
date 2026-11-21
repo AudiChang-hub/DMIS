@@ -96,6 +96,10 @@ def filter_order_analysis(rows, params, *, business_default=False):
     elif params.get("attention") == "dealer":
         from .business_days import build_dealer_reminders
         rows = rows.filter(pk__in={item["order"].pk for item in build_dealer_reminders() if item["is_due"]})
+    elif params.get("attention") == "stuck":
+        # 營運總表「流程卡關訂單」（T-275）：四站各自超過門檻的單一起列，判斷與卡片共用 is_stuck。
+        from .operations_cockpit import stuck_order_ids
+        rows = rows.filter(pk__in=stuck_order_ids())
     return rows
 
 
@@ -106,8 +110,9 @@ HIDDEN_FILTERS = {
     "date_basis": ("日期依據", {"established": "訂單成立日期", "order": "訂單版本日期", "delivery": "實際交付日期",
                                "new_order": "訂單成立日期（補登依領牌日）"}),
     "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款",
-                         "overpaid": "溢收待退", "stale_allocation": "配車保留逾期"}),
-    "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認"}),
+                         "overpaid": "溢收待退", "stale_allocation": "配車保留逾期",
+                         "unsettled_delivered": "交車後未結清"}),
+    "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),
     "business_only": ("成交範圍", {"1": "排除取消／退款"}),
 }
 

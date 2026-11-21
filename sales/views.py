@@ -4573,16 +4573,22 @@ def _form_error_text(form):
 
 @login_required
 def reconciliation_list(request):
-    page = Paginator(_reconciliation_queryset(request), 100).get_page(
+    queryset = _reconciliation_queryset(request)
+    page = Paginator(queryset, 100).get_page(
         request.GET.get("page")
     )
     records = [_decorate_reconciliation_record(record) for record in page.object_list]
     from sales.services.order_origin import attach_order_origin
     attach_order_origin(record.order for record in records)
+    # 依訂單計算（T-275，使用者 2026-11-21）：營運總表「撥款待入帳」算張數，點進來帶 by_order=1，
+    # 標題改列訂單張數（同一張單的撥款本來就相鄰排列）；不帶參數時照舊列紀錄筆數。
+    by_order = {"order_count": queryset.order_by().values("order_id").distinct().count()} \
+        if request.GET.get("by_order") == "1" else {}
     return render(
         request,
         "sales/reconciliation_list.html",
         {
+            **by_order,
             "records": records,
             "page_obj": page,
             "selected": request.GET,
@@ -8268,6 +8274,14 @@ def inventory_list(request):
         filters["acquisition"] = Q(acquisition_type=acquisition)
     else:
         acquisition = ""
+    # 庫齡（T-275）：營運總表「庫齡 90 天以上」點進來帶 age_min；只在帶參數時篩選，條件與卡片共用。
+    age_min = request.GET.get("age_min", "")
+    if age_min.isdigit() and int(age_min) > 0:
+        from sales.services.operations_cockpit import aged_stock_cutoff
+        age_cutoff = aged_stock_cutoff(timezone.localdate(), int(age_min))
+        filters["age"] = Q(received_on__lte=age_cutoff)
+    else:
+        age_min, age_cutoff = "", None
     selected_statuses = []
     status_values = set()
     for requested_status in requested_statuses:
@@ -8616,6 +8630,8 @@ def inventory_list(request):
                 "acquisition": acquisition,
                 "disposition": disposition,
                 "disposition_dealer": disposition_dealer,
+                "age_min": age_min,
+                "age_cutoff": age_cutoff,
             },
             "acquisition_choices": acquisition_choices,
             "disposition_choices": disposition_choices,

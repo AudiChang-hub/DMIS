@@ -6104,7 +6104,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
  .order-sort-table table{table-layout:fixed;font-size:var(--text-sm-plus)}
  .order-sort-table td,.order-sort-table th{padding:var(--space-3) var(--space-2);min-width:0;white-space:normal;overflow-wrap:anywhere}
  .order-sort-table .order-table-owner,.order-sort-table .order-table-note{min-width:0;max-width:none}
- .order-sort-table th:nth-child(4){width:13%}.order-sort-table th:nth-child(5){width:12%}.order-sort-table th:nth-child(9){width:12%}
+ .order-sort-table th:nth-child(4){width:13%}.order-sort-table th:nth-child(5){width:12%}.order-sort-table th:nth-child(8){width:12%}
 }
 @media(max-width:1440px){
  .compact-text-wide{display:none}.compact-text-narrow{display:block}.compact-text-narrow summary{cursor:pointer;color:var(--action-text,var(--forest));list-style:none;text-decoration:underline;text-underline-offset:3px}

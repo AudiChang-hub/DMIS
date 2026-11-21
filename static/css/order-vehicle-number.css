@@ -12,6 +12,8 @@
   white-space: pre;  /* 引擎號碼裡的空格照原樣顯示 */
 }
 .order-sort-table td .order-overview-link { margin-top: var(--space-1); }
+/* T-265：電腦版沒有獨立的顏色欄，顏色接在機種與號碼下方（沒有顏色就不輸出這一行）。 */
+.order-sort-table td .order-machine-color { margin-top: var(--space-1); color: var(--ink); font-size: var(--text-sm); line-height: 1.35; }
 /* 手機卡片右欄（狀態下方）的「訂單總覽」：同一個總覽對話框；放在既有空白處，卡片不加高。 */
 .order-card-overview {
   display: inline-flex;

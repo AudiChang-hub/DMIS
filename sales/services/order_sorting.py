@@ -109,4 +109,6 @@ def sort_context(params, tokens, *, profit_unlocked=True):
                         'aria_sort':('descending' if descending else 'ascending') if rank == 1 else 'none', 'url':'?' + query.urlencode()})
     return {'sort_value':','.join(tokens), 'sort_columns':columns,
             'sort_number_column':next(column for column in columns if column['key'] == 'number'),
+            # T-265：電腦版表格沒有獨立的顏色欄，顏色排序掛在機種表頭下方，同訂單編號排序的做法。
+            'sort_color_column':next(column for column in columns if column['key'] == 'color'),
             'sort_active':sorted((column for column in columns if column['rank']), key=lambda column:column['rank'])}

@@ -96,7 +96,7 @@ class OrderSortingTests(TestCase):
         self.assertEqual(links['profit'], 'owner_name,-established_on,profit')
         self.assertNotContains(response, 'data-sort-append')
         self.assertNotContains(response, 'Shift')
-        self.assertContains(response, '<th scope="col"', count=10)
+        self.assertContains(response, '<th scope="col"', count=9)  # T-265：顏色併進機種欄，表頭少一欄
         self.assertContains(response, 'class="order-table-owner"', count=2)
         self.assertContains(response, f'<a class="order-owner-link" href="{reverse("order_detail", args=[self.orders[1].pk])}"><span class="order-owner-line"><strong>AlphaSort</strong><span class="payment-chip payment-chip--cash" title="付款方式：現金">現金</span></span><span class="order-number-stack"><small>{self.orders[1].number}</small><span class="order-origin order-origin--manual" title="在系統裡建立的訂單" data-order-origin="manual"><i class="order-origin__mark" aria-hidden="true"></i><b class="order-origin__label">手動開單</b><span class="visually-hidden">：在系統裡建立的訂單</span></span></span></a>', html=True)
 
@@ -107,7 +107,7 @@ class OrderSortingTests(TestCase):
         self.assertContains(response, 'class="order-number-sort"')
         self.assertEqual(response.context['sort_number_column']['rank'], 1)
         empty = self.client.get(reverse('order_list'), {'q':'no-matching-order-xyz'})
-        self.assertContains(empty, 'colspan="10"')
+        self.assertContains(empty, 'colspan="9"')  # T-265：顏色併進機種欄，少一欄
 
     def test_order_list_shows_payment_type_chip(self):
         # 1.71.0：全部訂單一眼分出現金／分期（附分期公司與期數，1.71.1）／刷卡，表格與手機卡片都有。

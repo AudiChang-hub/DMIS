@@ -1,10 +1,10 @@
-/* 全部訂單的「刪除訂單」位置（T-264）；只在全部訂單頁載入。 */
-/* 電腦版表格：刪除在每列最右邊的獨立欄。1440px 以下表格固定欄寬，多一欄會把每欄擠窄，
-   第一欄的日期與「訂單總覽」、刪除鈕都會折行；有刪除欄時第一欄與刪除欄各留一顆按鈕寬。
-   沒有刪除權限的帳號沒有這一欄，版面照舊。 */
+/* 全部訂單的「刪除訂單」位置與樣式（T-264、T-265）；只在全部訂單頁載入。 */
+/* T-265：刪除改成回收桶圖示鈕，保留紅色警示框線；觸控區 44×44，名稱由 aria-label／title 提供。 */
+.order-sort-table td.order-table-delete .button { min-width: 44px; min-height: 44px; padding: 0; }
+/* 電腦版表格：刪除在每列最右邊的獨立欄。1440px 以下表格固定欄寬，刪除欄只留一顆圖示鈕的寬度，
+   其他欄不被擠窄。沒有刪除權限的帳號沒有這一欄，版面照舊。 */
 @media (max-width: 1440px) and (min-width: 860.02px) {
-  .order-sort-table:has(th.order-table-delete) th:first-child,
-  .order-sort-table th.order-table-delete { width: 9.2%; }
+  .order-sort-table th.order-table-delete { width: calc(44px + var(--space-2) + var(--card-pad)); }
 }
 /* 手機卡片：刪除放卡片最下面靠右，自成一列並以細線和上方內容隔開，離右上角的「訂單總覽」最遠；
    觸控區 44px。沒有刪除權限時整列不輸出，不留空白。 */
@@ -16,4 +16,5 @@
   padding-top: var(--space-3);
   border-top: 1px dashed var(--line);
 }
-.order-row-footer .order-row-delete { min-height: 44px; margin-top: 0; }
+.order-row-footer .order-row-delete { min-height: 44px; min-width: 44px; padding: 0; margin-top: 0; }
+.icon-trash { display: block; flex: none; }

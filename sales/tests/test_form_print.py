@@ -157,8 +157,8 @@ class EnvelopeServicePhoneTests(TestCase):
     def setUp(self):
         lifecycle.OrderLifecycleTests.setUp(self)
         self.order, _vehicle = self.make_order(dealer=True, deposit=Decimal("5000"))
-        InstallmentCompany.objects.create(name="和潤企業", customer_service_phone="0800-000-111")
-        InstallmentCompany.objects.create(name="遠信國際", customer_service_phone="0800-000-222")
+        InstallmentCompany.objects.create(name="測試分期甲企業", customer_service_phone="0800-000-111")
+        InstallmentCompany.objects.create(name="測試分期乙國際", customer_service_phone="0800-000-222")
         InstallmentCompany.objects.create(name="停用分期", customer_service_phone="0800-000-999", active=False)
 
     def custom_installment(self, company, phone=""):
@@ -171,14 +171,14 @@ class EnvelopeServicePhoneTests(TestCase):
         OrderOperationsProfile.objects.update_or_create(order=self.order, defaults={"customer_service_phone": phone})
         return form_print.form_values(SalesOrder.objects.get(pk=self.order.pk))["customer_service_phone"]
 
-    def test_custom_hotai_installment_prints_master_phone(self):
-        self.assertEqual(self.custom_installment("和潤"), "客服電話：0800-000-111")
+    def test_custom_company_a_installment_prints_master_phone(self):
+        self.assertEqual(self.custom_installment("測試分期甲"), "客服電話：0800-000-111")
 
-    def test_custom_yuanxin_installment_prints_master_phone(self):
-        self.assertEqual(self.custom_installment("遠信"), "客服電話：0800-000-222")
+    def test_custom_company_b_installment_prints_master_phone(self):
+        self.assertEqual(self.custom_installment("測試分期乙"), "客服電話：0800-000-222")
 
     def test_custom_installment_full_master_name_prints_phone(self):
-        self.assertEqual(self.custom_installment("遠信國際股份有限公司"), "客服電話：0800-000-222")
+        self.assertEqual(self.custom_installment("測試分期乙國際股份有限公司"), "客服電話：0800-000-222")
 
     def test_unmatched_or_inactive_company_stays_blank(self):
         self.assertEqual(self.custom_installment("其他分期"), "")
@@ -186,12 +186,12 @@ class EnvelopeServicePhoneTests(TestCase):
         self.assertEqual(self.custom_installment(""), "")
 
     def test_operations_phone_wins(self):
-        self.assertEqual(self.custom_installment("和潤", phone="02-0000-0000"), "客服電話：02-0000-0000")
+        self.assertEqual(self.custom_installment("測試分期甲", phone="02-0000-0000"), "客服電話：02-0000-0000")
 
     def test_master_without_phone_falls_back_to_name_match(self):
-        blank = InstallmentCompany.objects.create(name="和潤分期", customer_service_phone="")
+        blank = InstallmentCompany.objects.create(name="測試分期甲分期", customer_service_phone="")
         SalesOrder.objects.filter(pk=self.order.pk).update(
-            payment_type=SalesOrder.PaymentType.INSTALLMENT, installment_company="和潤企業",
+            payment_type=SalesOrder.PaymentType.INSTALLMENT, installment_company="測試分期甲企業",
             installment_company_master=blank,
         )
         OrderOperationsProfile.objects.update_or_create(order=self.order, defaults={"customer_service_phone": ""})
@@ -200,7 +200,7 @@ class EnvelopeServicePhoneTests(TestCase):
 
     def test_cash_order_has_no_phone(self):
         SalesOrder.objects.filter(pk=self.order.pk).update(
-            payment_type=SalesOrder.PaymentType.CASH, installment_company="和潤", installment_company_master=None,
+            payment_type=SalesOrder.PaymentType.CASH, installment_company="測試分期甲", installment_company_master=None,
         )
         values = form_print.form_values(SalesOrder.objects.get(pk=self.order.pk))
         self.assertEqual(values["customer_service_phone"], "")

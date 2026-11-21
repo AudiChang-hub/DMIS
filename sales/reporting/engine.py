@@ -14,7 +14,8 @@ from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .demographics import AGE_DIMENSIONS, AGE_GROUP_COLORS, DEMOGRAPHIC_DIMENSIONS, age_sort_key, demographic_query
-from .combined_dimensions import family_color_expression, family_color_labels, family_color_sort_key
+from .combined_dimensions import (UNFILLED_FINANCE, family_color_expression, family_color_labels, family_color_sort_key,
+                                  finance_company_expression, finance_company_labels)
 from .reader_layouts import READER_LAYOUTS
 
 
@@ -30,7 +31,7 @@ DIMENSIONS = {
 }
 DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
 # T-268／T-269：只新增鍵，既有維度與已存報表不變。
-DIMENSIONS.update({"family_color": "車型＋顏色"})
+DIMENSIONS.update({"family_color": "車型＋顏色", "finance_company": "分期公司"})
 # 依分類本身的順序排列（「分類順序」排序與細分系列的名稱排序用）；其餘維度照原本的鍵值／名稱排序。
 KEY_SORTERS = {**{key: age_sort_key for key in AGE_DIMENSIONS}, "family_color": family_color_sort_key}
 
@@ -402,6 +403,8 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
         return sales_source_query(queryset).annotate(**{alias: sales_source_expression()})
     if dimension == "family_color":
         return queryset.annotate(**{alias: family_color_expression()})
+    if dimension == "finance_company":
+        return queryset.annotate(**{alias: finance_company_expression()})
     if dimension == "color":
         # 同一廣告色依年式分開的車色（「盧卡綠（UC125D）」）統計時合併成同一色（T-228）。
         from .colors import report_color_expression
@@ -456,6 +459,8 @@ def dimension_labels(dimension, keys, queryset=None):
         return report_color_labels(queryset if queryset is not None else SalesOrder.objects.all(), keys)
     if dimension == "family_color":
         return family_color_labels(queryset if queryset is not None else SalesOrder.objects.all(), keys)
+    if dimension == "finance_company":
+        return finance_company_labels(keys)
     if dimension in ("source", "recipient"):
         return dict(SalesSource.objects.filter(pk__in=keys).values_list("pk", "name"))
     if dimension == "model":
@@ -471,7 +476,8 @@ def dimension_labels(dimension, keys, queryset=None):
 
 def dimension_label(dimension, raw, labels):
     if raw is None or raw == "":
-        return "日期未填寫" if dimension in DATE_DIMENSIONS else "本店／未指定通路" if dimension == "source" else "未歸屬車行" if dimension == "recipient" else "未填寫"
+        return ("日期未填寫" if dimension in DATE_DIMENSIONS else "本店／未指定通路" if dimension == "source" else "未歸屬車行" if dimension == "recipient"
+                else UNFILLED_FINANCE if dimension == "finance_company" else "未填寫")
     if dimension in DATE_DIMENSIONS:
         return raw.strftime({"year": "%Y", "month": "%Y/%m", "day": "%Y/%m/%d"}[dimension])
     return str(labels.get(raw, raw))
@@ -490,7 +496,7 @@ def decode_key(dimension, key):
         raise ValueError
     if key == "__none__":
         return None
-    if dimension in ("model", "family", "source", "recipient"):
+    if dimension in ("model", "family", "source", "recipient", "finance_company"):
         value = int(key)
         if not 0 < value <= 9223372036854775807:
             raise ValueError

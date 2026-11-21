@@ -121,16 +121,12 @@ def _company_phone_by_name(name):
     """自訂分期沒有分期公司主檔（T-266）：用分期公司文字對到啟用中的主檔，取其客服電話。
 
     名稱相同優先；否則取名稱互相包含的主檔（例如「某分期」對「某分期企業」）。
-    對到多家且電話不同、或都沒電話時回空字串，不猜。
+    對到多家且電話不同、或都沒電話時回空字串，不猜。對應規則與報表的分期公司維度共用（T-269）。
     """
-    name = _text(name)
-    if len(name) < 2:
-        return ""
     from sales.models import InstallmentCompany
-    companies = list(InstallmentCompany.objects.filter(active=True).exclude(customer_service_phone="").only("name", "customer_service_phone"))
-    matches = [company for company in companies if company.name == name] or [
-        company for company in companies if company.name in name or name in company.name
-    ]
+    from sales.services.installment_company_match import matching_installment_companies
+    companies = InstallmentCompany.objects.filter(active=True).exclude(customer_service_phone="").only("name", "customer_service_phone")
+    matches = matching_installment_companies(_text(name), companies)
     phones = {_text(company.customer_service_phone) for company in matches} - {""}
     return phones.pop() if len(phones) == 1 else ""
 

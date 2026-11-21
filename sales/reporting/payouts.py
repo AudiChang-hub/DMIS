@@ -210,6 +210,8 @@ def _payout_orders():
         )
         .exclude(status__in=EXCLUDED_STATUSES)
         .select_related("source", "commission_recipient", "vehicle_model", "color", "operations", "legacy_snapshot")
+        # 台數獎金、配件、其他費用整批預取，傭金與向車行收的計算不逐張查詢（T-281）。
+        .prefetch_related("volume_bonuses", "accessories", "other_fees")
         .order_by("registration_date", "pk")
     )
 
@@ -218,7 +220,7 @@ def order_vehicle_label(order):
     return f"{order.vehicle_model.name} {order.color.label}".strip()
 
 
-def deduction_amount(order, amount):
+def deduction_amount(order, amount, profile=None):
     """傭金（不含台數獎金）裡已在「向車行收」扣掉的部分（`customer_receivable.dealer_account_due` 同一條件）。
 
     系統建立的車行現金單全額抵扣；系統建立的分期車行單只抵扣應向車行收的費用（扣訂金後），其餘另付（T-154）。
@@ -229,7 +231,7 @@ def deduction_amount(order, amount):
         return ZERO
     if order.payment_type != "installment":
         return amount
-    due = dealer_account_due(order)
+    due = dealer_account_due(order, profile)
     if due is None:
         return ZERO
     # due＝應向車行收的費用－傭金（扣訂金前），加回傭金就是要收的費用；訂金已收的部分不再抵扣。
@@ -274,7 +276,7 @@ def commission_items():
             label=f"{order_vehicle_label(order)} 傭金",
             amount=amount,
             order=order,
-            deduction_amount=deduction_amount(order, amount),
+            deduction_amount=deduction_amount(order, amount, profile),
             day=order.registration_date,
             period_label=breakdown,
             imported_before_start=imported and order.registration_date < PAYOUT_START_DATE,

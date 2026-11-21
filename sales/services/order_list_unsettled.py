@@ -16,11 +16,11 @@ def is_unsettled_after_delivery(order, summary):
 
 
 def mark_unsettled(orders):
-    from sales.models import LegacySalesSnapshot
-
     rows = [order for order in orders if order.status in DELIVERED]
-    # Excel 匯入單＝歷史資料，視為已收款，不標（T-275 第 8 項）；一次查出這一頁的匯入單。
-    imported = set(LegacySalesSnapshot.objects.filter(order__in=rows).values_list("order_id", flat=True)) if rows else set()
+    # Excel 匯入單＝歷史資料，視為已收款，不標（T-275 第 8 項）；一次預取這一頁的匯入快照，
+    # 沒有快照的單也會記住「沒有」，payment_summary 的 hasattr(order, "legacy_snapshot") 就不會逐筆查詢（T-281）。
+    prefetch_related_objects(rows, "legacy_snapshot")
+    imported = {order.pk for order in rows if hasattr(order, "legacy_snapshot")}
     for order in rows:
         if order.pk in imported:
             order.unsettled_due = None

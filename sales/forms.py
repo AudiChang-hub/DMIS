@@ -3562,7 +3562,9 @@ class PaymentRecordForm(forms.ModelForm):
         widget = self.fields["payment_method"].widget
         if original_method and original_method not in {key for key, _label in widget.choices}:
             widget.choices = [*widget.choices, (original_method, f"{original_method}（原資料）")]
-        order = self.instance.order if self.instance.order_id else self.parent_order
+        # 收款明細 formset 會把同一張訂單傳進來（parent_order），同一張單就直接用，不逐列再查訂單（T-281）。
+        same_order = self.parent_order is not None and self.parent_order.pk == self.instance.order_id
+        order = self.instance.order if self.instance.order_id and not same_order else self.parent_order
         if order is not None and order.source_type == SalesOrder.SourceType.DEALER:
             # 車行單向車行收錢：款項分類顯示「車行收款」，資料值仍是 customer（T-125 問題 2 方案 A）。
             self.fields["receipt_kind"].choices = [
@@ -4408,7 +4410,10 @@ class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
 
     def get_queryset(self):
         # 沖銷／退款為帳本調整紀錄，另以唯讀清單呈現，不進入可編輯明細。
-        return super().get_queryset().filter(entry_type=PaymentRecord.EntryType.RECEIPT)
+        # 與 BaseModelFormSet 一樣只建一次：每次重新 filter 會讓每一列、管理表單都重查一次（T-281）。
+        if not hasattr(self, "_receipt_queryset"):
+            self._receipt_queryset = super().get_queryset().filter(entry_type=PaymentRecord.EntryType.RECEIPT)
+        return self._receipt_queryset
 
     def clean(self):
         super().clean()

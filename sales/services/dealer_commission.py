@@ -61,6 +61,9 @@ def resolve_dealer_brand_policy(source_id, vehicle_model, effective_date):
 
 def posted_volume_bonus(order):
     """依規則自動計算、期間結束已入帳的台數獎金（T-148）。"""
+    prefetched = getattr(order, "_prefetched_objects_cache", {}).get("volume_bonuses")
+    if prefetched is not None:  # 給付頁整批預取（T-281），結果與下方加總相同
+        return sum((bonus.amount for bonus in prefetched if bonus.posted_at is not None), Decimal("0"))
     return OrderVolumeBonus.objects.filter(order=order, posted_at__isnull=False).aggregate(
         total=Sum("amount"))["total"] or Decimal("0")
 

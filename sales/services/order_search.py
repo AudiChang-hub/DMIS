@@ -190,12 +190,32 @@ def _append_match(matches, label, value, sensitive=False):
         matches.append(item)
 
 
-def build_order_match_summary(order, query, *, profit_unlocked=True):
-    search_terms = [query, *vehicle_brand_search_names(query)]
+def order_match_terms(query):
+    """全部訂單一頁共用的搜尋詞（查詢字串＋品牌別名）；整頁只算一次，不逐列查品牌（T-281）。"""
+    return [query, *vehicle_brand_search_names(query)]
+
+
+def _contains_any(value, terms):
+    """與 any(_contains(value, term) for term in terms) 相同，但 value 只正規化一次（T-281）。"""
+    raw_value = str(value or "").casefold()
+    normalised_value = None
+    for raw_query, normalised_query in terms:
+        if raw_query in raw_value:
+            return True
+        if normalised_value is None:
+            normalised_value = _normalise(value)
+        if normalised_query in normalised_value:
+            return True
+    return False
+
+
+def build_order_match_summary(order, query, *, profit_unlocked=True, search_terms=None):
+    search_terms = order_match_terms(query) if search_terms is None else search_terms
     cached = getattr(getattr(order, "search_index", None), "match_payload" if profit_unlocked else "safe_match_payload", None)
     if cached is None and not profit_unlocked:
         cached = build_order_search_payload(order, include_private=False)
     if cached is not None:
+        prepared = [(str(term or "").strip().casefold(), _normalise(term)) for term in search_terms]
         return [
             {
                 "label": item["label"],
@@ -203,7 +223,7 @@ def build_order_match_summary(order, query, *, profit_unlocked=True):
             }
             for item in cached
             if not item.get("search_only")
-            and any(_contains(item.get("value", ""), term) for term in search_terms)
+            and _contains_any(item.get("value", ""), prepared)
         ]
     matches = []
     for field in _order_fields():

@@ -246,6 +246,7 @@ from .services.order_change_display import build_order_change_cards
 from .services.order_next_actions import build_order_next_actions
 from .services.order_search import (
     build_order_match_summary,
+    order_match_terms,
     build_order_search_query,
 )
 from .status_tabs import item_status_counts, keep_status, queryset_status_counts, requested_status, status_tabs
@@ -4362,8 +4363,10 @@ def order_list(request):
     from sales.services.order_list_unsettled import mark_unsettled
     mark_unsettled(page.object_list)
     if query:
+        search_terms = order_match_terms(query)  # 整頁共用，不逐列查品牌別名（T-281）
         for order in page.object_list:
-            order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible)
+            order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible,
+                                                             search_terms=search_terms)
     query_params = request.GET.copy()
     query_params.pop("page", None)
     draft_rows = scoped_drafts(request.user)

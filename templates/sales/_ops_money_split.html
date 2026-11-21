@@ -1,0 +1,4 @@
+{% load sales_format %}{# 營運總表「錢」依付款方式拆列（T-275 第 9 項）：每一列點進全部訂單 risk＋pay，張數和這裡相同。 #}
+<ul class="ops-split" aria-label="{{ title }}依付款方式">
+  {% for row in rows %}<li class="{% if not row.count %}is-zero{% endif %}" title="{{ title }}（{{ row.label }}）">{% if row.count and row.url %}<a href="{{ row.url }}"><span>{{ row.label }}</span><b>{{ row.count }}</b>{% if row.amount %}<small>${{ row.amount|number_with_commas }}</small>{% endif %}</a>{% else %}<span>{{ row.label }}</span><b>{{ row.count }}</b>{% if row.amount %}<small>${{ row.amount|number_with_commas }}</small>{% endif %}{% endif %}</li>{% endfor %}
+</ul>

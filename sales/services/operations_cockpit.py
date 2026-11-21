@@ -42,8 +42,7 @@ from sales.services.dashboard_metrics import (
 )
 from sales.services.order_filters import new_orders_between
 from sales.services.order_next_actions import STALE_ALLOCATION_DAYS
-from sales.services.order_tabs import DELIVERED
-from sales.services.sales_metrics import CANCELLED_STATUSES
+from sales.services.sales_metrics import CANCELLED_STATUSES, PAYMENT_CATEGORIES, money_bucket, payment_category
 
 ZERO = Decimal("0")
 CACHE_VERSION = 1
@@ -77,6 +76,13 @@ STAGE_FILTERS = {
 SOURCE_MIX = (("store", "本店"), ("dealer", "車行"), ("platform", "網路平台"))
 ENERGY_MIX = (("gas", "油車"), ("electric", "電動（含輕型、微型）"))
 PAYMENT_MIX = (("cash", "現金／刷卡"), ("installment", "分期"))
+# 「錢」依付款方式拆列（T-275 第 9 項）：每一格點進全部訂單 risk＋pay，張數和卡片相同。
+MONEY_SPLIT_RISK = OrderedDict((("unsettled", "unsettled_delivered"), ("before_delivery", "before_delivery"),
+                                ("awaiting_payout", "awaiting_payout")))
+# 已交車待撥款只會是分期／平台（現金、刷卡有撥款列時也照實列出，合計才對得上）。
+AWAITING_PAYOUT_CATEGORIES = ("installment", "platform")
+UNSETTLED_LABELS = {"cash": "現金", "card": "刷卡", "installment": "分期，客人自付部分", "platform": "平台，客人自付部分"}
+RECONCILIATION_CHANNELS = (("installment", "分期撥款待入帳"), ("platform", "平台撥款待入帳"))
 # 油電領牌（T-263）：未領牌＝訂單流程的待配車＋待領牌兩站。
 ENERGY_REGISTRATION = (("gas", "油車"), ("electric", "電車"))
 PENDING_REGISTRATION = ("allocation_pending", "allocated")
@@ -318,19 +324,25 @@ def dealer_credit_rows():
 
 
 def _money(metrics, today):
-    from sales.services.order_list_unsettled import is_unsettled_after_delivery
-
     outstanding_total, unsettled, before_delivery, awaiting_payout = ZERO, [], 0, 0
+    split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": []}) for key, _label in PAYMENT_CATEGORIES)
+             for bucket in MONEY_SPLIT_RISK}
     for order, summary in metrics["outstanding_summaries"]:
         outstanding_total += max(summary["customer_due"], ZERO) + max(summary["lender_due"], ZERO)
-        # 交車後未結清：和全部訂單的「款項未結清」紅標同一口徑（order_list_unsettled）。
-        if is_unsettled_after_delivery(order, summary):
+        # 三格和全部訂單 risk 共用 money_bucket；交車後未結清和「款項未結清」紅標同一口徑（order_list_unsettled）。
+        bucket = money_bucket(order, summary)
+        if bucket == "unsettled":
             delivered = order.delivered_at or order.registration_completed_at
             unsettled.append((summary["customer_due"], _age_days(today, delivered)))
-        elif order.status in DELIVERED:
+        elif bucket == "awaiting_payout":
             awaiting_payout += 1     # 客戶已收清，只剩分期／平台撥款（事後對帳）或匯入單收款待核
         else:
             before_delivery += 1
+        cell = split[bucket][payment_category(order)]
+        cell["count"] += 1
+        if bucket == "unsettled":
+            cell["amount"] += summary["customer_due"]
+            cell["ages"].append(unsettled[-1][1])
     buckets = []
     for low, high, label in RECEIVABLE_AGE_BUCKETS:
         rows = [row for row in unsettled if row[1] is not None and row[1] >= low and (high is None or row[1] <= high)]
@@ -354,13 +366,37 @@ def _money(metrics, today):
         "dealer_credit": dealers,
         "dealer_credit_total": sum((row["amount"] for row in dealers), ZERO),
         "dealer_credit_over": sum(1 for row in dealers if row["over"]),
+        "split": _money_split(split),
     }
+
+
+def _money_split(split):
+    labels = dict(PAYMENT_CATEGORIES)
+    result = OrderedDict()
+    for bucket, risk in MONEY_SPLIT_RISK.items():
+        rows = []
+        for key, cell in split[bucket].items():
+            if bucket == "awaiting_payout" and key not in AWAITING_PAYOUT_CATEGORIES and not cell["count"]:
+                continue
+            ages = [age for age in cell["ages"] if age is not None]
+            rows.append({"key": key, "label": labels[key], "count": cell["count"],
+                         "amount": cell["amount"] if bucket == "unsettled" else None,
+                         "oldest": max(ages) if ages else None, "params": {"risk": risk, "pay": key}})
+        result[bucket] = rows
+    return result
 
 
 def _reconciliation(queryset):
     # 待入帳算訂單張數（使用者 2026-11-21，和「已交車待撥款」同單位）；預計金額照舊把每筆撥款加總。
-    rows = list(queryset.filter(confirmed=False).values_list("expected_amount", "order_id"))
-    return {"pending": len({row[1] for row in rows}), "expected": sum((row[0] or ZERO for row in rows), ZERO)}
+    rows = list(queryset.filter(confirmed=False).values_list("expected_amount", "order_id", "order__source_type"))
+    channels = []
+    # 依撥款來源拆列（T-275 第 9 項）：平台單算平台撥款，其餘是分期公司撥款，和對帳頁 channel 同一判斷。
+    for key, label in RECONCILIATION_CHANNELS:
+        part = [row for row in rows if (row[2] == SalesOrder.SourceType.PLATFORM) == (key == "platform")]
+        channels.append({"key": key, "label": label, "pending": len({row[1] for row in part}),
+                         "expected": sum((row[0] or ZERO for row in part), ZERO)})
+    return {"pending": len({row[1] for row in rows}), "expected": sum((row[0] or ZERO for row in rows), ZERO),
+            "channels": channels}
 
 
 def _payouts():
@@ -632,12 +668,14 @@ def _attention(data, flags):
     """需要處理：只列有事的項目；紅色（錢有風險、庫齡過久、超額度）在前，同色依金額與件數排序。"""
     money, stock, flow, links = data["money"], data["stock"], data["flow"], flags["links"]
     order_url = lambda params: _url("order_list", params) if links["order_list"] else ""  # noqa: E731
+    # 交車後未結清依付款方式拆成四項（T-275 第 9 項）；點進去是 risk＋pay 同一批單。
     items = [
-        {"key": "unsettled", "label": "交車後未結清", "value": money["unsettled_count"], "unit": "張",
-         "amount": money["unsettled_amount"] if flags["operations"] else None,
-         "detail": f"最久 {money['unsettled_oldest']} 天" if money["unsettled_oldest"] is not None else "",
-         "severity": "red" if (money["unsettled_oldest"] or 0) > 30 else "amber",
-         "url": order_url({"risk": "unsettled_delivered"})},
+        {"key": f"unsettled_{row['key']}", "label": f"交車後未結清（{UNSETTLED_LABELS[row['key']]}）",
+         "value": row["count"], "unit": "張", "amount": row["amount"] if flags["operations"] else None,
+         "detail": f"最久 {row['oldest']} 天" if row["oldest"] is not None else "",
+         "severity": "red" if (row["oldest"] or 0) > 30 else "amber", "url": order_url(row["params"])}
+        for row in money["split"]["unsettled"]
+    ] + [
         {"key": "refund", "label": "取消待退款", "value": money["refund"], "unit": "張", "severity": "red",
          "url": order_url({"risk": "refund"})},
         {"key": "overpaid", "label": "溢收待退", "value": money["overpaid"], "unit": "張", "severity": "red",
@@ -646,12 +684,13 @@ def _attention(data, flags):
          "severity": "amber", "url": order_url({"risk": "unconfirmed"})},
     ]
     if flags["reconciliation"]:
-        recon = data["reconciliation"]
-        items.append({"key": "reconciliation", "label": "分期／平台撥款待入帳", "value": recon["pending"], "unit": "張",
-                      "amount": recon["expected"] if flags["operations"] and recon["expected"] else None,
-                      "detail": "預計金額" if flags["operations"] and recon["expected"] else "", "severity": "amber",
-                      "url": _url("reconciliation_list", {"status": "pending", "by_order": 1})
-                      if links["reconciliation_list"] else ""})
+        for row in data["reconciliation"]["channels"]:
+            shown = flags["operations"] and row["expected"]
+            items.append({"key": f"reconciliation_{row['key']}", "label": row["label"], "value": row["pending"],
+                          "unit": "張", "amount": row["expected"] if shown else None,
+                          "detail": "預計金額" if shown else "", "severity": "amber",
+                          "url": _url("reconciliation_list", {"status": "pending", "by_order": 1, "channel": row["key"]})
+                          if links["reconciliation_list"] else ""})
     if flags["operations"]:
         items.append({"key": "dealer_credit", "label": "車行掛帳超過額度", "value": money["dealer_credit_over"],
                       "unit": "家", "severity": "red",
@@ -714,6 +753,10 @@ def for_viewer(data, flags):
         for key in ("outstanding_amount", "unsettled_amount", "dealer_credit", "dealer_credit_total"):
             money.pop(key)
         money["aging"] = [{**bucket, "amount": None} for bucket in money["aging"]]
+    money["split"] = OrderedDict(
+        (bucket, [{**row, "amount": row["amount"] if flags["operations"] else None,
+                   "url": _url("order_list", row["params"]) if flags["links"]["order_list"] else ""} for row in rows])
+        for bucket, rows in data["money"]["split"].items())
     view["money"] = money
     if flags["reconciliation"]:
         view["reconciliation"] = data["reconciliation"]

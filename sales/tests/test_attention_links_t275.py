@@ -81,7 +81,7 @@ class AttentionLinkTests(FinanceLedgerTestBase):
         self.settle(lender)
         self.owing(self.store_order("cancelled"))                           # 取消：不算
         self.settle(self.store_order("completed"))                          # 已收清：不算
-        item = self.assert_same_batch("unsettled", {completed.pk, docs.pk}, self.order_ids)
+        item = self.assert_same_batch("unsettled_cash", {completed.pk, docs.pk}, self.order_ids)  # 第 9 項依付款方式拆列
         self.assertIn("risk=unsettled_delivered", item["url"])
         # 原本的「待收款」照舊（含交車前、撥款未到）。
         wide = self.order_ids(self.client.get(reverse("order_list"), {"risk": "outstanding"}))
@@ -235,7 +235,7 @@ class AttentionLinkTests(FinanceLedgerTestBase):
             models_q_payout()).values_list("pk", flat=True)
         self.assertEqual(len(records), 3)
         item = self.assert_same_batch(
-            "reconciliation", {order.pk for order in orders},
+            "reconciliation_platform", {order.pk for order in orders},  # 第 9 項依撥款來源拆列
             lambda response: {row.order_id for row in response.context["page_obj"].paginator.object_list})
         self.assertEqual(item["unit"], "張")
         response = self.follow(item)
@@ -244,7 +244,7 @@ class AttentionLinkTests(FinanceLedgerTestBase):
         self.assertContains(response, "3 筆撥款")
         # 「錢」卡片同一個數字、同一個單位。
         report = self.client.get(reverse("operations_report"))
-        self.assertContains(report, "?status=pending&amp;by_order=1\">2 張</a>")
+        self.assertContains(report, "?status=pending&amp;by_order=1&amp;channel=platform\">2 張</a>")
         # 不帶 by_order：撥款對帳照舊列紀錄筆數。
         plain = self.client.get(reverse("reconciliation_list"), {"status": "pending"})
         self.assertEqual(plain.context["page_obj"].paginator.count, 3)

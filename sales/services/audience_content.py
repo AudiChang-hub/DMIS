@@ -5,7 +5,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
     ("2.35.0", "新增"): [("operations_report", "internal")] * 2 + [("dealer_payout_list", "internal")],
-    ("2.35.0", "改善"): [("operations_report", "internal")],
+    ("2.35.0", "改善"): [("operations_report", "internal")] * 2,
     ("2.35.0", "修正"): [("operations_report", "internal")],
     ("2.34.1", "修正"): [("root",)],
     ("2.34.0", "新增"): [("root",), ("root",), ("root",)],

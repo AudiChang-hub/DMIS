@@ -1,11 +1,49 @@
 """首頁、總表的共用唯讀成交口徑；不變更底層財務快照。"""
 from decimal import Decimal
 
+from django.db.models import Q
+
 from sales.models import PaymentRecord, SalesOrder
 
 CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING, SalesOrder.Status.EXCEPTION_CLOSED)
 # 已交車的單不算配車保留逾期；交付時間可留空（T-138），不能只靠 delivered_at 判斷。
 DELIVERED_STATUSES = (SalesOrder.Status.DELIVERED_DOCS_PENDING, SalesOrder.Status.COMPLETED)
+# 營運總表款項依付款方式拆列（T-275 第 9 項，使用者 2026-11-21）：沿用既有欄位，不新增判斷資料。
+PAYMENT_CATEGORIES = (("cash", "現金"), ("card", "刷卡"), ("installment", "分期"), ("platform", "平台"))
+
+
+def payment_category(order):
+    """平台單一律算平台（撥款由平台付，和統一撥款對帳 channel 同一判斷）；其餘依 payment_type，其他算現金。"""
+    if order.source_type == SalesOrder.SourceType.PLATFORM:
+        return "platform"
+    if order.payment_type in (SalesOrder.PaymentType.INSTALLMENT, SalesOrder.PaymentType.CARD):
+        return order.payment_type
+    return "cash"
+
+
+def payment_category_q(key):
+    """`payment_category` 的查詢版本；全部訂單 pay= 參數用。"""
+    platform = Q(source_type=SalesOrder.SourceType.PLATFORM)
+    if key == "platform":
+        return platform
+    if key in ("installment", "card"):
+        return ~platform & Q(payment_type=key)
+    return ~platform & ~Q(payment_type__in=("installment", "card"))
+
+
+def is_outstanding(summary):
+    """待收款：客人或分期／平台撥款還有應收，或匯入單收款未核（和 filter_payment_risk outstanding 同一口徑）。"""
+    return summary['customer_due'] > 0 or summary['lender_due'] > 0 or not summary['legacy_settled']
+
+
+def money_bucket(order, summary):
+    """待收款的單在營運總表「錢」屬於哪一格：交車後未結清／已交車待撥款／交車前應收；不是待收回 None。"""
+    if not is_outstanding(summary):
+        return None
+    if order.status in DELIVERED_STATUSES:
+        # 和 order_list_unsettled.is_unsettled_after_delivery 同條件（已交車且客人應收未收清）。
+        return "unsettled" if summary["customer_due"] > 0 else "awaiting_payout"
+    return "before_delivery"
 
 
 def vehicle_sale_amount(order):
@@ -46,8 +84,14 @@ def filter_payment_risk(orders, risk):
         ids = []
         for order in candidates:
             summary = payment_summary(order)
-            if summary['customer_due'] > 0 or summary['lender_due'] > 0 or not summary['legacy_settled']:
+            if is_outstanding(summary):
                 ids.append(order.pk)
+        return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
+    if risk in ('before_delivery', 'awaiting_payout'):
+        # 營運總表「交車前應收」「已交車待撥款」（T-275 第 9 項）：和卡片共用 money_bucket。
+        from .payment_summary import payment_summary
+        candidates = orders.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')
+        ids = [order.pk for order in candidates if money_bucket(order, payment_summary(order)) == risk]
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
     if risk == 'unsettled_delivered':
         # 營運總表「交車後未結清」（T-275）：條件與卡片共用 is_unsettled_after_delivery，比「待收款」窄。

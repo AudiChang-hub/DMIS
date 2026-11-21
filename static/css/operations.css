@@ -620,6 +620,76 @@ html[data-theme="night-blue"] .ops {
   font-size: var(--text-xs);
 }
 
+/* 「錢」依付款方式拆列（T-275 第 9 項）：三欄的分項清單對齊同一條線（subgrid）。 */
+.ops-figs:has(.ops-split) {
+  row-gap: 0;
+}
+
+.ops-fig:has(.ops-split) {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  align-content: start;
+}
+
+.ops-split {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) 0 0;
+  border-top: 1px dashed var(--line-soft);
+  list-style: none;
+  font-size: var(--text-xs);
+}
+
+.ops-split li > a,
+.ops-split li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ops-split li > a {
+  flex: 1;
+  margin: 0 calc(var(--space-1) * -1);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-xs);
+  color: var(--forest);
+  text-decoration: none;
+}
+
+.ops-split li > a:hover {
+  background: color-mix(in srgb, var(--forest) 8%, transparent);
+}
+
+.ops-split li > a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.ops-split span {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.ops-split b {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-split small {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ops-split li.is-zero span,
+.ops-split li.is-zero b {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .ops-subhead {
   color: var(--ink-soft);
   font-size: var(--text-xs);
@@ -1074,6 +1144,11 @@ html[data-theme="night-blue"] .ops {
 
   .ops-figs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 拆列後兩欄換行時，下一列的數字和上面的清單要有間距（T-275） */
+  .ops-fig:has(.ops-split) {
+    padding-bottom: var(--space-4);
   }
 
   .ops-track__count {

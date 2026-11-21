@@ -4,9 +4,9 @@ from django.db.models import Case, DateField, F, Q, When
 from django.utils.dateparse import parse_date
 
 from sales.models import VehicleModel, registration_confirmed_q
-from .sales_metrics import CANCELLED_STATUSES, filter_payment_risk
+from .sales_metrics import CANCELLED_STATUSES, PAYMENT_CATEGORIES, filter_payment_risk, payment_category_q
 
-FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts")
+FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts", "pay")
 
 
 def plate_fee_variance_q():
@@ -56,6 +56,9 @@ def filter_order_analysis(rows, params, *, business_default=False):
     elif status:
         rows = rows.filter(status=status)
     rows = filter_payment_risk(rows, params.get("risk", ""))
+    if params.get("pay") in dict(PAYMENT_CATEGORIES):
+        # 營運總表款項依付款方式拆列（T-275 第 9 項）：沒帶 pay 時不影響。
+        rows = rows.filter(payment_category_q(params["pay"]))
     if params.get("energy_type") in {v for v, _ in VehicleModel.EnergyType.choices}:
         rows = rows.filter(vehicle_model__energy_type=params["energy_type"])
     if params.get("payment_status") == "confirmed":
@@ -111,7 +114,9 @@ HIDDEN_FILTERS = {
                                "new_order": "訂單成立日期（補登依領牌日）"}),
     "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款",
                          "overpaid": "溢收待退", "stale_allocation": "配車保留逾期",
-                         "unsettled_delivered": "交車後未結清"}),
+                         "unsettled_delivered": "交車後未結清", "before_delivery": "交車前應收",
+                         "awaiting_payout": "已交車待撥款"}),
+    "pay": ("付款方式", dict(PAYMENT_CATEGORIES)),
     "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),
     "business_only": ("成交範圍", {"1": "排除取消／退款"}),
 }

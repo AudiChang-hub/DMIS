@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% load site_copy %}{% load pagination_tags screen_access static %}{% block page_class %}site-management{% endblock %}
 {% block title %}年節送禮分發{% endblock %}
-{% block head %}<script src="{% static 'js/recipient-picker.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'js/recipient-picker.js' %}" defer></script>{% endblock %}
 {% block content %}
 {% url 'gift_distribution' as gift_url %}{% url 'data_maintenance' as data_url %}{% if activity %}{% include 'sales/_page_back.html' with fallback_url=gift_url label='年節送禮分發' root_url=data_url root_label='資料維護區' %}{% else %}{% include 'sales/_page_back.html' with fallback_url=data_url label='資料維護區' %}{% endif %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">工作紀錄</p><h1>{% if activity %}{{ activity.title }}{% else %}年節送禮分發{% endif %}</h1><p>{% site_text 'gift_distribution.47981000af75' %}</p></div>{% if not activity %}<a class="button ghost" href="?history={% if history %}0{% else %}1{% endif %}">{% if history %}目前活動{% else %}歷史活動{% endif %}</a>{% endif %}</section>

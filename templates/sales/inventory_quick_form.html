@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy static %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/inventory-quick-entry.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/inventory-quick-entry.css' %}">{% endblock %}
 {% block title %}快速進車｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -60,7 +60,7 @@
 {{ energy_types|json_script:"vehicle-energy-types" }}
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'js/inventory-acquisition.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/inventory-acquisition.js' %}" defer></script>
 <script>
 (() => {
   const rows = document.getElementById("quick-entry-rows");

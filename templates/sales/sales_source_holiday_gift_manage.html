@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static %}{% load site_copy %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/sales-sources.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/sales-sources.css' %}">{% endblock %}
 {% block title %}管理年節送禮名單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -60,4 +60,4 @@
   </div>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/holiday-gift-maintenance.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/holiday-gift-maintenance.js' %}" defer></script>{% endblock %}

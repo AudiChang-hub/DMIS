@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static sales_format %}
 {% block title %}批次調整｜機種與售價｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide model-tool-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}"><link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}">{% endblock %}
 {% block content %}
 {% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}{% url 'settlement_cost_rule_list' as cost_url %}
 {% if origin == "costs" %}{% include "sales/_page_back.html" with fallback_url=cost_url label="機種與售價／結算成本" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}{% else %}{% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}{% endif %}
@@ -175,4 +175,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}" defer></script>{% endblock %}

@@ -1,7 +1,7 @@
 {% extends 'sales/reporting/layout.html' %}{% load site_copy %}{% load static %}
 {% block title %}車種類別設定{% endblock %}
-{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-classification.css' %}?v={{ app_version }}">{% endblock %}
-{% block scripts %}{{ block.super }}<script src="{% static 'js/report-classification.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-classification.css' %}">{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/report-classification.js' %}" defer></script>{% endblock %}
 {% block report_content %}
 <div class="classification-workspace">
 <header class="report-heading hero-row compact-hero"><div><p class="eyebrow">資料維護區 · 報表設計</p><h1>車種類別設定</h1><p class="muted">{% site_text 'classification.f112365d00d3' %}</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'report_manage' %}">報表設計管理</a></div></header>

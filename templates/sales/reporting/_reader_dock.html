@@ -8,5 +8,5 @@
   {% if tree_filter %}<div class="report-side-panel report-side-panel--tree" id="report-tree-panel" data-side-panel="tree">{% include 'sales/reporting/tree_filter.html' with side_dock=True %}</div>{% endif %}
   <div class="report-side-backdrop" data-side-backdrop hidden></div>
   {# 不加 defer：在報表內容繪製前套用上次的開合狀態，避免版面跳動。 #}
-  <script src="{% static 'js/report-side-dock.js' %}?v={{ app_version }}"></script>
+  <script src="{% static 'js/report-side-dock.js' %}"></script>
 </div>

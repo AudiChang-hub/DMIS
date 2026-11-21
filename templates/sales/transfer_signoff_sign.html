@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}調車簽收確認｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}"><link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}">{% endblock %}
 {% block content %}
 {# 領車人簽名步驟：隱藏主選單（signing-page），只顯示要確認的內容與簽名框。 #}
 <div class="signing-page transfer-sign">
@@ -50,4 +50,4 @@
   </form>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/signature-pad.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/signature-pad.js' %}" defer></script>{% endblock %}

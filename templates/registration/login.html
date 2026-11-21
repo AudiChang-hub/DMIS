@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}登入｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/login.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
 {% block content %}
 <section class="login-shell">
   <aside class="login-showcase" aria-labelledby="login-showcase-title">
@@ -50,5 +50,5 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'js/login.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/login.js' %}" defer></script>
 {% endblock %}

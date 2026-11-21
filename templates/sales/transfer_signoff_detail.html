@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}{{ signoff.number }} 調車簽收｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}">{% endblock %}
 {% block content %}
 {% url 'transfer_signoff_list' as list_url %}
 {% include "sales/_page_back.html" with fallback_url=list_url label="返回調車簽收紀錄" %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}客戶簽署 · {{ order.number }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}">{% endblock %}
 {% block content %}
 <div class="signing-page">
 {% url 'order_detail' order.pk as order_detail_url %}
@@ -45,4 +45,4 @@
 </form>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/signature-pad.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/signature-pad.js' %}" defer></script>{% endblock %}

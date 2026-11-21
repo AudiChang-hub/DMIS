@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static %}{% load site_copy %}{% load screen_access %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}">{% endblock %}
 {% block title %}機種與售價｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -113,8 +113,8 @@
 </section>
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'js/vehicle-model-year-panels.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/vehicle-brand-groups.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/vehicle-model-list-nav.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/vehicle-model-color-peek.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/vehicle-model-year-panels.js' %}" defer></script>
+<script src="{% static 'js/vehicle-brand-groups.js' %}" defer></script>
+<script src="{% static 'js/vehicle-model-list-nav.js' %}" defer></script>
+<script src="{% static 'js/vehicle-model-color-peek.js' %}" defer></script>
 {% endblock %}

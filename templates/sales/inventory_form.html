@@ -107,7 +107,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'js/inventory-acquisition.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/inventory-acquisition.js' %}" defer></script>
 <script>
 document.getElementById("id_vehicle_model").addEventListener("change", async function() {
   const response = await fetch(`{% url 'vehicle_colors' %}?model=${this.value}`);

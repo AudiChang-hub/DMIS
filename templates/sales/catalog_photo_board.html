@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/catalog-photo-board.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/catalog-photo-board.css' %}">{% endblock %}
 {% block title %}車色圖片｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -93,4 +93,4 @@
   {% endfor %}
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/catalog-photo-board.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/catalog-photo-board.js' %}" defer></script>{% endblock %}

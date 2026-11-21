@@ -2,7 +2,7 @@
 
 {% block title %}使用說明｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide help-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}">{% endblock %}
 
 {% block content %}
 {% site_navigation %}
@@ -86,5 +86,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/help.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/help.js' %}" defer></script>
 {% endblock %}

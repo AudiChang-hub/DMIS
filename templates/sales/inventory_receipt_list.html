@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static pagination_tags %}
 {% block title %}進車紀錄｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'inventory_list' as inventory_url %}

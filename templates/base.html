@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="preload" href="{% static 'fonts/inter-latin-wght.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/manrope-latin-wght.woff2' %}" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
@@ -251,26 +251,26 @@
     {% if screen_read_only %}<p class="card" role="status">目前畫面為僅查看權限；新增、修改及刪除須由 admin 另行開放。</p>{% endif %}
     {% block content %}{% endblock %}
   </main>
-  {% if screen_read_only %}<script src="{% static 'js/screen-readonly.js' %}?v={{ app_version }}" defer></script>{% endif %}
+  {% if screen_read_only %}<script src="{% static 'js/screen-readonly.js' %}" defer></script>{% endif %}
   {% block scripts %}{% endblock %}
-  {% if is_data_maintenance_section %}<script src="{% static 'js/form-draft.js' %}?v={{ app_version }}" defer></script>{% endif %}
-  <script src="{% static 'js/busy-indicator.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/header-layout.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/brand-clock.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/message-toasts.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/form-feedback.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/year-month-input.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/ui-navigation.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/layout-audit.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/app-update.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/connectivity-status.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/theme-selector.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/floating-list.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/region-groups.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/searchable-select.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/phone-full-text.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/recent-field-values.js' %}?v={{ app_version }}" defer></script>
-  <script src="{% static 'js/active-quick-toggle.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/document-previews.js' %}?v={{ app_version }}" defer></script>
+  {% if is_data_maintenance_section %}<script src="{% static 'js/form-draft.js' %}" defer></script>{% endif %}
+  <script src="{% static 'js/busy-indicator.js' %}" defer></script>
+  <script src="{% static 'js/header-layout.js' %}" defer></script>
+  <script src="{% static 'js/brand-clock.js' %}" defer></script>
+  <script src="{% static 'js/message-toasts.js' %}" defer></script>
+  <script src="{% static 'js/form-feedback.js' %}" defer></script>
+  <script src="{% static 'js/year-month-input.js' %}" defer></script>
+  <script src="{% static 'js/ui-navigation.js' %}" defer></script>
+  <script src="{% static 'js/layout-audit.js' %}" defer></script>
+  <script src="{% static 'js/app-update.js' %}" defer></script>
+  <script src="{% static 'js/connectivity-status.js' %}" defer></script>
+  <script src="{% static 'js/theme-selector.js' %}" defer></script>
+  <script src="{% static 'js/floating-list.js' %}" defer></script>
+  <script src="{% static 'js/region-groups.js' %}" defer></script>
+  <script src="{% static 'js/searchable-select.js' %}" defer></script>
+  <script src="{% static 'js/phone-full-text.js' %}" defer></script>
+  <script src="{% static 'js/recent-field-values.js' %}" defer></script>
+  <script src="{% static 'js/active-quick-toggle.js' %}" defer></script>
+<script src="{% static 'js/document-previews.js' %}" defer></script>
 </body>
 </html>

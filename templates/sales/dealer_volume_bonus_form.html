@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}台數獎金規則｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回規則管理" %}
@@ -50,4 +50,4 @@
   <div class="form-savebar bonus-save-bar"><span class="form-savebar__hint">套用後自動試算；期間結束後到給付頁按「結算」才加進傭金支出。</span><div><a class="button ghost" href="{{ list_url }}">取消</a><button type="submit" class="button primary">套用規則</button></div></div>
 </form>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/dealer-bonus-model-filter.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/dealer-volume-bonus.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-bonus-model-filter.js' %}" defer></script><script src="{% static 'js/dealer-volume-bonus.js' %}" defer></script>{% endblock %}

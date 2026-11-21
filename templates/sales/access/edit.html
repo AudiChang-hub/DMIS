@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}{{ account.username }} 畫面權限｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}">{% endblock %}
 {% block content %}
 {% if request.permission_account %}{% include 'sales/permissions/_header.html' %}{% else %}
 {% url 'access_overview' as access_url %}{% include "sales/_page_back.html" with fallback_url=access_url label="人員權限總覽" %}
@@ -31,5 +31,5 @@
 <p class="access-empty" data-access-empty hidden>{% site_text 'edit.6cfca5e34bf9' %}</p>
 <footer class="access-footer">{% if preview %}<button class="button secondary" name="action" value="back">返回調整</button><button class="button primary" name="action" value="apply">確認並套用</button>{% else %}<a class="button secondary" href="{% url 'access_overview' %}">取消</a><button class="button primary" name="action" value="preview">預覽變更</button>{% endif %}</footer></form>
 <details class="card"><summary>權限異動歷程（最近 20 筆）</summary>{% for revision in revisions %}<form method="post" class="access-history">{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}"><input type="hidden" name="revision" value="{{ revision.pk }}"><span>第 {{ revision.version }} 版 · {{ revision.created_at|date:'Y/m/d H:i' }} · {{ revision.actor_name }}</span><button class="button secondary" name="action" value="restore">還原此版並預覽</button></form><details><summary>查看此版異動</summary><ul>{% for row in revision.changes %}<li>{{ row.label }}：{% for cell in row.cells %}{% if cell.supported and cell.checked != cell.before %}{{ cell.label }} {% if cell.checked %}新增{% else %}收回{% endif %}；{% endif %}{% endfor %}</li>{% empty %}<li>可見項目未變更；已確認採用白名單。</li>{% endfor %}</ul></details>{% empty %}<p>尚無套用紀錄。</p>{% endfor %}</details>
-<script src="{% static 'js/screen-access.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/screen-access.js' %}" defer></script>
 {% endblock %}

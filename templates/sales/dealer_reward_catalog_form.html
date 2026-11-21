@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}">{% endblock %}
 {% block title %}{% if editing_item %}編輯獎勵品項{% else %}新增獎勵品項{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
@@ -58,4 +58,4 @@
   <div class="form-savebar dealer-reward-actions"><a class="button ghost" href="{{ list_url }}">取消</a><button class="button primary" type="submit">套用獎勵品項</button></div>
 </form>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/dealer-reward-catalog.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-reward-catalog.js' %}" defer></script>{% endblock %}

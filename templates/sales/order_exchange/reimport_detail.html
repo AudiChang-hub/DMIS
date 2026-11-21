@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}{% if plan %}匯回預覽{% else %}匯回結果{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}">{% endblock %}
 {% block content %}
 {% url 'order_bulk_update' as upload_url %}
 {% include "sales/_page_back.html" with fallback_url=upload_url label="匯回修改" %}

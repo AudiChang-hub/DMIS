@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy static %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/accessory-bulk.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/accessory-bulk.css' %}">{% endblock %}
 {% load pagination_tags %}
 {% block title %}配件與工資｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -130,4 +130,4 @@
   {% pagination page_obj aria_label="配件與工資分頁" %}
 </section>
 {% endblock %}
-{% block scripts %}{% if selected.edit and not screen_read_only %}<script src="{% static 'js/accessory-bulk-edit.js' %}?v={{ app_version }}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if selected.edit and not screen_read_only %}<script src="{% static 'js/accessory-bulk-edit.js' %}" defer></script>{% endif %}{% endblock %}

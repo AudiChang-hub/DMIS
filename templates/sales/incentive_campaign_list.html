@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static screen_access %}
 {% block title %}原廠獎勵與補助｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -40,4 +40,4 @@
 </div>
 {% include "sales/_incentive_backfill_dialog.html" %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/incentive-campaigns.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/incentive-campaigns.js' %}" defer></script>{% endblock %}

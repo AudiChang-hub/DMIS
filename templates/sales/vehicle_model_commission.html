@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load site_copy static screen_access %}
 {% block title %}傭金與獎勵｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide model-workspace-page dealer-program-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}">{% include "sales/_vehicle_model_workspace_head.html" %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}">{% include "sales/_vehicle_model_workspace_head.html" %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block content %}
 {% include "sales/_vehicle_model_workspace.html" with workspace_tab="commission" %}
 <header class="model-workspace-intro">

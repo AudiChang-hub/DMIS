@@ -2,7 +2,7 @@
 {% comment %}單張訂單的身分證影本（T-208，使用者 2026-11-17）：版面同套表列印（每頁 5 組、卡寬 82.7 mm、右側備註）。
 預覽與列印走套表列印同一份 PDF；點卡片調整裁切會存回訂單；備註當場填、不保存。{% endcomment %}
 {% block title %}{{ label }}影本｜{{ order.number }}｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'order_detail' order.pk as order_url %}{% include "sales/_page_back.html" with fallback_url=order_url label="返回訂單" %}
@@ -43,7 +43,7 @@
     <p class="form-print__hint">會在新分頁開啟 A4 PDF。列印時縮放請選「實際大小」（100%），不要選「符合頁面」，卡片才會是 {{ print_size }}。</p>
   </form>
 </div>
-<script src="{% static 'js/id-crop-editor.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/form-print-id-copy.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/order-id-copy.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/id-crop-editor.js' %}" defer></script>
+<script src="{% static 'js/form-print-id-copy.js' %}" defer></script>
+<script src="{% static 'js/order-id-copy.js' %}" defer></script>
 {% endblock %}

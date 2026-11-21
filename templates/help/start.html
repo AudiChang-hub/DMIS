@@ -2,7 +2,7 @@
 
 {% block title %}從這裡開始｜使用說明{% endblock %}
 {% block page_class %}page-shell--wide help-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}">{% endblock %}
 
 {% block content %}
 {% url 'user_guide' as help_home_url %}{% include "sales/_page_back.html" with fallback_url=help_home_url label="使用說明" current_label="從這裡開始" %}

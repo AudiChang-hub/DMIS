@@ -198,7 +198,7 @@ def remove_rules(text, spans):
 
 def link_pages(batch):
     for module in BATCHES[batch]:
-        tag = "<link rel=\"stylesheet\" href=\"{% static 'css/" + module["css"] + "' %}?v={{ app_version }}\">"
+        tag = "<link rel=\"stylesheet\" href=\"{% static 'css/" + module["css"] + "' %}\">"
         for name in module["pages"]:
             path = ROOT / "templates" / name
             source = path.read_text(encoding="utf-8")

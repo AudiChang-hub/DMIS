@@ -10,5 +10,5 @@
 <aside class="company-preview" aria-label="訂購單公司抬頭預覽"><span class="eyebrow">抬頭預覽</span><h3 data-company-preview="legal_name">公司／商號全名</h3><p data-company-preview="address">列印地址</p><p>電話：<span data-company-preview="phone">尚未填寫</span></p><p>統編：<span data-company-preview="tax_id">尚未填寫</span></p><small>正式 PDF 會依文字長度排版；此處不顯示任何客戶資料。</small></aside></div>
 <p class="muted">儲存不會改寫已保留公司資料的訂單；還沒列印過的舊單在第一次列印或簽署時帶入目前資料。</p><div class="form-actions"><button class="button primary" type="submit">套用公司資料</button></div></form></section>
 {% if changes %}<section class="account-panel"><h2>最近設定紀錄</h2>{% for change in changes %}<details><summary>{{ change.created_at|date:"Y/m/d H:i" }} · {{ change.actor }} · {{ change.reason }}</summary><p>原資料：{{ change.before.legal_name|default:"未設定" }} ／ {{ change.before.tax_id }} ／ {{ change.before.address }} ／ {{ change.before.phone }}</p><p>新資料：{{ change.after.legal_name }} ／ {{ change.after.tax_id }} ／ {{ change.after.address }} ／ {{ change.after.phone }}</p></details>{% endfor %}</section>{% endif %}
-</div><script src="{% static 'js/print-company.js' %}?v={{ app_version }}" defer></script>
+</div><script src="{% static 'js/print-company.js' %}" defer></script>
 {% endblock %}

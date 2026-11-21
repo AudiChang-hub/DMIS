@@ -1,6 +1,6 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/permission-workspace.css' %}?v={{ app_version }}">
-<script src="{% static 'js/permission-workspace.js' %}?v={{ app_version }}" defer></script>
+<link rel="stylesheet" href="{% static 'css/permission-workspace.css' %}">
+<script src="{% static 'js/permission-workspace.js' %}" defer></script>
 {% url 'user_management' as users_url %}{% include "sales/_page_back.html" with fallback_url=users_url label="帳號與權限" %}
 <header class="permission-heading">
   <div class="permission-identity"><span class="permission-avatar" aria-hidden="true">{{ request.permission_account.get_full_name|default:request.permission_account.username|slice:':1' }}</span>

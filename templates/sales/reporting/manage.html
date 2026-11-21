@@ -1,6 +1,6 @@
 {% extends 'sales/reporting/layout.html' %}{% load site_copy %}{% load static %}
-{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-catalog.css' %}?v={{ app_version }}">{% endblock %}
-{% block scripts %}{{ block.super }}<script src="{% static 'js/report-catalog.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-catalog.css' %}">{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/report-catalog.js' %}" defer></script>{% endblock %}
 {% block title %}報表設計管理{% endblock %}
 {% block report_content %}
 <header class="report-heading hero-row compact-hero"><div><p class="eyebrow">僅 admin 可操作</p><h1>報表設計管理</h1><p class="muted">{% site_text 'manage.b4fa252089ca' %}</p></div><div class="hero-actions"><button type="button" class="button primary" data-open-start aria-haspopup="dialog">＋ 新增報表</button></div></header>

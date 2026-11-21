@@ -2,7 +2,7 @@
 {# T-259：從報表中心移到資料維護區「車行傭金與獎勵」的「給付」頁籤；內容與操作不變。 #}
 {% block title %}車行傭金／獎金給付｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}?v={{ app_version }}"><script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}"><script src="{% static 'js/inplace-regions.js' %}" defer></script>{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
@@ -131,4 +131,4 @@
 </div>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/dealer-payouts.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-payouts.js' %}" defer></script>{% endblock %}

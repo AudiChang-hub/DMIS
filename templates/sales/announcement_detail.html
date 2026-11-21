@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% load site_copy static %}
 {% block title %}{{ item.title }}｜系統公告{% endblock %}
-{% block head %}<script src="{% static 'js/inplace-regions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'js/inplace-regions.js' %}" defer></script><script src="{% static 'js/announcement-images.js' %}" defer></script>{% endblock %}
 {% block content %}{% site_navigation %}
 <article class="section-block reading-panel" id="announcement-article" data-inplace-region>
   {% if item.pinned %}<span class="pin-badge">📌 置頂公告</span>{% endif %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static screen_access %}
 {% block title %}匯出訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-export.css' %}">{% endblock %}
 {% block content %}
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" %}
 <section class="hero-row compact-hero">
@@ -88,4 +88,4 @@
 </section>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/order-export.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/order-export.js' %}" defer></script>{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static %}{% load site_copy %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/price-list.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/price-list.css' %}">{% endblock %}
 {% block title %}分配與排序｜價格表分發{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -136,4 +136,4 @@
 
 {{ district_options_by_city|json_script:"assignment-district-options" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/price-list-distribution-assignments.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/price-list-distribution-assignments.js' %}" defer></script>{% endblock %}

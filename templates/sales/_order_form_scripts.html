@@ -1,8 +1,8 @@
 {% load static site_copy sales_format %}
 
-<script src="{% static 'js/order-installment-picker.js' %}?v={{ app_version }}"></script>
-<script src="{% static 'js/id-crop-editor.js' %}?v={{ app_version }}"></script>
-<script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-installment-picker.js' %}"></script>
+<script src="{% static 'js/id-crop-editor.js' %}"></script>
+<script src="{% static 'js/order-commission-recipient.js' %}" defer></script>
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
@@ -2504,4 +2504,4 @@
   });
 })();
 </script>
-{% if intake_mode %}<script src="{% static 'js/catalog-intake.js' %}?v={{ app_version }}" defer></script>{% endif %}
+{% if intake_mode %}<script src="{% static 'js/catalog-intake.js' %}" defer></script>{% endif %}

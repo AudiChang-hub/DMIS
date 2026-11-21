@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static help_tags %}
 {% block title %}套表列印｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/form-print.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'order_list' as orders_url %}{% include "sales/_page_back.html" with fallback_url=orders_url label="返回全部訂單" %}
@@ -52,7 +52,7 @@
       </aside>
     </div>
     <div class="form-print__backdrop" data-tray-backdrop hidden></div>
-    <script src="{% static 'js/form-print-tray.js' %}?v={{ app_version }}"></script>
+    <script src="{% static 'js/form-print-tray.js' %}"></script>
   </div>
   <section class="section-block form-print__finder" aria-labelledby="form-print-orders">
     <div class="section-title"><div><h2 id="form-print-orders">選訂單</h2><small>勾選每張訂單要印的套表；點左側方塊一次勾選建議的套表。</small></div><span>{{ page_obj.paginator.count }} 筆</span></div>
@@ -202,7 +202,7 @@
     </div>
   </footer>
 </dialog>
-<script src="{% static 'js/form-print.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/id-crop-editor.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/form-print-id-copy.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/form-print.js' %}" defer></script>
+<script src="{% static 'js/id-crop-editor.js' %}" defer></script>
+<script src="{% static 'js/form-print-id-copy.js' %}" defer></script>
 {% endblock %}

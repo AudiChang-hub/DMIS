@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static %}
 {% load order_origin_tags %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-overview.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-overview.css' %}">{% endblock %}
 {% block title %}訂單總覽 {{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -12,5 +12,5 @@
 </section>
 {% include "sales/_order_overview.html" %}
 <p class="visually-hidden" role="status" aria-live="polite" data-overview-status></p>
-<script src="{% static 'js/order-overview.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-overview.js' %}" defer></script>
 {% endblock %}

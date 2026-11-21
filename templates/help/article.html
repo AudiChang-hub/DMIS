@@ -2,7 +2,7 @@
 
 {% block title %}{{ article.title }}｜使用說明{% endblock %}
 {% block page_class %}page-shell--wide help-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/help.css' %}">{% endblock %}
 
 {% block content %}
 {% url 'user_guide' as help_home_url %}{% include "sales/_page_back.html" with fallback_url=help_home_url label="使用說明" current_label=article.title %}
@@ -78,5 +78,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/help.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/help.js' %}" defer></script>
 {% endblock %}

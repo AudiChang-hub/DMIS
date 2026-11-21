@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static %}{% load site_copy %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/price-list.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/price-list.css' %}">{% endblock %}
 {% block title %}價格表分發｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -101,4 +101,4 @@
   {% if items %}<div class="empty-state price-distribution-no-match" data-distribution-no-match hidden><strong>找不到符合的車行</strong><p>換個關鍵字，或按「篩選」調整負責人、縣市與完成進度。</p></div>{% endif %}
 </section>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/price-list-distribution.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/price-list-distribution.js' %}" defer></script>{% endblock %}

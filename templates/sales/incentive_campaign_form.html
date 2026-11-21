@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static screen_access %}
 {% block title %}{% if campaign %}編輯{% else %}新增{% endif %}原廠獎勵活動｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
 {% url 'incentive_rule_list' as list_url %}
@@ -81,4 +81,4 @@
 {% if campaign %}<form id="delete-campaign" method="post" action="{% url 'incentive_campaign_delete' campaign.pk %}" data-confirm="確定刪除此活動？已被訂單採用的活動不能刪除，請改為停用。">{% csrf_token %}</form>{% endif %}
 {% include "sales/_incentive_backfill_dialog.html" %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/incentive-campaigns.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/campaign-conditions.js' %}" defer></script><script src="{% static 'js/incentive-campaigns.js' %}" defer></script>{% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static %}
 {% block title %}沿用建立｜機種與售價｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide model-tool-page{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}"><link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}">{% endblock %}
 {% block content %}
 {% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="沿用建立" %}
@@ -205,4 +205,4 @@
 </form>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}" defer></script>{% endblock %}

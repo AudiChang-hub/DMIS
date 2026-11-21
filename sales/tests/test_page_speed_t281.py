@@ -6,7 +6,9 @@
 - 訂單頁：收款明細 formset 每畫一列重查收款（×13）與訂單。
 這裡用合成資料重現：列數變多，查詢數不變。
 """
+import re
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -14,6 +16,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from config.app_version import get_app_version
 from sales.models import (
     LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot, PaymentRecord, SalesOrder, VehicleBrand, VehicleColor, VehicleModel,
 )
@@ -121,3 +124,27 @@ class OrderDetailQueryCountTests(PayoutTestBase):
         many, html = self.detail_count(order)
         self.assertIn("T281收款6", html)
         self.assertEqual(few, many, "訂單頁的查詢數不可隨收款列數增加（T-281）")
+
+
+class StaticAssetUrlTests(TestCase):
+    """d：靜態檔網址不帶 ?v={{ app_version }}。
+
+    正式站用 CompressedManifestStaticFilesStorage，檔名已含內容雜湊；app_version 是全部程式碼的雜湊，
+    每次部署都會變，帶在網址上會讓沒改內容的 CSS/JS 也全部重抓（部署後第一次換頁約 4 秒）。
+    """
+
+    def test_templates_do_not_append_app_version_to_static_urls(self):
+        offenders = []
+        for path in sorted(Path("templates").rglob("*.html")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"\?v=\{\{\s*app_version", line) or re.search(r"\{%\s*static[^%]*%\}\?v=", line):
+                    offenders.append(f"{path}:{number}")
+        self.assertEqual(offenders, [], "靜態檔網址不可再加 ?v=（T-281 d）")
+
+    def test_rendered_page_static_urls_have_no_version_query(self):
+        response = self.client.get(reverse("login"))
+        html = response.content.decode()
+        static_urls = re.findall(r'(?:href|src)="(/static/[^"]+)"', html)
+        self.assertTrue(static_urls)
+        self.assertEqual([url for url in static_urls if "?" in url], [])
+        self.assertIn(f'data-app-version="{get_app_version()}"', html)  # app-update.js 仍靠這個偵測新版

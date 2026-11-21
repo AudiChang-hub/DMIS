@@ -35,4 +35,4 @@
 </form>
 {{ favorite_options|json_script:"favorite-options-data" }}{{ favorite_keys|json_script:"favorite-keys-data" }}{{ favorite_defaults|json_script:"favorite-defaults-data" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/home-favorites.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/home-favorites.js' %}" defer></script>{% endblock %}

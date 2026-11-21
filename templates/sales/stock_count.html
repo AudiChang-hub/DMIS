@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static screen_access %}
 {% block title %}現有台數表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/stock-count.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/stock-count.css' %}">{% endblock %}
 {% block content %}
 {% url 'inventory_list' as inventory_url %}
 {% include "sales/_page_back.html" with fallback_url=inventory_url label="返回車輛庫存" %}
@@ -95,4 +95,4 @@
 <div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>還沒有機種與車色</h3><p>先到「機種與售價」建立機種與車色，進車後這裡就會算出每個車色的台數。</p></div>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/stock-count.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/stock-count.js' %}" defer></script>{% endblock %}

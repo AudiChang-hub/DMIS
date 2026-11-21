@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static screen_access pagination_tags %}
 {% block title %}車行獎勵活動｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}"><link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}

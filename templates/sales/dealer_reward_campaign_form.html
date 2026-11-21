@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load static screen_access %}
 {% block title %}{% if campaign %}編輯{% else %}新增{% endif %}車行獎勵活動｜車輛銷售管理{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/campaigns.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-rewards.css' %}"><link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block page_class %}page-shell--form dealer-program-page{% endblock %}
 {% block content %}
 {% url 'dealer_reward_campaign_list' as list_url %}
@@ -75,4 +75,4 @@
 {{ reward_catalog_metadata|json_script:"dealer-reward-catalog-data" }}
 {% if campaign %}<form id="delete-campaign" method="post" action="{% url 'dealer_reward_campaign_delete' campaign.pk %}" data-confirm="確定刪除此活動？已被訂單採用的活動不能刪除，請改為停用。">{% csrf_token %}</form>{% endif %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/dealer-vehicle-rewards.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/campaign-conditions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-vehicle-rewards.js' %}" defer></script><script src="{% static 'js/campaign-conditions.js' %}" defer></script>{% endblock %}

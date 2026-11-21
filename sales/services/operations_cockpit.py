@@ -40,6 +40,7 @@ from sales.services.dashboard_metrics import (
     _sales_snapshot,
     build_dashboard_metrics,
 )
+from sales.services.order_filters import new_orders_between
 from sales.services.order_next_actions import STALE_ALLOCATION_DAYS
 from sales.services.order_tabs import DELIVERED
 from sales.services.sales_metrics import CANCELLED_STATUSES
@@ -144,7 +145,8 @@ def _compare(current, previous, last_year):
 
 
 def _new_orders(start, end):
-    return SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES).filter(established_on__range=(start, end)).count()
+    # 補登單算到領牌那個月（T-271）；和全部訂單 date_basis=new_order 共用 new_orders_between。
+    return new_orders_between(SalesOrder.objects.all(), start, end).count()
 
 
 def _pulse(windows, source):
@@ -165,7 +167,9 @@ def _pulse(windows, source):
         "new_orders": _compare(
             _new_orders(*windows["current"]),
             _new_orders(*windows["previous"]) if windows["previous"] else None,
-            _new_orders(*windows["last_year"])),
+            _new_orders(*windows["last_year"])) | {"url": _url("order_list", {
+                "date_basis": "new_order", "date_from": windows["current"][0].isoformat(),
+                "date_to": windows["current"][1].isoformat(), "business_only": "1"})},
         "received": current["actual_received"],
     }
 
@@ -679,5 +683,7 @@ def for_viewer(data, flags):
     for key, unit in (("count", "台"), ("sales", "元"), ("profit", "元"), ("new_orders", "張")):
         if key in pulse:
             pulse[key] = {**pulse[key], "chips": _chips(pulse[key], unit, has_previous)}
+    if not flags["links"]["order_list"]:
+        pulse["new_orders"].pop("url", None)
     view["headline"] = _headline(view, has_previous, len(attention))
     return view

@@ -35,7 +35,7 @@
     {% else %}
       <article class="ops-card ops-kpi ops-kpi--locked"><header class="ops-kpi__head"><h3>訂單淨利</h3></header><p class="ops-kpi__locked">需要「查看淨利」權限</p></article>
     {% endif %}
-    {% include "sales/_ops_kpi.html" with key="new_orders" label="新成立訂單" metric=c.pulse.new_orders unit="張" big=c.pulse.new_orders.value|number_with_commas suffix="張" note="依成立日；成立後約 1–3 週領牌，是下個月的領先指標" %}
+    {% include "sales/_ops_kpi.html" with key="new_orders" label="新成立訂單" metric=c.pulse.new_orders unit="張" big=c.pulse.new_orders.value|number_with_commas suffix="張" value_url=c.pulse.new_orders.url note="依成立日（補登單依領牌日）；成立後約 1–3 週領牌，是下個月的領先指標" %}
   </section>
   {% if c.trend.negative_profit_months %}<p class="ops-note ops-note--alert">平均單台淨利為負的月份：{{ c.trend.negative_profit_months|join:"、" }}。</p>{% endif %}
   {% if c.flags.operations %}<p class="ops-note">本期領牌訂單的累計實際收款額 ${{ c.pulse.received|number_with_commas }}（依這批訂單的收款明細，不等於本期現金流入）。</p>{% endif %}

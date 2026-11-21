@@ -227,6 +227,20 @@ html[data-theme="night-blue"] .ops {
   font-variant-numeric: tabular-nums;
 }
 
+/* T-271：新成立訂單的數字可點開明細，沿用油電領牌數字連結的底線樣式 */
+.ops-kpi__link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.ops-kpi__link:hover {
+  color: var(--forest);
+  text-decoration-color: currentColor;
+}
+
 .ops-kpi__value small {
   color: var(--muted);
   font-size: var(--text-md);

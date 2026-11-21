@@ -1,6 +1,6 @@
 """營運指標、查單與舊匯出共用的明細條件。"""
 from django.core.exceptions import SuspiciousOperation
-from django.db.models import F, Q
+from django.db.models import Case, DateField, F, Q, When
 from django.utils.dateparse import parse_date
 
 from sales.models import VehicleModel, registration_confirmed_q
@@ -16,6 +16,21 @@ def plate_fee_variance_q():
     """
     return Q(registration_calculated_total__gt=0, plate_insurance_fee__gt=0,
              plate_insurance_fee__lt=F("registration_calculated_total"))
+
+
+def new_order_date():
+    """新成立訂單的歸屬日（T-271，使用者 2026-11-21 選 A）：口徑只寫在 BUSINESS_RULES「營運總表顯示門檻」。
+
+    實際領牌日（已確認）早於成立日的補登單用領牌日，其他用成立日；只算查詢，不改 established_on。
+    """
+    return Case(When(registration_confirmed_q() & Q(registration_date__lt=F("established_on")), then=F("registration_date")),
+                default=F("established_on"), output_field=DateField())
+
+
+def new_orders_between(rows, start, end):
+    """營運總表「新成立訂單」：歸屬日落在期間內、排除取消／退款。"""
+    return (rows.exclude(status__in=CANCELLED_STATUSES).alias(new_order_on=new_order_date())
+            .filter(new_order_on__range=(start, end)))
 
 
 def fee_variance_orders(rows):
@@ -54,7 +69,10 @@ def filter_order_analysis(rows, params, *, business_default=False):
         rows = rows.filter(registration_confirmed_q())
     elif params.get("registered") == "no":
         rows = rows.exclude(registration_confirmed_q())
-    field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at__date"}.get(params.get("date_basis"), "registration_date")
+    field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at__date",
+             "new_order": "new_order_on"}.get(params.get("date_basis"), "registration_date")
+    if field == "new_order_on":
+        rows = rows.alias(new_order_on=new_order_date())
     dates = {}
     for key, lookup in (("date_from", "gte"), ("date_to", "lte")):
         if params.get(key):
@@ -85,7 +103,8 @@ def filter_order_analysis(rows, params, *, business_default=False):
 # 但營運總表等連結帶來的網址參數照舊有效，篩選表單以隱藏欄位帶著走，並在已套用條件列顯示名稱。
 # 預設值（實際領牌日期、包含取消／退款）不算條件。
 HIDDEN_FILTERS = {
-    "date_basis": ("日期依據", {"established": "訂單成立日期", "order": "訂單版本日期", "delivery": "實際交付日期"}),
+    "date_basis": ("日期依據", {"established": "訂單成立日期", "order": "訂單版本日期", "delivery": "實際交付日期",
+                               "new_order": "訂單成立日期（補登依領牌日）"}),
     "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款",
                          "overpaid": "溢收待退", "stale_allocation": "配車保留逾期"}),
     "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認"}),

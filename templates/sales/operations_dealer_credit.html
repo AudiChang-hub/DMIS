@@ -5,8 +5,7 @@
 {% url 'operations_report' as report_url %}
 {% include "sales/_page_back.html" with fallback_url=report_url label="營運總表" %}
 <section class="hero-row compact-hero">
-  {% if show_all %}<div><p class="eyebrow">營運總表・錢</p><h1>車行掛帳</h1><p class="muted">已交車、客戶應付還沒收清的車行現金單依車行加總，共 {{ dealers|length }} 家、{{ order_count }} 張。這些金額已含在「交車後未結清」，不是另外一筆。算到 {{ today|date:"Y/m/d" }}。</p></div>
-  {% else %}<div><p class="eyebrow">營運總表・需要處理</p><h1>車行掛帳超過額度</h1><p class="muted">已交車、客戶應付還沒收清的車行現金單依車行加總，超過車行掛帳額度的車行與它們的掛帳訂單；未設額度的車行只追蹤，不列在這裡。算到 {{ today|date:"Y/m/d" }}。</p></div>{% endif %}
+  <div><p class="eyebrow">{% if show_all %}營運總表・錢{% else %}營運總表・需要處理{% endif %}</p><h1>{% if show_all %}車行掛帳{% else %}車行掛帳超過額度{% endif %}</h1><p class="muted">{% if show_all %}已交車、客戶應付還沒收清的車行現金單依車行加總，共 {{ dealers|length }} 家、{{ order_count }} 張。這些金額已含在「交車後未結清」，不是另外一筆。{% else %}已交車、客戶應付還沒收清的車行現金單依車行加總，超過車行掛帳額度的車行與它們的掛帳訂單；未設額度的車行只追蹤，不列在這裡。{% endif %}算到 {{ today|date:"Y/m/d" }}。</p></div>
 </section>
 
 {% for row in dealers %}

@@ -172,6 +172,25 @@ def sex_model_color_analysis():
     return config
 
 
+def model_color_age_analysis():
+    """T-268：一張堆疊圖，每一列是「車型·顏色」，系列是年齡層。
+
+    車型＋顏色維度（combined_dimensions）：同車型各年式合併（T-228），同一廣告色依年式分開的色碼也合併；
+    全部列出、不合併成「其他」（T-245）；年齡層依年齡排序、固定配色。設計器起點範本與 migration 0222 共用這份設定。
+    """
+    return {
+        "title": "車型 顏色 vs 年齡分布", "audience": "admin", "date_basis": "registration_date",
+        "description": ("每一列是一個車型的一個顏色，依年齡層分段，看哪些車型的哪些顏色集中在哪些年齡。"
+                        "同一車型各年式合併計算，同一廣告色依年式分開的色碼也合併。"
+                        "年齡為當年度減出生年度；生日未填、生日異常、公司或其他獨立列示。"
+                        "不含草稿及取消、待退款、例外結案的訂單；可用領牌年月選期間，或在車型篩選只看部分車型。"),
+        "include_undated": True, "navigation_group": "analysis", "page_order": 140, "reader_layout": "analysis_overview",
+        "fixed_filters": {"model_presence": ["present"]},
+        "cards": [{"title": "車型顏色 × 年齡層", "chart": "stacked", "dimension": "family_color", "series": "age_group",
+                   "metric": "count", "formula": "", "limit": 200, "sort": "key", "series_sort": "key", "width": 12}],
+    }
+
+
 SOURCE_TEMPLATES = {"total": total_vehicle_sales, "electric": electric_vehicle_sales,
                     "electric-platform": electric_platform_sales, "gasoline": gasoline_vehicle_sales,
                     "gasoline-platform": gasoline_platform_sales,
@@ -179,3 +198,7 @@ SOURCE_TEMPLATES = {"total": total_vehicle_sales, "electric": electric_vehicle_s
                     "electric-dealer": dealer_sales, "gasoline-dealer": lambda: dealer_sales(True),
                     "electric-count": dealer_counts, "gasoline-count": lambda: dealer_counts(True),
                     "age-sex": age_sex_analysis, "sex-model-color": sex_model_color_analysis}
+# 原報表重建（上面 13 頁）以外、新增的預設報表（T-268 起）。分開列，原報表重建與其 migration 的範圍不變；
+# create_source_report_draft 兩者都可建立草稿。之後的常用範本可再加在這裡。
+PRESET_TEMPLATES = {"model-color-age": model_color_age_analysis}
+ALL_TEMPLATES = {**SOURCE_TEMPLATES, **PRESET_TEMPLATES}

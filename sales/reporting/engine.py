@@ -17,6 +17,7 @@ from .demographics import AGE_DIMENSIONS, AGE_GROUP_COLORS, DEMOGRAPHIC_DIMENSIO
 from .combined_dimensions import (UNFILLED_FINANCE, family_color_expression, family_color_labels, family_color_sort_key,
                                   finance_company_expression, finance_company_labels)
 from .reader_layouts import READER_LAYOUTS
+from .cache import shared
 
 
 DIMENSIONS = {
@@ -559,7 +560,7 @@ def card_result(config, card, filters, *, full_list=False):
         # OneToOne 收支資料不會倍增訂單；不可再 JOIN 獎金分配後重複加總。
         aggregates.update(dealer_commission=Sum("operations__dealer_commission_expense"),
                           financial_count=Count("operations__pk"))
-    totals = queryset.aggregate(**aggregates)
+    totals = shared(("totals", tuple(aggregates)), queryset, lambda: queryset.aggregate(**aggregates))
 
     def value_of(row):
         if metric == "dealer_commission" and row["financial_count"] != row["count"]:
@@ -580,7 +581,8 @@ def card_result(config, card, filters, *, full_list=False):
         grouped = grouped.order_by(f"-{metric}", "report_key")
     if metric != "formula" and card["sort"] == "value_asc":
         grouped = grouped.order_by(metric, "report_key")
-    rows = list(grouped[:MAX_GROUPS + 1])
+    bounded = grouped[:MAX_GROUPS + 1]
+    rows = shared("rows", bounded, lambda: list(bounded))
     if card["dimension"] in KEY_SORTERS and card["sort"] in ("key", "key_desc"):
         rows.sort(key=lambda row: KEY_SORTERS[card["dimension"]](row["report_key"]), reverse=card["sort"] == "key_desc")
     if len(rows) > MAX_GROUPS and metric == "formula":

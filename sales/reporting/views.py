@@ -53,7 +53,17 @@ def card_filters(filters, index):
     return {**filters, "_card_grain": filters.get(f"grain_{index}"), "_card_sort": filters.get(f"sort_{index}")}
 
 
-def results(config, filters, *, retain_candidates=False):
+def results(config, filters, *, retain_candidates=False, report_id=None):
+    """report_id 有給時（讀者頁）結果走卡片快取；同一頁相同的合計與分組查詢只跑一次（T-281 g）。"""
+    from .cache import cached_results, shared_queries
+
+    def compute():
+        with shared_queries():
+            return _results(config, filters, retain_candidates=retain_candidates)
+    return cached_results(report_id, config, filters, retain_candidates, compute)
+
+
+def _results(config, filters, *, retain_candidates=False):
     items = []
     for index, card in enumerate(config["cards"]):
         visual_filters = filters
@@ -438,7 +448,8 @@ def display(request, pk):
             # 大數據分析「依勾選車型各一張圖」：先依讀者條件展開圖卡，後續查詢、點選、明細都用展開後的設定。
             config, per_model = expand_cards(report.published, form.cleaned_data)
             form.cleaned_data.update(drop_stale_focus(form.cleaned_data, config))
-            items = results(config, form.cleaned_data, retain_candidates=True)
+            items = results(config, form.cleaned_data, retain_candidates=True,
+                            report_id=None if hasattr(request, "_designer_report") else report.pk)
             if report.published.get("include_records"):
                 records = record_context(config, form.cleaned_data, request.GET.get("records_page", 1))
         except ValidationError as exc:

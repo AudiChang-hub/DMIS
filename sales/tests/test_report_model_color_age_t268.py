@@ -202,6 +202,12 @@ class ModelColorAgeT268Tests(TestCase):
         self.assertEqual(chart(card_result(mine, mine["cards"][0], {})), chart(preset_result()))
         self.assertEqual(chart(card_result(mine, mine["cards"][0], {"months": ["2026-10"]})), chart(preset_result({"months": ["2026-10"]})))
 
+    def test_designer_starter_saves_the_preset_unchanged(self):
+        self.assertEqual(starter_config("model_color_age"), model_color_age_analysis())
+        self.assertIn("年齡層", STARTERS["model_color_age"]["question"])
+        report = self.publish_from_designer("model_color_age")
+        self.assertEqual(report.published, model_color_age_analysis())
+
     def test_migration_creates_published_report_once_and_reverse_removes_only_it(self):
         self.assertEqual(MIGRATION.CONFIG, model_color_age_analysis())
         other = ReportDefinition.objects.create(draft=starter_config("trend"), published=starter_config("trend"), version=3)

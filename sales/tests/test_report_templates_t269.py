@@ -146,3 +146,27 @@ class TemplateLibraryT269Tests(TestCase):
         config = {**starter_config("blank"), "fixed_filters": {"payment_type": ["installment"]}}
         self.assertEqual(base_query(config, {}).count(), 7)
         self.assertIn("fixed_payment_type", CardForm().fields)
+
+    def test_every_template_answers_a_question_and_runs(self):
+        self.assertGreaterEqual(len(STARTERS), 10)
+        for key in ("model_color_age", "dealer_energy", "finance_monthly", "model_sex", "platform_monthly"):
+            self.assertIn(key, STARTERS)
+        for item in starter_choices():
+            with self.subTest(template=item["key"]):
+                self.assertTrue(item["question"].strip())
+                config, _ = expand_cards(validate_config(starter_config(item["key"])), {})
+                for card in config["cards"]:
+                    card_result(config, card, {})
+        response = self.client.get(reverse("report_manage"))
+        for item in starter_choices():
+            self.assertContains(response, item["question"])
+
+    def test_template_numbers(self):
+        def segments(key):
+            config = validate_config(starter_config(key))
+            result = card_result(config, config["cards"][0], {})
+            return {row["label"]: {segment["label"]: int(segment["value"]) for segment in row["segments"]} for row in result["rows"]}
+        self.assertEqual(segments("dealer_energy"), {"示範車行": {"油車": 1, "電車": 1}})
+        self.assertEqual(segments("finance_monthly"), {"2026/10": {"示範融資": 1, "測試分期": 1, "未填": 4}, "2026/11": {"測試分期": 1}})
+        self.assertEqual(segments("platform_monthly"), {"2026/10": {"示範平台": 1}})
+        self.assertEqual(segments("model_sex"), {"SUZUKI／示範油車": {"公司或其他": 3}, "eReady／示範電車": {"公司或其他": 7}})

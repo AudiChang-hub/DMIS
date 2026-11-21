@@ -3,7 +3,8 @@
 - 圖示鈕電腦版表格與手機卡片都改，保留 aria-label／title「刪除訂單」、紅色警示樣式與 44px 觸控區；
   位置與權限照 T-264（表格最後一欄、卡片最下面靠右）。
 - 機種欄由上到下：機種名稱 → 引擎／車身號碼（未配車不輸出）→ 顏色，缺值不留空行；
-  顏色排序改成機種表頭下方的小連結（比照姓名欄的「訂單編號排序」）。手機卡片的顏色不變。
+  顏色排序改成機種表頭下方的小連結（比照姓名欄的「訂單編號排序」）。
+- 手機卡片（使用者追加）：顏色也併到機種底下，排法同電腦版；卡片上原本獨立的「顏色」欄位拿掉。
 """
 from pathlib import Path
 
@@ -153,9 +154,36 @@ class OrderListIconAndColorTests(TestCase):
         html = descending.content.decode()
         self.assertIn("1. 顏色：反序", html)
 
-    def test_mobile_card_still_shows_color_fact(self):
-        self.make_order("卡片顏色合成車主", self.black)
-        html = self.page(self.admin).content.decode()
+    def card_machine(self, html, order):
         cards = html[html.index('<div class="order-list order-sort-cards">'):]
-        self.assertIn('<span class="order-fact"><small>顏色</small><b>黑</b></span>', cards)
-        self.assertNotIn("order-machine-color", cards)
+        card = cards[cards.rindex('<div class="order-row order-row--detailed">', 0, cards.index(order.number)):]
+        start = card.index('<div class="order-fact order-fact--machine">')
+        return card, card[start:card.index('<span class="order-fact', start)]  # 機種欄到下一個欄位為止
+
+    def test_mobile_card_machine_shows_name_number_then_color(self):
+        allocated = self.make_order("卡片配車合成車主", self.black, engine="CARD 0265")
+        unallocated = self.make_order("卡片未配車合成車主", self.white)
+        html = self.page(self.admin).content.decode()
+        card, machine = self.card_machine(html, allocated)
+        name, number, color = machine.index("T265 機種"), machine.index("CARD 0265"), machine.index('class="order-machine-color"')
+        self.assertLess(name, number)
+        self.assertLess(number, color)
+        self.assertIn('<small class="order-machine-color"><span class="visually-hidden">顏色：</span>黑</small>', machine)
+        # 卡片上原本獨立的「顏色」欄位拿掉，其他欄位照舊
+        self.assertNotIn("<small>顏色</small>", card)
+        for label in ("領牌日期", "訂單成立日期", "車號", "淨利", "車行", "備註"):
+            self.assertIn(f"<small>{label}</small>", card)
+        # 未配車：沒有號碼那一行、沒有空行，顏色直接接在機種名稱下方
+        _, machine = self.card_machine(html, unallocated)
+        self.assertNotIn("order-vehicle-number", machine)
+        self.assertIn('<small class="order-machine-color"><span class="visually-hidden">顏色：</span>白</small>', machine)
+        self.assertNotRegex(machine, r"<small[^>]*>\s*</small>")
+        self.assertLess(machine.index("T265 機種"), machine.index('class="order-machine-color"'))
+        self.assertNotIn("<small>顏色</small>", html[html.index('<div class="order-list order-sort-cards">'):])
+
+    def test_mobile_card_color_style_and_tablet_grid(self):
+        css = (Path(settings.BASE_DIR) / "static" / "css" / "order-vehicle-number.css").read_text(encoding="utf-8")
+        self.assertIn(".order-fact--machine .order-machine-color {", css)
+        app = (Path(settings.BASE_DIR) / "static" / "css" / "app.css").read_text(encoding="utf-8")
+        # 600–860px 卡片欄位一列排：少了顏色，欄寬比例跟著少一格
+        self.assertIn("  grid-template-columns: 1.05fr .8fr .75fr .8fr .9fr 1.55fr;", app)

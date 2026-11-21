@@ -1096,7 +1096,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-main small { margin-top: 2px; color: var(--muted); font-size: var(--text-sm); }
 .order-facts {
   display: grid; margin-top: var(--space-3);
-  grid-template-columns: 1.05fr .55fr .8fr .75fr .8fr .9fr 1.55fr;
+  grid-template-columns: 1.05fr .8fr .75fr .8fr .9fr 1.55fr;
   gap: var(--space-3);
 }
 .order-fact { min-width: 0; padding-left: var(--space-3); border-left: 2px solid var(--line-soft); }

@@ -51,4 +51,4 @@ function renderReportAnalysis(chart, attach) {
   const table = chart.querySelector('.report-table-wrap'); table.before(node); if (node !== svg) node.scrollLeft = node.scrollWidth; table.hidden = true;
   const stacks = chart.querySelector('.report-stacks'); if (stacks) stacks.hidden = true;
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = {reportAnalysisColor, reportAnalysisFill, reportAnalysisStackColor};
+if (typeof module !== 'undefined' && module.exports) module.exports = {reportAnalysisColor, reportAnalysisFill, reportAnalysisStackColor, renderReportAnalysis};

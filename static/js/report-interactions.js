@@ -38,6 +38,17 @@ function reportReaderColor(layout, label, fallback, energy) {
   }
   return layout === 'electric_overview' ? reportElectricColor(label,fallback) : reportOverviewColor(label,fallback);
 }
+/* 總覽版型與高辨識配色下，圖卡分類的顏色（data 是圖卡的 dataset）。
+   T-274：只有堆疊圖、細分系列是車色時，用引擎依車色名稱配的顏色，不套版型的固定配色；長條、圓餅、折線就算存了「再細分＝車色」也照舊。
+   高辨識配色仍照使用者選擇。 */
+const REPORT_CONTRAST_COLORS = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
+function reportChartOverviewColor(data, label, fallback, {layout, legendColors, energy} = {}) {
+  if (data.palette === 'accessible') return REPORT_CONTRAST_COLORS[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % REPORT_CONTRAST_COLORS.length];
+  if (data.chart === 'stacked' && data.series === 'color') return fallback;
+  if (data.classificationColors === 'true') return fallback;
+  if (layout === 'dealer_overview') return legendColors?.get(label) || fallback;
+  return reportReaderColor(layout, label, fallback, energy);
+}
 function reportMonthSummary(label, segments, total) {
   return [label, ...segments.filter(item => Number(item.value)).map(item => `${item.label}：${item.display}`), `總計：${total}`].join('\n');
 }
@@ -338,7 +349,7 @@ function reportDetailReturnTarget(trigger, root) {
   }
   return root.querySelector(".report-row-selected a") || root.querySelector("[data-report-exploration]");
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportWrapLabel, reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination};
+if (typeof module !== "undefined" && module.exports) module.exports = {reportWrapLabel, reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportSlotColor, reportMonthSummary, initReportTablePagination, reportChartOverviewColor, reportStackPlot};
 if (typeof module !== "undefined" && module.exports) Object.assign(module.exports, {reportFilterDelay, reportDateRangeError, reportMultiSummary, reportDetailTrigger, reportDetailReturnTarget});
 function initReportVisuals(root) {
   "use strict";
@@ -492,9 +503,7 @@ function initReportVisuals(root) {
     const overview = chart.closest('.report-sales-overview');
     const layout = overview?.dataset.readerLayout;
     const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),REPORT_NEUTRAL_LABELS.has(entry.textContent.trim()) ? REPORT_OTHER_COLOR : reportSlotColor(i)]));
-    const contrast = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
-    // T-274：系列是車色時用引擎依車色名稱配的顏色，不套版型的固定配色（高辨識配色仍照使用者選擇）。
-    const overviewColor = (label, fallback) => chart.dataset.series === 'color' && chart.dataset.palette !== 'accessible' ? fallback : chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : chart.dataset.classificationColors === 'true' ? fallback : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
+    const overviewColor = (label, fallback) => reportChartOverviewColor(chart.dataset, label, fallback, {layout, legendColors, energy: overview?.dataset.reportEnergy});
     if (overview || chart.dataset.palette === 'accessible') {
       rows.forEach(row => { row.dataset.pointColor = overviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
       chart.querySelectorAll('.report-series-legend span').forEach(entry => {

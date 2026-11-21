@@ -85,6 +85,16 @@ class CarSeriesColorT274Tests(TestCase):
         self.assertContains(response, 'data-series="color"')
         self.assertContains(response, "data-outline")
 
+    def test_non_stacked_chart_does_not_mark_series(self):
+        """長條圖存了「再細分＝車色」也不輸出 data-series，前端照舊用版型配色。"""
+        bar = {**self.config["cards"][0], "chart": "bar"}
+        config = validate_config({**self.config, "cards": [bar]})
+        report = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("report_display", args=[report.pk]))
+        self.assertContains(response, 'data-chart="bar"')
+        self.assertNotContains(response, "data-series=")
+
     def test_other_reports_keep_their_colors(self):
         """依車色分組的長條圖（車型 X 顏色）與系列是性別的堆疊圖，顏色和以前一樣依序輪流。"""
         bar = {"title": "顏色", "chart": "bar", "dimension": "color", "metric": "count", "formula": "", "limit": 100, "sort": "value"}

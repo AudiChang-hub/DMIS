@@ -172,21 +172,25 @@ html[data-theme="night-blue"] .ops {
   text-decoration: underline;
 }
 
+/* T-294 整頁編排：需要處理、訂單流程、錢整列全寬；其餘兩兩並排、同列等高（內容靠上，最後一行說明貼底對齊）。
+   只有一張時佔滿整列，不留半邊空白。 */
 .ops-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--stack-gap);
-  align-items: start;
+  align-items: stretch;
 }
 
-.ops-row--wide {
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+.ops-row > :only-child {
+  grid-column: 1 / -1;
 }
 
-.ops-stack {
-  display: grid;
-  gap: var(--stack-gap);
-  min-width: 0;
+.ops-row--stock {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.ops-row > .ops-card > .ops-hint:last-child {
+  margin-top: auto;
 }
 
 /* ── KPI ── */
@@ -390,6 +394,51 @@ html[data-theme="night-blue"] .ops {
   list-style: none;
 }
 
+/* T-294：沒有事時整張卡收成一行（標題＋狀態）。 */
+.ops-attention.is-clear {
+  flex-flow: row wrap;
+  align-items: baseline;
+  column-gap: var(--stack-gap);
+  row-gap: var(--space-1);
+}
+
+.ops-attention__none {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.ops-attention__ok {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.ops-attention__none strong {
+  font-weight: 600;
+}
+
+.ops-attention__none small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/* 寬版兩欄清單：依優先順序左到右、上到下；每列兩項上緣對齊。 */
+@media (min-width: 860.02px) {
+  .ops-todo {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--stack-gap);
+  }
+
+  .ops-todo__item:nth-child(2) > a,
+  .ops-todo__item:nth-child(2) > div {
+    border-top: 0;
+  }
+}
+
 .ops-todo__item > a,
 .ops-todo__item > div {
   display: grid;
@@ -482,6 +531,27 @@ html[data-theme="night-blue"] .ops {
 }
 
 /* ── 訂單流程軌道 ── */
+/* T-294：整列全寬；寬版時到期與草稿放在軌道右側，以細線分隔。 */
+.ops-flow {
+  display: grid;
+  gap: var(--stack-gap-sm);
+}
+
+@media (min-width: 860.02px) {
+  .ops-flow {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    column-gap: var(--stack-gap);
+    align-items: center;
+  }
+
+  .ops-flow > .ops-facts {
+    padding-top: 0;
+    padding-left: var(--stack-gap);
+    border-top: 0;
+    border-left: 1px solid var(--line-soft);
+  }
+}
+
 .ops-track {
   position: relative;
   display: grid;
@@ -690,7 +760,38 @@ html[data-theme="night-blue"] .ops {
   --money-unsettled: var(--amber-strong);
   --money-before: var(--muted);
   --money-awaiting: var(--blue);
+  container: ops-money-row / inline-size;
+}
+
+/* T-294：錢整列全寬。三張小卡的容器查詢改看左欄（.ops-money__main）寬度；整張卡夠寬時左右兩欄：
+   左：三張小卡＋帳齡；右：待收合計＋撥款待入帳＋車行未付。DOM 順序＝閱讀順序，窄時依序上下排。 */
+.ops-money__body {
+  display: grid;
+  gap: var(--stack-gap-sm);
+}
+
+.ops-money__main {
+  min-width: 0;
   container: ops-money / inline-size;
+}
+
+@container ops-money-row (min-width: 48rem) {
+  .ops-money__body {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "cards total"
+      "cards recon"
+      "aging facts";
+    column-gap: var(--stack-gap);
+    align-items: start;
+  }
+
+  .ops-money__main { grid-area: cards; }
+  .ops-money__total { grid-area: total; padding-top: 0; border-top: 0; }
+  .ops-money__recon { grid-area: recon; }
+  .ops-money__aging { grid-area: aging; }
+  .ops-money__body > .ops-facts { grid-area: facts; }
 }
 
 .ops-money__cards {
@@ -1472,6 +1573,10 @@ html[data-theme="night-blue"] .ops {
 }
 
 /* ── 油電領牌（T-263）：只用本區塊自己的 class，沿用 .ops-fig 的數字樣式與結構變化的能源色 ── */
+.ops-energy {
+  container: ops-energy / inline-size;
+}
+
 .ops-energy .ops-card__head {
   flex-wrap: wrap;
   row-gap: var(--space-1);
@@ -1551,7 +1656,8 @@ html[data-theme="night-blue"] .ops {
   text-decoration: underline;
 }
 
-@media (max-width: 520px) {
+/* T-294：油電領牌放在貨旁邊的窄欄（約 1/3）：依卡片本身寬度改成油、電上下排。 */
+@container ops-energy (max-width: 30rem) {
   .ops-energy__grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1579,7 +1685,7 @@ html[data-theme="night-blue"] .ops {
   }
 
   .ops-row,
-  .ops-row--wide {
+  .ops-row--stock {
     grid-template-columns: minmax(0, 1fr);
   }
 

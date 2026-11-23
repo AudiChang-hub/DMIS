@@ -602,6 +602,11 @@ html[data-theme="night-blue"] .ops {
   line-height: 1.4;
 }
 
+/* 車行未付小字：「N 家共 M 張」不從中間斷開，手機寬度整段換到下一行。 */
+.ops-facts__note-count {
+  white-space: nowrap;
+}
+
 /* 有說明小字的列，數字那邊較長，標籤不跟著被擠斷（手機寬度）。 */
 .ops-facts > div:has(.ops-facts__note) dt {
   flex: 0 0 auto;

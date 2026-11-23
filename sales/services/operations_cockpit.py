@@ -741,7 +741,7 @@ def _attention(data, flags):
                           "url": _url("reconciliation_list", {"status": "pending", "by_order": 1, "channel": row["key"]})
                           if links["reconciliation_list"] else ""})
     if flags["operations"]:
-        items.append({"key": "dealer_credit", "label": "車行掛帳超過額度", "value": money["dealer_credit_over"],
+        items.append({"key": "dealer_credit", "label": "車行未付超過額度", "value": money["dealer_credit_over"],
                       "unit": "家", "severity": "red",
                       "url": _url("operations_dealer_credit") if links.get("operations_dealer_credit") else ""})
     if flags["dealer_payouts"]:

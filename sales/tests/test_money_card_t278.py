@@ -321,8 +321,8 @@ class DealerCreditLinkTests(MoneyCardTestBase):
                          (2, 3, 1))
         url = reverse("operations_dealer_credit") + "?scope=all"
         self.assertContains(response, f'href="{url}"')
-        self.assertContains(response, '車行掛帳<small class="ops-facts__note">已含在交車後未結清</small>')
-        self.assertContains(response, "2 家・3 張，1 家未設額度")
+        self.assertContains(response, '車行未付<small class="ops-facts__note">已含在交車後未結清 · <span class="ops-facts__note-count">2 家共 3 張</span></small>')
+        self.assertContains(response, "2 家共 3 張")
         self.assertNotContains(response, f"<li><span>{self.dealer.name}</span>")       # 逐家列已移除
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200)
@@ -334,4 +334,4 @@ class DealerCreditLinkTests(MoneyCardTestBase):
         self.on_account(self.dealer)                                           # 未設額度：預設頁不列
         page = self.client.get(reverse("operations_dealer_credit"))
         self.assertEqual(page.context["dealers"], [])
-        self.assertContains(page, "車行掛帳超過額度")
+        self.assertContains(page, "車行未付超過額度")

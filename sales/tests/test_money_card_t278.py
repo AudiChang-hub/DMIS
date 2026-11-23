@@ -170,7 +170,7 @@ class PlatformOutstandingTests(MoneyCardTestBase):
         self.assertEqual((money["before_delivery_count"], money["before_delivery_amount"]), (1, Decimal("70000")))
         self.assertEqual((money["awaiting_payout_count"], money["unsettled_count"]), (0, 0))
         self.assertEqual((money["before_delivery_estimated"], money["outstanding_estimated"]), (True, True))
-        self.assertContains(response, "交車前應收（正常） · 預估 $70,000")
+        self.assertContains(response, "未交車・尾款待收 · 預估 $70,000")
         self.assertContains(response, '$70,000<small class="ops-facts__note">含平台撥款預估</small>')
         self.assertEqual(self.listed({"risk": "before_delivery"}), {before.pk})
         self.assertEqual(self.listed({"risk": "outstanding"}), {before.pk})
@@ -205,7 +205,7 @@ class PlatformOutstandingTests(MoneyCardTestBase):
         self.assertFalse(any(money[key] for key in ("outstanding_estimated", "before_delivery_estimated",
                                                      "awaiting_payout_estimated", "unsettled_payout_estimated")))
         self.assertNotContains(response, "含平台撥款預估")
-        self.assertNotContains(response, "交車前應收（正常） · 預估")
+        self.assertNotContains(response, "未交車・尾款待收 · 預估")
         self.assertEqual(self.listed({"risk": "outstanding"}), {before.pk, awaiting.pk})
 
     def test_payment_summary_and_unsettled_mark_unchanged(self):

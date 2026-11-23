@@ -76,7 +76,7 @@ def payout_due(summary):
 
 
 def money_bucket(order, summary):
-    """待收款的單在營運總表「錢」屬於哪一格：交車後未結清／已交車待撥款／交車前應收；不是待收回 None。"""
+    """待收款的單在營運總表「錢」屬於哪一格：交車後未結清／已交車待撥款／未交車・尾款待收；不是待收回 None。"""
     if not is_outstanding(summary):
         return None
     if order.status in DELIVERED_STATUSES:
@@ -129,7 +129,7 @@ def filter_payment_risk(orders, risk):
                 ids.append(order.pk)
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
     if risk in ('before_delivery', 'awaiting_payout'):
-        # 營運總表「交車前應收」「已交車待撥款」（T-275 第 9 項）：和卡片共用 money_bucket。
+        # 營運總表「未交車・尾款待收」「已交車待撥款」（T-275 第 9 項）：和卡片共用 money_bucket。
         from .payment_summary import payment_summary
         candidates = orders.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot', 'operations').prefetch_related('payment_records', 'accessories')
         ids = [order.pk for order in candidates if money_bucket(order, money_summary(order, payment_summary(order))) == risk]

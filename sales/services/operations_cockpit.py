@@ -775,6 +775,23 @@ def _attention(data, flags):
     return active, clear
 
 
+def _outstanding_terms(money, show_amounts):
+    """待收合計怎麼組成（T-282）：三格（名稱同卡片上方）＋交車後未結清那幾張的撥款；張數、金額加總＝合計。
+    交車後未結清那幾張的撥款是同一批單，不另算張數；沒有 operations 權限時不給金額。"""
+    terms = [{"label": "交車後未結清", "count": money["unsettled_count"], "amount": money["unsettled_amount"],
+              "estimated": False}]
+    if money["unsettled_payout_amount"]:
+        terms.append({"label": "交車後未結清那幾張的撥款", "count": None, "amount": money["unsettled_payout_amount"],
+                      "estimated": money["unsettled_payout_estimated"]})
+    terms.append({"label": "未交車・尾款待收", "count": money["before_delivery_count"],
+                  "amount": money["before_delivery_amount"], "estimated": money["before_delivery_estimated"]})
+    terms.append({"label": "已交車待撥款", "count": money["awaiting_payout_count"],
+                  "amount": money["awaiting_payout_amount"], "estimated": money["awaiting_payout_estimated"]})
+    if not show_amounts:
+        terms = [{**term, "amount": None, "estimated": False} for term in terms if term["count"] is not None]
+    return terms
+
+
 def for_viewer(data, flags):
     """依權限組成畫面用的內容；沒有權限的區塊不放進 context，HTML 也就不會出現。"""
     pulse = dict(data["pulse"])
@@ -793,6 +810,7 @@ def for_viewer(data, flags):
         "attention": attention, "attention_clear": clear, "links": flags["links"], "flags": flags,
     }
     money = dict(data["money"])
+    money["outstanding_terms"] = _outstanding_terms(money, flags["operations"])
     if not flags["operations"]:
         for key in ("outstanding_amount", "unsettled_amount", "unsettled_payout_amount", "before_delivery_amount",
                     "awaiting_payout_amount", "dealer_credit", "dealer_credit_total", "dealer_credit_orders",

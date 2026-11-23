@@ -118,7 +118,7 @@ HIDDEN_FILTERS = {
                                "new_order": "訂單成立日期（補登依領牌日）"}),
     "risk": ("收款風險", {"outstanding": "待收款", "unconfirmed": "已有收款待確認", "refund": "取消待退款",
                          "overpaid": "溢收待退", "stale_allocation": "配車保留逾期",
-                         "unsettled_delivered": "交車後未結清", "before_delivery": "交車前應收",
+                         "unsettled_delivered": "交車後未結清", "before_delivery": "未交車・尾款待收",
                          "awaiting_payout": "已交車待撥款"}),
     "pay": ("付款方式", dict(PAYMENT_CATEGORIES)),
     "attention": ("作業提醒", {"dealer": "車行尾款／領牌到期", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),

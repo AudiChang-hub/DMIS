@@ -608,6 +608,26 @@ html[data-theme="night-blue"] .ops {
   max-width: 55%;
 }
 
+/* 待收合計怎麼組成（T-282）：整行放在標籤與金額下方，手機寬度在每一項之間換行。 */
+.ops-facts > div:has(.ops-facts__formula) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.ops-facts dd.ops-facts__formula {
+  flex: 1 0 100%;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.ops-facts__formula span {
+  display: inline-block;
+  margin-right: 0.25em;
+}
+
 .ops-hint,
 .ops-empty {
   margin: 0;

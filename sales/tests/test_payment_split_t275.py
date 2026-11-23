@@ -134,7 +134,7 @@ class PaymentSplitTests(FinanceLedgerTestBase):
             self.assertIn("risk=before_delivery", rows[key]["url"])
             self.assertEqual(self.order_ids(self.client.get(rows[key]["url"])), {order.pk}, key)
         self.assertEqual(sum(row["count"] for row in rows.values()), money["before_delivery_count"])
-        self.assertContains(response, "交車前應收（刷卡）")
+        self.assertContains(response, "未交車・尾款待收（刷卡）")
 
     def test_awaiting_payout_split_shows_installment_and_platform(self):
         installment = self.store_order("completed", payment_type="installment")

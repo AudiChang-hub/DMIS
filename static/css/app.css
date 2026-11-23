@@ -2656,10 +2656,8 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .inventory-search-box .searchable-select__search-icon { top: 21px; }
 .inventory-search-box:focus-within .searchable-select__search-icon { border-color: var(--forest); }
 .inventory-search-box:focus-within .searchable-select__search-icon::after { background: var(--forest); }
-/* 表頭排序（T-66）：可排序的欄名是連結，旁邊淡色 ↕；正在排的欄改主色並顯示 ↑／↓，再點換方向。 */
 /* 庫存表：表頭多了排序箭頭，左右內距收成 12px 讓 1280 寬也放得下；日期、狀態、車況標籤不拆成直排。 */
 .inventory-table--stock :is(th, td) { padding-inline: var(--space-3); }
-/* 手機版沒有表頭：排序改成摘要下方一列可橫向捲動的標籤，桌面隱藏。 */
 /* 已售出／調出：去向用色相區分（調出紫、車行領車青、一般售出灰），下方接對象與日期。 */
 .inventory-table .inventory-disposition {
   display: inline-flex; width: fit-content; margin-bottom: 2px; padding: 1px var(--space-2);
@@ -3156,7 +3154,6 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 }
 .source-gift-toggle.is-active .source-active-toggle__track { background: var(--amber); }
 /* 優先配車：琥珀色代表需要先處理；來源標籤區分自動判斷與人工設定。 */
-/* 超過門檻月數鎖定為優先：保持完整顏色，只是不能點。 */
 .inventory-table .inventory-priority-source {
   display: inline-flex; padding: 1px var(--space-2); color: var(--muted);
   border: 1px dashed var(--line); border-radius: var(--radius-pill);
@@ -5276,7 +5273,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 }
 @media (max-width: 860px) {
   .order-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* T-252：iOS 的原生日期欄位依內容決定寬度、不理會 width: 100%，兩欄時「日期迄」會撐出卡片；比照 .form-control 日期欄（f8202c91）拿掉原生外觀。 */
   /* T-254：同一根因的其他窄格日期欄（375 寬只有 153–157px、兩欄並排）：撥款對帳、車行給付、機種工具篩選。 */
   :is(.operations-filters, .payout-filters, .model-tool-filters) input[type=date] { display: block; -webkit-appearance: none; appearance: none; max-width: 100%; min-width: 0; }
 }
@@ -5292,7 +5288,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-filter-bar { grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-2); }
   .order-filter-open { display: inline-flex; grid-column: 2; min-height: var(--control-h); padding-inline: var(--space-4); align-items: center; white-space: nowrap; }
   html.has-order-filter-open { overflow: hidden; }
-  /* 篩選都在小標籤上時（沒有營運總表帶來的隱藏條件），「已套用篩選條件／清除所有篩選」與小標籤重複，手機版不顯示。 */
 }
 @keyframes order-filter-sheet-in { from { transform: translateY(32px); opacity: 0; } }
 /* T-252 擴大範圍（使用者 2026-11-19：「分類頁籤和排序也一起壓縮，只改手機版」）：
@@ -5311,7 +5306,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
     display: flex; width: 100%; min-height: var(--control-h); padding-inline: var(--space-4); align-items: center; justify-content: space-between; gap: var(--space-3);
     color: var(--ink); text-decoration: none;
   }
-/* T-267：完整顯示目前排序，放不下就換行，不用省略號 */
   html.has-order-sort-open { overflow: hidden; }
   /* 追加三項（使用者 2026-11-19「三項都做」）：「訂單管理」小字收起；「未完成草稿」改在「更多操作」裡（同一權限 order_create）；
      「共 N 張訂單」與「每頁顯示」併成一行。 */
@@ -5782,7 +5776,6 @@ select:not([multiple]):not([size]):not(.searchable-select__native):disabled { --
   #drafts .draft-row > time { grid-column: 1; grid-row: 2; }
   #drafts .draft-row > :last-child { grid-column: 2; grid-row: 1 / span 2; }
 }
-/* 淨利鎖定：清單標題列上的一般工具項目，不再自成圓角框。 */
 /* 收合區塊：未自訂的 summary 一律去掉瀏覽器三角形，改為右側線條箭頭，標題文字對齊內容左緣。 */
 :where(details:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect, .mobile-data-menu)) > :where(summary:not(:has(.ui-chevron))) { display: flex; min-height: 44px; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; font-weight: 800; }
 :where(details:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect, .mobile-data-menu)) > :where(summary:not(:has(.ui-chevron)))::-webkit-details-marker { display: none; }
@@ -5815,7 +5808,6 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 }
 :is(.report-panel, .command-trends) table:not(.inventory-table) :is(th, td):first-child { padding-left: 0; }
 :is(.report-panel, .command-trends) table:not(.inventory-table) :is(th, td):last-child { padding-right: 0; }
-/* 訂單清單卡片：標題列、排序說明、表頭與首尾欄同一條左右緣。 */
 /* 篩選卡片與其他頁面層卡片同一內距，同頁上下左緣一致。 */
 .master-filters, .inventory-filters, .order-filter-bar { padding: var(--card-pad); }
 

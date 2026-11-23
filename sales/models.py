@@ -3474,6 +3474,9 @@ class SalesOrder(TimeStampedModel):
         self.refresh_from_db(fields=["closed_at", "closed_by"])
         if not self.is_delivered:
             raise ValidationError("尚未交車的訂單不能結案。")
+        # 一定先領牌才交車（使用者 2026-11-23 T-298）：結案也要先確認領牌；Excel 匯入單是已結清的歷史，不擋。
+        if not self.is_registration_complete and not hasattr(self, "legacy_snapshot"):
+            raise ValidationError("尚未確認領牌的訂單不能結案。")
         if self.closed_at:
             raise ValidationError("此訂單已結案。")
         now = timezone.now()
@@ -3569,10 +3572,12 @@ class SalesOrder(TimeStampedModel):
         Status.DRAFT: {Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATION_PENDING: {Status.ALLOCATED, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
         Status.ALLOCATED: {
-            Status.ALLOCATION_PENDING, Status.ALLOCATED, Status.DELIVERY_PENDING, Status.DELIVERED_DOCS_PENDING, Status.COMPLETED,
+            Status.ALLOCATION_PENDING, Status.ALLOCATED, Status.DELIVERY_PENDING, Status.COMPLETED,
             Status.CANCELLED, Status.CANCEL_REFUND_PENDING, Status.EXCEPTION_CLOSED,
         },
-        Status.DELIVERY_PENDING: {Status.DELIVERED_DOCS_PENDING, Status.COMPLETED, Status.EXCEPTION_CLOSED},
+        # 一定先領牌才交車（使用者 2026-11-23 T-298）：交車一律進已完成，不再進入已交車／待領牌；
+        # 舊狀態保留，離開它的轉移照舊。
+        Status.DELIVERY_PENDING: {Status.COMPLETED, Status.EXCEPTION_CLOSED},
         # 交車後退車（admin，services/order_return.py）沿用例外結案，不另設狀態。
         Status.DELIVERED_DOCS_PENDING: {Status.COMPLETED, Status.EXCEPTION_CLOSED},
         Status.CANCEL_REFUND_PENDING: {Status.CANCELLED, Status.ALLOCATION_PENDING},
@@ -4245,10 +4250,8 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def can_deliver(self):
-        return (
-            self.is_registration_complete
-            or self.source_type == self.SourceType.DEALER
-        )
+        # 不分通路一律先領牌才交車（使用者 2026-11-23 T-298 取消車行單先交車例外）。
+        return self.is_registration_complete
 
     def required_registration_document_types(self):
         # 領牌文件全部選填，不是完成領牌的條件：領牌完成只看配車、領牌日與車牌
@@ -4443,7 +4446,7 @@ class SalesOrder(TimeStampedModel):
         if not self.allocated_vehicle_id:
             blockers.append("尚未配車，不能完成交付。")
         if not self.can_deliver:
-            blockers.append("一般訂單必須先完成領牌才能交付。")
+            blockers.append("須先完成領牌確認才能交付。")
         if self.discount_status == self.DiscountStatus.PENDING:
             blockers.append("折扣申請尚待確認，確認或退回後才能交車。")
         profile = getattr(self, "operations", None) if include_prep else None
@@ -4469,7 +4472,7 @@ class SalesOrder(TimeStampedModel):
         blockers = self.delivery_blockers()
         if blockers:
             raise ValidationError(blockers[0])
-        new_status = self.Status.COMPLETED if self.is_registration_complete else self.Status.DELIVERED_DOCS_PENDING
+        new_status = self.Status.COMPLETED
         self.ensure_transition(new_status)
 
         vehicle = VehicleInventory.objects.select_for_update().get(

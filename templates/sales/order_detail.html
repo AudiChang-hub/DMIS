@@ -624,12 +624,6 @@
         {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% if_access 'order_file_delete' order.pk 'handover_photo' %}<form class="inline-delete-form" method="post" action="{% url 'order_file_delete' order.pk 'handover_photo' %}" data-inplace-form data-confirm="確定刪除交付照片嗎？刪除後無法復原。">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除照片</button></form>{% endif_access %}{% endif %}
       </div>
 
-      {% if order.status == "delivered_docs_pending" %}
-      <div class="delivery-complete__notice">
-        <strong>領牌資料仍待補齊</strong>
-        <span>此訂單已先交付車行，完成領牌資料後才會正式結案。</span>
-      </div>
-      {% endif %}
 
       {% if delivery_record %}
       <div class="delivery-complete__grid">
@@ -666,11 +660,7 @@
       {% endif %}
     </div>
   {% elif order.can_deliver %}
-    {% if order.source_type == "dealer" and not order.is_registration_complete %}
-      <p>{% site_text 'order_detail.3d2efe687324' %}</p>
-    {% else %}
-      <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
-    {% endif %}
+    <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
     <form class="stage-form delivery-completion-form" id="delivery-completion-form" data-inplace-form data-inplace-success="reload" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
       {% csrf_token %}
       <div class="form-grid compact-grid">

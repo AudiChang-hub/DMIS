@@ -74,11 +74,11 @@
       </li>{% endfor %}
     </ol>
     <dl class="ops-facts">
-      <div><dt>車行尾款／領牌到期<small class="ops-facts__note">{{ c.flow.dealer_due_rule }}</small></dt><dd>{% if c.links.order_list %}<a href="{% url 'order_list' %}?attention=dealer">{{ c.flow.dealer_due }} 張</a>{% else %}{{ c.flow.dealer_due }} 張{% endif %}</dd></div>
+      <div><dt>車行尾款到期<small class="ops-facts__note">{{ c.flow.dealer_due_rule }}</small></dt><dd>{% if c.links.order_list %}<a href="{% url 'order_list' %}?attention=dealer">{{ c.flow.dealer_due }} 張</a>{% else %}{{ c.flow.dealer_due }} 張{% endif %}</dd></div>
       <div><dt>未完成草稿</dt><dd>{% if c.links.order_list %}<a href="{% url 'order_list' %}?drafts=1#drafts">{{ c.flow.drafts }} 份</a>{% else %}{{ c.flow.drafts }} 份{% endif %}</dd></div>
     </dl>
     </div>
-    <p class="ops-hint">停留天數超過門檻的站會標成琥珀色：待配車 3 天、待領牌 30 天、待交付 7 天、交車待文件 14 天。</p>
+    <p class="ops-hint">停留天數超過門檻的站會標成琥珀色：待配車 3 天、待領牌 30 天、待交付 7 天。</p>
   </section>
   {% endif %}
 

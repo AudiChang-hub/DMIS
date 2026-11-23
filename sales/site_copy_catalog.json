@@ -791,11 +791,6 @@
     "default": "部分收款可先保存；全數收清後再勾選確認。",
     "template": "templates/sales/order_detail.html"
   },
-  "order_detail.3d2efe687324": {
-    "page": "訂單內容",
-    "default": "此訂單為車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。",
-    "template": "templates/sales/order_detail.html"
-  },
   "order_detail.63bfa0623e10": {
     "page": "訂單內容",
     "default": "領牌階段已完成，可進行後續收款與車輛交付作業。",
@@ -808,7 +803,7 @@
   },
   "order_detail.5dd8edcdc2f2": {
     "page": "訂單內容",
-    "default": "一般訂單必須先完成領牌，才可進入交付階段。",
+    "default": "須先完成領牌確認，才可進入交付階段。",
     "template": "templates/sales/order_detail.html"
   },
   "order_detail.7811e1f3c290": {

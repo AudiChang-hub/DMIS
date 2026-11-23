@@ -7090,10 +7090,7 @@ def delivery_complete(request, pk):
         ),
         actor_name=_editing_name(request.user),
     )
-    if order.status == SalesOrder.Status.DELIVERED_DOCS_PENDING:
-        messages.success(request, "車輛已交付；車行領牌文件與尾款將持續提醒。")
-    else:
-        messages.success(request, "車輛交付完成，訂單已結案。")
+    messages.success(request, "車輛交付完成，訂單已結案。")
     return redirect(detail_url)
 
 

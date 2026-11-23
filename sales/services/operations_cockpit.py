@@ -42,7 +42,7 @@ from sales.services.dashboard_metrics import (
 )
 from sales.services.order_filters import new_orders_between
 from sales.services.order_next_actions import STALE_ALLOCATION_DAYS
-from sales.services.business_days import DEALER_BALANCE_DAYS, DEALER_DOCUMENT_DAYS
+from sales.services.business_days import DEALER_BALANCE_DAYS
 from sales.services.sales_metrics import (CANCELLED_STATUSES, DELIVERED_STATUSES, PAYMENT_CATEGORIES, money_bucket,
                                           payment_category, payout_due)
 
@@ -56,7 +56,6 @@ STAGE_LIMITS = OrderedDict((
     ("allocation_pending", 3),
     ("allocated", STALE_ALLOCATION_DAYS),
     ("delivery_pending", 7),
-    ("delivered_docs_pending", 14),
 ))
 STOCK_AGE_ALERT_DAYS = 90       # 庫齡達 90 天標紅
 VELOCITY_DAYS = 90              # 可銷天數用近 90 天領牌台數算日均
@@ -69,11 +68,10 @@ CAMPAIGN_ENDING_DAYS = 30       # 原廠獎勵 30 天內結束要提醒
 PERIODS = OrderedDict((("month", "本月"), ("last_month", "上月"), ("ytd", "今年至今")))
 STAGE_LABELS = {
     "allocation_pending": "待配車", "allocated": "待領牌", "delivery_pending": "待交付",
-    "delivered_docs_pending": "交車待文件",
 }
 STAGE_FILTERS = {
     "allocation_pending": "allocation_pending", "allocated": "registration_pending",
-    "delivery_pending": "delivery_pending", "delivered_docs_pending": "delivered_docs_pending",
+    "delivery_pending": "delivery_pending",
 }
 SOURCE_MIX = (("store", "本店"), ("dealer", "車行"), ("platform", "網路平台"))
 ENERGY_MIX = (("gas", "油車"), ("electric", "電動（含輕型、微型）"))
@@ -83,9 +81,9 @@ MONEY_SPLIT_RISK = OrderedDict((("unsettled", "unsettled_delivered"), ("before_d
                                 ("awaiting_payout", "awaiting_payout")))
 UNSETTLED_LABELS = {"cash": "現金", "card": "刷卡", "installment": "分期，客人自付部分", "platform": "平台，客人自付部分"}
 RECONCILIATION_CHANNELS = (("installment", "分期撥款待入帳"), ("platform", "平台撥款待入帳"))
-# 車行尾款／領牌到期的依據（T-280）；工作日從交車日的下一天算，跳過週末與營業日設定的假日。
-DEALER_DUE_RULE = (f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清、"
-                   f"第 {DEALER_DOCUMENT_DAYS} 個工作天起領牌未完成")
+# 車行尾款到期的依據（T-280）；工作日從交車日的下一天算，跳過週末與營業日設定的假日。
+# 一定先領牌才交車（T-298），交車後不會再有領牌未完成，只剩尾款。
+DEALER_DUE_RULE = f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清"
 # 油電領牌（T-263）：未領牌＝訂單流程的待配車＋待領牌兩站。
 ENERGY_REGISTRATION = (("gas", "油車"), ("electric", "電車"))
 PENDING_REGISTRATION = ("allocation_pending", "allocated")
@@ -458,7 +456,6 @@ def stage_age(order, today):
         "allocation_pending": order.established_on,
         "allocated": order.allocated_at,
         "delivery_pending": order.registration_completed_at or order.registration_date,
-        "delivered_docs_pending": order.delivered_at,
     }[order.status]
     return _age_days(today, start)
 
@@ -497,8 +494,6 @@ def _flow(metrics, today, active=None):
         "dealer_due": len({item["order"].pk for item in metrics["dealer_reminders"]}),
         "dealer_due_balance": len({item["order"].pk for item in metrics["dealer_reminders"]
                                    if item["kind"] == "dealer_balance"}),
-        "dealer_due_documents": len({item["order"].pk for item in metrics["dealer_reminders"]
-                                     if item["kind"] == "registration_documents"}),
         "dealer_due_rule": DEALER_DUE_RULE,
         "drafts": metrics["workload"]["drafts"],
     }
@@ -754,9 +749,8 @@ def _attention(data, flags):
             {"key": "stuck", "label": "流程卡關訂單", "value": flow["stuck"], "unit": "張",
              "detail": "、".join(f"{stage['label']} {stage['stuck']}" for stage in stuck), "severity": "amber",
              "url": order_url({"attention": "stuck"})},
-            {"key": "dealer_due", "label": "車行尾款／領牌到期", "value": flow["dealer_due"], "unit": "張",
-             "detail": f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清 {flow['dealer_due_balance']} 張、"
-                       f"第 {DEALER_DOCUMENT_DAYS} 個工作天起領牌未完成 {flow['dealer_due_documents']} 張",
+            {"key": "dealer_due", "label": "車行尾款到期", "value": flow["dealer_due"], "unit": "張",
+             "detail": f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未收清 {flow['dealer_due_balance']} 張",
              "severity": "amber", "url": order_url({"attention": "dealer"})},
         ]
     if flags["incentives"]:

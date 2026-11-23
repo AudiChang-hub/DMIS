@@ -7,7 +7,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.models import SalesOrder, SubsidyItem, VehicleInventory
-from sales.services.business_days import add_business_days
 from sales.services.settlement_cost import resolve_settlement_cost
 
 
@@ -39,23 +38,6 @@ def _tab_url(order, tab, anchor=""):
     from .order_steps import order_step_url
 
     return order_step_url(order.pk, tab, anchor)
-
-
-def _deadline_description(prefix, due_date, today):
-    due_label = due_date.strftime("%Y/%m/%d")
-    if today > due_date:
-        return f"{prefix}期限為 {due_label}，目前已逾期，請優先處理。"
-    if today == due_date:
-        return f"{prefix}今天（{due_label}）到期，請優先處理。"
-    return f"{prefix}請於 {due_label} 前完成。"
-
-
-def _delivered_on(order):
-    if not order.delivered_at:
-        return None
-    if timezone.is_aware(order.delivered_at):
-        return timezone.localtime(order.delivered_at).date()
-    return order.delivered_at.date()
 
 
 def _pending_reconciliation_action(order, today):
@@ -362,36 +344,9 @@ def build_order_next_actions(
             badge="需先確認",
             tone="urgent",
         )
-    elif order.is_delivered and not order.is_registration_complete:
-        delivered_on = _delivered_on(order)
-        # 交付時間留空（T-138）：3 個工作天期限不起算，改提示未填交付時間。
-        due_date = add_business_days(delivered_on, 3) if delivered_on else None
-        primary = NextAction(
-            key="registration",
-            title="補齊領牌資料與文件",
-            description=(_deadline_description("車行交付後的領牌資料", due_date, today) if due_date
-                         else "未填交付時間，期限不起算；請盡快補齊車行交付後的領牌資料。"),
-            action_label="前往領牌",
-            url=_tab_url(order, "registration"),
-            badge="交付後期限" if due_date else "未填交付時間",
-            tone="urgent" if due_date and today >= due_date else "primary",
-            target_tab="registration",
-        )
     elif not order.is_registration_complete:
+        # 一定先領牌才交車，車行單也一樣（使用者 2026-11-23 T-298）：不再提示車行先領車或交車後補領牌。
         primary = _registration_action(order, registration_missing)
-        if order.source_type == SalesOrder.SourceType.DEALER and not order.is_delivered:
-            secondary.append(
-                NextAction(
-                    key="dealer-early-delivery",
-                    title="車行可先領車",
-                    description="如需先交付，可完成交付核對，領牌資料於交付後三個工作日內補齊。",
-                    action_label="前往交付",
-                    url=_tab_url(order, "delivery"),
-                    badge="可同步處理",
-                    tone="parallel",
-                    target_tab="delivery",
-                )
-            )
     elif not order.is_delivered:
         primary = NextAction(
             key="delivery",

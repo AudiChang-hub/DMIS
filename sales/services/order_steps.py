@@ -132,7 +132,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             summary=(f"{order.final_plate_number}・{order.registration_date:%Y/%m/%d}"
                      if order.is_registration_complete and order.registration_date else
                      "配車後開放" if not order.allocated_vehicle_id else
-                     "車行可交車後補" if order.source_type == "dealer" else "填寫領牌資料與文件"),
+                     "填寫領牌資料與文件"),
         ),
         "finance": dict(
             number=6, title="收入與支出", state="optional",

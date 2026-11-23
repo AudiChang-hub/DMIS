@@ -560,10 +560,11 @@ html[data-theme="night-blue"] .ops {
   }
 }
 
+/* 三站（T-298 拿掉「交車待文件」）：連接線從第一站圓心畫到最後一站圓心，各留半欄（1/6）。 */
 .ops-track {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: var(--space-2) 0 0;
   padding: 0;
   list-style: none;
@@ -573,8 +574,8 @@ html[data-theme="night-blue"] .ops {
   content: "";
   position: absolute;
   top: 27px;
-  right: 12.5%;
-  left: 12.5%;
+  right: calc(100% / 6);
+  left: calc(100% / 6);
   height: 2px;
   background: var(--line);
 }

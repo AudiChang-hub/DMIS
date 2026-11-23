@@ -37,8 +37,8 @@ def registration_marks(today=None):
     return {"today": today, "next_business_day": add_business_days(today, 1)}
 
 
-# 營運總表「車行尾款／領牌到期」的到期依據（T-280）：交車日的下一天起算工作日，到第 N 個工作天當天就算到期。
-DEALER_DOCUMENT_DAYS = 3
+# 營運總表「車行尾款到期」的到期依據（T-280）：交車日的下一天起算工作日，到第 N 個工作天當天就算到期。
+# 一定先領牌才交車（T-298），交車後領牌文件的提醒拿掉，只留尾款。
 DEALER_BALANCE_DAYS = 7
 
 
@@ -59,7 +59,7 @@ def build_dealer_reminders(today=None):
         SalesOrder.objects.filter(
             source_type=SalesOrder.SourceType.DEALER,
             delivered_at__isnull=False,
-            # Excel 匯入單＝歷史資料：尾款與領牌文件提醒都不列（T-275 第 8 項，使用者 2026-11-21）。
+            # Excel 匯入單＝歷史資料：尾款提醒不列（T-275 第 8 項，使用者 2026-11-21）。
             legacy_snapshot__isnull=True,
         )
         .exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
@@ -71,19 +71,6 @@ def build_dealer_reminders(today=None):
 
     for order in orders:
         delivered_on = timezone.localtime(order.delivered_at).date()
-        if not order.is_registration_complete:
-            due = add_business_days(delivered_on, DEALER_DOCUMENT_DAYS, holidays)
-            reminders.append(
-                {
-                    "order": order,
-                    "kind": "registration_documents",
-                    "label": "交車後領牌文件未完成",
-                    "due_date": due,
-                    "days_overdue": max((today - due).days, 0),
-                    "is_overdue": today > due,
-                    "is_due": today >= due,
-                }
-            )
         if dealer_balance_owing(payment_summary(order)):
             due = add_business_days(delivered_on, DEALER_BALANCE_DAYS, holidays)
             reminders.append(

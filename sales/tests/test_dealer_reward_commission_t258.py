@@ -135,7 +135,7 @@ class DealerRewardOverviewTests(campaigns.CampaignFixtureMixin, TestCase):
         self.assertEqual(rows["活動獎勵"]["value"], "機油 5 罐、禮券 1000 元（已固定）")
         self.assertEqual(rows["來源活動"]["value"], "四家車行 SUZUKI 油車送機油、全車行禮券")
         self.assertEqual(rows["活動獎勵給"]["value"], "甲車行")
-        self.assertNotIn("傭金給", rows, "與活動獎勵同一車行時不重複")
+        self.assertEqual(rows["傭金給"]["value"], "甲車行", "欄位列固定（T-292）：同車行也列")
         self.assertNotIn("台數獎金", str(self.section(overview)))
         # 「複製全部」涵蓋新列；T-257 的優惠備註仍不進總覽。
         self.assertIn("【車行獎勵】\n傭金：$1,500（已固定）\n活動獎勵：機油 5 罐、禮券 1000 元（已固定）\n"
@@ -171,9 +171,9 @@ class DealerRewardOverviewTests(campaigns.CampaignFixtureMixin, TestCase):
         rows = self.rows(build_order_overview(SalesOrder.objects.get(pk=order.pk)))
         self.assertEqual(rows["傭金"]["value"], "$1,500（預估）")
         self.assertEqual(rows["傭金給"]["value"], "甲車行")
-        self.assertNotIn("活動獎勵", rows)
+        self.assertEqual((rows["活動獎勵"]["value"], rows["活動獎勵"]["copy"]), ("—", ""))
 
-    def test_platform_order_has_no_dealer_reward_section(self):
+    def test_platform_order_dealer_reward_section_is_blank(self):
         from sales.services.order_overview import build_order_overview
         platform = SalesSource.objects.create(name="示範平台", source_type="platform")
         order = self.order_with_vehicle(source=platform, source_type=SalesOrder.SourceType.PLATFORM)
@@ -183,5 +183,7 @@ class DealerRewardOverviewTests(campaigns.CampaignFixtureMixin, TestCase):
         profile.manual_financial_fields = ["dealer_commission_expense"]
         profile.save()
         overview = build_order_overview(SalesOrder.objects.get(pk=order.pk))
-        self.assertIsNone(self.section(overview))
+        # 區塊一律輸出（T-292）：平台單不列傭金，各列「—」、沒有複製值。
+        self.assertTrue(self.section(overview)["rows"])
+        self.assertTrue(all(row["value"] == "—" and row["copy"] == "" for row in self.section(overview)["rows"]))
         self.assertNotIn("【車行獎勵】", overview["plain_text"])

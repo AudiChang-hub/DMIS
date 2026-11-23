@@ -44,14 +44,18 @@ class OrderOverviewLayoutTests(TestCase):
 
     def test_sparse_order_still_lists_every_core_section_and_table(self):
         overview = build_order_overview(self.sparse_order())
-        self.assertEqual(self.keys(overview), CORE_SECTIONS)
-        self.assertEqual([table["key"] for table in overview["tables"]], ["accessories", "payments"])
+        # T-292：情境區塊與明細表也一律輸出。
+        self.assertEqual(self.keys(overview), ["order", "owner", "vehicle", "registration", "dealer_reward", "price",
+                                               "installment", "trade_in", "delivery", "cancellation", "note"])
+        self.assertEqual([table["key"] for table in overview["tables"]], ["accessories", "fees", "subsidies", "payments"])
         installment = next(section for section in overview["sections"] if section["key"] == "installment")
         self.assertTrue(all(row["value"] == "—" and row["copy"] == "" for row in installment["rows"]))
         # 「複製全部」照舊只帶有資料的欄位：空的分期、空明細表不出現。
         self.assertNotIn("【分期】", overview["plain_text"])
         self.assertNotIn("【加購項目與贈品】", overview["plain_text"])
         self.assertNotIn("【收入與支出】", overview["plain_text"])
+        self.assertNotIn("【其他費用】", overview["plain_text"])
+        self.assertNotIn("【補助項目】", overview["plain_text"])
 
     def test_columns_are_fixed_regardless_of_content(self):
         sparse = build_order_overview(self.sparse_order())

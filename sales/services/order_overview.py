@@ -79,34 +79,40 @@ def _join(*items, sep="／"):
 def _dealer_reward_section(order, include_finance):
     """車行獎勵＝傭金＋活動獎勵（T-258）：與訂單頁第 5 步卡片共用同一份資料，不另外重算。
 
-    平台單不列傭金、0 元不列；沒有傭金也沒有活動獎勵就不加這一區。傭金屬收支金額，
-    沒有訂單作業權限（include_finance=False）時不列，活動獎勵照列。
+    一律輸出、欄位列固定（T-292）：平台單、本店單、0 元或沒有活動獎勵的欄位顯示「—」。
+    傭金屬收支金額，沒有訂單作業權限（include_finance=False）時不列傭金兩列（依權限，不依單據）。
     """
     from sales.services.dealer_commission import order_commission_display
     from sales.services.dealer_reward_campaign import order_dealer_rewards
 
     commission = order_commission_display(order, getattr(order, "operations", None)) if include_finance else None
     rewards = order_dealer_rewards(order)
-    if not commission and not rewards["lines"]:
-        return None
-    rows = []
+    commission_value = commission_copy = ""
     if commission:
-        shown, raw = _money(commission["amount"])
+        shown, commission_copy = _money(commission["amount"])
         note = f"，含已結算台數獎金 {_money(commission['volume_bonus'])[0]}" if commission["volume_bonus"] else ""
-        rows.append(_row("傭金", f"{shown}（{commission['state_label']}{note}）", copy=raw, mono=True))
-        if commission["recipient"] and (not rewards["lines"] or commission["recipient"] != rewards["dealer"]):
-            rows.append(_row("傭金給", commission["recipient"].name))
+        commission_value = f"{shown}（{commission['state_label']}{note}）"
+    totals = campaigns = reward_value = ""
     if rewards["lines"]:
         state = "已固定" if rewards["locked"] else "預估"
         totals = "、".join(f"{total['name']} {total['quantity']} {total['unit']}" for total in rewards["totals"])
-        rows.append(_row("活動獎勵", f"{totals}（{state}）", copy=totals, wide=True))
-        rows.append(_row("來源活動", "、".join(dict.fromkeys(line.campaign_name for line in rewards["lines"])), wide=True))
-        rows.append(_row("活動獎勵給", rewards["dealer"].name if rewards["dealer"] else ""))
+        reward_value = f"{totals}（{state}）"
+        campaigns = "、".join(dict.fromkeys(line.campaign_name for line in rewards["lines"]))
+    rows = []
+    if include_finance:
+        rows.append(_row("傭金", commission_value, copy=commission_copy, mono=True))
+    rows.extend([
+        _row("活動獎勵", reward_value, copy=totals, wide=True),
+        _row("來源活動", campaigns, wide=True),
+        _row("活動獎勵給", rewards["dealer"].name if rewards["lines"] and rewards["dealer"] else ""),
+    ])
+    if include_finance:
+        rows.append(_row("傭金給", commission["recipient"].name if commission and commission["recipient"] else ""))
     return _section("dealer_reward", "車行獎勵", rows)
 
 
-# 桌面兩欄的固定指派（T-289）：每個區塊永遠在同一欄、欄內上下順序與跳轉按鈕一致；
-# 車行獎勵、汰舊、取消與退款只在有資料時出現，插在自己那欄的固定位置，不會讓其他區塊換欄。
+# 桌面兩欄的固定指派（T-289）：每個區塊永遠在同一欄、欄內上下順序與跳轉按鈕一致。
+# 所有區塊每張單一律輸出（T-292），車行獎勵、汰舊、取消與退款沒資料也列（各欄「—」）。
 # 手機單欄依 sections 順序（＝跳轉按鈕順序）。
 OVERVIEW_COLUMNS = (
     ("order", "owner", "vehicle", "trade_in", "delivery", "cancellation", "note"),
@@ -198,7 +204,6 @@ def build_order_overview(order, *, include_finance=True):
             _money_row("尾款", order.customer_balance_due),
         ]),
     ]
-    sections = [section for section in sections if section]
 
     # 分期一律列出（現金單各欄「—」），區塊位置不因付款方式改變（T-289）。
     sections.append(_section("installment", "分期", [
@@ -213,17 +218,22 @@ def build_order_overview(order, *, include_finance=True):
         _row("核准／拒絕日期", _date(order.installment_decided_on), mono=True),
     ]))
 
-    if order.is_trade_in_subsidy or order.trade_in_plate:
-        same = order.old_owner_same_as_owner
-        sections.append(_section("trade_in", "汰舊", [
-            _row("舊車車牌", order.trade_in_plate, mono=True),
-            _row("新舊車主", "同一人" if same else "不同人"),
-            _row("舊車主姓名", order.owner_name if same else order.old_owner_name),
-            _row("舊車主證件號碼", order.owner_id_number if same else order.old_owner_id_number, mono=True),
-            _row("舊車主電話", order.owner_phone if same else order.old_owner_phone, mono=True),
-            _row("舊車主戶籍", order.owner_address if same else order.old_owner_household_address, wide=True),
-            _money_row("舊車估價", order.old_vehicle_valuation, skip_zero=True),
-        ]))
+    # 汰舊、取消與退款一律列出（沒有汰舊／未取消各欄「—」），區塊位置不因資料有無改變（T-292）。
+    has_trade_in = order.is_trade_in_subsidy or bool(order.trade_in_plate)
+    same = order.old_owner_same_as_owner
+
+    def old_owner(own, other):
+        return (own if same else other) if has_trade_in else ""
+
+    sections.append(_section("trade_in", "汰舊", [
+        _row("舊車車牌", order.trade_in_plate, mono=True),
+        _row("新舊車主", ("同一人" if same else "不同人") if has_trade_in else ""),
+        _row("舊車主姓名", old_owner(order.owner_name, order.old_owner_name)),
+        _row("舊車主證件號碼", old_owner(order.owner_id_number, order.old_owner_id_number), mono=True),
+        _row("舊車主電話", old_owner(order.owner_phone, order.old_owner_phone), mono=True),
+        _row("舊車主戶籍", old_owner(order.owner_address, order.old_owner_household_address), wide=True),
+        _money_row("舊車估價", order.old_vehicle_valuation, skip_zero=True),
+    ]))
 
     sections.append(_section("delivery", "交車", [
         _row("交車方式", _display(order, "delivery_method")),
@@ -231,22 +241,21 @@ def build_order_overview(order, *, include_finance=True):
         _row("交車完成", _join(_datetime(order.delivered_at), order.delivered_by, sep="　")),
     ]))
 
-    if order.cancellation_requested_at or order.status == order.Status.CANCELLED:
-        sections.append(_section("cancellation", "取消與退款", [
-            _row("取消原因", order.cancellation_reason),
-            _row("取消說明", order.cancellation_note, wide=True),
-            _money_row("退款金額", order.refund_amount, skip_zero=True),
-            _row("退款方式", _display(order, "refund_method")),
-            _row("退款帳號／交易資訊", order.refund_reference, wide=True),
-            _row("退款完成日期", _date(order.refund_completed_on), mono=True),
-            _money_row("沒收金額", order.forfeited_amount, skip_zero=True),
-        ]))
+    sections.append(_section("cancellation", "取消與退款", [
+        _row("取消原因", order.cancellation_reason),
+        _row("取消說明", order.cancellation_note, wide=True),
+        _money_row("退款金額", order.refund_amount, skip_zero=True),
+        _row("退款方式", _display(order, "refund_method")),
+        _row("退款帳號／交易資訊", order.refund_reference, wide=True),
+        _row("退款完成日期", _date(order.refund_completed_on), mono=True),
+        _money_row("沒收金額", order.forfeited_amount, skip_zero=True),
+    ]))
 
     sections.append(_section("note", "備註", [_row("備註", order.note, wide=True)]))
 
     tables = []
     accessories = list(order.accessories.all())
-    # 加購與收支明細一律列出（沒有資料顯示空狀態）；其他費用、補助項目有資料才列，排在兩者之間（T-289）。
+    # 明細表一律列出（沒有資料顯示空狀態）：加購→其他費用→補助項目→收支（T-289、T-292）。
     tables.append({
         "key": "accessories",
         "title": "加購項目與贈品",
@@ -259,28 +268,26 @@ def build_order_overview(order, *, include_finance=True):
             for line in accessories
         ],
     })
-    fees = list(order.other_fees.all())
-    if fees:
-        tables.append({
-            "key": "fees",
-            "title": "其他費用",
-            "columns": ("項目", "金額"),
-            "numeric": (1,),
-            "rows": [(fee.name, _money(fee.amount)[0]) for fee in fees],
-        })
-    subsidies = list(order.subsidy_items.all())
-    if subsidies:
-        tables.append({
-            "key": "subsidies",
-            "title": "補助項目",
-            "columns": ("類別", "項目", "預計金額", "申請日期", "狀態", "備註"),
-            "numeric": (2,),
-            "rows": [
-                (item.get_category_display(), item.item_name, _money(item.expected_amount)[0],
-                 _date(item.applied_on) or EMPTY, item.get_status_display(), item.note or EMPTY)
-                for item in subsidies
-            ],
-        })
+    tables.append({
+        "key": "fees",
+        "title": "其他費用",
+        "empty": "沒有其他費用",
+        "columns": ("項目", "金額"),
+        "numeric": (1,),
+        "rows": [(fee.name, _money(fee.amount)[0]) for fee in order.other_fees.all()],
+    })
+    tables.append({
+        "key": "subsidies",
+        "title": "補助項目",
+        "empty": "沒有補助項目",
+        "columns": ("類別", "項目", "預計金額", "申請日期", "狀態", "備註"),
+        "numeric": (2,),
+        "rows": [
+            (item.get_category_display(), item.item_name, _money(item.expected_amount)[0],
+             _date(item.applied_on) or EMPTY, item.get_status_display(), item.note or EMPTY)
+            for item in order.subsidy_items.all()
+        ],
+    })
     # 沒有訂單作業權限時不列收入與支出明細。
     if include_finance:
         payments = list(order.payment_records.all())

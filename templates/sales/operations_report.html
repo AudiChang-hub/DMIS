@@ -40,22 +40,33 @@
   {% if c.trend.negative_profit_months %}<p class="ops-note ops-note--alert">平均單台淨利為負的月份：{{ c.trend.negative_profit_months|join:"、" }}。</p>{% endif %}
   {% if c.flags.operations %}<p class="ops-note">本期領牌訂單的累計實際收款額 ${{ c.pulse.received|number_with_commas }}（依這批訂單的收款明細，不等於本期現金流入）。</p>{% endif %}
 
-  {# T-294：整列全寬。有事時寬版兩欄清單（左到右、上到下依優先順序）；沒有事時整張收成一行。 #}
+  {# T-294：整列全寬；沒有事時整張收成一行。T-299：有事時分四類，寬版左欄收錢、付錢，右欄訂單卡住、車與進貨，
+     窄版單欄依序①→④（DOM 順序＝閱讀順序）；類別內紅色優先，同色依金額與件數；沒事的類別收成一行。 #}
   <section class="ops-card ops-attention{% if not c.attention %} is-clear{% endif %}" aria-labelledby="ops-attention-title" data-side-nav-section="需要處理">
     <header class="ops-card__head"><h2 id="ops-attention-title">需要處理</h2>{% if c.attention %}<small>紅色優先，同色依金額與件數排序</small>{% endif %}</header>
     {% if c.attention %}
-      <ol class="ops-todo">{% for item in c.attention %}
-        <li class="ops-todo__item ops-todo__item--{{ item.severity }}">{% if item.url %}<a href="{{ item.url }}">{% else %}<div>{% endif %}
-          <span class="ops-dot" aria-hidden="true"></span>
-          <span class="ops-todo__text"><strong>{{ item.label }}</strong>{% if item.detail %}<small>{{ item.detail }}</small>{% endif %}</span>
-          <span class="ops-todo__value"><b>{{ item.value }}</b> {{ item.unit }}{% if item.amount %}<small>${{ item.amount|number_with_commas }}</small>{% endif %}</span>
-          <span class="ops-visually-hidden">{% if item.severity == "red" %}（優先）{% endif %}</span>
-        {% if item.url %}<span class="ops-todo__go" aria-hidden="true">→</span></a>{% else %}</div>{% endif %}</li>{% endfor %}
-      </ol>
+      <div class="ops-attention__groups">{% for column in c.attention_columns %}
+        <div class="ops-attention__col">{% for group in column %}
+          {% if group.items %}
+          <div class="ops-group" role="group" aria-labelledby="ops-group-{{ group.key }}">
+            <h3 class="ops-group__title" id="ops-group-{{ group.key }}">{{ group.label }}</h3>
+            <ol class="ops-todo">{% for item in group.items %}
+              <li class="ops-todo__item ops-todo__item--{{ item.severity }}" data-attention-key="{{ item.key }}">{% if item.url %}<a href="{{ item.url }}">{% else %}<div>{% endif %}
+                <span class="ops-dot" aria-hidden="true"></span>
+                <span class="ops-todo__text"><strong>{{ item.label }}</strong>{% if item.detail %}<small>{{ item.detail }}</small>{% endif %}</span>
+                <span class="ops-todo__value"><b>{{ item.value }}</b> {{ item.unit }}{% if item.amount %}<small>${{ item.amount|number_with_commas }}</small>{% endif %}</span>
+                <span class="ops-visually-hidden">{% if item.severity == "red" %}（優先）{% endif %}</span>
+              {% if item.url %}<span class="ops-todo__go" aria-hidden="true">→</span></a>{% else %}</div>{% endif %}</li>{% endfor %}
+            </ol>
+          </div>
+          {% else %}
+          <p class="ops-group ops-group__none" title="已檢查：{{ group.clear|join:'、' }}"><span class="ops-attention__ok" aria-hidden="true">✓</span><span><strong>{{ group.label }}</strong>：目前沒有</span><span class="ops-visually-hidden">（已檢查：{{ group.clear|join:"、" }}）</span></p>
+          {% endif %}{% endfor %}
+        </div>{% endfor %}
+      </div>
     {% else %}
       <p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span><strong>目前沒有需要處理的事</strong><small>目前沒有：{{ c.attention_clear|join:"、" }}</small></p>
     {% endif %}
-    {% if c.attention and c.attention_clear %}<p class="ops-clear">目前沒有：{{ c.attention_clear|join:"、" }}</p>{% endif %}
   </section>
 
   {% if c.flow %}

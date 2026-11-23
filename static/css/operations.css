@@ -433,18 +433,56 @@ html[data-theme="night-blue"] .ops {
   font-size: var(--text-xs);
 }
 
-/* 寬版兩欄清單：依優先順序左到右、上到下；每列兩項上緣對齊。 */
+/* T-299：分四類。窄版單欄依序①→④；寬版兩欄，左欄收錢、付錢，右欄訂單卡住、車與進貨（各欄自己往下排）。 */
+.ops-attention__groups,
+.ops-attention__col {
+  display: grid;
+  align-content: start;
+  gap: var(--stack-gap-sm);
+  min-width: 0;
+}
+
 @media (min-width: 860.02px) {
-  .ops-todo {
-    display: grid;
+  .ops-attention__groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--stack-gap);
   }
 
-  .ops-todo__item:nth-child(2) > a,
-  .ops-todo__item:nth-child(2) > div {
-    border-top: 0;
+  .ops-attention__col:only-child {
+    grid-column: 1 / -1;
   }
+}
+
+.ops-group {
+  min-width: 0;
+}
+
+.ops-group__title {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+/* 沒事的類別收成一行，和類別小標同樣的底線與內距（兩欄上緣對齊）；檢查了哪些項目放在 title 與讀螢幕文字。 */
+.ops-group__none {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.ops-group__none strong {
+  color: var(--ink-soft);
+  font-weight: 600;
 }
 
 .ops-todo__item > a,
@@ -520,22 +558,6 @@ html[data-theme="night-blue"] .ops {
 .ops-todo__go {
   color: var(--muted);
   transition: transform var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-
-.ops-clear {
-  display: flex;
-  gap: var(--space-2);
-  margin: 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line-soft);
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-
-.ops-clear::before {
-  content: "✓";
-  color: var(--green);
-  font-weight: 700;
 }
 
 /* ── 訂單流程軌道 ── */

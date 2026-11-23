@@ -705,6 +705,17 @@ def viewer_flags(policy, profit):
 
 def _attention(data, flags):
     """需要處理：只列有事的項目；紅色（錢有風險、庫齡過久）在前，同色依金額與件數排序。"""
+    return _attention_split(_attention_items(data, flags))
+
+
+def _attention_split(items):
+    active = sorted((item for item in items if item["value"]), key=_attention_rank)
+    clear = [item["label"] for item in items if not item["value"]]
+    return active, clear
+
+
+def _attention_items(data, flags):
+    """需要處理的全部項目（含沒有事的）；每項帶 group（T-299 四類）。"""
     money, stock, flow, links = data["money"], data["stock"], data["flow"], flags["links"]
     order_url = lambda params: _url("order_list", params) if links["order_list"] else ""  # noqa: E731
     # 交車後未結清依付款方式拆成四項（T-275 第 9 項）；點進去是 risk＋pay 同一批單。
@@ -762,10 +773,52 @@ def _attention(data, flags):
     for item in items:
         item.setdefault("amount", None)
         item.setdefault("detail", "")
-    active = [item for item in items if item["value"]]
-    active.sort(key=lambda item: (item["severity"] != "red", -(item["amount"] or 0), -item["value"]))
-    clear = [item["label"] for item in items if not item["value"]]
-    return active, clear
+        item["group"] = _attention_group(item["key"])
+    return items
+
+
+# 需要處理分四類（T-299，使用者 2026-11-23 選定）：一眼看出是誰的事。key 是 _attention 各項的 key，
+# 前綴相同的一組（unsettled_*、reconciliation_*）用前綴對應；新增項目要先決定歸哪一類，沒對應會直接報錯。
+ATTENTION_GROUPS = (
+    ("collect", "收錢、對帳", ("reconciliation_", "unconfirmed", "unsettled_", "dealer_due")),
+    ("pay", "付錢、退錢", ("refund", "overpaid", "payouts")),
+    ("stuck", "訂單卡住", ("stuck",)),
+    ("stock", "車與進貨", ("aged", "shortage", "campaigns")),
+)
+
+
+def _attention_group(key):
+    for group, _label, keys in ATTENTION_GROUPS:
+        if any(key == name or (name.endswith("_") and key.startswith(name)) for name in keys):
+            return group
+    raise KeyError(f"需要處理「{key}」沒有歸類（ATTENTION_GROUPS）")
+
+
+def _attention_rank(item):
+    """紅色優先，同色依金額與件數排序。"""
+    return item["severity"] != "red", -(item["amount"] or 0), -item["value"]
+
+
+def _attention_groups(items):
+    """四類依固定順序；類別內只列有事的項目、排序同整張卡。沒有任何項目（沒有權限）的類別不列；
+    沒有事的類別保留該類檢查了哪些項目（clear），畫面收成一行「目前沒有」。"""
+    groups = []
+    for key, label, _keys in ATTENTION_GROUPS:
+        members = [item for item in items if item["group"] == key]
+        if members:
+            groups.append({"key": key, "label": label,
+                           "items": sorted((item for item in members if item["value"]), key=_attention_rank),
+                           "clear": [item["label"] for item in members if not item["value"]]})
+    return groups
+
+
+# 寬版兩欄：左欄收錢、付錢，右欄訂單卡住、車與進貨；窄版依序疊成單欄，DOM 順序就是閱讀順序。
+ATTENTION_COLUMNS = (("collect", "pay"), ("stuck", "stock"))
+
+
+def _attention_columns(groups):
+    columns = [[group for group in groups if group["key"] in keys] for keys in ATTENTION_COLUMNS]
+    return [column for column in columns if column]
 
 
 def _outstanding_terms(money, show_amounts):
@@ -870,11 +923,15 @@ def for_viewer(data, flags):
         trend.pop("negative_profit_months")
     if not flags["operations"]:
         pulse.pop("received")
-    attention, clear = _attention(data, flags)
+    attention_items = _attention_items(data, flags)
+    attention, clear = _attention_split(attention_items)
+    attention_groups = _attention_groups(attention_items)
     view = {
         "generated_at": data["generated_at"], "period": data["period"], "periods": PERIODS,
         "windows": data["windows"], "pulse": pulse, "trend": trend, "mix": data["mix"], "movers": data["movers"],
-        "attention": attention, "attention_clear": clear, "links": flags["links"], "flags": flags,
+        "attention": attention, "attention_clear": clear,
+        "attention_groups": attention_groups, "attention_columns": _attention_columns(attention_groups),
+        "links": flags["links"], "flags": flags,
     }
     money = dict(data["money"])
     money["outstanding_terms"] = _outstanding_terms(money, flags["operations"])

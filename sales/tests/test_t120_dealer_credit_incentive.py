@@ -35,7 +35,7 @@ class DealerCashCreditTests(ledger.FinanceLedgerTestBase):
         self.assertEqual(summary["customer_expected"], settlement["total"])
         self.assertEqual(PaymentRecord.objects.get(order=order, system_key="balance").expected_amount, settlement["total"])
         texts = [item["text"] for item in receipt_status(order, summary)["items"]]
-        self.assertIn(f"車行掛帳（已扣傭金）還差 {settlement['total']:,.0f} 元", texts)
+        self.assertIn(f"車行未付（已扣傭金）還差 {settlement['total']:,.0f} 元", texts)
         PaymentRecord.objects.create(order=order, item_name="車行付款", expected_amount=0, received_amount=settlement["total"],
                                      received_on=date(2026, 9, 20), payment_method="匯款", confirmed=True)
         self.assertTrue(payment_summary(SalesOrder.objects.get(pk=order.pk))["settled"])

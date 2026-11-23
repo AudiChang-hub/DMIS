@@ -40,8 +40,7 @@
   {% if c.trend.negative_profit_months %}<p class="ops-note ops-note--alert">平均單台淨利為負的月份：{{ c.trend.negative_profit_months|join:"、" }}。</p>{% endif %}
   {% if c.flags.operations %}<p class="ops-note">本期領牌訂單的累計實際收款額 ${{ c.pulse.received|number_with_commas }}（依這批訂單的收款明細，不等於本期現金流入）。</p>{% endif %}
 
-  {# T-294：整列全寬；沒有事時整張收成一行。T-299：有事時分四類，寬版左欄收錢、付錢，右欄訂單卡住、車與進貨，
-     窄版單欄依序①→④（DOM 順序＝閱讀順序）；類別內紅色優先，同色依金額與件數；沒事的類別收成一行。 #}
+  {# T-294：整列全寬；沒有事時整張收成一行。T-299：有事時分四類（寬版左欄①②、右欄③④，窄版單欄①→④），沒事的類別收成一行。 #}
   <section class="ops-card ops-attention{% if not c.attention %} is-clear{% endif %}" aria-labelledby="ops-attention-title" data-side-nav-section="需要處理">
     <header class="ops-card__head"><h2 id="ops-attention-title">需要處理</h2>{% if c.attention %}<small>紅色優先，同色依金額與件數排序</small>{% endif %}</header>
     {% if c.attention %}

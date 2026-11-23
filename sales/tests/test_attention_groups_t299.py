@@ -130,6 +130,14 @@ class AttentionGroupTests(TestCase):
         self.assertIn('<p class="ops-attention__none">', html)
         self.assertIn("已收款待確認", html)
 
+    def test_page_has_no_raw_template_comment(self):
+        # Django 的 {# #} 只能單行；跨行會原樣印在頁面上（T-299 驗收時發現在需要處理卡上方）。
+        for data in (self.busy(), self.data()):
+            with patch.object(operations_cockpit, "load", return_value=data):
+                html = self.client.get(reverse("operations_report")).content.decode()
+            self.assertNotIn("{#", html)
+            self.assertNotIn("#}", html)
+
     def test_groups_without_permission_are_left_out(self):
         flags = {**ALL_FLAGS, "dashboard": False, "incentives": False}
         groups = operations_cockpit._attention_groups(operations_cockpit._attention_items(self.base, flags))

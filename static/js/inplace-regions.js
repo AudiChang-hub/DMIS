@@ -10,10 +10,11 @@
   const CLIENT_CLASSES = new Set(["is-active", "is-entering", "is-stuck", "is-just-updated"]);
 
   // 同一張表單在新舊畫面中的識別：送出網址＋非 CSRF 的隱藏欄位（例如文件類型）。
+  // noscript 裡的欄位不算：畫面上它們只是文字，DOMParser 解析的導回頁面裡才是 input，算進去兩邊就對不起來。
   function formKey(form) {
     if (!form) return "";
     const hidden = Array.from(form.querySelectorAll('input[type="hidden"]'))
-      .filter((field) => field.name && field.name !== "csrfmiddlewaretoken")
+      .filter((field) => field.name && field.name !== "csrfmiddlewaretoken" && !field.closest?.("noscript"))
       .map((field) => `${field.name}=${field.value}`)
       .sort();
     return [form.getAttribute("action") || "", ...hidden].join("|");

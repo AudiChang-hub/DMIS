@@ -40,4 +40,5 @@ def site_navigation(context):
     if parent == route or not policy.route(parent):
         parent, label = 'dashboard', '首頁'
     return {'fallback_url': reverse(parent), 'label': label,
-            'root_url': reverse('dashboard') if parent != 'dashboard' else '', 'root_label': '首頁'}
+            'root_url': reverse('dashboard') if parent != 'dashboard' else '', 'root_label': '首頁',
+            'request': request}

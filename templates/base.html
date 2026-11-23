@@ -1,4 +1,4 @@
-{% load screen_access %}
+{% load screen_access back_source_tags %}
 {% load static %}
 <!doctype html>
 <html lang="zh-Hant" data-theme="{{ ui_theme|default:'professional' }}">
@@ -237,7 +237,7 @@
     </div>
   </aside>
 
-  <main class="page-shell {% block page_class %}page-shell--standard{% endblock %}" id="main-content" tabindex="-1">
+  <main class="page-shell {% block page_class %}page-shell--standard{% endblock %}" id="main-content" tabindex="-1"{% link_source_attr %}>
     {% if messages %}
       <div class="messages" aria-live="polite">
         {% for message in messages %}

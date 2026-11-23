@@ -39,10 +39,68 @@
     const key = RETURN_KEY + window.location.pathname;
     storage.set(key, {query: listQuery(window.location), y: Math.round(window.scrollY)});
   };
+  // 從哪來回哪去（T-291）：白名單頁（<main data-link-source>）點往其他頁的本站連結時補 back_to＝目前路徑與篩選，
+  // 目的頁的返回列由伺服器驗證後回到來源。目的頁網址帶 back_to 時，同頁的篩選表單、分頁／排序連結與
+  // pushState 一路帶著，點一次篩選不會丟失來源。網址沒有 back_to 的頁面只有來源端會補參數，其餘不變。
+  const BACK_PARAM = "back_to";
+  const BACK_MAX = 2000;
+  const initialBackTo = new URLSearchParams(window.location.search).get(BACK_PARAM) || "";
+  const ownSource = parseSameOriginUrl(initialBackTo);
+  const sourceMain = document.querySelector("main[data-link-source]");
+  const pageMain = sourceMain || document.querySelector("main");
+  const carryBackTo = url => {
+    if (!initialBackTo || url === undefined || url === null || url === "") return url;
+    const next = parseSameOriginUrl(String(url));
+    if (!next || next.pathname !== window.location.pathname || next.searchParams.has(BACK_PARAM)) return url;
+    next.searchParams.set(BACK_PARAM, initialBackTo);
+    return next.pathname + next.search + next.hash;
+  };
+  const prepareLink = link => {
+    const href = link.getAttribute("href");
+    if (!href || href.startsWith("#") || link.hasAttribute("download") || link.hasAttribute("data-return-to") || link.hasAttribute("data-no-back-to")) return;
+    if (!pageMain || !pageMain.contains(link)) return;
+    const target = parseSameOriginUrl(href);
+    if (!target || !/^https?:$/.test(target.protocol) || target.searchParams.has(BACK_PARAM)) return;
+    if (target.pathname === window.location.pathname) {
+      if (!initialBackTo) return;
+      target.searchParams.set(BACK_PARAM, initialBackTo);
+    } else {
+      if (!sourceMain || /^\/(static|media)\//.test(target.pathname)) return;
+      if (ownSource && ownSource.pathname === target.pathname) return;  // 回自己的來源，不再疊一層
+      const value = window.location.pathname + listQuery(window.location);
+      if (value.length > BACK_MAX) return;
+      target.searchParams.set(BACK_PARAM, value);
+    }
+    link.setAttribute("href", target.pathname + target.search + target.hash);
+  };
+  // 點下（含中鍵、右鍵另開分頁、鍵盤 Enter）當下才補，動態插入的連結與 pushState 後的篩選都用最新網址。
+  ["mousedown", "click", "contextmenu"].forEach(type => window.addEventListener(type, event => {
+    const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (link) prepareLink(link);
+  }, true));
+  const carryForm = form => {
+    if ((form.getAttribute("method") || "get").toLowerCase() !== "get") return;
+    const action = parseSameOriginUrl(form.getAttribute("action") || window.location.href);
+    if (!action || action.pathname !== window.location.pathname) return;
+    if ([...form.elements].some(field => field.name === BACK_PARAM)) return;
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = BACK_PARAM;
+    hidden.value = initialBackTo;
+    form.appendChild(hidden);
+  };
+  if (initialBackTo) {
+    document.querySelectorAll("main form").forEach(carryForm);
+    window.addEventListener("submit", event => {
+      if (event.target && event.target.tagName === "FORM" && pageMain && pageMain.contains(event.target)) carryForm(event.target);
+    }, true);
+  }
+
   // 分頁籤、換頁等以 pushState／replaceState 改網址的頁面，網址一變就更新記住的篩選。
   ["pushState", "replaceState"].forEach(method => {
     const original = window.history[method];
     window.history[method] = function (...args) {
+      if (args.length > 2) args[2] = carryBackTo(args[2]);
       const result = original.apply(this, args);
       rememberListState();
       return result;

@@ -42,7 +42,7 @@ class ReportCardCacheTests(TestCase):
         batch = LegacyImportBatch.objects.create(import_type="operations", source_file="t281.xlsx", original_filename="t281.xlsx",
                                                  file_sha256="d" * 64, file_size=0, uploaded_by="tester")
         for index, (order, number) in enumerate(zip(SalesOrder.objects.order_by("pk"), ["UQ125DA", "DS250M4", "EV060L"])):
-            row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷售", source_row=index + 1, fingerprint=f"t281{index}" * 13,
+            row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷售", source_row=index + 1, fingerprint=(f"t281{index}" * 13)[:64],
                                                  action="create", mapped_data={"model_number": number})
             LegacySalesSnapshot.objects.create(order=order, import_row=row)
         cls.templates = {}

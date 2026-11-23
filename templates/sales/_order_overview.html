@@ -13,9 +13,11 @@
     </nav>
   </div>
 
-  <div class="order-overview__grid">
-    {% for section in overview.sections %}{% if section.rows %}
-    <section class="order-overview__card" id="overview-{{ section.key }}" data-overview-section aria-labelledby="overview-{{ section.key }}-title">
+  {# T-289：兩欄固定指派（OVERVIEW_COLUMNS），不依卡片高度分欄；窄版合成單欄，依 --overview-order（跳轉順序）排列。 #}
+  <div class="order-overview__grid"><div class="order-overview__columns">
+    {% for column in overview.columns %}<div class="order-overview__column" data-overview-column="{{ forloop.counter }}">
+    {% for section in column %}
+    <section class="order-overview__card" id="overview-{{ section.key }}" style="--overview-order: {{ section.position }}" data-overview-section aria-labelledby="overview-{{ section.key }}-title">
       <header class="order-overview__card-head">
         <h3 id="overview-{{ section.key }}-title">{{ section.title }}</h3>
         <button type="button" class="order-overview__copy-section" data-overview-copy-section>複製本區</button>
@@ -29,8 +31,9 @@
         {% endfor %}
       </dl>
     </section>
-    {% endif %}{% endfor %}
-  </div>
+    {% endfor %}
+    </div>{% endfor %}
+  </div></div>
 
   {% if overview.tables %}<div class="order-overview__tables">
     {% for table in overview.tables %}
@@ -42,7 +45,7 @@
       <div class="inventory-table-wrap order-overview__table-wrap" tabindex="0" aria-label="{{ table.title }}，可水平捲動">
         <table class="inventory-table inventory-table--fit order-overview__table" data-overview-table>
           <thead><tr>{% for column in table.columns %}<th scope="col"{% if forloop.counter0 in table.numeric %} class="is-number"{% endif %}>{{ column }}</th>{% endfor %}</tr></thead>
-          <tbody>{% for line in table.lines %}<tr data-overview-row data-label="{{ table.title }}" data-copy="{{ line.copy }}">{% for column, cell, numeric in line.cells %}<td data-label="{{ column }}"{% if numeric %} class="is-number"{% endif %}>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+          <tbody>{% for line in table.lines %}<tr data-overview-row data-label="{{ table.title }}" data-copy="{{ line.copy }}">{% for column, cell, numeric in line.cells %}<td data-label="{{ column }}"{% if numeric %} class="is-number"{% endif %}>{{ cell }}</td>{% endfor %}</tr>{% empty %}<tr class="order-overview__table-empty" data-overview-row data-label="{{ table.title }}" data-copy=""><td colspan="{{ table.columns|length }}">{{ table.empty }}</td></tr>{% endfor %}</tbody>
         </table>
       </div>
     </section>

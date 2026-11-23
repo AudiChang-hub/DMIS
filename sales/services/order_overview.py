@@ -53,8 +53,9 @@ def _row(label, value, *, copy=None, wide=False, mono=False):
 
 
 def _money_row(label, value, *, skip_zero=False):
+    # skip_zero：0 元顯示「—」、不進複製（T-289 欄位固定，不再整列拿掉）。
     if skip_zero and not value:
-        return None
+        value = None
     shown, raw = _money(value)
     return _row(label, shown, copy=raw, mono=True)
 
@@ -104,8 +105,17 @@ def _dealer_reward_section(order, include_finance):
     return _section("dealer_reward", "車行獎勵", rows)
 
 
+# 桌面兩欄的固定指派（T-289）：每個區塊永遠在同一欄、欄內上下順序與跳轉按鈕一致；
+# 車行獎勵、汰舊、取消與退款只在有資料時出現，插在自己那欄的固定位置，不會讓其他區塊換欄。
+# 手機單欄依 sections 順序（＝跳轉按鈕順序）。
+OVERVIEW_COLUMNS = (
+    ("order", "owner", "vehicle", "trade_in", "delivery", "cancellation", "note"),
+    ("registration", "dealer_reward", "price", "installment"),
+)
+
+
 def build_order_overview(order, *, include_finance=True):
-    """回傳 {sections, tables, plain_text}；sections 為標籤／值，tables 為明細列。
+    """回傳 {sections, columns, tables, plain_text}；sections 為標籤／值（跳轉順序），columns 為桌面兩欄的固定指派，tables 為明細列。
 
     include_finance=False 時不列收入與支出明細（沒有訂單作業權限的人在訂單頁也看不到）。
     """
@@ -180,8 +190,8 @@ def build_order_overview(order, *, include_finance=True):
             _money_row("已核准折扣", order.approved_discount_amount, skip_zero=True),
             _row("折扣原因", order.discount_reason if order.approved_discount_amount else ""),
             # 分期外應收＝扣訂金前客人自付的部分（使用者 2026-10-20），尾款才扣訂金。
-            *([_money_row("分期外應收", order.customer_receivable_total)]
-              if order.payment_type == order.PaymentType.INSTALLMENT else []),
+            _money_row("分期外應收", order.customer_receivable_total
+                       if order.payment_type == order.PaymentType.INSTALLMENT else None),
             _money_row("訂金", order.deposit_amount),
             _row("訂金收款日", _date(order.deposit_date) if order.deposit_amount else "", mono=True),
             _row("訂金收款方式", _display(order, "deposit_method") if order.deposit_amount else ""),
@@ -190,18 +200,18 @@ def build_order_overview(order, *, include_finance=True):
     ]
     sections = [section for section in sections if section]
 
-    if order.installment_company or order.installment_periods:
-        sections.append(_section("installment", "分期", [
-            _row("分期公司", order.installment_company),
-            _money_row("分期金額", order.installment_amount, skip_zero=True),
-            _row("期數", f"{order.installment_periods} 期" if order.installment_periods else "",
-                 copy=str(order.installment_periods or "")),
-            _money_row("每期金額", order.installment_monthly, skip_zero=True),
-            _money_row("分期開辦費", order.installment_opening_fee, skip_zero=True),
-            _row("申請日期", _date(order.installment_applied_on), mono=True),
-            _row("審核狀態", _display(order, "installment_status")),
-            _row("核准／拒絕日期", _date(order.installment_decided_on), mono=True),
-        ]))
+    # 分期一律列出（現金單各欄「—」），區塊位置不因付款方式改變（T-289）。
+    sections.append(_section("installment", "分期", [
+        _row("分期公司", order.installment_company),
+        _money_row("分期金額", order.installment_amount, skip_zero=True),
+        _row("期數", f"{order.installment_periods} 期" if order.installment_periods else "",
+             copy=str(order.installment_periods or "")),
+        _money_row("每期金額", order.installment_monthly, skip_zero=True),
+        _money_row("分期開辦費", order.installment_opening_fee, skip_zero=True),
+        _row("申請日期", _date(order.installment_applied_on), mono=True),
+        _row("審核狀態", _display(order, "installment_status")),
+        _row("核准／拒絕日期", _date(order.installment_decided_on), mono=True),
+    ]))
 
     if order.is_trade_in_subsidy or order.trade_in_plate:
         same = order.old_owner_same_as_owner
@@ -236,18 +246,19 @@ def build_order_overview(order, *, include_finance=True):
 
     tables = []
     accessories = list(order.accessories.all())
-    if accessories:
-        tables.append({
-            "key": "accessories",
-            "title": "加購項目與贈品",
-            "columns": ("項目", "類型", "數量", "單價", "工資", "小計", "備註"),
-            "numeric": (2, 3, 4, 5),
-            "rows": [
-                (line.name, line.get_line_type_display(), str(line.quantity), _money(line.amount)[0],
-                 _money(line.labor_fee)[0], _money(line.line_total)[0], line.note or EMPTY)
-                for line in accessories
-            ],
-        })
+    # 加購與收支明細一律列出（沒有資料顯示空狀態）；其他費用、補助項目有資料才列，排在兩者之間（T-289）。
+    tables.append({
+        "key": "accessories",
+        "title": "加購項目與贈品",
+        "empty": "沒有加購項目或贈品",
+        "columns": ("項目", "類型", "數量", "單價", "工資", "小計", "備註"),
+        "numeric": (2, 3, 4, 5),
+        "rows": [
+            (line.name, line.get_line_type_display(), str(line.quantity), _money(line.amount)[0],
+             _money(line.labor_fee)[0], _money(line.line_total)[0], line.note or EMPTY)
+            for line in accessories
+        ],
+    })
     fees = list(order.other_fees.all())
     if fees:
         tables.append({
@@ -270,11 +281,13 @@ def build_order_overview(order, *, include_finance=True):
                 for item in subsidies
             ],
         })
-    payments = list(order.payment_records.all()) if include_finance else []
-    if payments:
+    # 沒有訂單作業權限時不列收入與支出明細。
+    if include_finance:
+        payments = list(order.payment_records.all())
         tables.append({
             "key": "payments",
             "title": "收入與支出",
+            "empty": "尚無收入與支出紀錄",
             "columns": ("項目", "應收", "實收", "收款日期", "付款方式", "備註"),
             "numeric": (1, 2),
             "rows": [
@@ -293,7 +306,10 @@ def build_order_overview(order, *, include_finance=True):
             }
             for row in table["rows"]
         ]
-    return {"sections": sections, "tables": tables, "plain_text": _plain_text(order, sections, tables)}
+    for position, section in enumerate(sections, start=1):
+        section["position"] = position
+    columns = [[section for section in sections if section["key"] in keys] for keys in OVERVIEW_COLUMNS]
+    return {"sections": sections, "columns": columns, "tables": tables, "plain_text": _plain_text(order, sections, tables)}
 
 
 def _plain_text(order, sections, tables):
@@ -306,6 +322,8 @@ def _plain_text(order, sections, tables):
         lines.extend(["", f"【{section['title']}】"])
         lines.extend(f"{row['label']}：{row['value'].replace(chr(10), '、')}" for row in filled)
     for table in tables:
+        if not table["rows"]:
+            continue
         lines.extend(["", f"【{table['title']}】", "\t".join(table["columns"])])
         lines.extend("\t".join(cell for cell in row) for row in table["rows"])
     return "\n".join(lines)

@@ -174,10 +174,81 @@ class PayoutReconciliationTests(FinanceLedgerTestBase):
         for row in rows:
             row.refresh_from_db()
             self.assertFalse(row.confirmed)
-        installment = self.payout(self.installment_order())
+        # T-283 起分期公司撥款也能合併入帳；改驗不在對帳範圍的列（訂金）一樣被擋下。
+        deposit = PaymentRecord.objects.create(order=first, system_key="deposit", item_name="訂金")
         response = self.client.post(reverse("reconciliation_batch"), {
-            "records": [installment.pk], f"amount_{installment.pk}": "70000"}, follow=True)
-        self.assertContains(response, "不是平台撥款")
+            "records": [deposit.pk], f"amount_{deposit.pk}": "2100"}, follow=True)
+        self.assertContains(response, "不屬於統一對帳範圍")
+        deposit.refresh_from_db()
+        self.assertEqual(deposit.received_amount, Decimal("0"))
+
+    def batch(self, rows, amounts, **extra):
+        data = {"records": [row.pk for row in rows], **extra}
+        data.update({f"amount_{row.pk}": amount for row, amount in zip(rows, amounts)})
+        return self.client.post(reverse("reconciliation_batch"), data, follow=True)
+
+    def test_installment_rows_can_be_picked_without_prefilled_amount(self):
+        """T-283：分期列也有勾選框，實際金額不帶入預計金額；平台列照舊帶入收支預估。"""
+        installment = self.payout(self.installment_order())
+        platform_order = self.platform_order()
+        OrderOperationsProfile.objects.filter(order=platform_order).update(
+            actual_disbursement=61277, manual_financial_fields=["actual_disbursement"])
+        platform = self.payout(platform_order)
+        response, _ids = self.listed()
+        html = response.content.decode()
+        for row, channel in ((installment, "installment"), (platform, "platform")):
+            self.assertIn(f'name="records" value="{row.pk}" data-batch-pick data-batch-channel="{channel}"', html)
+        self.assertIn(f'form="reconciliation-{installment.pk}" type="number" min="0" step="1" name="received_amount" value=""', html)
+        self.assertNotIn('value="76608" placeholder', html, "分期實際金額不可帶入預計金額")
+        self.assertContains(response, 'value="61277"')
+        self.assertContains(response, 'id="reconciliation-batch"')
+        self.assertContains(response, "data-batch-label")
+
+    def test_batch_posts_several_installment_orders_with_typed_amounts(self):
+        first, second = self.payout(self.installment_order()), self.payout(self.installment_order())
+        self.assertEqual((first.expected_amount, second.expected_amount), (Decimal("76608"), Decimal("76608")))
+        response = self.batch([first, second], ["76000", "76608"], **{f"expected_{second.pk}": "77000"})
+        self.assertContains(response, "已合併入帳 2 筆分期公司撥款，合計 152,608 元")
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual((first.confirmed, first.received_amount, first.expected_amount, first.received_on),
+                         (True, Decimal("76000"), Decimal("76608"), timezone.localdate()))
+        self.assertEqual((second.confirmed, second.received_amount, second.expected_amount),
+                         (True, Decimal("76608"), Decimal("77000")), "展開「本單特殊撥款」改的預計一併送出")
+        self.assertEqual(OrderOperationsProfile.objects.get(order=first.order).actual_disbursement, Decimal("76000"))
+        event = OrderEvent.objects.get(order=first.order, event_type="reconciliation_updated")
+        self.assertIn("與其他 1 張單合併入帳", event.description)
+        response, _ids = self.listed()
+        self.assertContains(response, "$-608")
+
+    def test_batch_blocks_blank_or_zero_installment_amounts_and_names_them(self):
+        rows = [self.payout(self.installment_order()) for _ in range(3)]
+        response = self.batch(rows, ["76000", "", "0"])
+        self.assertContains(response, "合併入帳沒有完成")
+        self.assertContains(response, f"{rows[1].order.number}、{rows[2].order.number} 沒有填實際金額（不能空白或 0）")
+        self.assertNotContains(response, f"{rows[0].order.number} 沒有填")
+        for row in rows:
+            row.refresh_from_db()
+            self.assertEqual((row.confirmed, row.received_amount), (False, Decimal("0")), "一筆都不入帳")
+        self.assertFalse(OrderEvent.objects.filter(event_type="reconciliation_updated").exists())
+
+    def test_batch_mixes_platform_and_installment(self):
+        platform = self.payout(self.platform_order())
+        installment = self.payout(self.installment_order())
+        response = self.batch([platform, installment], ["61000", "76000"])
+        self.assertContains(response, "已合併入帳 2 筆撥款（平台 1 筆、分期公司 1 筆），合計 137,000 元")
+        platform.refresh_from_db()
+        installment.refresh_from_db()
+        self.assertEqual((platform.confirmed, platform.received_amount, platform.expected_amount), (True, 61000, 0))
+        self.assertEqual((installment.confirmed, installment.received_amount, installment.expected_amount),
+                         (True, 76000, Decimal("76608")))
+
+        other_platform = self.payout(self.platform_order())
+        other_installment = self.payout(self.installment_order())
+        response = self.batch([other_platform, other_installment], ["59000", ""])
+        self.assertContains(response, f"{other_installment.order.number} 沒有填實際金額")
+        other_platform.refresh_from_db()
+        self.assertFalse(other_platform.confirmed, "混選時分期列沒填，平台列也不入帳")
 
     def test_out_of_scope_rows_cannot_be_posted(self):
         order = self.platform_order()

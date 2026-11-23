@@ -18,7 +18,7 @@
   <div class="section-title"><h2>如何登記入帳</h2></div>
   <div class="section-body">
     <ol class="reconciliation-guide__steps">
-      <li><strong>分期公司撥款</strong><span>預計金額＝分期金額 × 撥款比例。依對方撥款填實際金額，按「入帳」。</span></li>
+      <li><strong>分期公司撥款</strong><span>預計金額＝分期金額 × 撥款比例。依對方撥款填實際金額，按「入帳」。分期公司一次撥好幾張時，也可以勾選各單、逐張自己填實際金額後一起入帳，系統不會自動帶入預計金額。</span></li>
       <li><strong>平台撥款</strong><span>不比預計，只記實際撥款。平台一次撥好幾張時，勾選各單、各填金額，合計對上平台對帳單後按「一起入帳」。</span></li>
       <li><strong>入帳之後</strong><span>確認日期自動記為當天；訂單收支的「預估車價收入」改為「實際車價收入」並鎖定。登記錯了按「取消入帳」改正。</span></li>
     </ol>
@@ -45,7 +45,7 @@
         <tr class="reconciliation-row{% if record.confirmed %} is-posted{% endif %}" data-reconciliation-row="{{ record.pk }}">
           <td data-label="訂單／車主">
             <div class="reconciliation-order">
-              {% if record.reconciliation_platform and not record.confirmed %}<label class="reconciliation-pick"><input type="checkbox" form="reconciliation-batch" name="records" value="{{ record.pk }}" data-batch-pick aria-label="勾選 {{ record.order.number }} 一起入帳"><span aria-hidden="true"></span></label>{% endif %}
+              {% if not record.confirmed %}<label class="reconciliation-pick"><input type="checkbox" form="reconciliation-batch" name="records" value="{{ record.pk }}" data-batch-pick data-batch-channel="{{ record.reconciliation_channel }}" data-order-number="{{ record.order.number }}" aria-label="勾選 {{ record.order.number }} 一起入帳"><span aria-hidden="true"></span></label>{% endif %}
               <div><strong>{{ record.order.owner_name }}</strong><span class="order-number-stack"><span><a href="{% url 'order_operations' record.order_id %}">{{ record.order.number }}</a> · {{ record.order.order_date|date:"Y/m/d" }}</span>{% order_origin_badge record.order %}</span>{% if record.item_name != record.reconciliation_channel_label %}<small>{{ record.item_name }}</small>{% endif %}</div>
             </div>
           </td>
@@ -93,10 +93,10 @@
     </table>
   </div>
 </section>
-{% if has_platform_pending %}
+{% if has_batch_pending %}
 <form id="reconciliation-batch" class="form-savebar reconciliation-batch" method="post" action="{% url 'reconciliation_batch' %}" data-reconciliation-batch hidden>
   {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
-  <span class="form-savebar__hint reconciliation-batch__summary" aria-live="polite"><span class="reconciliation-batch__label">平台合併撥款</span><span><b data-batch-count>0</b> 張</span><span class="reconciliation-batch__total">合計 <b data-batch-total>$0</b></span></span>
+  <span class="form-savebar__hint reconciliation-batch__summary" aria-live="polite"><span class="reconciliation-batch__label" data-batch-label>合併入帳</span><span><b data-batch-count>0</b> 張</span><span class="reconciliation-batch__total">合計 <b data-batch-total>$0</b></span></span>
   <div>
     <button class="button ghost" type="button" data-batch-clear>清除勾選</button>
     <button class="button primary" type="submit" data-batch-submit>一起入帳</button>

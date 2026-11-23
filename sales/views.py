@@ -7,7 +7,7 @@ import tempfile
 import uuid
 from functools import wraps
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 
@@ -4596,7 +4596,8 @@ def reconciliation_list(request):
             "page_obj": page,
             "selected": request.GET,
             "duplicate_pk": request.session.pop("reconciliation_duplicate_pk", None),
-            "has_platform_pending": any(r.reconciliation_platform and not r.confirmed for r in records),
+            # 平台與分期待入帳列都能勾選一起入帳（T-283）。
+            "has_batch_pending": any(not r.confirmed for r in records),
         },
     )
 
@@ -4672,16 +4673,24 @@ def reconciliation_unconfirm(request, pk):
     return _reconciliation_redirect(request)
 
 
+def _blank_or_zero_amount(value):
+    try:
+        return not value or Decimal(value) == 0
+    except InvalidOperation:
+        return False  # 格式錯誤交給表單驗證回報
+
+
 @login_required
 @transaction.atomic
 def reconciliation_batch(request):
-    """平台合併撥款（使用者 2026-10-22 T-96）：平台一次撥多張單時，勾選各單、各填金額，一起入帳；
-    任何一張失敗就全部不入帳，避免合計對不上。"""
+    """合併撥款（使用者 2026-10-22 T-96 平台；2026-11-23 T-283 加分期公司）：一次撥多張單時，勾選各單、
+    各填實際金額，一起入帳。分期列的實際金額照樣逐張自己填，不帶入預計金額；
+    任何一張沒填、填 0 或失敗就全部不入帳，避免合計對不上。"""
     if request.method != "POST":
         return redirect("reconciliation_list")
     ids = list(dict.fromkeys(int(value) for value in request.POST.getlist("records") if value.isdigit()))
     if not ids:
-        messages.error(request, "請先勾選要一起入帳的平台撥款。")
+        messages.error(request, "請先勾選要一起入帳的撥款。")
         return _reconciliation_redirect(request)
     order_ids = set(PaymentRecord.objects.filter(pk__in=ids).values_list("order_id", flat=True))
     list(SalesOrder.objects.select_for_update().filter(pk__in=order_ids).order_by("pk"))
@@ -4691,39 +4700,60 @@ def reconciliation_batch(request):
     errors = []
     if len(records) != len(ids):
         errors.append("有勾選的資料已不存在，請重新整理")
-    batch_label = f"（與其他 {len(ids) - 1} 張平台單合併入帳）" if len(ids) > 1 else ""
+    all_platform = all(record.order.source_type == SalesOrder.SourceType.PLATFORM for record in records)
+    batch_label = (
+        f"（與其他 {len(ids) - 1} 張{'平台單' if all_platform else '單'}合併入帳）" if len(ids) > 1 else ""
+    )
+    missing = []
     savepoint = transaction.savepoint()
     posted = []
     for record in records:
         number = record.order.number
-        if not _reconciliation_eligible(record) or record.order.source_type != SalesOrder.SourceType.PLATFORM:
-            errors.append(f"{number} 不是平台撥款")
+        amount = request.POST.get(f"amount_{record.pk}", "").strip()
+        if not _reconciliation_eligible(record):
+            errors.append(f"{number} 不屬於統一對帳範圍")
         elif record.confirmed:
             errors.append(f"{number} 已經入帳")
         elif record.order.is_settled_closed or record.is_adjustment:
             errors.append(f"{number} 已結算，不能入帳")
+        elif _blank_or_zero_amount(amount):
+            missing.append(number)
         else:
+            platform = record.order.source_type == SalesOrder.SourceType.PLATFORM
+            # 分期列展開「本單特殊撥款」改過預計金額時一併送出；平台列照舊沿用原預計（0）。
+            expected = record.expected_amount if platform else (
+                request.POST.get(f"expected_{record.pk}", "").strip() or record.expected_amount
+            )
             form = _post_reconciliation(request, record, {
-                "received_amount": request.POST.get(f"amount_{record.pk}", ""),
-                "expected_amount": record.expected_amount,
+                "received_amount": amount,
+                "expected_amount": expected,
                 "note": record.note,
                 "duplicate_confirmed": request.POST.get(f"duplicate_{record.pk}", ""),
             }, batch_label=batch_label)
             if not form.is_valid():
                 errors.append(f"{number}：{_form_error_text(form)}")
             elif not form.instance.confirmed:
-                errors.append(f"{number} 沒有填實際金額")
+                missing.append(number)
             else:
                 posted.append(form.instance)
+    if missing:
+        errors.append(f"{'、'.join(missing)} 沒有填實際金額（不能空白或 0）")
     if errors:
         transaction.savepoint_rollback(savepoint)
         messages.error(request, "合併入帳沒有完成，勾選的單都維持待入帳：" + "；".join(errors) + "。")
         return _reconciliation_redirect(request)
     transaction.savepoint_commit(savepoint)
     total = sum((record.received_amount for record in posted), Decimal("0"))
+    platform_count = sum(record.order.source_type == SalesOrder.SourceType.PLATFORM for record in posted)
+    if platform_count == len(posted):
+        kind = "平台撥款"
+    elif platform_count == 0:
+        kind = "分期公司撥款"
+    else:
+        kind = f"撥款（平台 {platform_count} 筆、分期公司 {len(posted) - platform_count} 筆）"
     messages.success(
         request,
-        f"已合併入帳 {len(posted)} 筆平台撥款，合計 {total:,.0f} 元，各訂單收支已同步。",
+        f"已合併入帳 {len(posted)} 筆{kind}，合計 {total:,.0f} 元，各訂單收支已同步。",
     )
     return _reconciliation_redirect(request)
 

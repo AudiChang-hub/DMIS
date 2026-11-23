@@ -156,9 +156,10 @@ class MoneyCardNumbersUnchangedTests(MoneyCardScenario):
         money, _, parser = self.card()
         text = squash(" ".join(parser.text))
         self.assertEqual(sorted(set(AMOUNT.findall(text))), [
-            "$0", "$131,277", "$162,400", "$164,750", "$188,160", "$2,350", "$260,460", "$270,310",
-            "$422,460", "$61,277", "$70,000", "$72,300", "$720,787", "$79,850", "$82,150",
-        ])
+            "$0", "$131,277", "$133,627", "$162,400", "$164,750", "$188,160", "$2,350", "$244,550", "$260,460",
+            "$270,310", "$342,610", "$422,460", "$61,277", "$63,627", "$70,000", "$72,300", "$720,787", "$79,850",
+            "$82,150",
+        ])  # T-296 新增四個：三列合計 $244,550／$342,610／$133,627、怎麼算的 $63,627
         expected = {money["unsettled_amount"], money["before_delivery_amount"], money["awaiting_payout_amount"],
                     money["outstanding_amount"], money["unsettled_payout_amount"], money["dealer_credit_total"]}
         self.assertTrue({f"${int(value):,}" for value in expected} <= set(AMOUNT.findall(text)))
@@ -261,11 +262,18 @@ class MoneyCardLayoutTests(MoneyCardScenario):
 
     def test_reconciliation_is_a_small_table(self):
         _money, _cockpit, html = self.section()
-        self.assertEqual(html.count("已含在上面三格"), 1)
-        self.assertIn('<thead><tr><th scope="col"><span class="ops-visually-hidden">撥款來源</span></th>'
+        self.assertIn(">待收合計依付款方式拆開</p>", html)
+        self.assertNotIn("已含在上面三格", html)
+        self.assertIn('<thead><tr><th scope="col"><span class="ops-visually-hidden">付款方式</span></th>'
                       '<th scope="col">張數</th><th scope="col">金額</th></tr></thead>', html)
-        self.assertRegex(html, r'<th scope="row">分期撥款待入帳</th>\s*<td>.*?>2 張</a></td>\s*<td>\$260,460</td>')
-        self.assertRegex(html, r'<th scope="row">平台撥款待入帳</th>\s*<td>.*?>2 張</a></td>\s*<td>約 \$131,277</td>')
+        table = html.split('id="ops-recon-title"')[1].split("</table>")[0]
+        self.assertEqual(re.findall(r'<th scope="row">([^<]+)</th>', table),
+                         ["現金未結清", "刷卡未結清", "分期待撥款", "平台待撥款"])
+        self.assertRegex(html, r'<th scope="row">現金未結清</th>\s*<td>.*?>3 張</a></td>\s*<td>\$244,550</td>')
+        self.assertRegex(html, r'<th scope="row">分期待撥款</th>\s*<td>.*?>2 張</a></td>\s*<td>\$342,610<small')
+        self.assertRegex(html, r'<th scope="row">平台待撥款</th>\s*<td>.*?>2 張</a></td>\s*<td>約 \$133,627<small')
+        self.assertRegex(html, r'對帳頁的分期撥款待入帳 <a [^>]*>2 張</a> · \$260,460')
+        self.assertRegex(html, r'對帳頁的平台撥款待入帳 <a [^>]*>2 張</a> · 約 \$131,277')
 
     def test_dealer_credit_note_is_a_tag(self):
         _money, _cockpit, html = self.section()

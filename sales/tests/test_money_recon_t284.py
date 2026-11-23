@@ -66,7 +66,7 @@ class ReconciliationTermsTests(MoneyCardTestBase):
                           for term in platform["card_terms"]],
                          [("已交車待撥款・平台", 1, Decimal("61277"), True)])
         self.assertEqual((platform["pending"], platform["expected"]), (1, awaiting["platform"]["amount"]))
-        self.assertContains(response, "其中：撥款待入帳（已含在上面三格）")
+        self.assertContains(response, "待收合計依付款方式拆開")
         self.assertContains(response, "<span>＝未交車・分期 1 張的撥款 $188,160</span>"
                                       "<span>＋已交車待撥款・分期 1 張 $86,136</span>")
         self.assertContains(response, "<span>＝已交車待撥款・平台 1 張 預估 $61,277</span>")
@@ -99,8 +99,8 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         credit = html.index("車行未付<span")
         self.assertLess(total, formula)
         self.assertLess(formula, section)
-        self.assertLess(section, html.index("分期撥款待入帳</th>"))
-        self.assertLess(html.index("平台撥款待入帳</th>"), credit)
+        self.assertLess(section, html.index("分期待撥款</th>"))
+        self.assertLess(html.index("平台待撥款</th>"), credit)
 
     def test_cancelled_order_in_queue_shows_gap_not_equation(self):
         # 對帳佇列不看訂單狀態：取消單留下的未入帳撥款列照樣列，三格不算取消單。
@@ -115,7 +115,7 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         card = sum((term["amount"] for term in row["card_terms"]), ZERO)
         self.assertEqual(card + row["gap"]["amount"], row["expected"])
         self.assertEqual(sum(term["count"] for term in row["card_terms"]) + row["gap"]["count"], row["pending"])
-        self.assertContains(response, "撥款待入帳（和上面三格對不上的地方寫在各列）")
+        self.assertContains(response, "待收合計依付款方式拆開")
         self.assertNotContains(response, "已含在上面三格")
         self.assertContains(response, "<span>上面三格裡是</span><span>未交車・分期 1 張的撥款 $188,160</span>"
                                       "<span>＋已交車待撥款・分期 1 張 $86,136</span>")

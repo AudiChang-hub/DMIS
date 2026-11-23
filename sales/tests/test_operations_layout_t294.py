@@ -76,8 +76,12 @@ class OperationsLayoutTests(TestCase):
         channels = response.context["cockpit"]["reconciliation"]["channels"]
         self.assertTrue(channels)
         self.assertTrue(all(not row["expected"] for row in channels))
-        cell = '<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">沒有預計金額</span>'
-        self.assertEqual(html.count(cell), len(channels))
+        # T-296：待收合計依付款方式拆開四列，空資料時每列張數、金額的「—」都附讀螢幕文字。
+        rows = response.context["cockpit"]["money"]["by_payment"]
+        self.assertTrue(all(not row["count"] for row in rows))
+        dash = '<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">{}</span>'
+        self.assertEqual(html.count(dash.format("0 張")), len(rows))
+        self.assertEqual(html.count(dash.format("沒有金額")), len(rows))
         self.assertNotIn('<span class="ops-money__nil">—</span>', html)
 
 

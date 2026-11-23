@@ -85,7 +85,7 @@
   <section class="ops-card ops-money" aria-labelledby="ops-money-title" data-side-nav-section="錢">
     <header class="ops-card__head"><h2 id="ops-money-title">錢</h2>{% if c.links.order_list %}<a href="{% url 'order_list' %}?risk=outstanding">待收明細 →</a>{% endif %}</header>
     {# T-293：三張小卡（頂端色帶對應待收合計長條的三段），卡內四列付款方式位置固定；算式收進「怎麼算的」。數字和計算不變。 #}
-    {# T-294：整列全寬。寬版左邊三張小卡＋帳齡、右邊待收合計＋撥款待入帳＋車行未付；窄時上下排（順序同閱讀順序）。 #}
+    {# T-294：整列全寬。寬版左邊三張小卡＋帳齡、右邊待收合計＋依付款方式拆開（T-296）＋車行未付；窄時上下排（順序同閱讀順序）。 #}
     {# T-295：三張卡依時間排（未交車 → 已交車待撥款 → 交車後未結清）；0 張時金額顯示 $0（有 operations 權限才有金額），標題列和其他卡對齊。 #}
     <div class="ops-money__body">
     <div class="ops-money__main">
@@ -106,19 +106,22 @@
         {% if c.money.outstanding_estimated %}<p>「約」：含平台撥款預估，取收支的預估車價收入。</p>{% endif %}
       </div></details>
     </div>{% endif %}
-    {% if c.reconciliation %}<div class="ops-recon ops-money__recon" role="group" aria-labelledby="ops-recon-title">
-      {# 撥款待入帳是同一批單改按撥款來源切（T-284 A 案）：不是加項。T-293：兩列小表，各列怎麼對回三格收進「怎麼算的」；對不上的差額照樣直接顯示。 #}
-      <p class="ops-subhead" id="ops-recon-title">{% if c.reconciliation.matches %}其中：撥款待入帳（已含在上面三格）{% else %}撥款待入帳（和上面三格對不上的地方寫在各列）{% endif %}</p>
+    {% if c.flags.operations or c.reconciliation %}<div class="ops-recon ops-money__recon" role="group" aria-labelledby="ops-recon-title">
+      {# T-296：待收合計依付款方式拆開，四列固定（順序同卡片內），每張單只算進一列，張數、金額加總＝待收合計。分期、平台列下面附對帳頁的撥款待入帳（連結；對不上時差額照寫）。 #}
+      <p class="ops-subhead" id="ops-recon-title">待收合計依付款方式拆開</p>
       <table class="inventory-table inventory-table--fit ops-money__table">
-        <thead><tr><th scope="col"><span class="ops-visually-hidden">撥款來源</span></th><th scope="col">張數</th>{% if c.flags.operations %}<th scope="col">金額</th>{% endif %}</tr></thead>
-        <tbody>{% for row in c.reconciliation.channels %}<tr>
+        <thead><tr><th scope="col"><span class="ops-visually-hidden">付款方式</span></th><th scope="col">張數</th>{% if c.flags.operations %}<th scope="col">金額</th>{% endif %}</tr></thead>
+        <tbody>{% for row in c.money.by_payment %}<tr data-payment-row="{{ row.key }}"{% if not row.count %} class="is-zero"{% endif %}>
           <th scope="row">{{ row.label }}</th>
-          <td>{% if c.links.reconciliation_list and row.pending %}<a aria-label="{{ row.label }} {{ row.pending }} 張，到對帳頁" href="{% url 'reconciliation_list' %}?status=pending&amp;by_order=1&amp;channel={{ row.key }}">{{ row.pending }} 張</a>{% else %}{{ row.pending }} 張{% endif %}</td>
-          {% if c.flags.operations %}<td>{% if row.expected %}{% if row.estimated %}約 {% endif %}${{ row.expected|number_with_commas }}{% else %}<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">沒有預計金額</span>{% endif %}</td>{% endif %}
-        </tr>{% if not row.matches %}<tr class="ops-money__gap-row"><td colspan="{% if c.flags.operations %}3{% else %}2{% endif %}"><span class="ops-facts__gap" data-recon-gap>對帳佇列{% if row.gap.count %}{% if row.gap.count_more %}多{% else %}少{% endif %} {{ row.gap.count }} 張{% endif %}{% if row.gap.count and row.gap.amount %}、{% endif %}{% if row.gap.amount %}金額{% if row.gap.amount_more %}多{% else %}少{% endif %} ${{ row.gap.amount|number_with_commas }}{% endif %}，到對帳頁核對</span></td></tr>{% endif %}{% endfor %}</tbody>
+          <td>{% if row.count %}{% if row.url %}<a aria-label="{{ row.label }} {{ row.count }} 張，到全部訂單" href="{{ row.url }}">{{ row.count }} 張</a>{% else %}{{ row.count }} 張{% endif %}{% else %}<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">0 張</span>{% endif %}</td>
+          {% if c.flags.operations %}<td>{% if row.count %}{% if row.estimated %}約 {% endif %}${{ row.amount|number_with_commas }}{% if row.parts %}<small class="ops-money__parts" data-payment-parts><span>撥款 {% if row.payout_estimated %}約 {% endif %}${{ row.payout|number_with_commas }}</span><span>＋客人 ${{ row.customer|number_with_commas }}</span></small>{% endif %}{% else %}<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">沒有金額</span>{% endif %}</td>{% endif %}
+        </tr>{% if row.recon %}{% if row.recon.pending or not row.recon.matches %}<tr class="ops-money__recon-row"><td colspan="{% if c.flags.operations %}3{% else %}2{% endif %}"><span class="ops-money__recon-note">對帳頁的{{ row.recon.label }} {% if row.recon.pending and c.links.reconciliation_list %}<a aria-label="{{ row.recon.label }} {{ row.recon.pending }} 張，到對帳頁" href="{% url 'reconciliation_list' %}?status=pending&amp;by_order=1&amp;channel={{ row.recon.key }}">{{ row.recon.pending }} 張</a>{% else %}{{ row.recon.pending }} 張{% endif %}{% if c.flags.operations and row.recon.expected %} · {% if row.recon.estimated %}約 {% endif %}${{ row.recon.expected|number_with_commas }}{% endif %}</span>{% if not row.recon.matches %}<span class="ops-facts__gap" data-recon-gap>對帳佇列{% if row.recon.gap.count %}{% if row.recon.gap.count_more %}多{% else %}少{% endif %} {{ row.recon.gap.count }} 張{% endif %}{% if row.recon.gap.count and row.recon.gap.amount %}、{% endif %}{% if row.recon.gap.amount %}金額{% if row.recon.gap.amount_more %}多{% else %}少{% endif %} ${{ row.recon.gap.amount|number_with_commas }}{% endif %}，到對帳頁核對</span>{% endif %}</td></tr>{% endif %}{% endif %}{% endfor %}</tbody>
       </table>
       <details class="ops-money__how"><summary>怎麼算的 <span class="ops-money__i" aria-hidden="true">ⓘ</span></summary><div class="ops-money__how-body">
-        {% for row in c.reconciliation.channels %}{% if row.card_terms or not row.matches %}<p class="ops-facts__formula" data-recon-terms="{{ row.key }}"><b>{{ row.label }}</b>{% if not row.matches %}<span>{% if row.card_terms %}上面三格裡是{% else %}上面三格裡沒有這類撥款{% endif %}</span>{% endif %}{% for term in row.card_terms %}<span>{% if forloop.first %}{% if row.matches %}＝{% endif %}{% else %}＋{% endif %}{{ term.label }} {% if term.of %}{{ term.of }} 張中 {% endif %}{{ term.count }} 張{{ term.suffix }}{% if term.amount %} {% if term.estimated %}預估 {% endif %}${{ term.amount|number_with_commas }}{% endif %}</span>{% endfor %}{% if row.estimated and c.flags.operations and row.expected %}<small>「約」：取收支的預估車價收入</small>{% endif %}</p>{% endif %}{% endfor %}
+        {% if c.flags.operations %}{% for row in c.money.by_payment %}{% if row.terms %}<p class="ops-facts__formula" data-payment-terms="{{ row.key }}"><b>{{ row.label }}</b>{% for term in row.terms %}<span>{% if forloop.first %}＝{% else %}＋{% endif %}{{ term.label }} {{ term.count }} 張 {% if term.estimated %}預估 {% endif %}${{ term.amount|number_with_commas }}{% if term.payout %}（含撥款 {% if term.payout_estimated %}預估 {% endif %}${{ term.payout|number_with_commas }}）{% endif %}</span>{% endfor %}</p>{% endif %}{% endfor %}
+        <p>四列加總＝待收合計：每張單只有一種付款方式，只算進一列。分期、平台的金額是撥款加客人自付。</p>{% endif %}
+        {% if c.reconciliation %}<p>對帳頁的撥款待入帳是撥款對帳佇列（含取消單），範圍和待收合計不同；各自對回三張卡的哪幾格如下，對不上時差額寫在該列下面。</p>
+        {% for row in c.reconciliation.channels %}{% if row.card_terms or not row.matches %}<p class="ops-facts__formula" data-recon-terms="{{ row.key }}"><b>{{ row.label }}</b>{% if not row.matches %}<span>{% if row.card_terms %}上面三格裡是{% else %}上面三格裡沒有這類撥款{% endif %}</span>{% endif %}{% for term in row.card_terms %}<span>{% if forloop.first %}{% if row.matches %}＝{% endif %}{% else %}＋{% endif %}{{ term.label }} {% if term.of %}{{ term.of }} 張中 {% endif %}{{ term.count }} 張{{ term.suffix }}{% if term.amount %} {% if term.estimated %}預估 {% endif %}${{ term.amount|number_with_commas }}{% endif %}</span>{% endfor %}{% if row.estimated and c.flags.operations and row.expected %}<small>「約」：取收支的預估車價收入</small>{% endif %}</p>{% endif %}{% endfor %}{% endif %}
       </div></details>
     </div>{% endif %}
     <div class="ops-money__aging">

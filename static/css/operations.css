@@ -716,7 +716,7 @@ html[data-theme="night-blue"] .ops {
   display: block;
 }
 
-/* 撥款待入帳（T-284）：放在待收合計下面、縮排加左線，表示是上面三格裡的一部分，不是加項。 */
+/* 待收合計依付款方式拆開（T-296，原撥款待入帳 T-284）：放在待收合計下面、縮排加左線，表示是合計的拆法，不是加項。 */
 .ops-recon {
   display: grid;
   gap: var(--space-2);
@@ -1097,7 +1097,7 @@ html[data-theme="night-blue"] .ops {
   from { opacity: 0; transform: translateY(-2px); }
 }
 
-/* 撥款待入帳：兩列小表（張數｜金額），小標寫一次「已含在上面三格」。
+/* 待收合計依付款方式拆開（T-296）：四列小表（張數｜金額）。
    沿用資料表格 inventory-table（UI 規範），這裡收成卡內小表：不套表頭底色、列 hover 與手機卡片化。 */
 .ops-money .ops-money__table {
   display: table;
@@ -1178,18 +1178,42 @@ html[data-theme="night-blue"] .ops {
   font-weight: 400;
 }
 
-.ops-money .ops-money__table .ops-money__gap-row {
+/* 分期、平台列下面的對帳頁撥款待入帳（T-296）：附屬說明，不另起一列分隔線；對不上時差額用紅字。 */
+.ops-money .ops-money__table .ops-money__recon-row {
   border-top: 0;
 }
 
-.ops-money .ops-money__table .ops-money__gap-row td {
+.ops-money .ops-money__table .ops-money__recon-row td {
   padding-top: 0;
   padding-left: 0;
-  color: var(--red-ink);
+  color: var(--muted);
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
   white-space: normal;
+}
+
+.ops-money .ops-money__table .ops-money__recon-row .ops-facts__gap {
+  display: block;
+  color: var(--red-ink);
+  font-weight: 600;
+}
+
+/* 分期、平台金額拆成撥款＋客人自付（T-296），寫在金額下面。 */
+.ops-money .ops-money__table small.ops-money__parts {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.ops-money .ops-money__table small.ops-money__parts span {
+  display: inline-block;
+}
+
+.ops-money .ops-money__table tr.is-zero th {
+  color: var(--muted);
 }
 
 /* 帳齡：0–7、8–30、30 天以上由淺到深，三段對卡片底色都在 3:1 以上（WCAG AA 非文字對比）。 */

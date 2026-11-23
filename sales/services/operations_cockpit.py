@@ -828,6 +828,43 @@ def _reconciliation_terms(reconciliation, split, show_amounts):
     return {**reconciliation, "channels": channels, "matches": all(row["matches"] for row in channels)}
 
 
+# 待收合計依付款方式拆開（T-296）：列名、順序同卡片內四列；每一列的組成依卡片順序（T-295 依時間）。
+PAYMENT_ROW_LABELS = {"cash": "現金未結清", "card": "刷卡未結清", "installment": "分期待撥款", "platform": "平台待撥款"}
+CARD_BUCKETS = (("before_delivery", "未交車・尾款待收"), ("awaiting_payout", "已交車待撥款"), ("unsettled", "交車後未結清"))
+
+
+def _outstanding_by_payment(split, reconciliation, flags):
+    """待收合計依付款方式拆成四列（T-296，使用者 2026-11-23）：每張單只有一種付款方式、只落在一格，
+    所以同一種付款方式三格相加就是這一列，四列加總＝待收合計（張數、金額）。金額口徑不變：
+    每格的客人應收＋撥款（交車後未結清那格的撥款另記在 payout，這裡加回來）。分期、平台列附對帳頁的撥款待入帳。"""
+    show = flags["operations"]
+    channels = {row["key"]: row for row in (reconciliation or {}).get("channels", [])}
+    rows = []
+    for key, _label in PAYMENT_CATEGORIES:
+        cells = [(bucket, label, next(cell for cell in split[bucket] if cell["key"] == key))
+                 for bucket, label in CARD_BUCKETS]
+        customer = sum((cell["customer"] for _b, _l, cell in cells), ZERO)
+        payout = sum((cell["payout"] for _b, _l, cell in cells), ZERO)
+        terms = [{"label": label, "count": cell["count"],
+                  "amount": cell["amount"] + (cell["payout"] if bucket == "unsettled" else ZERO),
+                  "payout": cell["payout"] if bucket == "unsettled" else ZERO,
+                  "payout_estimated": cell["payout_estimated"],
+                  "estimated": cell["estimated"] or (bucket == "unsettled" and cell["payout_estimated"])}
+                 for bucket, label, cell in cells if cell["count"]]
+        row = {"key": key, "label": PAYMENT_ROW_LABELS[key], "count": sum(cell["count"] for _b, _l, cell in cells),
+               "amount": customer + payout, "customer": customer, "payout": payout,
+               "estimated": any(cell["estimated"] or cell["payout_estimated"] for _b, _l, cell in cells),
+               "payout_estimated": any(cell["payout_estimated"] for _b, _l, cell in cells),
+               "terms": terms, "recon": channels.get(key),
+               "url": _url("order_list", {"risk": "outstanding", "pay": key}) if flags["links"]["order_list"] else ""}
+        row["parts"] = bool(row["payout"] and row["customer"])
+        if not show:
+            row.update({"amount": None, "customer": None, "payout": None, "estimated": False, "parts": False,
+                        "terms": [{**term, "amount": None, "payout": None, "estimated": False} for term in terms]})
+        rows.append(row)
+    return rows
+
+
 def for_viewer(data, flags):
     """依權限組成畫面用的內容；沒有權限的區塊不放進 context，HTML 也就不會出現。"""
     pulse = dict(data["pulse"])
@@ -861,6 +898,7 @@ def for_viewer(data, flags):
     if flags["reconciliation"]:
         view["reconciliation"] = _reconciliation_terms(data["reconciliation"], data["money"]["split"],
                                                        flags["operations"])
+    money["by_payment"] = _outstanding_by_payment(data["money"]["split"], view.get("reconciliation"), flags)
     if flags["dealer_payouts"]:
         view["payouts"] = data["payouts"]
         view["volume_bonus"] = data["volume_bonus"]

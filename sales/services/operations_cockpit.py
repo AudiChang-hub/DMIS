@@ -330,6 +330,8 @@ def dealer_credit_rows():
 
 def _money(metrics, today):
     outstanding_total, unsettled, unsettled_payout = ZERO, [], ZERO
+    # 含平台預估的金額要標「預估」（T-278 QA 疑慮 a）：交車後未結清那幾張只看撥款部分是否含預估。
+    unsettled_payout_estimated = False
     counts, amounts = Counter(), {bucket: ZERO for bucket in MONEY_SPLIT_RISK}
     split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": [], "estimated": False})
                                  for key, _label in PAYMENT_CATEGORIES) for bucket in MONEY_SPLIT_RISK}
@@ -346,6 +348,7 @@ def _money(metrics, today):
             delivered = order.delivered_at or order.registration_completed_at
             unsettled.append((customer, _age_days(today, delivered)))
             unsettled_payout += payout
+            unsettled_payout_estimated = unsettled_payout_estimated or summary.get("platform_due") is not None
         counts[bucket] += 1
         amounts[bucket] += amount
         cell = split[bucket][payment_category(order)]
@@ -369,11 +372,15 @@ def _money(metrics, today):
         "unsettled_amount": sum((row[0] for row in unsettled), ZERO),
         "unsettled_oldest": max(ages) if ages else None,
         "unsettled_payout_amount": unsettled_payout,
+        "unsettled_payout_estimated": unsettled_payout_estimated,
         "before_delivery_count": counts["before_delivery"],
         "before_delivery_amount": amounts["before_delivery"],
+        "before_delivery_estimated": any(cell["estimated"] for cell in split["before_delivery"].values()),
         "awaiting_payout_count": counts["awaiting_payout"],
         "awaiting_payout_amount": amounts["awaiting_payout"],
         "awaiting_payout_estimated": any(cell["estimated"] for cell in split["awaiting_payout"].values()),
+        "outstanding_estimated": unsettled_payout_estimated or any(
+            cell["estimated"] for bucket in ("before_delivery", "awaiting_payout") for cell in split[bucket].values()),
         "aging": buckets,
         "unconfirmed": metrics["risk"]["unconfirmed"],
         "refund": metrics["risk"]["refund"],

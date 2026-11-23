@@ -63,7 +63,8 @@ def build_dealer_reminders(today=None):
             legacy_snapshot__isnull=True,
         )
         .exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
-        .select_related("source", "operations", "vehicle_model")
+        # payment_summary 會讀 legacy_snapshot（匯入單判斷），一起帶出來，查詢數不隨張數增加（T-278 QA 疑慮 d）。
+        .select_related("source", "operations", "vehicle_model", "legacy_snapshot")
         .prefetch_related("payment_records", "accessories")
     )
     from .payment_summary import payment_summary

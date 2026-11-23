@@ -9,6 +9,8 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.core.cache import cache
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -102,6 +104,22 @@ class DealerDueReminderTests(MoneyCardTestBase):
         _response, cockpit = self.cockpit()
         self.assertEqual(cockpit["flow"]["dealer_due"], 2)
 
+    def test_query_count_does_not_grow_with_orders(self):
+        # QA 疑慮 d：逐張算 payment_summary 不能每張多查資料庫（原本每張多查一次 legacy_snapshot）。
+        def queries():
+            with CaptureQueriesContext(connection) as captured:
+                build_dealer_reminders(self.today)
+            return len(captured.captured_queries)
+
+        self.dealer_order()
+        self.lender_pending(self.dealer_order(payment_type="installment"))
+        few = queries()
+        for _ in range(3):
+            self.dealer_order()
+            self.lender_pending(self.dealer_order(payment_type="installment"))
+        self.assertEqual(len({item["order"].pk for item in build_dealer_reminders(self.today)}), 8)
+        self.assertEqual(queries(), few)
+
     def test_label_states_due_rule(self):
         self.dealer_order()
         response, cockpit = self.cockpit()
@@ -143,6 +161,52 @@ class PlatformOutstandingTests(MoneyCardTestBase):
         self.assertEqual(self.listed({"risk": "awaiting_payout", "pay": "platform"}), {delivered.pk})
         self.assertEqual(self.listed({"risk": "before_delivery"}), {before.pk})
         self.assertContains(response, "預估 $61,277")
+
+    def test_estimate_marked_when_platform_is_before_delivery(self):
+        # QA 疑慮 a：平台預估只落在交車前，待收合計和「交車前應收」的金額也要標預估。
+        before = self.platform_order("delivery_pending", Decimal("70000"))
+        response, cockpit = self.cockpit()
+        money = cockpit["money"]
+        self.assertEqual((money["before_delivery_count"], money["before_delivery_amount"]), (1, Decimal("70000")))
+        self.assertEqual((money["awaiting_payout_count"], money["unsettled_count"]), (0, 0))
+        self.assertEqual((money["before_delivery_estimated"], money["outstanding_estimated"]), (True, True))
+        self.assertContains(response, "交車前應收（正常） · 預估 $70,000")
+        self.assertContains(response, '$70,000<small class="ops-facts__note">含平台撥款預估</small>')
+        self.assertEqual(self.listed({"risk": "before_delivery"}), {before.pk})
+        self.assertEqual(self.listed({"risk": "outstanding"}), {before.pk})
+
+    def test_estimate_marked_when_platform_is_unsettled_payout(self):
+        # QA 疑慮 a：平台預估落在交車後未結清那幾張的撥款，待收合計與那行撥款都標預估；交車後未結清本身只算客人應收。
+        order = self.order("completed", timezone.now(), source_type="platform", source=self.platform,
+                           vehicle_price=Decimal("0"))
+        OrderOperationsProfile.objects.filter(order=order).update(actual_disbursement=Decimal("61277"))
+        customer = payment_summary(SalesOrder.objects.get(pk=order.pk))["customer_due"]
+        self.assertGreater(customer, 0)
+        response, cockpit = self.cockpit()
+        money = cockpit["money"]
+        self.assertEqual((money["unsettled_count"], money["unsettled_amount"]), (1, customer))
+        self.assertEqual(money["unsettled_payout_amount"], Decimal("61277"))
+        self.assertEqual(money["outstanding_amount"], customer + Decimal("61277"))
+        self.assertEqual((money["unsettled_payout_estimated"], money["outstanding_estimated"]), (True, True))
+        self.assertEqual((money["before_delivery_estimated"], money["awaiting_payout_estimated"]), (False, False))
+        self.assertContains(response, "含平台撥款預估")
+        self.assertContains(response, "含交車後未結清那幾張的撥款 預估 $61,277")
+        self.assertContains(response, f"交車後未結清 · ${customer:,.0f}<")
+        self.assertEqual(self.listed({"risk": "unsettled_delivered"}), {order.pk})
+        self.assertEqual(self.listed({"risk": "outstanding"}), {order.pk})
+
+    def test_no_estimate_label_without_platform(self):
+        before = self.order("delivery_pending", source_type="store", source=self.staff)
+        awaiting = self.settle(self.lender_pending(
+            self.order("completed", timezone.now(), source_type="store", source=self.staff, payment_type="installment"),
+            amount=72300))
+        response, cockpit = self.cockpit()
+        money = cockpit["money"]
+        self.assertFalse(any(money[key] for key in ("outstanding_estimated", "before_delivery_estimated",
+                                                     "awaiting_payout_estimated", "unsettled_payout_estimated")))
+        self.assertNotContains(response, "含平台撥款預估")
+        self.assertNotContains(response, "交車前應收（正常） · 預估")
+        self.assertEqual(self.listed({"risk": "outstanding"}), {before.pk, awaiting.pk})
 
     def test_payment_summary_and_unsettled_mark_unchanged(self):
         order = self.platform_order("completed")
@@ -192,9 +256,38 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         self.assertEqual((row["delivered"]["count"], row["delivered"]["expected"]), (1, Decimal("72300")))
         self.assertEqual((row["before"]["count"], row["before"]["expected"]), (1, Decimal("188160")))
         self.assertEqual(row["pending"], 2)
-        self.assertContains(response, "已交車 1・$72,300")
-        self.assertContains(response, "交車前 1・$188,160")
-        self.assertTrue({delivered.pk, before.pk})
+        self.assertContains(response, '<small class="ops-facts__note">已交車 1・$72,300／交車前 1・$188,160</small>')
+        # 點進去的撥款對帳（依訂單）＝同一批兩張（QA 疑慮 c）。
+        self.assertEqual(self.reconciliation_ids("installment", response), {delivered.pk, before.pk})
+
+    def reconciliation_ids(self, channel, report):
+        url = f"{reverse('reconciliation_list')}?status=pending&amp;by_order=1&amp;channel={channel}"
+        self.assertContains(report, f'href="{url}"')
+        page = self.client.get(reverse("reconciliation_list"), {"status": "pending", "by_order": "1", "channel": channel})
+        self.assertEqual(page.status_code, 200)
+        ids = {row.order_id for row in page.context["page_obj"].paginator.object_list}
+        self.assertEqual(page.context["order_count"], len(ids))
+        return ids
+
+    def test_installment_reconciliation_only_delivered_states_side(self):
+        # QA 疑慮 b：只有一邊有單也要寫明是已交車還是交車前。
+        first = self.lender_pending(self.order("completed", timezone.now(), payment_type="installment"), 72300)
+        second = self.lender_pending(self.order("completed", timezone.now(), payment_type="installment"), 50000)
+        response, cockpit = self.cockpit()
+        row = {row["key"]: row for row in cockpit["reconciliation"]["channels"]}["installment"]
+        self.assertEqual((row["pending"], row["delivered"]["count"], row["before"]["count"]), (2, 2, 0))
+        self.assertContains(response, '<small class="ops-facts__note">已交車 2・$122,300</small>')
+        self.assertNotContains(response, "交車前 0")
+        self.assertEqual(self.reconciliation_ids("installment", response), {first.pk, second.pk})
+
+    def test_installment_reconciliation_only_before_states_side(self):
+        before = self.lender_pending(self.order("allocated", payment_type="installment"), 188160)
+        response, cockpit = self.cockpit()
+        row = {row["key"]: row for row in cockpit["reconciliation"]["channels"]}["installment"]
+        self.assertEqual((row["pending"], row["delivered"]["count"], row["before"]["count"]), (1, 0, 1))
+        self.assertContains(response, '<small class="ops-facts__note">交車前 1・$188,160</small>')
+        self.assertNotContains(response, "已交車 0")
+        self.assertEqual(self.reconciliation_ids("installment", response), {before.pk})
 
     def test_platform_reconciliation_shows_estimate(self):
         order = self.order("completed", timezone.now(), source_type="platform", source=self.platform,

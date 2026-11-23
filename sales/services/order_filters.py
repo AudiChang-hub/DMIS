@@ -121,7 +121,7 @@ HIDDEN_FILTERS = {
                          "unsettled_delivered": "交車後未結清", "before_delivery": "交車前應收",
                          "awaiting_payout": "已交車待撥款"}),
     "pay": ("付款方式", dict(PAYMENT_CATEGORIES)),
-    "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),
+    "attention": ("作業提醒", {"dealer": "車行尾款／領牌到期", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),
     "business_only": ("成交範圍", {"1": "排除取消／退款"}),
 }
 

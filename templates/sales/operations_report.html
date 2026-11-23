@@ -115,11 +115,11 @@
       {% if c.reconciliation %}<div class="ops-recon ops-money__recon" role="group" aria-labelledby="ops-recon-title">
         {# 撥款待入帳是同一批單改按撥款來源切（T-284 A 案）：不是加項。T-293：兩列小表，各列怎麼對回三格收進「怎麼算的」；對不上的差額照樣直接顯示。 #}
         <p class="ops-subhead" id="ops-recon-title">{% if c.reconciliation.matches %}其中：撥款待入帳（已含在上面三格）{% else %}撥款待入帳（和上面三格對不上的地方寫在各列）{% endif %}</p>
-        <table class="ops-money__table">
+        <table class="inventory-table inventory-table--fit ops-money__table">
           <thead><tr><th scope="col"><span class="ops-visually-hidden">撥款來源</span></th><th scope="col">張數</th>{% if c.flags.operations %}<th scope="col">金額</th>{% endif %}</tr></thead>
           <tbody>{% for row in c.reconciliation.channels %}<tr>
             <th scope="row">{{ row.label }}</th>
-            <td>{% if c.links.reconciliation_list and row.pending %}<a href="{% url 'reconciliation_list' %}?status=pending&amp;by_order=1&amp;channel={{ row.key }}" aria-label="{{ row.label }} {{ row.pending }} 張，到對帳頁">{{ row.pending }}</a>{% else %}{{ row.pending }}{% endif %}</td>
+            <td>{% if c.links.reconciliation_list and row.pending %}<a aria-label="{{ row.label }} {{ row.pending }} 張，到對帳頁" href="{% url 'reconciliation_list' %}?status=pending&amp;by_order=1&amp;channel={{ row.key }}">{{ row.pending }} 張</a>{% else %}{{ row.pending }} 張{% endif %}</td>
             {% if c.flags.operations %}<td>{% if row.expected %}{% if row.estimated %}約 {% endif %}${{ row.expected|number_with_commas }}{% else %}<span class="ops-money__nil">—</span>{% endif %}</td>{% endif %}
           </tr>{% if not row.matches %}<tr class="ops-money__gap-row"><td colspan="{% if c.flags.operations %}3{% else %}2{% endif %}"><span class="ops-facts__gap" data-recon-gap>對帳佇列{% if row.gap.count %}{% if row.gap.count_more %}多{% else %}少{% endif %} {{ row.gap.count }} 張{% endif %}{% if row.gap.count and row.gap.amount %}、{% endif %}{% if row.gap.amount %}金額{% if row.gap.amount_more %}多{% else %}少{% endif %} ${{ row.gap.amount|number_with_commas }}{% endif %}，到對帳頁核對</span></td></tr>{% endif %}{% endfor %}</tbody>
         </table>

@@ -96,11 +96,11 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         total = html.index("待收合計（")
         formula = html.index("data-outstanding-formula")
         section = html.index('id="ops-recon-title"')
-        credit = html.index("車行未付<small")
+        credit = html.index("車行未付<span")
         self.assertLess(total, formula)
         self.assertLess(formula, section)
-        self.assertLess(section, html.index("分期撥款待入帳</dt>"))
-        self.assertLess(html.index("平台撥款待入帳</dt>"), credit)
+        self.assertLess(section, html.index("分期撥款待入帳</th>"))
+        self.assertLess(html.index("平台撥款待入帳</th>"), credit)
 
     def test_cancelled_order_in_queue_shows_gap_not_equation(self):
         # 對帳佇列不看訂單狀態：取消單留下的未入帳撥款列照樣列，三格不算取消單。
@@ -192,4 +192,4 @@ class SplitRowOrderTests(MoneyCardTestBase):
             positions = [chunk.index(f"<span>{label}</span>") for label in ("現金", "刷卡", "分期", "平台")]
             self.assertEqual(positions, sorted(positions))
         # 0 張的列照樣顯示 0、不給連結（模板只在有張數時連）。
-        self.assertContains(response, '<li class="is-zero" title="已交車待撥款（現金）"><span>現金</span><b>0</b></li>')
+        self.assertContains(response, '<li class="is-zero" title="已交車待撥款（現金）"><span>現金</span><b aria-hidden="true">—</b><span class="ops-visually-hidden">0 張</span></li>')

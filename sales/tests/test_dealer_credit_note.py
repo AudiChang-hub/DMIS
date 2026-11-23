@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from sales.tests.test_money_card_t278 import DealerCreditLinkTests, MoneyCardTestBase
 
-NOTE = '車行未付<small class="ops-facts__note">已含在交車後未結清{}</small>'
+NOTE = '車行未付<span class="ops-money__tag">已含在交車後未結清</span>{}'
 
 
 class DealerUnpaidNoteTests(MoneyCardTestBase):
@@ -16,7 +16,7 @@ class DealerUnpaidNoteTests(MoneyCardTestBase):
     def card(self):
         response, cockpit = self.cockpit()
         html = response.content.decode()
-        start = html.index("車行未付<small")
+        start = html.index("車行未付<span")
         return response, cockpit, html[start:html.index("</dd>", start)]
 
     def assert_note(self, counts):
@@ -28,19 +28,19 @@ class DealerUnpaidNoteTests(MoneyCardTestBase):
 
     def test_single_dealer(self):
         self.on_account(self.dealer)
-        self.assert_note(" · <span class=\"ops-facts__note-count\">1 家共 1 張</span>")
+        self.assert_note("<small class=\"ops-facts__note\"><span class=\"ops-facts__note-count\">1 家共 1 張</span></small>")
 
     def test_several_dealers_count_dealers_and_orders(self):
         # T-288 額度移除：原本「混合額度」的情況不存在了，改驗多家多張時家數、張數照算、不提額度。
         self.on_account(self.dealer)
         self.on_account(self.dealer)
         self.on_account(self.other_dealer)
-        self.assert_note(" · <span class=\"ops-facts__note-count\">2 家共 3 張</span>")
+        self.assert_note("<small class=\"ops-facts__note\"><span class=\"ops-facts__note-count\">2 家共 3 張</span></small>")
 
     def test_all_dealers_without_limit(self):
         self.on_account(self.dealer)
         self.on_account(self.other_dealer)
-        self.assert_note(" · <span class=\"ops-facts__note-count\">2 家共 2 張</span>")
+        self.assert_note("<small class=\"ops-facts__note\"><span class=\"ops-facts__note-count\">2 家共 2 張</span></small>")
 
     def test_amount_and_link_unchanged(self):
         self.on_account(self.dealer)

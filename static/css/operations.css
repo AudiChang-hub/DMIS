@@ -988,23 +988,47 @@ html[data-theme="night-blue"] .ops {
   from { opacity: 0; transform: translateY(-2px); }
 }
 
-/* 撥款待入帳：兩列小表（張數｜金額），小標寫一次「已含在上面三格」。 */
-.ops-money__table {
+/* 撥款待入帳：兩列小表（張數｜金額），小標寫一次「已含在上面三格」。
+   沿用資料表格 inventory-table（UI 規範），這裡收成卡內小表：不套表頭底色、列 hover 與手機卡片化。 */
+.ops-money .ops-money__table {
+  display: table;
   width: 100%;
+  min-width: 0;
   border-collapse: collapse;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
-.ops-money__table th,
-.ops-money__table td {
+.ops-money .ops-money__table thead { display: table-header-group; }
+.ops-money .ops-money__table tbody { display: table-row-group; }
+
+.ops-money .ops-money__table tr {
+  display: table-row;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.ops-money .ops-money__table tbody tr:hover { background: transparent; }
+
+.ops-money .ops-money__table th,
+.ops-money .ops-money__table td {
+  display: table-cell;
+  width: auto;
   padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
   font-weight: 600;
+  letter-spacing: 0;
   text-align: right;
   white-space: nowrap;
 }
 
-.ops-money__table thead th {
+.ops-money .ops-money__table td::before { content: none; }
+.ops-money .ops-money__table td span { display: inline; }
+
+.ops-money .ops-money__table thead th {
   padding-top: 0;
   padding-bottom: 2px;
   color: var(--muted);
@@ -1012,7 +1036,7 @@ html[data-theme="night-blue"] .ops {
   font-weight: 600;
 }
 
-.ops-money__table th:first-child {
+.ops-money .ops-money__table th:first-child {
   width: 100%;
   padding-left: 0;
   color: var(--ink-soft);
@@ -1021,20 +1045,20 @@ html[data-theme="night-blue"] .ops {
   white-space: normal;
 }
 
-.ops-money__table tbody tr + tr {
+.ops-money .ops-money__table tbody tr + tr {
   border-top: 1px solid var(--line-soft);
 }
 
-.ops-money__table a {
+.ops-money .ops-money__table a {
   color: var(--forest);
   text-decoration: none;
 }
 
-.ops-money__table a:hover {
+.ops-money .ops-money__table a:hover {
   text-decoration: underline;
 }
 
-.ops-money__table a:focus-visible {
+.ops-money .ops-money__table a:focus-visible {
   border-radius: 2px;
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -1045,11 +1069,11 @@ html[data-theme="night-blue"] .ops {
   font-weight: 400;
 }
 
-.ops-money__table .ops-money__gap-row {
+.ops-money .ops-money__table .ops-money__gap-row {
   border-top: 0;
 }
 
-.ops-money__table .ops-money__gap-row td {
+.ops-money .ops-money__table .ops-money__gap-row td {
   padding-top: 0;
   padding-left: 0;
   color: var(--red-ink);

@@ -264,8 +264,8 @@ class MoneyCardLayoutTests(MoneyCardScenario):
         self.assertEqual(html.count("已含在上面三格"), 1)
         self.assertIn('<thead><tr><th scope="col"><span class="ops-visually-hidden">撥款來源</span></th>'
                       '<th scope="col">張數</th><th scope="col">金額</th></tr></thead>', html)
-        self.assertRegex(html, r'<th scope="row">分期撥款待入帳</th>\s*<td>.*?>2</a></td>\s*<td>\$260,460</td>')
-        self.assertRegex(html, r'<th scope="row">平台撥款待入帳</th>\s*<td>.*?>2</a></td>\s*<td>約 \$131,277</td>')
+        self.assertRegex(html, r'<th scope="row">分期撥款待入帳</th>\s*<td>.*?>2 張</a></td>\s*<td>\$260,460</td>')
+        self.assertRegex(html, r'<th scope="row">平台撥款待入帳</th>\s*<td>.*?>2 張</a></td>\s*<td>約 \$131,277</td>')
 
     def test_dealer_credit_note_is_a_tag(self):
         _money, _cockpit, html = self.section()

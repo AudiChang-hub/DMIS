@@ -170,8 +170,8 @@ class PlatformOutstandingTests(MoneyCardTestBase):
         self.assertEqual((money["before_delivery_count"], money["before_delivery_amount"]), (1, Decimal("70000")))
         self.assertEqual((money["awaiting_payout_count"], money["unsettled_count"]), (0, 0))
         self.assertEqual((money["before_delivery_estimated"], money["outstanding_estimated"]), (True, True))
-        self.assertContains(response, "未交車・尾款待收 · 預估 $70,000")
-        self.assertContains(response, '$70,000<small class="ops-facts__note">含平台撥款預估</small>')
+        self.assertContains(response, '<span class="ops-money__amount">約 $70,000</span>')
+        self.assertContains(response, '<strong class="ops-money__total-amount">約 $70,000</strong>')
         self.assertEqual(self.listed({"risk": "before_delivery"}), {before.pk})
         self.assertEqual(self.listed({"risk": "outstanding"}), {before.pk})
 
@@ -190,8 +190,8 @@ class PlatformOutstandingTests(MoneyCardTestBase):
         self.assertEqual((money["unsettled_payout_estimated"], money["outstanding_estimated"]), (True, True))
         self.assertEqual((money["before_delivery_estimated"], money["awaiting_payout_estimated"]), (False, False))
         self.assertContains(response, "含平台撥款預估")
-        self.assertContains(response, "含交車後未結清那幾張的撥款 預估 $61,277")
-        self.assertContains(response, f"交車後未結清 · ${customer:,.0f}<")
+        self.assertContains(response, "<span>＋交車後未結清那幾張的撥款 預估 $61,277</span>")
+        self.assertContains(response, f'<span class="ops-money__amount">${customer:,.0f}</span>')
         self.assertEqual(self.listed({"risk": "unsettled_delivered"}), {order.pk})
         self.assertEqual(self.listed({"risk": "outstanding"}), {order.pk})
 
@@ -245,7 +245,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         for bucket in ("unsettled", "before_delivery", "awaiting_payout"):
             self.assertEqual(sum((row["amount"] or ZERO for row in money["split"][bucket]), ZERO),
                              money[f"{bucket}_amount"], bucket)
-        self.assertContains(response, f"已交車待撥款 · ${money['awaiting_payout_amount']:,.0f}")
+        self.assertContains(response, f'<span class="ops-money__amount">${money["awaiting_payout_amount"]:,.0f}</span>')
         self.assertEqual(self.listed({"risk": "awaiting_payout"}), {awaiting.pk})
 
     def test_installment_reconciliation_split_delivered_and_before(self):
@@ -320,7 +320,7 @@ class DealerCreditLinkTests(MoneyCardTestBase):
         self.assertFalse({"limit", "over"} & set(money["dealer_credit"][0]))
         url = reverse("operations_dealer_credit") + "?scope=all"
         self.assertContains(response, f'href="{url}"')
-        self.assertContains(response, '車行未付<small class="ops-facts__note">已含在交車後未結清 · <span class="ops-facts__note-count">2 家共 3 張</span></small>')
+        self.assertContains(response, '車行未付<span class="ops-money__tag">已含在交車後未結清</span><small class="ops-facts__note"><span class="ops-facts__note-count">2 家共 3 張</span></small>')
         self.assertContains(response, "2 家共 3 張")
         self.assertNotContains(response, f"<li><span>{self.dealer.name}</span>")       # 逐家列已移除
         page = self.client.get(url)

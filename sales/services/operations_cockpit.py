@@ -309,7 +309,7 @@ def _age_days(today, value):
 
 
 def dealer_credit_rows():
-    """有掛帳的車行（現金新版應收的已交車單，依車行加總）；營運總表與「車行掛帳超過額度」清單共用（T-275）。"""
+    """有未付的車行（現金新版應收的已交車單，依車行加總）；營運總表與「車行未付」清單共用（T-275；額度 T-288 移除）。"""
     from sales.services.dealer_credit import ON_ACCOUNT_STATUSES, on_account_orders
 
     dealer_ids = SalesOrder.objects.filter(
@@ -320,8 +320,7 @@ def dealer_credit_rows():
         orders = on_account_orders(dealer.pk)
         amount = sum((due for _order, due in orders), ZERO)
         if amount > 0:
-            rows.append({"dealer": dealer, "amount": amount, "limit": dealer.credit_limit, "orders": orders,
-                         "over": dealer.credit_limit is not None and amount > dealer.credit_limit})
+            rows.append({"dealer": dealer, "amount": amount, "orders": orders})
     rows.sort(key=lambda row: -row["amount"])
     return rows
 
@@ -369,8 +368,7 @@ def _money(metrics, today):
         buckets.append({"label": label, "count": len(rows), "amount": sum((row[0] for row in rows), ZERO),
                         "late": low > 30})
     ages = [row[1] for row in unsettled if row[1] is not None]
-    dealers = [{"name": row["dealer"].name, "amount": row["amount"], "limit": row["limit"], "over": row["over"],
-                "orders": len(row["orders"])} for row in dealer_credit_rows()]
+    dealers = [{"name": row["dealer"].name, "amount": row["amount"], "orders": len(row["orders"])} for row in dealer_credit_rows()]
     return {
         "outstanding_count": metrics["risk"]["outstanding"],
         "outstanding_amount": outstanding_total,
@@ -393,9 +391,7 @@ def _money(metrics, today):
         "overpaid": metrics["risk"]["overpaid"],
         "dealer_credit": dealers,
         "dealer_credit_total": sum((row["amount"] for row in dealers), ZERO),
-        "dealer_credit_over": sum(1 for row in dealers if row["over"]),
         "dealer_credit_orders": sum(row["orders"] for row in dealers),
-        "dealer_credit_unlimited": sum(1 for row in dealers if row["limit"] is None),
         "split": _money_split(split),
     }
 
@@ -713,7 +709,7 @@ def viewer_flags(policy, profit):
 
 
 def _attention(data, flags):
-    """需要處理：只列有事的項目；紅色（錢有風險、庫齡過久、超額度）在前，同色依金額與件數排序。"""
+    """需要處理：只列有事的項目；紅色（錢有風險、庫齡過久）在前，同色依金額與件數排序。"""
     money, stock, flow, links = data["money"], data["stock"], data["flow"], flags["links"]
     order_url = lambda params: _url("order_list", params) if links["order_list"] else ""  # noqa: E731
     # 交車後未結清依付款方式拆成四項（T-275 第 9 項）；點進去是 risk＋pay 同一批單。
@@ -740,10 +736,6 @@ def _attention(data, flags):
                           "severity": "amber",
                           "url": _url("reconciliation_list", {"status": "pending", "by_order": 1, "channel": row["key"]})
                           if links["reconciliation_list"] else ""})
-    if flags["operations"]:
-        items.append({"key": "dealer_credit", "label": "車行未付超過額度", "value": money["dealer_credit_over"],
-                      "unit": "家", "severity": "red",
-                      "url": _url("operations_dealer_credit") if links.get("operations_dealer_credit") else ""})
     if flags["dealer_payouts"]:
         payouts = data["payouts"]
         items.append({"key": "payouts", "label": "車行傭金／獎金未給付", "value": payouts["unpaid_count"], "unit": "項",
@@ -856,8 +848,7 @@ def for_viewer(data, flags):
     money["outstanding_terms"] = _outstanding_terms(money, flags["operations"])
     if not flags["operations"]:
         for key in ("outstanding_amount", "unsettled_amount", "unsettled_payout_amount", "before_delivery_amount",
-                    "awaiting_payout_amount", "dealer_credit", "dealer_credit_total", "dealer_credit_orders",
-                    "dealer_credit_unlimited"):
+                    "awaiting_payout_amount", "dealer_credit", "dealer_credit_total", "dealer_credit_orders"):
             money.pop(key)
         money["aging"] = [{**bucket, "amount": None} for bucket in money["aging"]]
     hidden = {} if flags["operations"] else {"amount": None, "payout": None, "customer": None}

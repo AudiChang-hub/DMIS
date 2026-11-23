@@ -599,11 +599,11 @@
   </div>
   {% comment %}交車區不放導向收支頁的提示框（使用者 2026-10-22 T-68、T-102）：還差什麼直接列在下方；
   分期公司撥款、平台撥款事後在統一撥款對帳核對，不是交車條件，這裡也不提示。{% endcomment %}
-  {% comment %}車行結算卡只留在「收入與支出」①，交車區只留「車行掛帳」（使用者 2026-11-09 T-137 p6 選 A）。{% endcomment %}
+  {% comment %}車行結算卡只留在「收入與支出」①，交車區只留「車行未付」（使用者 2026-11-09 T-137 p6 選 A；2026-11-23 T-288 拿掉額度、改名）。{% endcomment %}
   {% if dealer_credit %}
   <div class="delivery-gate" id="dealer-credit">
-    <div class="delivery-gate__heading"><strong>車行掛帳</strong></div>
-    <p class="muted">本單尚未收清 ${{ dealer_credit.due|number_with_commas }}；{{ order.source.name }} 其他已交車未收清 ${{ dealer_credit.outstanding|number_with_commas }}；額度 {% if dealer_credit.limit is None %}未設定（只追蹤不阻擋）{% else %}${{ dealer_credit.limit|number_with_commas }}{% endif %}。</p>
+    <div class="delivery-gate__heading"><strong>車行未付</strong></div>
+    <p class="muted">本單尚未收清 ${{ dealer_credit.due|number_with_commas }}；{{ order.source.name }} 其他已交車未收清 ${{ dealer_credit.outstanding|number_with_commas }}。</p>
   </div>
   {% endif %}
   {% if not order.is_delivered and not order.is_cancelled_sale and order.delivery_destination_missing %}

@@ -302,7 +302,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
 
 
 class DealerCreditLinkTests(MoneyCardTestBase):
-    """T-279：車行掛帳改連結、移除逐家列；D4-A 標明已含在交車後未結清、未設額度。"""
+    """T-279：車行掛帳改連結、移除逐家列；D4-A 標明已含在交車後未結清。T-288：額度移除，清單頁不帶參數也列全部。"""
 
     def on_account(self, dealer):
         order = self.make_order(source=dealer, cash_receivable_v2=True)
@@ -312,13 +312,12 @@ class DealerCreditLinkTests(MoneyCardTestBase):
         return order.pk
 
     def test_card_links_to_dealer_orders_with_matching_counts(self):
-        self.other_dealer.credit_limit = Decimal("10000000")
-        self.other_dealer.save(update_fields=["credit_limit"])
         orders = {self.on_account(self.dealer), self.on_account(self.dealer), self.on_account(self.other_dealer)}
         response, cockpit = self.cockpit()
         money = cockpit["money"]
-        self.assertEqual((len(money["dealer_credit"]), money["dealer_credit_orders"], money["dealer_credit_unlimited"]),
-                         (2, 3, 1))
+        self.assertEqual((len(money["dealer_credit"]), money["dealer_credit_orders"]), (2, 3))
+        self.assertFalse({"dealer_credit_over", "dealer_credit_unlimited"} & set(money))     # T-288 額度移除
+        self.assertFalse({"limit", "over"} & set(money["dealer_credit"][0]))
         url = reverse("operations_dealer_credit") + "?scope=all"
         self.assertContains(response, f'href="{url}"')
         self.assertContains(response, '車行未付<small class="ops-facts__note">已含在交車後未結清 · <span class="ops-facts__note-count">2 家共 3 張</span></small>')
@@ -328,10 +327,18 @@ class DealerCreditLinkTests(MoneyCardTestBase):
         self.assertEqual(page.status_code, 200)
         self.assertEqual({row["dealer"].pk for row in page.context["dealers"]}, {self.dealer.pk, self.other_dealer.pk})
         self.assertEqual({order.pk for row in page.context["dealers"] for order, _due in row["orders"]}, orders)
-        self.assertContains(page, "未設額度")
+        self.assertNotContains(page, "額度")
 
-    def test_default_page_still_lists_only_over_limit(self):
-        self.on_account(self.dealer)                                           # 未設額度：預設頁不列
-        page = self.client.get(reverse("operations_dealer_credit"))
-        self.assertEqual(page.context["dealers"], [])
-        self.assertContains(page, "車行未付超過額度")
+    def test_default_page_lists_same_as_scope_all(self):
+        """T-288：不帶參數與舊連結 ?scope=all 列出相同的車行與訂單。"""
+        orders = {self.on_account(self.dealer), self.on_account(self.other_dealer)}
+        listed = []
+        for url in (reverse("operations_dealer_credit"), reverse("operations_dealer_credit") + "?scope=all"):
+            page = self.client.get(url)
+            self.assertEqual(page.status_code, 200)
+            self.assertContains(page, "<h1>車行未付</h1>", html=False)
+            self.assertNotContains(page, "額度")
+            listed.append(([row["dealer"].pk for row in page.context["dealers"]],
+                           [(order.pk, due) for row in page.context["dealers"] for order, due in row["orders"]]))
+        self.assertEqual(listed[0], listed[1])
+        self.assertEqual({pk for pk, _due in listed[0][1]}, orders)

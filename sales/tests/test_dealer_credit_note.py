@@ -3,8 +3,6 @@
 「車行掛帳」改名「車行未付」，小字只寫「已含在交車後未結清 · N 家共 M 張」，不再提額度
 （舊寫法「1 家・1 張，1 家未設額度」看起來像三間）。金額、張數、連結不變。
 """
-from decimal import Decimal
-
 from django.urls import reverse
 
 from sales.tests.test_money_card_t278 import DealerCreditLinkTests, MoneyCardTestBase
@@ -14,10 +12,6 @@ NOTE = '車行未付<small class="ops-facts__note">已含在交車後未結清{}
 
 class DealerUnpaidNoteTests(MoneyCardTestBase):
     on_account = DealerCreditLinkTests.on_account
-
-    def set_limit(self, dealer, limit):
-        dealer.credit_limit = limit
-        dealer.save(update_fields=["credit_limit"])
 
     def card(self):
         response, cockpit = self.cockpit()
@@ -36,9 +30,8 @@ class DealerUnpaidNoteTests(MoneyCardTestBase):
         self.on_account(self.dealer)
         self.assert_note(" · <span class=\"ops-facts__note-count\">1 家共 1 張</span>")
 
-    def test_several_dealers_mixed_limits_mention_no_limit(self):
-        self.set_limit(self.dealer, Decimal("1"))                      # 超額
-        self.set_limit(self.other_dealer, Decimal("10000000"))        # 有額度沒超
+    def test_several_dealers_count_dealers_and_orders(self):
+        # T-288 額度移除：原本「混合額度」的情況不存在了，改驗多家多張時家數、張數照算、不提額度。
         self.on_account(self.dealer)
         self.on_account(self.dealer)
         self.on_account(self.other_dealer)

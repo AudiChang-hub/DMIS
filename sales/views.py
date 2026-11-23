@@ -7086,7 +7086,7 @@ def delivery_complete(request, pk):
         description=(
             f"完成交付：{order.get_delivery_method_display()}／"
             f"{record.handover_location}／收車人 {record.recipient_name}"
-            + (f"／車行掛帳 {record.on_account_amount:,.0f} 元" if record.on_account_amount else "")
+            + (f"／車行未付 {record.on_account_amount:,.0f} 元" if record.on_account_amount else "")
         ),
         actor_name=_editing_name(request.user),
     )

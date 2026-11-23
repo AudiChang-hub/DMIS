@@ -19,7 +19,7 @@ MONEY_RISKS = ("outstanding", "unsettled_delivered", "unconfirmed", "refund", "o
 def is_legacy_history(order):
     """Excel 匯入單（有 legacy_snapshot）＝歷史資料，統計與篩選一律視為已收款、已對帳（T-275 第 8 項，使用者
     2026-11-21）。只用在營運總表／首頁款項、全部訂單收款風險、款項未結清紅標、車行到期提醒；不改 payment_summary、
-    統一撥款對帳、交車掛帳額度檢查與收款帳，也不寫資料。呼叫端要先 select_related("legacy_snapshot")。"""
+    統一撥款對帳、車行未付（交車時記錄）與收款帳，也不寫資料。呼叫端要先 select_related("legacy_snapshot")。"""
     return hasattr(order, "legacy_snapshot")
 
 

@@ -1062,7 +1062,7 @@ class SalesSourceForm(forms.ModelForm):
             "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
             "city", "district", "sym_vehicle_capacity",
-            "suzuki_vehicle_capacity", "credit_limit", "holiday_gift", "note", "active",
+            "suzuki_vehicle_capacity", "holiday_gift", "note", "active",
         ]
         widgets = {
             "other_contact": forms.TextInput(
@@ -1112,10 +1112,6 @@ class SalesSourceForm(forms.ModelForm):
         )
         self.instance.has_line_group = has_line_group
         address = cleaned_data.get("address", "")
-        if not is_dealer:
-            # 掛帳額度只適用車行。
-            cleaned_data["credit_limit"] = None
-            self.instance.credit_limit = None
         if is_dealer:
             city, district = infer_taiwan_region(address)
             cleaned_data["city"] = city
@@ -5042,7 +5038,7 @@ class DeliveryCompletionForm(forms.Form):
 
         order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
         self._confirm_delivery_prep(order, actor_name)
-        # 車行可先交車；未收清部分記為掛帳並受車行額度控管。
+        # 車行可先交車；未收清部分記為車行未付（只追蹤，不設額度）。
         on_account = (
             payment_summary(order)["customer_due"]
             if order.source_type == SalesOrder.SourceType.DEALER else Decimal("0")

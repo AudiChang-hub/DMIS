@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% load sales_format %}
-{% block title %}{% if show_all %}車行未付{% else %}車行未付超過額度{% endif %}｜車輛銷售管理{% endblock %}
+{% block title %}車行未付｜車輛銷售管理{% endblock %}
 {% block content %}
 {% url 'operations_report' as report_url %}
 {% include "sales/_page_back.html" with fallback_url=report_url label="營運總表" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">{% if show_all %}營運總表・錢{% else %}營運總表・需要處理{% endif %}</p><h1>{% if show_all %}車行未付{% else %}車行未付超過額度{% endif %}</h1><p class="muted">{% if show_all %}已交車、客戶應付還沒收清的車行現金單依車行加總，共 {{ dealers|length }} 家、{{ order_count }} 張。這些金額已含在「交車後未結清」，不是另外一筆。{% else %}已交車、客戶應付還沒收清的車行現金單依車行加總，超過車行額度的車行與它們的未付訂單；未設額度的車行只追蹤，不列在這裡。{% endif %}算到 {{ today|date:"Y/m/d" }}。</p></div>
+  <div><p class="eyebrow">營運總表・錢</p><h1>車行未付</h1><p class="muted">已交車、客戶應付還沒收清的車行現金單依車行加總，共 {{ dealers|length }} 家、{{ order_count }} 張。這些金額已含在「交車後未結清」，不是另外一筆。算到 {{ today|date:"Y/m/d" }}。</p></div>
 </section>
 
 {% for row in dealers %}
 <section class="section-block" aria-label="{{ row.dealer.name }} 的未付訂單">
   <div class="section-title"><h2>{{ row.dealer.name }}</h2><span>{{ row.orders|length }} 張</span></div>
-  <div class="section-body"><p>未付 <strong>${{ row.amount|number_with_commas }}</strong>，{% if row.limit is None %}未設額度{% else %}額度 ${{ row.limit|number_with_commas }}{% if row.over %}，超出 <strong>${{ row.excess|number_with_commas }}</strong>{% endif %}{% endif %}</p></div>
+  <div class="section-body"><p>未付 <strong>${{ row.amount|number_with_commas }}</strong></p></div>
   <div class="inventory-table-wrap" tabindex="0" aria-label="{{ row.dealer.name }} 的未付訂單，可左右捲動查看完整欄位">
     <table class="inventory-table inventory-table--fit">
       <thead><tr><th scope="col">訂單編號</th><th scope="col">車型</th><th scope="col">交車日期</th><th scope="col" class="is-number">待收</th></tr></thead>
@@ -30,8 +30,7 @@
 </section>
 {% empty %}
 <section class="section-block" aria-label="車行未付">
-  {% if show_all %}<div class="empty-state small"><h3>目前沒有車行未付</h3><p>車行單交車後客戶應付還沒收清時，會依車行列在這裡。</p></div>
-  {% else %}<div class="empty-state small"><h3>目前沒有車行未付超過額度</h3><p>有車行超過額度時會列在這裡，並在營運總表的「需要處理」提醒。</p></div>{% endif %}
+  <div class="empty-state small"><h3>目前沒有車行未付</h3><p>車行單交車後客戶應付還沒收清時，會依車行列在這裡。</p></div>
 </section>
 {% endfor %}
 {% endblock %}

@@ -506,11 +506,6 @@ class SalesSource(TimeStampedModel):
     suzuki_vehicle_capacity = models.PositiveSmallIntegerField(
         "台鈴油電共用排車容量", blank=True, null=True
     )
-    credit_limit = models.DecimalField(
-        "掛帳額度", max_digits=12, decimal_places=0, blank=True, null=True,
-        validators=[MinValueValidator(0)],
-        help_text="車行未收清先交車的累計上限；空白表示不設上限但仍追蹤掛帳，0 表示必須收清才交車。",
-    )
     holiday_gift = models.BooleanField(
         "列入年節送禮名單",
         default=False,
@@ -4463,11 +4458,7 @@ class SalesOrder(TimeStampedModel):
                     f"尾款尚未收清，仍差 {summary['delivery_due']:,.0f} 元；"
                     + (balance_hint or "請在交車表單一併登記尾款，或到「收入與支出」確認收款。")
                 )
-        else:
-            from sales.services.dealer_credit import credit_blocker
-            blocker = credit_blocker(self, summary)
-            if blocker:
-                blockers.append(blocker)
+        # 車行單可先交車，未收清記為車行未付、只追蹤不擋（車行額度 2026-11-23 T-288 移除）。
         return blockers
 
     @transaction.atomic

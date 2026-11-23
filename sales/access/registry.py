@@ -104,7 +104,7 @@ register("work", "form_print_id_crop", "operate")  # T-190：套表預覽調整�
 register("work", "order_owner_declaration_pdf", "export")
 register("work", "order_id_copy", "export")  # T-208：單張訂單的身分證影本頁（預覽與列印同套表列印權限）
 register("operations", "operations_report")
-register("operations", "operations_dealer_credit")  # T-275：營運總表「車行掛帳超過額度」明細，同財務彙總權限
+register("operations", "operations_dealer_credit")  # T-275：營運總表「車行未付」明細（T-288 起不分額度），同財務彙總權限
 register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
 # 車行傭金／獎金給付（T-150）：查看列表、勾選與備註屬操作、CSV 屬匯出。

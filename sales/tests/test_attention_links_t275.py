@@ -187,7 +187,7 @@ class AttentionLinkTests(FinanceLedgerTestBase):
             self.assertContains(response, text)
         self.assertNotContains(response, "庫存足夠")
 
-    # ── 6. 車行掛帳超過額度（使用者選補連結）──
+    # ── 6. 車行未付（T-288 起沒有額度，「需要處理」不列；清單頁列全部）──
 
     def on_account(self, dealer):
         order = self.make_order(source=dealer, cash_receivable_v2=True)
@@ -196,21 +196,20 @@ class AttentionLinkTests(FinanceLedgerTestBase):
         SalesOrder.all_objects.filter(pk=order.pk).update(status="completed")
         return order.pk
 
-    def test_dealer_credit_lists_only_dealers_over_limit_and_their_orders(self):
-        self.dealer.credit_limit = Decimal("1000")
-        self.dealer.save(update_fields=["credit_limit"])
-        self.other_dealer.credit_limit = Decimal("10000000")
-        self.other_dealer.save(update_fields=["credit_limit"])
-        over_orders = {self.on_account(self.dealer), self.on_account(self.dealer)}
-        under_order = self.on_account(self.other_dealer)
-        item = self.assert_same_batch("dealer_credit", {self.dealer.pk},
-                                      lambda response: {row["dealer"].pk for row in response.context["dealers"]})
-        response = self.follow(item)
+    def test_dealer_credit_has_no_attention_item_and_list_shows_all_dealers(self):
+        """T-288：車行額度移除，「需要處理」不再有車行未付超額度；清單頁不帶參數就列全部有未付的車行與訂單。"""
+        dealer_orders = {self.on_account(self.dealer), self.on_account(self.dealer)}
+        other_order = self.on_account(self.other_dealer)
+        self.assertNotIn("dealer_credit", self.attention())
+        response = self.client.get(reverse("operations_dealer_credit"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({row["dealer"].pk for row in response.context["dealers"]},
+                         {self.dealer.pk, self.other_dealer.pk})
         listed = {order.pk for row in response.context["dealers"] for order, _due in row["orders"]}
-        self.assertEqual(listed, over_orders)
-        self.assertNotIn(under_order, listed)
+        self.assertEqual(listed, dealer_orders | {other_order})
         self.assertContains(response, "結算車行")
-        self.assertNotContains(response, "歸屬車行")
+        self.assertContains(response, "歸屬車行")                 # 原本未超額的車行現在也列
+        self.assertNotContains(response, "額度")
 
     # ── 已對得上的項目：正式站多為 0，用合成資料補比對 ──
 

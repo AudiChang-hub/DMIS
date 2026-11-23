@@ -1,4 +1,4 @@
-"""車行掛帳：未收清先交車的累計追蹤與額度檢查。"""
+"""車行未付：未收清先交車的累計追蹤（只追蹤，不擋交車；車行額度 2026-11-23 T-288 移除）。"""
 from decimal import Decimal
 
 ZERO = Decimal("0")
@@ -28,29 +28,11 @@ def dealer_outstanding(dealer_id, exclude_order_id=None):
     return sum((due for _order, due in on_account_orders(dealer_id, exclude_order_id)), ZERO)
 
 
-def credit_blocker(order, summary):
-    """本次交車若會讓掛帳超過車行額度即阻擋；未設額度只追蹤不阻擋。"""
-    due = summary["customer_due"]
-    if due <= 0 or not order.source_id:
-        return ""
-    limit = order.source.credit_limit
-    if limit is None:
-        return ""
-    total = dealer_outstanding(order.source_id, exclude_order_id=order.pk) + due
-    if total > limit:
-        return (
-            f"{order.source.name} 掛帳將達 {total:,.0f} 元，超過額度 {limit:,.0f} 元；"
-            "請先收款或由管理者調整車行掛帳額度。"
-        )
-    return ""
-
-
 def credit_overview(order, summary):
-    """交付頁顯示用：本單待收、車行既有掛帳與額度。"""
+    """交付頁顯示用：本單待收、車行其他已交車未收清。"""
     if order.source_type != "dealer" or not order.source_id:
         return None
     return {
         "due": summary["customer_due"],
         "outstanding": dealer_outstanding(order.source_id, exclude_order_id=order.pk),
-        "limit": order.source.credit_limit,
     }

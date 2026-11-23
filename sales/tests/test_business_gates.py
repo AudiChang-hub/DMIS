@@ -65,13 +65,11 @@ class BusinessGateTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "折扣申請尚待確認"):
             order.complete_delivery(timezone.now(), "測試")
 
-    # M1：車行掛帳額度
-    def test_dealer_credit_limit_blocks_and_on_account_is_recorded(self):
+    # M1：車行額度 2026-11-23 T-288 移除：未付累計不再擋交車，交車時照記未付金額（on_account_amount）。
+    def test_dealer_unpaid_never_blocks_and_on_account_is_recorded(self):
+        from sales.forms import DeliveryCompletionForm
         first, _vehicle = self.make_order(dealer=True, deposit=Decimal("0"))
         first = self.v2(first)
-        self.source.credit_limit = Decimal("100000")
-        self.source.save()
-        from sales.forms import DeliveryCompletionForm
         form = DeliveryCompletionForm(first, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)
         first, record = form.save("測試")
@@ -79,12 +77,12 @@ class BusinessGateTests(TestCase):
         self.assertEqual(dealer_outstanding(self.source.pk), Decimal("75000"))
         second, _vehicle = self.make_order(dealer=True, deposit=Decimal("0"))
         second = self.v2(second)
-        with self.assertRaisesMessage(ValidationError, "超過額度"):
-            second.complete_delivery(timezone.now(), "測試")
-        self.source.credit_limit = None
-        self.source.save()
-        second.refresh_from_db()
-        self.assertFalse(second.delivery_blockers())
+        self.assertEqual(second.delivery_blockers(), [])
+        form = DeliveryCompletionForm(second, self.delivery_payload())
+        self.assertTrue(form.is_valid(), form.errors)
+        second, record = form.save("測試")
+        self.assertEqual(record.on_account_amount, Decimal("75000"))
+        self.assertEqual(dealer_outstanding(self.source.pk), Decimal("150000"))
 
     def test_exception_close_forfeit_reason_is_really_optional(self):
         """T-202：沒收備註標「（選填）」，有沒收金額也可以留空結案（使用者 2026-11-17：「改成選填」）。"""

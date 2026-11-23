@@ -78,8 +78,8 @@ def receipt_status(order, summary):
             items.append({'text': f'客戶尾款還差 {customer_due:,.0f} 元', 'action': '到「交車與收尾款」收款',
                           'href': order_step_url(order.pk, 'delivery')})
         else:
-            # 車行掛帳已扣傭金，與車行結算卡同一個金額（T-120 p16）。
-            items.append({'text': f'{"車行掛帳（已扣傭金）" if dealer else "客戶尾款"}還差 {customer_due:,.0f} 元',
+            # 車行未付已扣傭金，與車行結算卡同一個金額（T-120 p16；用語 T-288 改「車行未付」）。
+            items.append({'text': f'{"車行未付（已扣傭金）" if dealer else "客戶尾款"}還差 {customer_due:,.0f} 元',
                           'action': f'收到{"車行" if dealer else "客戶"}付款後，按下方「＋新增收款」登記並勾「已確認」',
                           'href': '#add-payment'})
     if summary['lender_due'] > 0:

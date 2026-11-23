@@ -47,7 +47,7 @@ from sales.services.sales_metrics import (CANCELLED_STATUSES, DELIVERED_STATUSES
                                           payment_category, payout_due)
 
 ZERO = Decimal("0")
-CACHE_VERSION = 1
+CACHE_VERSION = 2       # T-284 拆列多了撥款／客人兩部分
 CACHE_SECONDS = 600
 
 # ── 顯示門檻（使用者 2026-11-13 選定；文字說明只寫在 BUSINESS_RULES「營運總表顯示門檻」）──
@@ -81,8 +81,6 @@ PAYMENT_MIX = (("cash", "現金／刷卡"), ("installment", "分期"))
 # 「錢」依付款方式拆列（T-275 第 9 項）：每一格點進全部訂單 risk＋pay，張數和卡片相同。
 MONEY_SPLIT_RISK = OrderedDict((("unsettled", "unsettled_delivered"), ("before_delivery", "before_delivery"),
                                 ("awaiting_payout", "awaiting_payout")))
-# 已交車待撥款只會是分期／平台（現金、刷卡有撥款列時也照實列出，合計才對得上）。
-AWAITING_PAYOUT_CATEGORIES = ("installment", "platform")
 UNSETTLED_LABELS = {"cash": "現金", "card": "刷卡", "installment": "分期，客人自付部分", "platform": "平台，客人自付部分"}
 RECONCILIATION_CHANNELS = (("installment", "分期撥款待入帳"), ("platform", "平台撥款待入帳"))
 # 車行尾款／領牌到期的依據（T-280）；工作日從交車日的下一天算，跳過週末與營業日設定的假日。
@@ -333,7 +331,10 @@ def _money(metrics, today):
     # 含平台預估的金額要標「預估」（T-278 QA 疑慮 a）：交車後未結清那幾張只看撥款部分是否含預估。
     unsettled_payout_estimated = False
     counts, amounts = Counter(), {bucket: ZERO for bucket in MONEY_SPLIT_RISK}
-    split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": [], "estimated": False})
+    # payout／customer：這一格的金額裡撥款和客人應收各多少；payout_count＝其中有撥款待入帳的張數（T-284，
+    # 撥款待入帳兩列用它對回三格）。交車後未結清那格的金額只算客人，撥款部分記在 payout，不加進 amount。
+    split = {bucket: OrderedDict((key, {"count": 0, "amount": ZERO, "ages": [], "estimated": False, "payout": ZERO,
+                                        "payout_count": 0, "payout_estimated": False, "customer": ZERO})
                                  for key, _label in PAYMENT_CATEGORIES) for bucket in MONEY_SPLIT_RISK}
     for order, summary in metrics["outstanding_summaries"]:
         summary = {**summary, "platform_due": metrics["platform_due"].get(order.pk)}
@@ -355,6 +356,11 @@ def _money(metrics, today):
         cell["count"] += 1
         cell["amount"] += amount
         cell["estimated"] = cell["estimated"] or (bucket != "unsettled" and summary.get("platform_due") is not None)
+        cell["customer"] += customer
+        if payout > 0 or summary.get("platform_due") is not None:
+            cell["payout"] += payout
+            cell["payout_count"] += 1
+            cell["payout_estimated"] = cell["payout_estimated"] or summary.get("platform_due") is not None
         if bucket == "unsettled":
             cell["ages"].append(unsettled[-1][1])
     buckets = []
@@ -397,14 +403,15 @@ def _money(metrics, today):
 def _money_split(split):
     labels = dict(PAYMENT_CATEGORIES)
     result = OrderedDict()
+    # 三格都固定列「現金→刷卡→分期→平台」四列（T-284 追加，使用者 2026-11-23），0 張也列，同一種付款方式三格同一列。
     for bucket, risk in MONEY_SPLIT_RISK.items():
         rows = []
         for key, cell in split[bucket].items():
-            if bucket == "awaiting_payout" and key not in AWAITING_PAYOUT_CATEGORIES and not cell["count"]:
-                continue
             ages = [age for age in cell["ages"] if age is not None]
             rows.append({"key": key, "label": labels[key], "count": cell["count"], "amount": cell["amount"],
                          "estimated": cell["estimated"], "oldest": max(ages) if ages else None,
+                         "payout": cell["payout"], "payout_count": cell["payout_count"],
+                         "payout_estimated": cell["payout_estimated"], "customer": cell["customer"],
                          "params": {"risk": risk, "pay": key}})
         result[bucket] = rows
     return result
@@ -792,6 +799,42 @@ def _outstanding_terms(money, show_amounts):
     return terms
 
 
+# 撥款待入帳對回三格（T-284）：依序列已交車那兩格、再列未交車；suffix 表示只算那幾張的撥款部分。
+RECONCILIATION_TERMS = (("awaiting_payout", "已交車待撥款", ""), ("unsettled", "交車後未結清", "的撥款"),
+                        ("before_delivery", "未交車", "的撥款"))
+
+
+def _reconciliation_terms(reconciliation, split, show_amounts):
+    """撥款待入帳兩列各自對回三格的哪幾格（T-284，使用者 2026-11-23 選 A）。
+
+    兩邊範圍不同：撥款待入帳是統一撥款對帳裡 confirmed=False 的列（含取消單，分期金額是未入帳列的預計金額），
+    三格是待收單依 money_bucket 分的格子（不含取消單，撥款金額是 lender_due＝應撥減已入帳，平台是預估）。
+    所以逐格列出三格裡的撥款部分，加總和這一列相同才寫「＝」，不同就把差額寫出來（matches=False）。
+    沒有 operations 權限時只比張數、不給金額。"""
+    labels = dict(PAYMENT_CATEGORIES)
+    channels = []
+    for row in reconciliation["channels"]:
+        keys = ["platform"] if row["key"] == "platform" else [key for key, _ in PAYMENT_CATEGORIES if key != "platform"]
+        terms = []
+        for bucket, bucket_label, suffix in RECONCILIATION_TERMS:
+            for cell in split[bucket]:
+                if cell["key"] not in keys or not cell["payout_count"]:
+                    continue
+                terms.append({"label": f"{bucket_label}・{labels[cell['key']]}", "count": cell["payout_count"],
+                              "of": cell["count"] if cell["payout_count"] < cell["count"] else None, "suffix": suffix,
+                              "amount": cell["payout"], "estimated": cell["payout_estimated"]})
+        count = sum(term["count"] for term in terms)
+        amount = sum((term["amount"] for term in terms), ZERO)
+        count_gap, amount_gap = row["pending"] - count, row["expected"] - amount
+        if not show_amounts:
+            amount_gap = ZERO
+            terms = [{**term, "amount": None, "estimated": False} for term in terms]
+        channels.append({**row, "card_terms": terms, "matches": not count_gap and not amount_gap,
+                         "gap": {"count": abs(count_gap), "count_more": count_gap > 0,
+                                 "amount": abs(amount_gap), "amount_more": amount_gap > 0}})
+    return {**reconciliation, "channels": channels, "matches": all(row["matches"] for row in channels)}
+
+
 def for_viewer(data, flags):
     """依權限組成畫面用的內容；沒有權限的區塊不放進 context，HTML 也就不會出現。"""
     pulse = dict(data["pulse"])
@@ -817,13 +860,15 @@ def for_viewer(data, flags):
                     "dealer_credit_unlimited"):
             money.pop(key)
         money["aging"] = [{**bucket, "amount": None} for bucket in money["aging"]]
+    hidden = {} if flags["operations"] else {"amount": None, "payout": None, "customer": None}
     money["split"] = OrderedDict(
-        (bucket, [{**row, "amount": row["amount"] if flags["operations"] else None,
-                   "url": _url("order_list", row["params"]) if flags["links"]["order_list"] else ""} for row in rows])
+        (bucket, [{**row, **hidden, "url": _url("order_list", row["params"]) if flags["links"]["order_list"] else ""}
+                  for row in rows])
         for bucket, rows in data["money"]["split"].items())
     view["money"] = money
     if flags["reconciliation"]:
-        view["reconciliation"] = data["reconciliation"]
+        view["reconciliation"] = _reconciliation_terms(data["reconciliation"], data["money"]["split"],
+                                                       flags["operations"])
     if flags["dealer_payouts"]:
         view["payouts"] = data["payouts"]
         view["volume_bonus"] = data["volume_bonus"]

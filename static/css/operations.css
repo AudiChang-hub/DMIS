@@ -628,6 +628,28 @@ html[data-theme="night-blue"] .ops {
   margin-right: 0.25em;
 }
 
+/* 撥款待入帳和三格對不上時的差額（T-284）：自成一行，不接在加總後面。 */
+.ops-facts__formula span.ops-facts__gap {
+  display: block;
+}
+
+/* 撥款待入帳（T-284）：放在待收合計下面、縮排加左線，表示是上面三格裡的一部分，不是加項。 */
+.ops-recon {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line-soft);
+}
+
+.ops-recon .ops-subhead {
+  margin: 0;
+}
+
+.ops-facts.ops-facts--nested {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .ops-hint,
 .ops-empty {
   margin: 0;
@@ -661,15 +683,19 @@ html[data-theme="night-blue"] .ops {
   row-gap: 0;
 }
 
+/* 數字、標籤＋四列付款方式＝6 列；四列也走 subgrid（T-284），同一種付款方式在三格同一列，
+   某一格多一行（撥款＋客人）時另外兩格同一列跟著加高。 */
 .ops-fig:has(.ops-split) {
   display: grid;
-  grid-row: span 3;
+  grid-row: span 6;
   grid-template-rows: subgrid;
   align-content: start;
 }
 
 .ops-split {
   display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
   gap: 2px;
   margin: var(--space-2) 0 0;
   padding: var(--space-2) 0 0;
@@ -717,6 +743,25 @@ html[data-theme="night-blue"] .ops {
 .ops-split small {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 未交車・尾款待收的金額拆成撥款＋客人（T-284）：換一行、靠右對齊金額，手機寬度可在「＋」前後換行。 */
+.ops-split li:has(.ops-split__parts),
+.ops-split li:has(.ops-split__parts) > a {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.ops-split small.ops-split__parts {
+  flex: 1 0 100%;
+  text-align: right;
+  white-space: normal;
+}
+
+.ops-split .ops-split__part {
+  color: inherit;
+  font-size: inherit;
   white-space: nowrap;
 }
 

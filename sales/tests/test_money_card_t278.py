@@ -256,7 +256,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         self.assertEqual((row["delivered"]["count"], row["delivered"]["expected"]), (1, Decimal("72300")))
         self.assertEqual((row["before"]["count"], row["before"]["expected"]), (1, Decimal("188160")))
         self.assertEqual(row["pending"], 2)
-        self.assertContains(response, '<small class="ops-facts__note">已交車 1・$72,300／交車前 1・$188,160</small>')
+        self.assertContains(response, '<span>＝交車後未結清・分期 1 張的撥款 $72,300</span><span>＋未交車・分期 1 張的撥款 $188,160</span>')
         # 點進去的撥款對帳（依訂單）＝同一批兩張（QA 疑慮 c）。
         self.assertEqual(self.reconciliation_ids("installment", response), {delivered.pk, before.pk})
 
@@ -276,7 +276,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         response, cockpit = self.cockpit()
         row = {row["key"]: row for row in cockpit["reconciliation"]["channels"]}["installment"]
         self.assertEqual((row["pending"], row["delivered"]["count"], row["before"]["count"]), (2, 2, 0))
-        self.assertContains(response, '<small class="ops-facts__note">已交車 2・$122,300</small>')
+        self.assertContains(response, '<span>＝交車後未結清・分期 2 張的撥款 $122,300</span>')
         self.assertNotContains(response, "交車前 0")
         self.assertEqual(self.reconciliation_ids("installment", response), {first.pk, second.pk})
 
@@ -285,7 +285,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         response, cockpit = self.cockpit()
         row = {row["key"]: row for row in cockpit["reconciliation"]["channels"]}["installment"]
         self.assertEqual((row["pending"], row["delivered"]["count"], row["before"]["count"]), (1, 0, 1))
-        self.assertContains(response, '<small class="ops-facts__note">交車前 1・$188,160</small>')
+        self.assertContains(response, '<span>＝未交車・分期 1 張的撥款 $188,160</span>')
         self.assertNotContains(response, "已交車 0")
         self.assertEqual(self.reconciliation_ids("installment", response), {before.pk})
 

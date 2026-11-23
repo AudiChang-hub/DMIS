@@ -144,7 +144,7 @@ class PaymentSplitTests(FinanceLedgerTestBase):
             self.settle(order)
         response, money = self.money()
         rows = self.split(money, "awaiting_payout")
-        self.assertEqual(list(rows), ["installment", "platform"])     # 現金、刷卡是 0 張時不列
+        self.assertEqual(list(rows), KEYS)     # T-284 追加：現金、刷卡 0 張也列，和另外兩格同一列
         for key, order in (("installment", installment), ("platform", platform)):
             self.assertEqual(rows[key]["count"], 1, key)
             self.assertIn("risk=awaiting_payout", rows[key]["url"])
@@ -158,7 +158,7 @@ class PaymentSplitTests(FinanceLedgerTestBase):
         self.settle(cash)
         _response, money = self.money()
         rows = self.split(money, "awaiting_payout")
-        self.assertEqual(list(rows), ["cash", "installment", "platform"])
+        self.assertEqual(list(rows), KEYS)
         self.assertEqual(rows["cash"]["count"], 1)
 
     # ── 撥款待入帳 ──

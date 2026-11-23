@@ -160,7 +160,7 @@ class CockpitTests(TestCase):
         self.assertEqual(stages["allocation_pending"]["oldest"], 4)
         self.assertEqual((stages["allocated"]["count"], stages["allocated"]["stuck"]), (2, 1))
         self.assertIsNone(stages["delivery_pending"]["oldest"])
-        self.assertEqual([stage["limit"] for stage in stages.values()], [3, 30, 7, 14])
+        self.assertEqual([stage["limit"] for stage in stages.values()], [3, 30, 7])
 
     def test_stock_age_shortage_and_slow(self):
         today = timezone.localdate()

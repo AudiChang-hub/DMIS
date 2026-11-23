@@ -21,7 +21,7 @@ class BlankDeliveryTimeTests(TestCase):
     delivery_payload = lifecycle.OrderLifecycleTests.delivery_payload
 
     def deliver_blank(self):
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         form = DeliveryCompletionForm(order, {**self.delivery_payload(), "delivered_at": ""})
         self.assertFalse(form.fields["delivered_at"].required)
         self.assertTrue(form.is_valid(), form.errors)
@@ -30,22 +30,18 @@ class BlankDeliveryTimeTests(TestCase):
 
     def test_blank_time_stays_blank_after_delivery_and_later_saves(self):
         order = self.deliver_blank()
-        self.assertEqual(order.status, SalesOrder.Status.DELIVERED_DOCS_PENDING)
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
         self.assertIsNone(order.delivered_at)
         self.assertEqual(order.delivered_by, "測試人員")
         order.save()
         order.refresh_from_db()
         self.assertIsNone(order.delivered_at)
 
-    def test_dealer_document_deadline_does_not_start(self):
+    def test_blank_delivery_time_has_no_registration_deadline(self):
         order = self.deliver_blank()
         action = build_order_next_actions(order).primary
-        self.assertEqual(action.key, "registration")
-        self.assertEqual(action.badge, "未填交付時間")
-        self.assertEqual(action.tone, "primary")
-        self.assertIn("未填交付時間，期限不起算", action.description)
-        self.assertNotIn(order.pk, [item["order"].pk for item in build_dealer_reminders()
-                                    if item["kind"] == "registration_documents"])
+        self.assertNotEqual(getattr(action, "key", None), "registration")
+        self.assertNotIn("registration_documents", [item["kind"] for item in build_dealer_reminders()])
 
     def test_delivered_order_is_not_counted_as_stale_allocation(self):
         order = self.deliver_blank()
@@ -62,7 +58,7 @@ class BlankDeliveryTimeTests(TestCase):
         self.assertContains(page, "已完成交付（時間未記錄）")
 
     def test_delivery_form_shows_time_as_optional(self):
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
         self.assertRegex(page, r'<label for="id_delivered_at">實際交付時間</label>')

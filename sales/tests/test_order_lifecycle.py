@@ -73,7 +73,7 @@ class OrderLifecycleTests(TestCase):
             vehicle_model=self.model, name="灰"
         )
 
-    def make_order(self, dealer=False, deposit=Decimal("5000")):
+    def make_order(self, dealer=False, deposit=Decimal("5000"), registered=False):
         order = SalesOrder.objects.create(
             owner_name="王小明",
             owner_phone="0912345678",
@@ -106,6 +106,10 @@ class OrderLifecycleTests(TestCase):
         )
         order.allocate(vehicle)
         confirm_delivery_prep(order)
+        if registered:
+            order.registration_completed_at = timezone.now()
+            order.status = SalesOrder.Status.DELIVERY_PENDING
+            order.save(update_fields=["registration_completed_at", "status", "updated_at"])
         return order, vehicle
 
     def delivery_payload(self, method=SalesOrder.DeliveryMethod.STORE_PICKUP):
@@ -127,8 +131,18 @@ class OrderLifecycleTests(TestCase):
             "note": "",
         }
 
-    def test_dealer_can_deliver_before_registration(self):
+    def test_dealer_cannot_deliver_before_registration(self):
         order, vehicle = self.make_order(dealer=True)
+        form = DeliveryCompletionForm(order, self.delivery_payload())
+        self.assertTrue(form.is_valid(), form.errors)
+        with self.assertRaisesMessage(ValidationError, "須先完成領牌確認"):
+            form.save("測試人員")
+        self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
+
+        order.registration_completed_at = timezone.now()
+        order.status = SalesOrder.Status.DELIVERY_PENDING
+        order.save(update_fields=["registration_completed_at", "status", "updated_at"])
+        order = SalesOrder.objects.get(pk=order.pk)
         form = DeliveryCompletionForm(order, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)
 
@@ -136,9 +150,7 @@ class OrderLifecycleTests(TestCase):
 
         delivered.refresh_from_db()
         vehicle.refresh_from_db()
-        self.assertEqual(
-            delivered.status, SalesOrder.Status.DELIVERED_DOCS_PENDING
-        )
+        self.assertEqual(delivered.status, SalesOrder.Status.COMPLETED)
         self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)
         self.assertEqual(record.recipient_name, "王小明")
         # 交付車況與四項核對拿掉（使用者 2026-10-22 T-74）：新紀錄留空、未勾。
@@ -149,7 +161,7 @@ class OrderLifecycleTests(TestCase):
 
     def test_delivery_form_confirms_prep_without_separate_save(self):
         # 交車前確認併入交付核對（2026-10-14）：沒先存「交車前確認」也能直接交車，送出時補記確認。
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         OrderOperationsProfile.objects.filter(order=order).update(
             fulfillment_confirmed_at=None, fulfillment_confirmed_by="",
         )
@@ -165,7 +177,7 @@ class OrderLifecycleTests(TestCase):
         self.assertIsNone(profile.fulfillment_confirmed_at)
 
     def test_electric_delivery_requires_vehicle_control_check(self):
-        order, vehicle = self.make_order(dealer=True)
+        order, vehicle = self.make_order(dealer=True, registered=True)
         # 共用夾具以引擎號碼建油車；配車後改成電動車（電動車只用車身號碼），只測交車核對。
         VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
         VehicleInventory.objects.filter(pk=vehicle.pk).update(engine_number=None, frame_number=f"FRM-{vehicle.pk}")
@@ -183,7 +195,7 @@ class OrderLifecycleTests(TestCase):
 
     def test_recipient_phone_is_optional(self):
         # 開單電話已選填（1.75.2），交車時收車人電話也不再卡住（2026-10-14）。
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         form = DeliveryCompletionForm(order, {**self.delivery_payload(), "recipient_phone": ""})
         self.assertTrue(form.is_valid(), form.errors)
         _delivered, record = form.save("測試人員")
@@ -194,7 +206,7 @@ class OrderLifecycleTests(TestCase):
         form = DeliveryCompletionForm(order, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)
 
-        with self.assertRaisesMessage(ValidationError, "必須先完成領牌"):
+        with self.assertRaisesMessage(ValidationError, "須先完成領牌確認"):
             form.save("測試人員")
 
         self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
@@ -219,7 +231,7 @@ class OrderLifecycleTests(TestCase):
 
     def test_condition_and_checklist_are_no_longer_required(self):
         # 交付車況、交付核對四項與交付照片拿掉（使用者 2026-10-22 T-74）：不填也能交車；舊版畫面送來的值不會寫入。
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         payload = {key: value for key, value in self.delivery_payload().items()
                    if key not in {"vehicle_condition_note", "condition_checked", "documents_checked", "keys_checked",
                                   "accessories_checked", "damage_note"}}
@@ -230,7 +242,7 @@ class OrderLifecycleTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         _order, record = form.save("交車人員")
         self.assertEqual((record.vehicle_condition_note, record.damage_found, record.note), ("", False, "客人自行加裝手機架"))
-        legacy = DeliveryCompletionForm(self.make_order(dealer=True)[0], {
+        legacy = DeliveryCompletionForm(self.make_order(dealer=True, registered=True)[0], {
             **self.delivery_payload(), "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED, "damage_note": ""})
         self.assertTrue(legacy.is_valid(), legacy.errors)
 
@@ -349,12 +361,12 @@ class OrderLifecycleTests(TestCase):
         with self.assertRaisesMessage(ValidationError, "已領牌"):
             order.request_cancellation("測試人員", "客戶改變心意")
 
-    def test_dealer_reminders_use_three_and_seven_business_days(self):
+    def test_dealer_balance_reminder_uses_seven_business_days(self):
         order, _vehicle = self.make_order(dealer=True)
         delivered_at = timezone.make_aware(datetime(2026, 8, 3, 10, 0))
         order.delivered_at = delivered_at
         order.delivered_by = "測試人員"
-        order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
+        order.status = SalesOrder.Status.COMPLETED
         order.save(
             update_fields=["delivered_at", "delivered_by", "status", "updated_at"]
         )
@@ -365,11 +377,8 @@ class OrderLifecycleTests(TestCase):
         reminders = build_dealer_reminders(date(2026, 8, 12))
         by_kind = {item["kind"]: item for item in reminders}
 
-        self.assertEqual(
-            by_kind["registration_documents"]["due_date"], date(2026, 8, 6)
-        )
+        self.assertNotIn("registration_documents", by_kind)
         self.assertEqual(by_kind["dealer_balance"]["due_date"], date(2026, 8, 12))
-        self.assertTrue(by_kind["registration_documents"]["is_overdue"])
         self.assertTrue(by_kind["dealer_balance"]["is_due"])
 
     def test_delivery_and_refund_endpoints_explain_failures(self):
@@ -381,7 +390,7 @@ class OrderLifecycleTests(TestCase):
             self.delivery_payload(),
             follow=True,
         )
-        self.assertContains(delivery, "一般訂單必須先完成領牌")
+        self.assertContains(delivery, "須先完成領牌確認才能交付")
 
         cancel = self.client.post(
             reverse("cancellation_request", args=[order.pk]),
@@ -405,7 +414,7 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(refund, "沒收金額不可超過已收 5,000 元")
 
     def test_delivery_endpoint_does_not_lock_nullable_outer_join(self):
-        order, vehicle = self.make_order(dealer=True)
+        order, vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
 
         # 這個請求在 PostgreSQL 會直接驗證 select_for_update 沒有套到
@@ -421,11 +430,11 @@ class OrderLifecycleTests(TestCase):
         )
         order.refresh_from_db()
         vehicle.refresh_from_db()
-        self.assertEqual(order.status, SalesOrder.Status.DELIVERED_DOCS_PENDING)
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
         self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)
 
     def test_delivery_endpoint_ignores_duplicate_submission(self):
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
         endpoint = reverse("delivery_complete", args=[order.pk])
 
@@ -436,7 +445,7 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(DeliveryRecord.objects.filter(order=order).count(), 1)
 
     def test_delivery_tab_renders_accessible_condition_choices_and_action_bar(self):
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
 
         response = self.client.get(
@@ -624,7 +633,7 @@ class OrderLifecycleTests(TestCase):
         self.assertFalse(installment.confirmed)
 
     def test_completed_delivery_renders_structured_summary_and_note(self):
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
         payload = self.delivery_payload(SalesOrder.DeliveryMethod.CARRIER)
         payload.update(
@@ -650,7 +659,7 @@ class OrderLifecycleTests(TestCase):
 
     def test_completed_delivery_does_not_present_other_condition_as_normal(self):
         # 舊交付紀錄仍保留並顯示當時的車況（T-74 後新紀錄不再填）。
-        order, _vehicle = self.make_order(dealer=True)
+        order, _vehicle = self.make_order(dealer=True, registered=True)
         self.client.force_login(self.user)
         payload = self.delivery_payload()
         payload.update({"note": "車主要求交車後自行調整後照鏡"})

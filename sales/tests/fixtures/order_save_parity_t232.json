@@ -703,7 +703,7 @@
    "customer_receivable_total": "75000",
    "delivery_blockers": [
     "尚未配車，不能完成交付。",
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -1469,8 +1469,10 @@
   "response": {
    "customer_balance_due": "67000",
    "customer_receivable_total": "72000",
-   "delivery_blockers": [],
-   "delivery_ready": true,
+   "delivery_blockers": [
+    "須先完成領牌確認才能交付。"
+   ],
+   "delivery_ready": false,
    "discount": {
     "after": "72000",
     "amount": "0",
@@ -2175,7 +2177,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -2571,7 +2573,7 @@
    "customer_balance_due": "76484",
    "customer_receivable_total": "81484",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -3607,7 +3609,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -3954,7 +3956,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -4313,7 +4315,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -5629,7 +5631,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {
@@ -6300,7 +6302,7 @@
    "customer_balance_due": "70000",
    "customer_receivable_total": "75000",
    "delivery_blockers": [
-    "一般訂單必須先完成領牌才能交付。"
+    "須先完成領牌確認才能交付。"
    ],
    "delivery_ready": false,
    "discount": {

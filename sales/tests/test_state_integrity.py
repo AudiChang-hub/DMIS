@@ -43,6 +43,8 @@ class StateIntegrityTests(TestCase):
         order.reallocate(second, actor_name="測試", reason="原車刮傷")
         self.assertTrue(VehicleInventoryHistory.objects.filter(vehicle=first, reason__contains="釋回此車").exists())
         self.assertTrue(VehicleInventoryHistory.objects.filter(vehicle=second, reason__contains="改配為此車；原因：原車刮傷").exists())
+        SalesOrder.objects.filter(pk=order.pk).update(registration_completed_at=timezone.now(),
+                                                      status=SalesOrder.Status.DELIVERY_PENDING)
         order.refresh_from_db()
         order.complete_delivery(timezone.now(), "測試")
         self.assertEqual(VehicleInventoryHistory.objects.filter(vehicle=second, reason__contains="完成交付").count(), 1)

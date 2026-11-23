@@ -60,6 +60,7 @@ class BusinessGateTests(TestCase):
     # M3：折扣待確認不可交車
     def test_pending_discount_blocks_delivery(self):
         order, _vehicle = self.make_order(dealer=True)
+        order = self.registered(order)
         SalesOrder.objects.filter(pk=order.pk).update(discount_status=SalesOrder.DiscountStatus.PENDING)
         order.refresh_from_db()
         with self.assertRaisesMessage(ValidationError, "折扣申請尚待確認"):
@@ -70,6 +71,7 @@ class BusinessGateTests(TestCase):
         from sales.forms import DeliveryCompletionForm
         first, _vehicle = self.make_order(dealer=True, deposit=Decimal("0"))
         first = self.v2(first)
+        first = self.registered(first, plate="ABC-1001")
         form = DeliveryCompletionForm(first, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)
         first, record = form.save("測試")
@@ -77,6 +79,7 @@ class BusinessGateTests(TestCase):
         self.assertEqual(dealer_outstanding(self.source.pk), Decimal("75000"))
         second, _vehicle = self.make_order(dealer=True, deposit=Decimal("0"))
         second = self.v2(second)
+        second = self.registered(second, plate="ABC-1002")
         self.assertEqual(second.delivery_blockers(), [])
         form = DeliveryCompletionForm(second, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)

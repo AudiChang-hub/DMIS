@@ -215,7 +215,7 @@ class InplaceUploadTests(TestCase):
         self.order.save(update_fields=["registration_date", "final_plate_number", "updated_at"])
         stale = self.detail()
         # 尚未開放時直接列出還差什麼（T-102）。
-        self.assertIn("一般訂單必須先完成領牌才能交付。", stale)
+        self.assertIn("須先完成領牌確認才能交付。", stale)
         before = self.versions()
         locations = []
         for document_type in (
@@ -243,7 +243,7 @@ class InplaceUploadTests(TestCase):
         stage = re.search(r'<section class="section-block delivery-stage" id="delivery-stage" data-inplace-region>.*?</section>', fresh, re.S)
         self.assertIsNotNone(stage)
         self.assertIn('id="delivery-completion-form"', stage.group(0))
-        self.assertNotIn("一般訂單必須先完成領牌", stage.group(0))
+        self.assertNotIn("須先完成領牌確認", stage.group(0))
         self.assertIn(f'name="_order_revision" value="{revision}"', fresh)
         if financial:
             self.assertIn(f'name="operations-financial_revision" value="{financial.isoformat()}"', fresh)

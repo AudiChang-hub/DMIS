@@ -168,15 +168,14 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(actions.primary.key, "registration")
         self.assertNotIn("dealer-early-delivery", [action.key for action in actions.secondary])
 
-    def test_dealer_can_see_early_delivery_as_parallel_action(self):
+    def test_dealer_order_requires_registration_before_delivery(self):
         order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
         order.allocate(self.make_vehicle())
 
         actions = self.build(order)
 
         self.assertEqual(actions.primary.key, "registration")
-        self.assertEqual(actions.secondary[0].key, "dealer-early-delivery")
-        self.assertIn("?tab=delivery", actions.secondary[0].url)
+        self.assertNotIn("dealer-early-delivery", [action.key for action in actions.secondary])
 
     def test_condition_issue_takes_priority(self):
         # 調車只記位置，不再有調車狀態；車況異常仍優先提示。
@@ -286,7 +285,7 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(response.context["active_tab"], "delivery")
         self.assertContains(response, 'id="tab-delivery" role="tab" aria-controls="panel-delivery" aria-selected="true"')
 
-    def test_dealer_delivered_before_registration_has_both_deadlines(self):
+    def test_legacy_docs_pending_order_asks_for_registration_without_deadline(self):
         order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
         vehicle = self.make_vehicle()
         order.allocate(vehicle)
@@ -302,8 +301,8 @@ class OrderNextActionTests(TestCase):
         actions = self.build(order)
 
         self.assertEqual(actions.primary.key, "registration")
-        self.assertEqual(actions.primary.tone, "urgent")
-        self.assertIn("2026/08/06", actions.primary.description)
+        self.assertEqual(actions.primary.tone, "primary")
+        self.assertNotIn("2026/08/06", actions.primary.description)
         # 車行尾款的七個工作天期限改由首頁車行提醒處理，車行單不進統一撥款對帳（T-96）。
         self.assertNotIn("reconciliation", [action.key for action in actions.secondary])
 

@@ -104,8 +104,7 @@ class AttentionLinkTests(FinanceLedgerTestBase):
         make("allocated", allocated_at=now - timedelta(days=29))
         stuck.append(make("delivery_pending", registration_completed_at=now - timedelta(days=8)))
         make("delivery_pending", registration_completed_at=now - timedelta(days=6))
-        stuck.append(make("delivered_docs_pending", delivered_at=now - timedelta(days=15)))
-        make("delivered_docs_pending", delivered_at=now - timedelta(days=13))
+        make("delivered_docs_pending", delivered_at=now - timedelta(days=15))
         item = self.assert_same_batch("stuck", set(stuck), self.order_ids)
         self.assertIn("attention=stuck", item["url"])
         response = self.follow(item)
@@ -287,9 +286,9 @@ class AttentionLinkTests(FinanceLedgerTestBase):
                 LegacySalesSnapshot.objects.create(order=order, import_row=row)
             return order.pk
 
-        # 尾款未確認且領牌文件未完成：同一張單兩則提醒，卡片與清單都只算一張。
-        due = {dealer_order("completed"), dealer_order("delivered_docs_pending"),
-               dealer_order("cancel_refund_pending")}
+        # 尾款未確認：卡片與清單同一批。
+        due = {dealer_order("completed"), dealer_order("completed")}
+        dealer_order("cancel_refund_pending")                       # 只靠領牌文件才到期：不提醒
         dealer_order("completed", delivered_at=timezone.now())     # 剛交車，還沒到期
         dealer_order("completed", legacy=True)                      # Excel 匯入單：不提醒
         dealer_order("completed", source_type="store")              # 本店單：不提醒

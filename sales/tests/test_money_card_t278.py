@@ -124,9 +124,10 @@ class DealerDueReminderTests(MoneyCardTestBase):
         self.dealer_order()
         response, cockpit = self.cockpit()
         item = {row["key"]: row for row in cockpit["attention"]}["dealer_due"]
-        self.assertEqual(item["label"], "車行尾款／領牌到期")
+        self.assertEqual(item["label"], "車行尾款到期")
         self.assertIn("交車後第 7 個工作天起尾款未收清", item["detail"])
-        self.assertContains(response, "交車後第 7 個工作天起尾款未收清、第 3 個工作天起領牌未完成")
+        self.assertContains(response, "交車後第 7 個工作天起尾款未收清")
+        self.assertNotContains(response, "領牌未完成")
 
 
 class PlatformOutstandingTests(MoneyCardTestBase):

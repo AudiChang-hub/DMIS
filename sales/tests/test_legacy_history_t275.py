@@ -104,12 +104,11 @@ class LegacyHistoryTests(FinanceLedgerTestBase):
 
     def test_dealer_reminders_skip_imported_orders_entirely(self):
         long_ago = timezone.now() - timedelta(days=40)
-        system, imported = self.pair("delivered_docs_pending", source_type="dealer", source=self.dealer)
+        system, imported = self.pair("completed", source_type="dealer", source=self.dealer)
         SalesOrder.all_objects.filter(pk__in=[system.pk, imported.pk]).update(delivered_at=long_ago)
         reminders = build_dealer_reminders(self.today)
         kinds = {(item["order"].pk, item["kind"]) for item in reminders}
         self.assertIn((system.pk, "dealer_balance"), kinds)
-        self.assertIn((system.pk, "registration_documents"), kinds)
         self.assertFalse({pk for pk, _kind in kinds} & {imported.pk})
 
     # ── Excel 匯入已修改（使用者 2026-11-21：匯入後有人改過也算已完成，處理同其他匯入單）──

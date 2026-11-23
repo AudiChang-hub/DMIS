@@ -4159,7 +4159,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response["Pragma"], "no-cache")
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
-    def test_dealer_order_can_deliver_before_registration(self):
+    def test_dealer_order_cannot_deliver_before_registration(self):
         order = self.make_order()
         self.assertFalse(order.can_deliver)
 
@@ -4168,7 +4168,7 @@ class OrderFlowTests(TestCase):
         )
         order.refresh_from_db()
 
-        self.assertTrue(order.can_deliver)
+        self.assertFalse(order.can_deliver)
 
     def test_same_vehicle_cannot_allocate_twice(self):
         first = self.make_order(signed=True)

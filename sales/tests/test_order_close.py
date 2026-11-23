@@ -1,6 +1,7 @@
 """1.80.0：已交車→已結案改由人員確認；補助只分未申請／已申請；網路平台訂單不帶車價。"""
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.models import OrderEvent, SalesOrder, SalesSource, SubsidyItem
 from sales.services import order_tabs
@@ -27,7 +28,8 @@ class OrderCloseTests(TestCase):
 
     def test_delivered_order_stays_delivered_until_someone_closes_it(self):
         order = self.create_order()
-        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.COMPLETED)
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.COMPLETED,
+                                                      registration_completed_at=timezone.now())
         self.assertIn(order.number, self.tab_numbers("delivered"))
         self.assertNotIn(order.number, self.tab_numbers("closed"))
         order.refresh_from_db()
@@ -51,7 +53,7 @@ class OrderCloseTests(TestCase):
         # 使用者 2026-10-15：按了就給過，不檢查文件或補助。
         order = self.create_order()
         SalesOrder.objects.filter(pk=order.pk).update(
-            status=SalesOrder.Status.DELIVERED_DOCS_PENDING, is_trade_in_subsidy=True,
+            status=SalesOrder.Status.COMPLETED, registration_completed_at=timezone.now(), is_trade_in_subsidy=True,
         )
         SubsidyItem.objects.create(order=order, category=SubsidyItem.Category.LOCAL, item_name="汰舊", expected_amount=1000)
         self.client.post(reverse("order_close", args=[order.pk]))

@@ -47,7 +47,7 @@ class OrderListFilterT233Tests(TestCase):
     def test_removed_filters_still_work_from_links_and_survive_resubmit(self):
         cases = {
             "risk=outstanding": ("risk", "outstanding", "收款風險「待收款」"),
-            "attention=dealer": ("attention", "dealer", "作業提醒「車行尾款／領牌到期」"),
+            "attention=dealer": ("attention", "dealer", "作業提醒「車行尾款到期」"),
             "attention=fees": ("attention", "fees", "作業提醒「牌險金額差異待確認」"),
             "date_basis=established": ("date_basis", "established", "日期依據「訂單成立日期」"),
             "business_only=1": ("business_only", "1", "成交範圍「排除取消／退款」"),

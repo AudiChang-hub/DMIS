@@ -1616,9 +1616,9 @@
     "default": "每張套用此方案的訂單都先帶入這個預估金額。",
     "template": "sales/forms.py"
   },
-  "field_help.3b1ce27bc66d": {
+  "field_help.d3ea4147e024": {
     "page": "欄位提示說明",
-    "default": "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，不會再重複列入淨利獎勵。",
+    "default": "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，會隨車價收入計入淨利，不要再填到獎勵與補助。",
     "template": "sales/forms.py"
   },
   "field_help.6c2197e284a1": {

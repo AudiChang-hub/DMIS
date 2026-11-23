@@ -13,7 +13,8 @@ from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
-from sales.models import Store
+from sales.models import IncentiveCampaign, PaymentRecord, SalesOrder, Store, VehicleInventory
+from sales.reporting.payout_models import DealerPayoutEntry
 
 ORDER = ["現在好不好", "需要處理", "訂單流程", "錢", "貨", "油電領牌", "結構變化", "車型貢獻",
          "台數獎金進度", "原廠獎勵", "資料可信度"]
@@ -47,15 +48,25 @@ class OperationsLayoutTests(TestCase):
             start = html.index(f'aria-labelledby="{title}"')
             self.assertFalse(any(start in range(html.index(row), html.index(row) + len(row)) for row in rows), title)
 
+    def clear_page(self):
+        """一定沒有待處理事項的資料：沒有訂單、庫存、收款與車行給付；唯一可能由 migration 帶進來的
+        原廠獎勵全部停用。refresh=1 不讀快取。"""
+        IncentiveCampaign.objects.update(active=False)
+        for model in (SalesOrder, VehicleInventory, PaymentRecord, DealerPayoutEntry):
+            self.assertFalse(model.objects.exists(), model.__name__)
+        response = self.client.get(reverse("operations_report"), {"refresh": 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["cockpit"]["attention"], [])
+        return response, response.content.decode()
+
     def test_attention_collapses_to_one_line_when_clear(self):
-        response, html = self.page()
-        if response.context["cockpit"]["attention"]:
-            self.skipTest("示範資料有待處理事項")
+        response, html = self.clear_page()
         self.assertIn('class="ops-card ops-attention is-clear"', html)
-        self.assertIn('<p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span>'
-                      '<strong>目前沒有需要處理的事</strong>', html)
         clear = "、".join(response.context["cockpit"]["attention_clear"])
-        self.assertIn(f"<small>目前沒有：{clear}</small></p>", html)
+        self.assertIn("已收款待確認", clear)
+        # 同一行（同一個 <p>）裡同時有狀態和「目前沒有：…」清單。
+        self.assertIn('<p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span>'
+                      f'<strong>目前沒有需要處理的事</strong><small>目前沒有：{clear}</small></p>', html)
         self.assertNotIn("收款、撥款、庫存與流程都在正常範圍內。", html)
         self.assertNotIn('class="ops-clear"', html)
         self.assertNotIn("紅色優先，同色依金額與件數排序", html)

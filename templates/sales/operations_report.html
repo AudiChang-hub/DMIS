@@ -113,7 +113,7 @@
         <tbody>{% for row in c.reconciliation.channels %}<tr>
           <th scope="row">{{ row.label }}</th>
           <td>{% if c.links.reconciliation_list and row.pending %}<a aria-label="{{ row.label }} {{ row.pending }} 張，到對帳頁" href="{% url 'reconciliation_list' %}?status=pending&amp;by_order=1&amp;channel={{ row.key }}">{{ row.pending }} 張</a>{% else %}{{ row.pending }} 張{% endif %}</td>
-          {% if c.flags.operations %}<td>{% if row.expected %}{% if row.estimated %}約 {% endif %}${{ row.expected|number_with_commas }}{% else %}<span class="ops-money__nil">—</span>{% endif %}</td>{% endif %}
+          {% if c.flags.operations %}<td>{% if row.expected %}{% if row.estimated %}約 {% endif %}${{ row.expected|number_with_commas }}{% else %}<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">沒有預計金額</span>{% endif %}</td>{% endif %}
         </tr>{% if not row.matches %}<tr class="ops-money__gap-row"><td colspan="{% if c.flags.operations %}3{% else %}2{% endif %}"><span class="ops-facts__gap" data-recon-gap>對帳佇列{% if row.gap.count %}{% if row.gap.count_more %}多{% else %}少{% endif %} {{ row.gap.count }} 張{% endif %}{% if row.gap.count and row.gap.amount %}、{% endif %}{% if row.gap.amount %}金額{% if row.gap.amount_more %}多{% else %}少{% endif %} ${{ row.gap.amount|number_with_commas }}{% endif %}，到對帳頁核對</span></td></tr>{% endif %}{% endfor %}</tbody>
       </table>
       <details class="ops-money__how"><summary>怎麼算的 <span class="ops-money__i" aria-hidden="true">ⓘ</span></summary><div class="ops-money__how-body">

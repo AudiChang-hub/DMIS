@@ -71,6 +71,15 @@ class OperationsLayoutTests(TestCase):
         self.assertNotIn('class="ops-clear"', html)
         self.assertNotIn("紅色優先，同色依金額與件數排序", html)
 
+    def test_reconciliation_dash_has_screen_reader_text(self):
+        response, html = self.clear_page()
+        channels = response.context["cockpit"]["reconciliation"]["channels"]
+        self.assertTrue(channels)
+        self.assertTrue(all(not row["expected"] for row in channels))
+        cell = '<span class="ops-money__nil" aria-hidden="true">—</span><span class="ops-visually-hidden">沒有預計金額</span>'
+        self.assertEqual(html.count(cell), len(channels))
+        self.assertNotIn('<span class="ops-money__nil">—</span>', html)
+
 
 class OperationsLayoutStylesTests(SimpleTestCase):
     def setUp(self):

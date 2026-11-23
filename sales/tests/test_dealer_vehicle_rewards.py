@@ -82,11 +82,13 @@ class DealerVehicleRewardTests(TestCase):
         self.assertNotContains(response, "批次套用到多個年式")
 
     def test_commission_save_does_not_change_reward_campaign(self):
+        # T-286：基礎傭金改在「車行傭金與銷售獎勵」逐列設定。
         campaign = self.make_campaign(("physical", "機油", 1, "瓶"))
-        response = self.client.post(self.url, {
-            "action": "save_commission", "base_dealer_commission": "1800"
+        programs = reverse("dealer_sales_program_list")
+        response = self.client.post(programs, {
+            "vehicle_model": self.model.pk, "base_dealer_commission": "1800"
         })
-        self.assertRedirects(response, f"{self.url}#cash-commission")
+        self.assertRedirects(response, f"{programs}#program-{self.model.pk}")
         self.model.refresh_from_db()
         self.assertEqual(self.model.base_dealer_commission, Decimal("1800"))
         self.assertEqual(campaign.items.get().name, "機油")
@@ -130,8 +132,10 @@ class DealerVehicleRewardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "車行傭金與銷售獎勵")
         self.assertContains(response, "全合成機油 2 瓶")
-        self.assertContains(response, reverse("vehicle_model_commission", args=[self.model.pk]))
-        self.assertContains(response, reverse("vehicle_model_commission", args=[other_model.pk]))
+        # T-286：每列在本頁設定基礎傭金，不再連到機種工作區。
+        self.assertContains(response, f'id="program-{self.model.pk}"')
+        self.assertContains(response, f'id="commission-form-{other_model.pk}"')
+        self.assertNotContains(response, reverse("vehicle_model_commission", args=[self.model.pk]))
         self.assertNotContains(response, "歷史停用車型")
         self.assertContains(response, "啟用中車型")
         self.assertContains(response, "已停用車型")
@@ -144,10 +148,7 @@ class DealerVehicleRewardTests(TestCase):
         inactive = self.client.get(url, {"status": "inactive"})
         self.assertContains(inactive, "歷史停用車型")
         self.assertNotContains(inactive, "獎勵測試車")
-        self.assertContains(
-            inactive,
-            reverse("vehicle_model_commission", args=[inactive_model.pk]),
-        )
+        self.assertContains(inactive, f'id="commission-form-{inactive_model.pk}"')
 
         preserved = self.client.get(url, {"status": "active", "brand": "SUZUKI"})
         self.assertContains(preserved, "?status=inactive&amp;brand=SUZUKI")

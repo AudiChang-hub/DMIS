@@ -311,10 +311,6 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         self.assertEqual(form.initial["cash_price"], 70000)
         self.assertEqual(form.initial["effective_from"], self.day + timedelta(days=1))  # 已排定版本的隔天
 
-    def test_cost_form_prefills(self):
-        cost = self.client.get(reverse("vehicle_model_settlement_costs", args=[self.model.pk])).context["form"]
-        self.assertEqual((cost.initial["amount"], cost.initial["effective_from"]), (56000, self.today))
-
     def test_installment_form_prefills_options_and_saves_them(self):
         response = self.client.get(reverse("vehicle_installment_plan_list", args=[self.model.pk]))
         formset = response.context["option_formset"]

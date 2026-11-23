@@ -9003,8 +9003,43 @@ def vehicle_model_list(request):
     )
 
 
+PROGRAM_LIST_QUERY_KEYS = ("q", "brand", "energy_type", "reward", "status", "page")
+
+
+def _save_base_dealer_commission(request):
+    """「車行傭金與銷售獎勵」逐列設定車行基礎傭金（T-286，原機種工作區的寫入）：無版本、儲存即生效。
+
+    權限由路由把關：POST 需要「車行傭金與銷售獎勵」的操作權限。
+    """
+    from django.http import QueryDict
+    from urllib.parse import urlencode
+
+    model_id = request.POST.get("vehicle_model", "")
+    if not model_id.isdigit():
+        raise Http404
+    vehicle_model = get_object_or_404(VehicleModel, pk=int(model_id))
+    # 只保留清單本身的篩選條件，送出後回到同一頁、同一列。
+    returned = QueryDict(request.POST.get("return_query", "")[:500])
+    query = urlencode([(key, returned[key][:100]) for key in PROGRAM_LIST_QUERY_KEYS if returned.get(key)])
+    form = VehicleModelCommissionForm(request.POST)
+    label = str(vehicle_model)
+    if form.is_valid():
+        vehicle_model.base_dealer_commission = form.cleaned_data["base_dealer_commission"]
+        vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
+        messages.success(request, f"{label} 的車行基礎傭金已更新為 ${vehicle_model.base_dealer_commission:,.0f}。")
+    else:
+        errors = [error for field_errors in form.errors.values() for error in field_errors]
+        messages.error(request, f"{label} 的車行基礎傭金未更新：{'；'.join(errors)}")
+    return redirect(f"{reverse('dealer_sales_program_list')}{'?' + query if query else ''}#program-{vehicle_model.pk}")
+
+
 @login_required
+@require_http_methods(["GET", "HEAD", "POST"])
 def dealer_sales_program_list(request):
+    from .access.services import policy_for
+
+    if request.method == "POST":
+        return _save_base_dealer_commission(request)
     keyword = request.GET.get("q", "").strip()
     brand = request.GET.get("brand", "").strip()
     energy_type = request.GET.get("energy_type", "").strip()
@@ -9090,6 +9125,8 @@ def dealer_sales_program_list(request):
             "brand_choices": brand_choices,
             "energy_types": VehicleModel.EnergyType.choices,
             "status_urls": status_urls,
+            "can_edit_commission": policy_for(request).route("dealer_sales_program_list", "POST"),
+            "return_query": request.GET.urlencode(),
             "vehicle_status_counts": {
                 "active": VehicleModel.objects.filter(active=True).count(),
                 "inactive": VehicleModel.objects.filter(active=False).count(),
@@ -9736,86 +9773,33 @@ def _delete_settlement_cost_rule(request, rules, pk):
         messages.success(request, f"已刪除未使用的成本規則：{label}")
 
 
-def _lock_rule_form_to_model(form, vehicle_model):
-    """機種工作區的版本一律屬於目前機種：欄位停用後忽略送出的值，停用機種也能設定。"""
-    field = form.fields["vehicle_model"]
-    field.queryset = VehicleModel.objects.filter(pk=vehicle_model.pk)
-    field.disabled = True
-    form.initial["vehicle_model"] = vehicle_model.pk
-    return form
+def _model_search_query(vehicle_model, **extra):
+    """專屬設定頁的搜尋條件（T-286）：用型號帶入本機種；沒有型號時用車名。"""
+    from urllib.parse import urlencode
+
+    return urlencode({"q": vehicle_model.model_number or vehicle_model.name, **extra})
 
 
-def _requested_pk(value):
-    if not value:
-        return None
-    if not str(value).isdigit():
-        raise Http404
-    return int(value)
-
-
-def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, delete_rule, url_name,
-                            template, noun, dataset):
-    """結算成本與原廠獎勵分頁：只列本機種的版本，建立、修改、刪除後回到同一分頁。"""
+@login_required
+@require_http_methods(["GET", "HEAD"])
+def vehicle_model_settlement_costs(request, model_pk):
+    """機種工作區「結算成本」分頁（T-286 改唯讀）：只列本機種的版本；新增、修改、停用在「車輛結算成本」設定。"""
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
-    rules = getattr(vehicle_model, related_name).order_by("-effective_from", "-id")
-    tab_url = reverse(url_name, args=[vehicle_model.pk])
-    requested = _requested_pk(
-        request.POST.get("rule_id") if request.method == "POST" else request.GET.get("edit")
-    )
-    if request.method == "POST" and request.POST.get("action") == "delete":
-        if requested is None:
-            raise Http404
-        with transaction.atomic():
-            delete_rule(request, rules, requested)
-        return redirect(tab_url)
-    editing = get_object_or_404(rules, pk=requested) if requested else None
-    prefill_initial, prefill_version = (None, None)
-    if request.method != "POST" and not editing:
-        # 新增版本預填目前有效版本的金額，生效日預設今天，只需修改差異。
-        prefill_initial, prefill_version = vehicle_model_copy.prefill_initial(dataset, vehicle_model.pk)
-    form = form_class(
-        request.POST if request.method == "POST" else None,
-        instance=editing or rules.model(vehicle_model=vehicle_model),
-        initial=prefill_initial,
-    )
-    _lock_rule_form_to_model(form, vehicle_model)
-    if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            rule = form.save()
-        messages.success(
-            request,
-            f"已{'更新' if editing else '建立'}{noun}：{rule.effective_from:%Y/%m/%d} 起",
-        )
-        return redirect(tab_url if rule.active else f"{tab_url}?status=inactive")
-    rule_rows = list(rules)
+    rule_rows = list(vehicle_model.settlement_cost_rules.order_by("-effective_from", "-id"))
     for rule in rule_rows:
         rule.display_status, rule.display_status_label = rule.lifecycle_status
-    # 歷史版本分「啟用中／已停用」頁籤（T-209）；版面判斷仍看全部版本。
+    # 歷史版本分「啟用中／已停用」頁籤（T-209）。
     status = requested_status(request.GET)
-    return render(request, template, {
+    return render(request, "sales/vehicle_model_settlement_costs.html", {
         "vehicle_model": vehicle_model,
         "rules": rule_rows,
         "listed_rules": [rule for rule in rule_rows if rule.active == (status == "active")],
         "status_tabs": status_tabs(request, status, item_status_counts(rule_rows)),
-        "form": form,
-        "editing": editing,
-        "tab_url": tab_url,
-        "prefill_version": prefill_version,
+        "cost_list_url": "{}?{}".format(
+            reverse("settlement_cost_rule_list"),
+            _model_search_query(vehicle_model, **({"status": "inactive"} if status == "inactive" else {})),
+        ),
     })
-
-
-@login_required
-def vehicle_model_settlement_costs(request, model_pk):
-    return _vehicle_model_rule_tab(
-        request, model_pk,
-        related_name="settlement_cost_rules",
-        form_class=VehicleSettlementCostRuleForm,
-        delete_rule=_delete_settlement_cost_rule,
-        url_name="vehicle_model_settlement_costs",
-        template="sales/vehicle_model_settlement_costs.html",
-        noun="成本版本",
-        dataset="cost",
-    )
 
 
 
@@ -10019,32 +10003,27 @@ def vehicle_model_price_versions(request, model_pk):
     )
 
 
+def commission_program_url(vehicle_model):
+    """專屬頁「車行傭金與銷售獎勵」上本機種那一列（T-286）。"""
+    query = _model_search_query(vehicle_model, **({} if vehicle_model.active else {"status": "inactive"}))
+    return f"{reverse('dealer_sales_program_list')}?{query}#program-{vehicle_model.pk}"
+
+
 @login_required
+@require_http_methods(["GET", "HEAD"])
 def vehicle_model_commission(request, model_pk):
-    """機種工作區「傭金與獎勵」：編輯車行基礎傭金；附加獎勵改為車行獎勵活動（T-149），這裡唯讀列出適用的活動。"""
+    """機種工作區「傭金與獎勵」（T-286 改唯讀）：基礎傭金在「車行傭金與銷售獎勵」設定，車行獎勵活動在活動頁設定。"""
     from .campaign_views import workspace_reward_campaigns
 
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
-    form = VehicleModelCommissionForm(
-        request.POST if request.method == "POST" else None,
-        initial={"base_dealer_commission": vehicle_model.base_dealer_commission},
-    )
-    from_programs = (request.POST if request.method == "POST" else request.GET).get("from") == "programs"
-    tab_url = reverse("vehicle_model_commission", args=[vehicle_model.pk])
-    entry_query = "from=programs" if from_programs else ""
-    if request.method == "POST" and form.is_valid():
-        vehicle_model.base_dealer_commission = form.cleaned_data["base_dealer_commission"]
-        vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
-        messages.success(request, "車行基礎傭金已更新。")
-        return redirect(f"{tab_url}{'?' + entry_query if entry_query else ''}#cash-commission")
+    from_programs = request.GET.get("from") == "programs"
     return render(
         request,
         "sales/vehicle_model_commission.html",
         {
             "vehicle_model": vehicle_model,
-            "form": form,
             "reward_campaigns": workspace_reward_campaigns(vehicle_model),
-            "entry_query": entry_query,
+            "program_url": commission_program_url(vehicle_model),
             "workspace_back": (
                 (reverse("dealer_sales_program_list"), "車行傭金與銷售獎勵")
                 if from_programs

@@ -205,49 +205,6 @@ class VehicleModelWorkspaceTests(TestCase):
         })
         self.assertRedirects(response, self.tab_url("規格與車色"), fetch_redirect_response=False)
 
-    def cost_payload(self, **extra):
-        return {"action": "save", "vehicle_model": self.other.pk, "amount": "52000", "announced_on": "2026-09-01",
-                "effective_from": "2026-09-01", "effective_to": "", "note": "", "active": "on", **extra}
-
-    def test_cost_tab_creates_for_this_model_even_if_post_names_another(self):
-        url = self.tab_url("結算成本")
-        response = self.client.post(url, self.cost_payload())
-        self.assertRedirects(response, url, fetch_redirect_response=False)
-        rule = VehicleSettlementCostRule.objects.get()
-        self.assertEqual(rule.vehicle_model, self.model)
-        self.assertEqual(rule.amount, Decimal("52000"))
-        page = self.client.get(url)
-        self.assertContains(page, "$52000")
-        self.assertNotContains(page, 'name="vehicle_model"')
-
-    def test_cost_tab_edit_and_delete_stay_in_tab(self):
-        url = self.tab_url("結算成本")
-        rule = VehicleSettlementCostRule.objects.create(
-            vehicle_model=self.model, amount=50000, effective_from=date(2026, 1, 1))
-        foreign = VehicleSettlementCostRule.objects.create(
-            vehicle_model=self.other, amount=1, effective_from=date(2026, 1, 1))
-        self.assertContains(self.client.get(url, {"edit": rule.pk}), "編輯 2026/01/01 版本")
-        self.assertEqual(self.client.get(url, {"edit": foreign.pk}).status_code, 404)
-        self.assertEqual(self.client.get(url, {"edit": "abc"}).status_code, 404)
-
-        response = self.client.post(url, self.cost_payload(rule_id=rule.pk, amount="51000", effective_from="2026-01-01"))
-        self.assertRedirects(response, url, fetch_redirect_response=False)
-        rule.refresh_from_db()
-        self.assertEqual((rule.amount, rule.vehicle_model_id), (Decimal("51000"), self.model.pk))
-
-        self.assertEqual(self.client.post(url, {"action": "delete", "rule_id": foreign.pk}).status_code, 404)
-        response = self.client.post(url, {"action": "delete", "rule_id": rule.pk})
-        self.assertRedirects(response, url, fetch_redirect_response=False)
-        self.assertFalse(VehicleSettlementCostRule.objects.filter(pk=rule.pk).exists())
-        self.assertTrue(VehicleSettlementCostRule.objects.filter(pk=foreign.pk).exists())
-
-    def test_cost_tab_reports_duplicate_start_date_as_form_error(self):
-        VehicleSettlementCostRule.objects.create(vehicle_model=self.model, amount=1, effective_from=date(2026, 9, 1))
-        response = self.client.post(self.tab_url("結算成本"), self.cost_payload())
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(VehicleSettlementCostRule.objects.count(), 1)
-        self.assertTrue(response.context["form"].errors)
-
     def test_incentive_tab_lists_campaigns_covering_model_read_only(self):
         """原廠獎勵改為活動制（T-149）：分頁唯讀列出涵蓋本年式的活動，新增時預先指定本年式。"""
         from sales.models import IncentiveCampaign
@@ -266,11 +223,19 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertEqual(self.client.post(url, {"action": "save"}).status_code, 405)
 
     def test_inactive_model_can_still_receive_cost_versions(self):
+        """T-286：工作區唯讀後，停用機種的成本版本在「車輛結算成本」專屬頁新增與修改。"""
         self.model.active = False
         self.model.save()
-        url = self.tab_url("結算成本")
-        self.assertRedirects(self.client.post(url, self.cost_payload()), url, fetch_redirect_response=False)
-        self.assertEqual(VehicleSettlementCostRule.objects.get().vehicle_model, self.model)
+        payload = {"vehicle_model": self.model.pk, "amount": "52000", "announced_on": "2026-09-01",
+                   "effective_from": "2026-09-01", "effective_to": "", "note": "", "active": "on"}
+        response = self.client.post(reverse("settlement_cost_rule_create"), payload)
+        self.assertRedirects(response, reverse("settlement_cost_rule_list"), fetch_redirect_response=False)
+        rule = VehicleSettlementCostRule.objects.get()
+        self.assertEqual((rule.vehicle_model, rule.amount), (self.model, Decimal("52000")))
+        response = self.client.post(reverse("settlement_cost_rule_edit", args=[rule.pk]), {**payload, "amount": "53000"})
+        self.assertRedirects(response, reverse("settlement_cost_rule_list"), fetch_redirect_response=False)
+        rule.refresh_from_db()
+        self.assertEqual((rule.vehicle_model, rule.amount), (self.model, Decimal("53000")))
 
     def test_existing_tab_posts_return_to_their_tab(self):
         price_url = self.tab_url("售價")
@@ -282,11 +247,6 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertTrue(VehiclePriceVersion.objects.filter(vehicle_model=self.model).exists())
 
         commission_url = self.tab_url("傭金與獎勵")
-        response = self.client.post(commission_url, {"action": "save_commission", "base_dealer_commission": "1200"})
-        self.assertEqual(response["Location"], f"{commission_url}#cash-commission")
-        response = self.client.post(commission_url, {"action": "save_commission", "base_dealer_commission": "1300",
-                                                     "from": "programs"})
-        self.assertEqual(response["Location"], f"{commission_url}?from=programs#cash-commission")
         back = self.client.get(commission_url, {"from": "programs"})
         self.assertContains(back, f'href="{reverse("dealer_sales_program_list")}"')
         self.assertContains(back, "回到車行傭金與銷售獎勵")
@@ -310,9 +270,11 @@ class VehicleModelWorkspaceTests(TestCase):
         response = self.client.post(catalog_url, {"expected_revision": 0, "description": "介紹", "position": 0})
         self.assertRedirects(response, catalog_url, fetch_redirect_response=False)
 
-    def test_program_list_enters_commission_tab_with_return_path(self):
+    def test_program_list_edits_commission_on_its_own_page(self):
+        """T-286：「車行傭金與銷售獎勵」逐列設定基礎傭金，不再連回機種工作區。"""
         response = self.client.get(reverse("dealer_sales_program_list"))
-        self.assertContains(response, f'{self.tab_url("傭金與獎勵")}?from=programs')
+        self.assertNotContains(response, self.tab_url("傭金與獎勵"))
+        self.assertContains(response, f'id="commission-form-{self.model.pk}"')
 
     def test_rules_tab_lists_only_rules_that_apply_to_this_model(self):
         BrandRegistrationFeeRule.objects.create(

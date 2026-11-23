@@ -22,6 +22,9 @@
 .dealer-program-directory__summary span { color: var(--muted); font-size: var(--text-sm); }
 .dealer-program-directory-table th:nth-child(1) { width: 20%; }
 .dealer-program-directory-table th:nth-child(4) { width: 30%; }
+/* T-286：基礎傭金在本頁逐列設定；送出後回到同一列。 */
+.dealer-program-directory-table tr[id] { scroll-margin-top: 150px; }
+.dealer-program-directory-table input.dealer-program-commission-input { inline-size: 100%; max-inline-size: 168px; margin-bottom: var(--space-1); }
 .dealer-program-reward-cell { display: grid; gap: var(--space-1); }
 .dealer-program-reward-cell .reward-state { display: inline-flex; }
 .dealer-program-reward-cell > strong { margin-top: 2px; }
@@ -36,4 +39,6 @@
   .master-filters.dealer-program-filters { grid-template-columns: 1fr 1fr; }
   .dealer-program-filters .master-search,
   .dealer-program-filters .inventory-filter-actions { grid-column: 1 / -1; }
+  .dealer-program-directory-table .inventory-row-action form { flex: 1; }
+  .dealer-program-directory-table input.dealer-program-commission-input { max-inline-size: none; }
 }

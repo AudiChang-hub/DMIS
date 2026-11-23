@@ -3202,13 +3202,14 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
-            active=True
-        ).order_by("brand", "name", "-model_year")
+        # T-286：機種工作區改唯讀後，停用機種的成本版本也在這裡設定；停用的排在後面並標「（停用）」。
+        self.fields["vehicle_model"].queryset = VehicleModel.objects.order_by(
+            "-active", "brand", "name", "-model_year"
+        )
         self.fields["vehicle_model"].label = "機種／型號／年份"
         self.fields["vehicle_model"].label_from_instance = lambda vehicle: (
             f"{vehicle.name}／{vehicle.model_number or '型號待補'}／"
-            f"{vehicle.model_year or '年份待補'}"
+            f"{vehicle.model_year or '年份待補'}{'' if vehicle.active else '（停用）'}"
         )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")

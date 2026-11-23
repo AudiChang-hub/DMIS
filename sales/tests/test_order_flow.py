@@ -6041,11 +6041,12 @@ class OrderOperationsTests(TestCase):
 
     def test_vehicle_model_commission_is_maintained_separately(self):
         self.client.force_login(self.user)
-        url = reverse("vehicle_model_commission", args=[self.model.pk])
+        # T-286：基礎傭金改在「車行傭金與銷售獎勵」逐列設定；機種工作區只顯示。
+        url = reverse("dealer_sales_program_list")
 
-        response = self.client.post(url, {"base_dealer_commission": "1500"})
+        response = self.client.post(url, {"vehicle_model": self.model.pk, "base_dealer_commission": "1500"})
 
-        self.assertRedirects(response, f"{url}#cash-commission")
+        self.assertRedirects(response, f"{url}#program-{self.model.pk}")
         self.model.refresh_from_db()
         self.assertEqual(self.model.base_dealer_commission, Decimal("1500"))
 

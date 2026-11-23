@@ -90,6 +90,7 @@
    機種的各項設定共用 `sales/_vehicle_model_workspace.html`（頁首＋分頁列取代標準頁首與返回列，
    樣式在 `static/css/vehicle-model-workspace.css`，頁面以 `_vehicle_model_workspace_head.html` 載入）；
    新增機種相關設定頁時加入此工作區，送出後導回同一分頁。
+   「傭金與獎勵」「結算成本」「原廠獎勵與補助」三個分頁只顯示、不收 POST，設定在各自的專屬頁（T-286）。
 4. **內容**：`section-block`／`card` 區塊；清單頁用 `inventory-filters` 篩選列、
    `inventory-list-panel` 與分頁 `{% pagination %}`。
 5. **間距**：頁面層區塊（卡片、篩選列、分頁列、狀態列）之間一律 `--stack-gap`；卡片內距 `--card-pad`，

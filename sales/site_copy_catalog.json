@@ -1503,7 +1503,7 @@
   },
   "vehicle_model_commission.28c0856d271d": {
     "page": "車行傭金與銷售獎勵",
-    "default": "此頁已綁定目前車型。基礎傭金在此設定；實物、紅包、禮券與點數由車行獎勵活動依領牌日套用。",
+    "default": "這裡只顯示目前車型的設定。基礎傭金在「車行傭金與銷售獎勵」設定；實物、紅包、禮券與點數由車行獎勵活動依領牌日套用。",
     "template": "templates/sales/vehicle_model_commission.html"
   },
   "vehicle_model_commission.6234fe3bef5e": {

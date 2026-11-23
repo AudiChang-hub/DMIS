@@ -4,10 +4,11 @@
 {% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-models.css' %}">{% include "sales/_vehicle_model_workspace_head.html" %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}">{% endblock %}
 {% block content %}
 {% include "sales/_vehicle_model_workspace.html" with workspace_tab="incentives" %}
+{# T-286：工作區只顯示；活動的新增與編輯都連到「原廠獎勵與補助」。 #}
 <header class="model-workspace-intro">
-  <div><h2>原廠獎勵與補助</h2><p class="muted">在「原廠獎勵與補助」設定活動（項目列、車型、通路與車行）。這裡列出條件涵蓋本年式的活動，訂單依實際領牌日套用；指定車行的活動只給名單內的車行。</p></div>
+  <div><h2>原廠獎勵與補助</h2><p class="muted">在「原廠獎勵與補助」設定活動（項目列、車型、通路與車行）。這裡只顯示條件涵蓋本年式的活動，訂單依實際領牌日套用；指定車行的活動只給名單內的車行。</p></div>
   <div class="hero-actions">
-    {% if_access 'incentive_rule_list' %}<a class="button ghost" href="{% url 'incentive_rule_list' %}">查看全部活動</a>{% endif_access %}
+    {% if_access 'incentive_rule_list' %}<a class="button ghost" href="{% url 'incentive_rule_list' %}">到「原廠獎勵與補助」設定</a>{% endif_access %}
     {% if_access 'incentive_campaign_create' %}<a class="button primary" href="{% url 'incentive_campaign_create' %}?model={{ vehicle_model.pk }}">＋ 新增本年式活動</a>{% endif_access %}
   </div>
 </header>

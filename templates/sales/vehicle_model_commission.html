@@ -8,16 +8,21 @@
   <div><h2>車行傭金與銷售獎勵</h2><p class="muted">{% site_text 'vehicle_model_commission.28c0856d271d' %}</p></div>
 </header>
 
+{# T-286：工作區只顯示；基礎傭金在「車行傭金與銷售獎勵」逐列設定。 #}
 <section id="cash-commission" class="card commission-editor-card dealer-program-section">
   <div class="commission-editor-card__intro"><span class="vehicle-business-card__icon">佣</span><div><p class="eyebrow">現金</p><h2>車行基礎傭金</h2><p>{% site_text 'vehicle_model_commission.6234fe3bef5e' %}</p></div></div>
-  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save_commission">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}{% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}<div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions"><button class="button primary" type="submit">套用基礎傭金</button></div></form>
+  <dl class="price-version-values">
+    <div><dt>每台基礎傭金</dt><dd>${{ vehicle_model.base_dealer_commission|floatformat:0 }}</dd></div>
+    <div><dt>生效方式</dt><dd>沒有版本，設定後立即生效</dd></div>
+  </dl>
+  <div class="form-actions"><a class="button ghost" href="{{ program_url }}">到「車行傭金與銷售獎勵」設定</a></div>
 </section>
 
 <section id="dealer-rewards" class="card campaign-section" aria-labelledby="workspace-reward-title">
   <header class="campaign-section__heading">
-    <div><p class="eyebrow">實物、紅包、禮券與點數</p><h2 id="workspace-reward-title">車行獎勵活動</h2><p class="muted">已改為活動制：在「車行獎勵活動」設定適用車行、品牌、能源別或年式與期間，依實際領牌日套用。這裡列出條件涵蓋本年式的活動。</p></div>
+    <div><p class="eyebrow">實物、紅包、禮券與點數</p><h2 id="workspace-reward-title">車行獎勵活動</h2><p class="muted">已改為活動制：在「車行獎勵活動」設定適用車行、品牌、能源別或年式與期間，依實際領牌日套用。這裡只顯示條件涵蓋本年式的活動。</p></div>
     <div class="campaign-section__actions">
-      {% if_access 'dealer_reward_campaign_list' %}<a class="button ghost small" href="{% url 'dealer_reward_campaign_list' %}">查看全部活動</a>{% endif_access %}
+      {% if_access 'dealer_reward_campaign_list' %}<a class="button ghost small" href="{% url 'dealer_reward_campaign_list' %}">到「車行獎勵活動」設定</a>{% endif_access %}
       {% if_access 'dealer_reward_campaign_create' %}<a class="button primary small" href="{% url 'dealer_reward_campaign_create' %}?model={{ vehicle_model.pk }}">＋ 新增本年式活動</a>{% endif_access %}
     </div>
   </header>

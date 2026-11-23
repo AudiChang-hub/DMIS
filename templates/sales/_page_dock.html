@@ -1,0 +1,5 @@
+{% comment %}
+右下角懸浮鈕（T-297）：往下捲超過一個畫面才出現（page-dock.js），列印隱藏。
+「← 來源名稱」與左上角返回列同一組網址與名稱（page_dock_source 記下），一般連結、不用瀏覽器上一頁。
+{% endcomment %}<nav class="page-dock" aria-label="快速移動" data-page-dock>{% if dock_source %}<a class="page-dock__button page-dock__back" href="{{ dock_source.url }}" data-return-to aria-label="回到{{ dock_source.label }}"><span class="page-dock__arrow" aria-hidden="true">←</span><span class="page-dock__label">{{ dock_source.label }}</span></a>{% endif %}<button class="page-dock__button page-dock__top" type="button" aria-label="回到頁面頂端" title="回到頁面頂端" data-page-dock-top><span class="page-dock__arrow" aria-hidden="true">↑</span></button></nav>
+<div class="page-dock-spacer" aria-hidden="true" data-page-dock-spacer hidden></div>

@@ -2,6 +2,7 @@
 頁面返回列：麵包屑本身就是返回鍵，上一層以「← 名稱」強調，目的地固定、不使用瀏覽器上一頁。
 上一層是首頁時不顯示（主選單已有首頁）。data-return-to 連結由 ui-navigation.js 帶回列表上次的篩選與捲動位置。
 帶 back_to（T-291，從哪來回哪去）時改回來源頁；來源就是上一層時只換成來源網址（保留篩選），其餘不變。
+有顯示來源時以 page_dock_source 記下同一組網址與名稱，右下角懸浮鈕（T-297，_page_dock.html）照抄，不另判斷。
 {% endcomment %}{% load back_source_tags %}{% url 'dashboard' as home_url %}{% page_back_source fallback_url as source %}{% if cancel_edit %}
 <nav class="page-context-nav" aria-label="頁面導覽">
   <ol class="page-breadcrumbs" aria-label="目前位置">
@@ -9,14 +10,14 @@
     <li class="page-breadcrumb-current" aria-current="page">編輯訂單</li>
   </ol>
 </nav>
-{% elif source and not source.same_parent %}
+{% elif source and not source.same_parent %}{% page_dock_source source.url source.label %}
 <nav class="page-context-nav" aria-label="頁面導覽">
   <ol class="page-breadcrumbs" aria-label="目前位置">
     <li class="page-breadcrumb-parent"><a class="back-link" href="{{ source.url }}" data-return-to aria-label="回到{{ source.label }}"><span class="back-link__arrow" aria-hidden="true">←</span><span>{{ source.label }}</span></a></li>
     <li class="page-breadcrumb-current" aria-current="page" data-current-page-label{% if not current_label %} hidden{% endif %}>{{ current_label }}</li>
   </ol>
 </nav>
-{% elif fallback_url != home_url or root_url %}{% with parent_name=parent_label|default:label|cut:"返回" %}
+{% elif fallback_url != home_url or root_url %}{% with parent_name=parent_label|default:label|cut:"返回" %}{% if source %}{% page_dock_source source.url parent_name %}{% endif %}
 <nav class="page-context-nav" aria-label="頁面導覽">
   <ol class="page-breadcrumbs" aria-label="目前位置">
     {% if root_url and root_label %}<li class="page-breadcrumb-root"><a href="{{ root_url }}" data-return-to>{{ root_label }}</a></li>{% endif %}

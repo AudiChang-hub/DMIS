@@ -509,6 +509,25 @@ def prefill_initial(dataset, model_id):
     return initial, source
 
 
+def prefill_cost_sources(model_ids):
+    """T-286：「車輛結算成本」新增頁選機種後帶入的來源版本，與 prefill_initial("cost", pk) 的來源相同。
+
+    多數機種沒有今天起排定的版本，用一次查詢取「預設生效日前一天」的有效版本；有排定版本的少數機種逐一沿用 prefill_source。
+    """
+    model_ids = set(model_ids)
+    today = default_effective_from()
+    scheduled = set(
+        VehicleSettlementCostRule.objects.filter(vehicle_model_id__in=model_ids, active=True, effective_from__gte=today)
+        .values_list("vehicle_model_id", flat=True)
+    )
+    sources = current_versions_bulk("cost", model_ids - scheduled, today - timedelta(days=1))
+    for model_id in scheduled:
+        source, _default_from = prefill_source("cost", model_id)
+        if source is not None:
+            sources[model_id] = source
+    return sources
+
+
 def installment_option_initial(source):
     return [
         {

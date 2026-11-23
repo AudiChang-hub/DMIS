@@ -9717,7 +9717,15 @@ def settlement_cost_rule_list(request):
 
 
 def _settlement_cost_rule_form_view(request, instance=None):
-    form = VehicleSettlementCostRuleForm(request.POST or None, instance=instance)
+    initial, prefill_version, prefill_costs = None, None, None
+    if instance is None:
+        # T-286：新增時帶入機種目前的成本（停用機種也帶）；?model= 進來開頁就帶好，選單切換由前端依 prefill_costs 帶入。
+        model_pk = request.GET.get("model", "") if request.method != "POST" else ""
+        if model_pk.isascii() and model_pk.isdigit() and VehicleModel.objects.filter(pk=model_pk).exists():
+            model_pk = int(model_pk)
+            initial, prefill_version = vehicle_model_copy.prefill_initial("cost", model_pk)
+            initial["vehicle_model"] = model_pk
+    form = VehicleSettlementCostRuleForm(request.POST or None, instance=instance, initial=initial)
     if request.method == "POST" and form.is_valid():
         rule = form.save()
         messages.success(
@@ -9725,6 +9733,13 @@ def _settlement_cost_rule_form_view(request, instance=None):
             f"已{'更新' if instance else '建立'}成本規則：{rule}",
         )
         return redirect("settlement_cost_rule_list")
+    if instance is None:
+        prefill_costs = {
+            str(model_id): {"amount": int(version.amount), "from": f"{version.effective_from:%Y/%m/%d}"}
+            for model_id, version in vehicle_model_copy.prefill_cost_sources(
+                VehicleModel.objects.values_list("pk", flat=True)
+            ).items()
+        }
     return render(
         request,
         "sales/settlement_cost_rule_form.html",
@@ -9732,6 +9747,8 @@ def _settlement_cost_rule_form_view(request, instance=None):
             "form": form,
             "rule": instance,
             "is_editing": instance is not None,
+            "prefill_version": prefill_version,
+            "prefill_costs": prefill_costs,
         },
     )
 

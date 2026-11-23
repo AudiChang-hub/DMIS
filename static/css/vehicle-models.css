@@ -177,6 +177,13 @@
   justify-content: space-between; border-bottom: 1px solid var(--line);
 }
 .master-model-section .section-heading h2 { margin: 2px 0 0; font-size: var(--text-md); }
+/* T-286：新增成本版本選好機種後帶入目前成本的說明；與欄位左緣對齊，上下距離同表單格線的 --stack-gap。 */
+.cost-prefill-note {
+  margin: var(--stack-gap) 0 0; padding: var(--space-3) var(--space-4);
+  color: var(--action-text); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md);
+  font-size: var(--text-sm-plus); line-height: 1.5;
+}
+.cost-prefill-note[hidden] { display: none; }
 @media (max-width: 600px) {
   .vehicle-model-catalog { gap: var(--stack-gap); }
   .vehicle-model-catalog__toolbar { padding: var(--bar-pad); align-items: stretch; flex-direction: column; }

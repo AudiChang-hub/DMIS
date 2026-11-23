@@ -1,12 +1,14 @@
 """T-286：機種工作區「傭金與獎勵」「結算成本」「原廠獎勵與補助」只能看；基礎傭金改在「車行傭金與銷售獎勵」逐列設定。"""
+import json
 import re
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import IncentiveCampaign, VehicleModel, VehicleSettlementCostRule
@@ -259,3 +261,117 @@ class DedicatedCostPageTests(TestCase):
         labels = dict(choices)
         self.assertEqual(labels[self.inactive.pk], "T286 停用車／T286IN／2024（停用）")
         self.assertNotIn("停用", labels[self.model.pk])
+
+
+class DedicatedCostPrefillTests(TestCase):
+    """使用者追加：專屬頁新增成本版本時，選好機種帶入該機種目前的成本（停用機種也帶），修改既有版本不帶。"""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("t286-prefill-root", password="Test-Only-123")
+        make = lambda name, number, **extra: VehicleModel.objects.create(  # noqa: E731
+            brand="SUZUKI", name=name, model_number=number, model_year=2026,
+            energy_type=VehicleModel.EnergyType.GAS, displacement_cc=125, **extra)
+        cls.model = make("T286 帶入車", "T286PF")
+        cls.empty = make("T286 無成本車", "T286NO")
+        cls.inactive = make("T286 停用帶入車", "T286PI", active=False)
+        cls.today = timezone.localdate()
+        cls.old = VehicleSettlementCostRule.objects.create(
+            vehicle_model=cls.model, amount=50000, effective_from=cls.today - timedelta(days=90))
+        cls.current = VehicleSettlementCostRule.objects.create(
+            vehicle_model=cls.model, amount=56000, effective_from=cls.today - timedelta(days=30))
+        VehicleSettlementCostRule.objects.create(
+            vehicle_model=cls.inactive, amount=43000, effective_from=cls.today - timedelta(days=10))
+        cls.create_url = reverse("settlement_cost_rule_create")
+
+    def setUp(self):
+        self.client.force_login(self.root)
+
+    def prefill_data(self, response):
+        match = re.search(r'<script id="cost-prefill-data" type="application/json">(.*?)</script>',
+                          response.content.decode())
+        self.assertIsNotNone(match)
+        return json.loads(match.group(1))
+
+    def test_model_query_prefills_current_cost_on_open(self):
+        response = self.client.get(self.create_url, {"model": self.model.pk})
+        form = response.context["form"]
+        self.assertEqual(form.initial["vehicle_model"], self.model.pk)
+        self.assertEqual((form.initial["amount"], form.initial["effective_from"]), (56000, self.today))
+        self.assertContains(response, 'name="amount" value="56000"')
+        self.assertContains(response, f'value="{self.model.pk}" selected')
+        self.assertContains(response, f"已帶入此機種 {self.current.effective_from:%Y/%m/%d} 起版本的成本")
+
+    def test_inactive_model_is_prefilled_too(self):
+        form = self.client.get(self.create_url, {"model": self.inactive.pk}).context["form"]
+        self.assertEqual((form.initial["vehicle_model"], form.initial["amount"]), (self.inactive.pk, 43000))
+
+    def test_model_without_cost_leaves_amount_empty(self):
+        response = self.client.get(self.create_url, {"model": self.empty.pk})
+        self.assertEqual(response.context["form"].initial["vehicle_model"], self.empty.pk)
+        self.assertNotIn("amount", response.context["form"].initial)
+        self.assertNotContains(response, "已帶入此機種")
+
+    def test_invalid_model_query_is_ignored(self):
+        for value in ("999999", "abc", "²"):
+            response = self.client.get(self.create_url, {"model": value})
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("vehicle_model", response.context["form"].initial)
+
+    def test_page_carries_current_cost_per_model_for_selection(self):
+        data = self.prefill_data(self.client.get(self.create_url))
+        self.assertEqual(data[str(self.model.pk)],
+                         {"amount": 56000, "from": f"{self.current.effective_from:%Y/%m/%d}"})
+        self.assertEqual(data[str(self.inactive.pk)]["amount"], 43000)
+        self.assertNotIn(str(self.empty.pk), data)
+
+    def test_scheduled_version_matches_model_query_prefill(self):
+        VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model, amount=58000, effective_from=self.today + timedelta(days=5))
+        response = self.client.get(self.create_url, {"model": self.model.pk})
+        self.assertEqual(response.context["form"].initial["amount"], 58000)
+        self.assertEqual(self.prefill_data(response)[str(self.model.pk)]["amount"], 58000)
+
+    def test_edit_existing_version_does_not_prefill(self):
+        response = self.client.get(reverse("settlement_cost_rule_edit", args=[self.old.pk]), {"model": self.model.pk})
+        self.assertContains(response, 'name="amount" value="50000"')
+        self.assertNotContains(response, "cost-prefill-data")
+        self.assertNotContains(response, "settlement-cost-prefill.js")
+        self.assertNotContains(response, "data-cost-prefill")
+
+    def test_rejected_post_keeps_submitted_amount_as_manual(self):
+        response = self.client.post(f"{self.create_url}?model={self.model.pk}", {
+            "vehicle_model": self.model.pk, "amount": "61000", "announced_on": "",
+            "effective_from": "", "effective_to": "", "note": "", "active": "on"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="amount" value="61000"')
+        self.assertContains(response, "data-cost-prefill data-cost-prefill-bound")
+        self.assertEqual(VehicleSettlementCostRule.objects.count(), 3)
+
+    def costs_user(self, name, operate):
+        user = get_user_model().objects.create_user(name, password="Test-Only-123")
+        UserAccessState.objects.create(user=user, configured=True)
+        ScreenAccessGrant.objects.create(user=user, screen_key="costs", view=True, operate=operate)
+        self.client.force_login(user)
+        return user
+
+    def test_workspace_cost_tab_links_operators_to_prefilled_create(self):
+        self.costs_user("t286-cost-operator", operate=True)
+        tab = self.client.get(reverse("vehicle_model_settlement_costs", args=[self.model.pk]))
+        self.assertEqual(tab.status_code, 200)
+        create_link = f'{self.create_url}?model={self.model.pk}'
+        self.assertContains(tab, f'<a class="button primary" href="{create_link}" data-cost-create-for-model>', html=False)
+        self.assertNotRegex(tab.content.decode(), r"<form[^>]*action=\"" + re.escape(self.create_url))
+        opened = self.client.get(create_link)
+        self.assertEqual(opened.status_code, 200)
+        form = opened.context["form"]
+        self.assertEqual((form.initial["vehicle_model"], form.initial["amount"]), (self.model.pk, 56000))
+        self.assertContains(opened, 'name="amount" value="56000"')
+
+    def test_workspace_cost_tab_hides_create_link_without_cost_operate(self):
+        self.costs_user("t286-cost-viewer", operate=False)
+        tab = self.client.get(reverse("vehicle_model_settlement_costs", args=[self.model.pk]))
+        self.assertEqual(tab.status_code, 200)
+        self.assertNotContains(tab, "data-cost-create-for-model")
+        self.assertNotContains(tab, f"{self.create_url}?model=")
+        self.assertContains(tab, "到「車輛結算成本」設定")

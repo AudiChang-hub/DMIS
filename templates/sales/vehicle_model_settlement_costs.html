@@ -7,7 +7,7 @@
 {# T-286：工作區只顯示；新增、修改、停用在「車輛結算成本」設定。 #}
 <header class="model-workspace-intro">
   <div><h2>車輛結算成本</h2><p class="muted">{% site_text 'settlement_cost_rule_list.7a65e761c113' %}這裡只顯示本機種的版本，要新增或修改請到「車輛結算成本」。</p></div>
-  {% if_access 'settlement_cost_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{{ cost_list_url }}">到「車輛結算成本」設定</a></div>{% endif_access %}
+  {% if_access 'settlement_cost_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{{ cost_list_url }}">到「車輛結算成本」設定</a>{% if_access 'settlement_cost_rule_create' %}<a class="button primary" href="{% url 'settlement_cost_rule_create' %}?model={{ vehicle_model.pk }}" data-cost-create-for-model>＋ 新增本機種成本版本</a>{% endif_access %}</div>{% endif_access %}
 </header>
 
 {% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="依使用狀態查看結算成本版本" active_label="啟用中版本" inactive_label="已停用版本" %}

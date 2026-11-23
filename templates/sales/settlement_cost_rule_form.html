@@ -13,11 +13,12 @@
     <p class="muted">{% site_text 'settlement_cost_rule_form.daaa2f542288' %}</p>
   </div>
 </section>
-<form method="post" class="master-model-form">
+<form method="post" class="master-model-form"{% if prefill_costs is not None %} data-cost-prefill{% if form.is_bound %} data-cost-prefill-bound{% endif %}{% endif %}>
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <section class="card master-model-section">
     <div class="section-heading"><div><p class="eyebrow">適用條件</p><h2>車輛結算成本規則</h2></div></div>
+    {% if prefill_costs is not None %}<p class="cost-prefill-note" data-cost-prefill-note aria-live="polite"{% if not prefill_version %} hidden{% endif %}>{% if prefill_version %}已帶入此機種 {{ prefill_version.effective_from|date:"Y/m/d" }} 起版本的成本；可直接修改，原版本不會被改動。{% endif %}</p>{% endif %}
     <div class="form-grid master-model-grid">
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
     </div>
@@ -33,4 +34,6 @@
 {% if is_editing %}
 <form id="delete-cost-rule" method="post" action="{% url 'settlement_cost_rule_delete' rule.pk %}" data-confirm="確定刪除此成本版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}</form>
 {% endif %}
+{% if prefill_costs is not None %}{{ prefill_costs|json_script:"cost-prefill-data" }}{% endif %}
 {% endblock %}
+{% block scripts %}{% if prefill_costs is not None %}<script src="{% static 'js/settlement-cost-prefill.js' %}" defer></script>{% endif %}{% endblock %}

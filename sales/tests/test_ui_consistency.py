@@ -526,12 +526,12 @@ class MobileFoundationTests(SimpleTestCase):
         self.assertIn("main :is(h1, h2, h3) { text-wrap: balance; }", mobile)
         self.assertIn("main :is(p, li, dd) { text-wrap: pretty; }", mobile)
         # 中文沒有空格，keep-all 會讓整句無法斷行；只允許很短、以空白分段的「目前排序」一行（T-241）。
-        # T-242：.order-sort-controls 搬到 order-list.css（只搬不改內容，外層 @media 縮排變淺），app.css 與模組 CSS 一起查。
-        order_list = (CSS_DIR / "order-list.css").read_text(encoding="utf-8")
+        # T-242：.order-sort-controls 搬到 order-list.css（只搬不改內容），app.css 與模組 CSS 一起查，且規則仍在 860px 區塊內。
+        order_list = (CSS_DIR / "order-list.css").read_text(encoding="utf-8").replace("\r\n", "\n")
         # 原本緊鄰規則的說明註解留在 app.css，比對前先拿掉註解。
         css = re.sub(r"/\*.*?\*/", "", self.app + order_list, flags=re.S)
-        found = re.findall(r"([^{}\n]*)\{[^}]*keep-all", css)
-        self.assertEqual([selector.strip() for selector in found], [".order-sort-controls p"])
+        self.assertEqual(re.findall(r"([^{}\n]*)\{[^}]*keep-all", css), ["    .order-sort-controls p "])
+        self.assertIn("\n    .order-sort-controls p { word-break: keep-all; }", MobileUatLayoutTests.mobile_block(order_list))
 
     def test_phone_skips_glass_and_entry_motion(self):
         """手機頁首、底部導覽、精靈底部列、訂單精簡列不用毛玻璃；換頁進場動畫與跨頁轉場只在桌面。"""
@@ -706,24 +706,32 @@ class PageStylesheetSplitTests(SimpleTestCase):
         self.assertEqual(offenders, [])
 
     def test_module_stylesheets_load_first_in_their_pages(self):
-        # 同一頁可能有好幾批搬出的檔案（第三批新檔排在前一批之前）：這些檔案要連續排在 {% block head %} 最前面。
+        # 同一頁可能有好幾批搬出的檔案：第三批在前、前兩批緊接其後，連續排在 {% block head %} 最前面（見 assert_split_files_lead_head）。
         # 搬出的規則原本在 app.css 裡，所以要緊接在 app.css 之後、其他頁面樣式之前載入，疊加順序才跟搬之前一樣：
         # base.html 的 app.css 與 {% block head %} 之間不能夾別的樣式。
         base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
         self.assertRegex(base, r"<link rel=\"stylesheet\" href=\"{% static 'css/app\.css' %}\">\s*{% block head %}")
-        split_files = {css for css, _ in self.MODULES.values()} | set(self.BATCH3)
-        link = re.compile(r"<link rel=\"stylesheet\" href=\"{% static 'css/([\w.-]+)' %}\">")
         for prefixes, (css, pages) in self.MODULES.items():
             self.assertTrue((CSS_DIR / css).exists(), css)
             for page in pages:
-                text = (TEMPLATES / page).read_text(encoding="utf-8")
-                position, leading = text.index("{% block head %}") + len("{% block head %}"), []
-                while (match := link.match(text, position)) and match.group(1) in split_files:
-                    leading.append(match.group(1))
-                    position = match.end()
-                self.assertIn(css, leading, page)
-                head = text.index("{% block head %}")
-                self.assertRegex(text[:head], r"{%\s*load\s[^%]*\bstatic\b", page)
+                self.assert_split_files_lead_head(page)
+
+    def assert_split_files_lead_head(self, page):
+        """該頁所有搬出的檔案連續排在 {% block head %} 最前面：第三批在前、前兩批緊接其後。
+        第三批的規則原本在 app.css，本來就比前兩批的模組檔先載入，這樣排疊加順序才跟搬之前一樣。"""
+        batch3 = [css for css, pages in self.BATCH3.items() if page in pages]
+        earlier = [css for css, pages in self.MODULES.values() if page in pages]
+        link = re.compile(r"<link rel=\"stylesheet\" href=\"{% static 'css/([\w.-]+)' %}\">")
+        text = (TEMPLATES / page).read_text(encoding="utf-8")
+        position, leading = text.index("{% block head %}") + len("{% block head %}"), []
+        while (match := link.match(text, position)) and match.group(1) in set(batch3) | set(earlier):
+            leading.append(match.group(1))
+            position = match.end()
+        self.assertEqual(len(leading), len(batch3) + len(earlier), page)
+        self.assertEqual(sorted(leading[:len(batch3)]), sorted(batch3), page)
+        self.assertEqual(sorted(leading[len(batch3):]), sorted(earlier), page)
+        head = text.index("{% block head %}")
+        self.assertRegex(text[:head], r"{%\s*load\s[^%]*\bstatic\b", page)
 
     # 第三批（T-242）：前綴多與其他頁共用（inventory-table、order-filter-bar…），共用的規則留在 app.css，
     # 所以不放進 MODULES 的「前綴不得回到 app.css」檢查；這裡檢查搬出的檔案存在、排在該頁 head 最前段，且搬出的規則不在 app.css。
@@ -744,19 +752,10 @@ class PageStylesheetSplitTests(SimpleTestCase):
 
     def test_batch3_stylesheets_load_first_and_rules_left_app_css(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")
-        split_files = {css for css, _ in self.MODULES.values()} | set(self.BATCH3)
-        link = re.compile(r"<link rel=\"stylesheet\" href=\"{% static 'css/([\w.-]+)' %}\">")
         for css, pages in self.BATCH3.items():
             module = (CSS_DIR / css).read_text(encoding="utf-8").replace("\r\n", "\n")
             moved = [line.strip() for line in module.splitlines() if line.strip().endswith("}") and "{" in line]
             self.assertTrue(moved, css)
             self.assertEqual([rule for rule in moved if rule in app], [], css)
             for page in pages:
-                text = (TEMPLATES / page).read_text(encoding="utf-8")
-                position, leading = text.index("{% block head %}") + len("{% block head %}"), []
-                while (match := link.match(text, position)) and match.group(1) in split_files:
-                    leading.append(match.group(1))
-                    position = match.end()
-                self.assertIn(css, leading, page)
-                head = text.index("{% block head %}")
-                self.assertRegex(text[:head], r"{%\s*load\s[^%]*\bstatic\b", page)
+                self.assert_split_files_lead_head(page)

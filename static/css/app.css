@@ -5176,9 +5176,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .order-owner-link { display: grid; gap: var(--space-2); overflow-wrap: anywhere; }
   .order-owner-link small { color: var(--muted); font-size: var(--text-xs); }
   @media (max-width: 860px) {
-/* T-241：「目前排序」只在「→」前後的空白換行，不把「由新到舊」拆開（這行很短，才可用 keep-all） */
-  }
-  @media (max-width: 860px) {
     .app-header-inner { flex-wrap: wrap; gap: var(--space-1); padding-block: var(--space-2); }
 
     .page-shell { padding-top: var(--space-5); }

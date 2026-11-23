@@ -1,0 +1,42 @@
+/* 統一撥款對帳頁面框架（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.reconciliation-shell { min-width: 0; max-width: 100%; overflow: hidden; }
+.reconciliation-shell .table-scroll { max-width: 100%; overflow-x: auto; }
+.reconciliation-expected-adjustment { margin-top: var(--space-2); text-align: left; }
+.reconciliation-expected-adjustment summary {
+  width: max-content; max-width: 100%; color: var(--blue); font-size: var(--text-sm);
+  font-weight: 800; cursor: pointer;
+}
+.reconciliation-expected-adjustment label { display: grid; gap: var(--space-1); margin-top: var(--space-2); color: var(--muted); font-size: var(--text-xs); }
+.reconciliation-guide__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--stack-gap-sm); margin: 0; padding: 0; list-style: none; counter-reset: guide; }
+.reconciliation-guide__steps li { position: relative; display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-3) var(--space-3) calc(var(--space-3) * 2 + 22px); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); counter-increment: guide; }
+.reconciliation-guide__steps li::before { content: counter(guide); position: absolute; top: var(--space-3); left: var(--space-3); display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-pill); background: var(--ink); color: var(--surface); font-size: var(--text-2xs); font-weight: 900; }
+.reconciliation-guide__steps strong { font-size: var(--text-sm); }
+.reconciliation-guide__steps span { color: var(--muted); font-size: var(--text-sm); line-height: 1.55; }
+.reconciliation-guide__note { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-sm); }
+.reconciliation-order { display: flex; align-items: flex-start; gap: var(--space-3); }
+.reconciliation-order > div { display: grid; min-width: 0; }
+.reconciliation-order small { color: var(--muted); font-size: var(--text-xs); }
+.reconciliation-order a { color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.reconciliation-order a:hover { color: var(--action-text); text-decoration-color: currentColor; }
+.reconciliation-pick { position: relative; display: inline-grid; flex: none; place-items: center; width: 24px; height: 24px; margin-top: 2px; cursor: pointer; }
+.reconciliation-pick input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.reconciliation-pick span { position: relative; width: 20px; height: 20px; border: 2px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.reconciliation-pick input:checked + span { border-color: var(--ink); background: var(--ink); }
+.reconciliation-pick input:checked + span::after { content: ""; position: absolute; left: 5px; top: 1px; width: 6px; height: 11px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.reconciliation-pick input:focus-visible + span { box-shadow: 0 0 0 3px color-mix(in srgb, var(--action-text) 35%, transparent); }
+.reconciliation-channel { display: block; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+.reconciliation-channel--platform::before, .reconciliation-channel--installment::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: var(--space-1); border-radius: var(--radius-pill); vertical-align: middle; background: var(--blue); }
+.reconciliation-channel--platform::before { background: var(--amber); }
+@media (prefers-reduced-motion: reduce) {
+  .reconciliation-pick span { transition: none; }
+}
+@media (max-width: 900px) {
+  .reconciliation-guide__steps { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .reconciliation-shell { overflow: visible; background: transparent; border: 0; box-shadow: none; }
+  .reconciliation-shell > .section-title {
+    margin-bottom: var(--space-3); padding: 0 2px var(--space-3); border-bottom: 1px solid var(--line);
+  }
+  .reconciliation-shell .table-scroll { overflow: visible; }
+}

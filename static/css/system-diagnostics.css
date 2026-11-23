@@ -1,0 +1,36 @@
+/* 系統狀態（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.system-status-summary {
+  display: flex; min-height: 86px; margin-bottom: var(--stack-gap-sm); padding: var(--space-4) var(--space-5);
+  align-items: center; gap: var(--stack-gap-sm); background: var(--surface); border: 1px solid var(--line);
+  border-left: 5px solid var(--forest-2); border-radius: var(--radius-lg);
+}
+.system-status-summary > span {
+  display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center;
+  color: var(--on-accent); background: var(--forest-2); border-radius: 50%; font-size: var(--text-lg); font-weight: 900;
+}
+.system-status-summary strong, .system-status-summary small { display: block; }
+.system-status-summary strong { font-size: var(--text-md); }
+.system-status-summary small { margin-top: 3px; color: var(--muted); font-size: var(--text-sm); }
+.system-status-summary--danger { border-left-color: var(--red); }
+.system-status-summary--danger > span { background: var(--red); }
+.system-status-summary--warning { border-left-color: var(--amber); }
+.system-status-summary--warning > span { color: var(--amber); background: var(--amber-soft); }
+.system-status-grid { display: grid; margin-bottom: var(--stack-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); }
+.system-status-card {
+  display: flex; min-width: 0; min-height: 120px; padding: var(--card-pad); align-items: center; gap: var(--stack-gap-sm);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: 0 5px 20px color-mix(in srgb, var(--shadow-ink) 4%, transparent);
+}
+.system-status-card__mark {
+  display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center;
+  color: var(--action-text); background: var(--mint); border-radius: var(--radius-md); font-weight: 900;
+}
+.system-status-card h2 { margin-bottom: var(--space-1); }
+.system-status-card p { margin: 0; color: var(--muted); }
+.system-status-card--warning .system-status-card__mark { color: var(--amber); background: var(--amber-soft); }
+.system-status-card--danger .system-status-card__mark { color: var(--red); background: var(--red-soft); }
+.system-status-card--neutral .system-status-card__mark { color: var(--muted); background: var(--surface-soft); }
+@media (max-width: 600px) {
+  .system-status-grid { grid-template-columns: 1fr; gap: var(--space-3); }
+  .system-status-card { min-height: 104px; padding: var(--inset-pad); }
+  .system-status-summary { padding: var(--inset-pad); }
+}

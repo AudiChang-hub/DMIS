@@ -1,0 +1,58 @@
+/* 庫存列表（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.inventory-sort-link {
+  display: inline-flex; align-items: center; gap: var(--space-1); color: inherit; font: inherit; letter-spacing: inherit;
+  text-decoration: none; border-radius: var(--radius-xs); transition: color .15s ease;
+}
+.inventory-sort-link:hover { color: var(--ink); }
+.inventory-sort-link:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.inventory-sort-link__arrow { display: inline-block; min-width: 1ch; opacity: .38; font-size: 1.05em; transition: opacity .15s ease, transform .15s ease; }
+.inventory-sort-link:hover .inventory-sort-link__arrow { opacity: .8; }
+.inventory-sort-link.is-active { color: var(--action-text); }
+.inventory-sort-link.is-active .inventory-sort-link__arrow { opacity: 1; }
+.inventory-sort-pair { display: inline-flex; align-items: center; gap: var(--space-1); }
+.inventory-table--stock :is(td[data-label="進車日期"], .status-pill, .inventory-condition) { white-space: nowrap; }
+.inventory-sort-bar { display: none; }
+@media (max-width: 600px) {
+  .inventory-sort-bar {
+    display: flex; padding: var(--space-2) var(--space-4); align-items: center; gap: var(--space-2);
+    overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: none; white-space: nowrap;
+  }
+  .inventory-sort-bar::-webkit-scrollbar { display: none; }
+  .inventory-sort-bar > span { flex: 0 0 auto; color: var(--muted); font-size: var(--text-xs); font-weight: 900; }
+  .inventory-sort-bar .inventory-sort-link {
+    flex: 0 0 auto; min-height: 34px; padding: 0 var(--space-3); color: var(--ink-soft); background: var(--surface-subtle);
+    border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 800;
+  }
+  .inventory-sort-bar .inventory-sort-link.is-active { color: var(--action-text); background: var(--mint); border-color: color-mix(in srgb, var(--forest) 35%, var(--line)); }
+}
+.inventory-condition {
+  display: inline-flex !important; width: fit-content; padding: var(--space-1) var(--space-2);
+  color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line);
+  border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 900;
+}
+.inventory-condition.has-issue { color: var(--red); background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
+.inventory-condition.has-note { color: var(--amber); background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 35%, var(--line)); }
+.inventory-condition.is-normal { color: var(--green); background: var(--mint); border-color: color-mix(in srgb, var(--green) 28%, var(--line)); }
+.inventory-condition-note { display: block; max-width: 210px; margin-top: var(--space-1); color: var(--muted); line-height: 1.35; }
+.inventory-priority-cell { min-width: 132px; }
+.inventory-priority-form { align-items: center; gap: var(--space-2); }
+.inventory-priority-toggle.is-active {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: var(--amber-border-strong);
+}
+.inventory-priority-toggle.is-active .source-active-toggle__track { background: var(--amber); }
+.inventory-priority-toggle:disabled { cursor: not-allowed; opacity: .58; transform: none; }
+.inventory-priority-toggle[data-priority-locked]:disabled { opacity: 1; }
+.inventory-priority-rule {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3) var(--space-4); color: var(--ink);
+  background: color-mix(in srgb, var(--amber-soft) 55%, var(--surface));
+  border-bottom: 1px solid var(--line); font-size: var(--text-sm);
+}
+.inventory-priority-rule p { margin: 0; line-height: 1.6; }
+.inventory-priority-rule strong { margin-right: var(--space-2); color: var(--amber); }
+.inventory-priority-rule__mark {
+  display: inline-grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center;
+  color: var(--surface); background: var(--amber); border-radius: 50%; font-size: var(--text-xs);
+}

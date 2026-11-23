@@ -13,6 +13,11 @@ from django.test import SimpleTestCase
 STATIC = Path(settings.BASE_DIR) / "static"
 
 
+def order_list_css():
+    """T-242：訂單列表篩選與排序樣式搬到 order-list.css（只搬不改內容），和 app.css 一起讀。"""
+    return "".join((STATIC / "css" / name).read_text(encoding="utf-8") for name in ("app.css", "order-list.css"))
+
+
 def mobile_rule(css, selector):
     """回傳 @media (max-width: 860px) 區塊內指定選擇器的宣告。"""
     for block in re.finditer(r"@media \(max-width: 860px\) \{(.*?)\n\}", css, re.S):
@@ -24,7 +29,7 @@ def mobile_rule(css, selector):
 
 class OrderFilterDateWidthTests(SimpleTestCase):
     def test_mobile_date_inputs_drop_native_appearance_and_stay_inside_card(self):
-        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        css = order_list_css()
         rule = mobile_rule(css, ".order-filter-bar input[type=date]")
         self.assertIn("display: block", rule)
         self.assertIn("-webkit-appearance: none", rule)
@@ -58,10 +63,11 @@ class OrderListMobileLayoutTests(SimpleTestCase):
         self.assertIn('data-order-filter-open aria-haspopup="dialog" aria-controls="order-filter-sheet">篩選<span data-order-filter-count></span>', page)
 
     def test_desktop_keeps_filters_inline_and_hides_mobile_controls(self):
-        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        css = order_list_css()
         self.assertIn(".order-more-toggle, .order-filter-open, .order-filter-chips, .order-filter-sheet__head, .order-filter-sheet__actions { display: none; }", css)
         self.assertIn(".order-filter-bar .order-filter-sheet { display: contents; color: inherit; }", css)
-        self.assertIn(".order-filter-bar .order-filter-sheet:not([open]) { display: none; }", mobile_rule_block(css))
+        # T-242：這條搬到 order-list.css 的 860px 以下區塊（只搬不改內容），不在 app.css 的 T-252 區段裡了。
+        self.assertEqual(mobile_rule(css, ".order-filter-bar .order-filter-sheet:not([open])"), " display: none; ")
 
     def test_chips_and_sheet_behaviour(self):
         js = (STATIC / "js/order-list-filters.js").read_text(encoding="utf-8")
@@ -83,7 +89,7 @@ class OrderListTabsAndSortMobileTests(SimpleTestCase):
     """使用者 2026-11-19：「要，分類頁籤和排序也一起壓縮，只改手機版」。"""
 
     def test_scope_tabs_become_one_scrollable_row_on_mobile(self):
-        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        css = order_list_css()
         block = css[css.index("/* T-252 擴大範圍"):]
         self.assertRegex(block, r"\.order-results \.order-scope-tabs \{\s*display: flex;[^}]*overflow-x: auto;")
         self.assertIn(".order-scope-tabs .inventory-scope-tab { flex: 0 0 auto;", block)
@@ -98,7 +104,7 @@ class OrderListTabsAndSortMobileTests(SimpleTestCase):
         self.assertIn('<dialog class="order-sort-sheet" id="order-sort-sheet" aria-labelledby="order-sort-sheet-title" data-order-sort-sheet>', controls)
         self.assertIn('{% if column.rank %} class="is-active" aria-current="true"{% endif %}', controls)
         self.assertIn("</dialog>", controls)
-        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        css = order_list_css()
         self.assertIn(".order-sort-controls .order-sort-sheet { display: contents; color: inherit; }", css)
         self.assertIn(".order-sort-controls .order-sort-sheet:not([open]) { display: none; }", css)
 
@@ -119,7 +125,7 @@ class OrderListExtraCompressionTests(SimpleTestCase):
         self.assertIn("{% if_access 'order_create' %}<a class=\"order-drilldown__drafts\" href=\"{% url 'order_list' %}?drafts=1#drafts\">未完成草稿</a>{% endif_access %}", page)
 
     def test_mobile_rules_and_desktop_hides_menu_only_link(self):
-        css = (STATIC / "css/app.css").read_text(encoding="utf-8")
+        css = order_list_css()
         self.assertIn(".order-sort-open, .order-sort-sheet__head, .order-more-only { display: none; }", css)
         block = css[css.index("/* 追加三項"):]
         self.assertIn(".order-list-hero .eyebrow { display: none; }", block)

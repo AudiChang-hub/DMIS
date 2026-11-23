@@ -1,0 +1,40 @@
+/* 首頁待辦與開始（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+@media screen {
+  .news-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); border-bottom: 1px solid var(--line); margin: var(--stack-gap-sm) 0 var(--stack-gap); }
+  .news-tabs a { padding: var(--space-4) var(--space-5); border-bottom: 3px solid transparent; color: var(--muted); font-weight: 700; }
+  .news-tabs a[aria-current] { border-color: var(--forest); color: var(--ink); background: var(--surface-tint); }
+  .news-center .release-history { border: 0; box-shadow: none; padding: 0; }
+}
+@media screen {
+  @media (max-width: 760px) {
+    .news-tabs a { padding: var(--space-3); }
+}}
+.news-center [role="tabpanel"][hidden] { display:none; }
+.home-tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--stack-gap-sm); margin-bottom: var(--stack-gap); }
+.home-tasks:not(:has(.home-task)) { display: none; }
+.home-task { position: relative; display: grid; min-height: 188px; padding: var(--card-pad); align-content: start; gap: var(--space-2); color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); box-shadow: var(--shadow-soft); overflow: hidden; text-decoration: none; transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out); }
+.home-task:hover { border-color: var(--line); box-shadow: var(--shadow); transform: translateY(-2px); }
+.home-task__label { color: var(--muted); font-size: var(--text-sm); font-weight: 700; letter-spacing: .02em; }
+.home-task__count { display: flex; align-items: baseline; gap: var(--space-1); font-family: var(--font-display); font-size: clamp(2.6rem, 2rem + 1.4vw, 3.4rem); font-weight: 800; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.home-task__count small { color: var(--muted); font-family: var(--font-sans); font-size: var(--text-base); font-weight: 700; letter-spacing: 0; }
+.home-task__hint { color: var(--muted); font-size: var(--text-sm); line-height: 1.6; }
+.home-task__go { display: inline-flex; margin-top: auto; padding-top: var(--space-3); align-items: center; gap: var(--space-2); color: var(--action-text); font-size: var(--text-sm-plus); font-weight: 750; }
+.home-task__go span { transition: transform var(--dur-2) var(--ease-out); }
+.home-task:hover .home-task__go span { transform: translateX(3px); }
+.home-task.is-pending { color: var(--on-spotlight); background: radial-gradient(420px 220px at 100% 0%, color-mix(in srgb, var(--forest) 55%, transparent), transparent 70%), var(--spotlight); border-color: var(--spotlight); }
+.home-task.is-pending :is(.home-task__label, .home-task__hint, .home-task__count small) { color: var(--on-spotlight-muted); }
+.home-task.is-pending .home-task__go { color: var(--gold); }
+.home-task.is-pending::after { position: absolute; top: var(--card-pad); right: var(--card-pad); width: 10px; height: 10px; content: ""; background: var(--gold); border-radius: 50%; box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 22%, transparent); }
+.home-link { display: grid; min-height: 64px; padding: var(--space-3) var(--space-4); align-items: center; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-3); color: var(--ink); background: var(--surface-subtle); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); font-weight: 700; text-decoration: none; transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.home-link:hover { background: var(--surface); border-color: var(--line); transform: translateY(-1px); }
+.home-link__mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--action-text); background: var(--mint); border-radius: var(--radius-md); font-weight: 800; }
+.home-link__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-link__arrow { color: var(--muted); transition: transform var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
+.home-link:hover .home-link__arrow { color: var(--action-text); transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .home-task, .home-link, .home-task__go span, .home-link__arrow { transition: none; }
+  .home-task:hover, .home-link:hover { transform: none; }
+}
+@media (max-width: 600px) {
+  .home-task { min-height: 0; }
+}

@@ -152,7 +152,8 @@ class PageFixStaticTests(SimpleTestCase):
         for rule in (".order-fact--note.is-empty { display: none; }", ".order-row--detailed .order-row-delete { margin-top: var(--space-3); }"):
             self.assertIn(rule, phone)
         # 卡片只在 860px 以下出現；桌面是表格，表格的刪除連結不變。
-        self.assertRegex(self.app, r"\.order-sort-cards, \.order-sort-mobile \{ display: none; \}")
+        # T-242：訂單列表排序樣式搬到 order-list.css（只搬不改內容）。
+        self.assertRegex(self.app + read("static/css/order-list.css"), r"\.order-sort-cards, \.order-sort-mobile \{ display: none; \}")
         self.assertIn('<small><a class="button danger-outline small" href="{% url \'order_delete\' order.pk %}"', read("templates/sales/order_list.html"))
 
     def test_text_wrapping_fixes(self):

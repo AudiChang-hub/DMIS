@@ -1,0 +1,39 @@
+/* 首頁常用功能設定（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.favorites-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: var(--stack-gap); padding: var(--card-pad); margin: var(--stack-gap) 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.favorites-toolbar > label:first-child { display: grid; gap: var(--space-2); flex: 1 1 260px; }
+.favorites-toolbar input[type=search] { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); color: var(--ink); background: var(--surface); font: inherit; }
+.favorites-selected-toggle { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; }
+.favorites-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: var(--stack-gap); align-items: start; }
+.favorites-layout > *, .favorite-option > span { min-width: 0; }
+.favorites-group { min-width: 0; margin: 0 0 var(--stack-gap); padding: var(--card-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.favorites-group legend { padding: 0 var(--space-2); font-weight: 750; }
+.favorites-group > p { margin: var(--space-1) 0 var(--stack-gap-sm); }
+.favorites-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.favorite-option { display: flex; align-items: center; gap: var(--space-3); padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; min-height: 76px; overflow-wrap: anywhere; }
+.favorite-option small { display: block; color: var(--muted); margin-top: var(--space-1); }
+.favorite-option:has(input:checked) { border-color: var(--forest); box-shadow: inset 0 0 0 1px var(--forest); }
+.favorites-editor input[type=checkbox] { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--forest); }
+.favorites-editor :is(input,button,a):focus-visible { outline: 3px solid var(--forest); outline-offset: 3px; }
+.favorites-preview { padding: var(--card-pad); }
+.favorites-preview h2 { margin-top: 0; }
+.favorites-picked { padding: 0; list-style: none; }
+.favorites-picked li { border-bottom: 1px solid var(--line); padding: var(--space-4) 0; overflow-wrap: anywhere; }
+.favorite-item-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.favorite-item-actions button { font: inherit; font-size: var(--text-sm-plus); padding: var(--space-2) var(--space-3); min-height: 44px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; }
+.favorite-item-actions button:disabled { opacity: .45; cursor: default; }
+.favorites-draft-tools { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--stack-gap); }
+.favorites-actions { position: sticky; bottom: 12px; z-index: 12; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--stack-gap-sm); padding: var(--bar-pad); margin-top: var(--stack-gap-sm); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 4px 20px color-mix(in srgb, var(--shadow-ink) 13%, transparent); }
+.favorites-actions > div { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.favorite-error { margin: var(--stack-gap) 0; padding: var(--card-pad); border: 2px solid var(--danger, var(--red)); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
+.favorites-editor [hidden] { display: none !important; }
+@media (max-width: 1000px) {
+  .favorites-layout { grid-template-columns: minmax(0, 1fr); }
+  .favorites-actions { bottom: 80px; }
+}
+@media (max-width: 560px) {
+  .favorites-options { grid-template-columns: minmax(0, 1fr); }
+  .favorites-actions { padding: var(--bar-pad); gap: var(--space-2); bottom: 80px; }
+  .favorites-actions > span { font-size: var(--text-sm-plus); }
+  .favorites-actions > div { width: 100%; }
+  .favorites-actions :is(a,button) { flex: 1 1 120px; justify-content: center; padding: var(--space-3) var(--space-2); }
+}

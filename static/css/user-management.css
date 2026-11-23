@@ -1,0 +1,46 @@
+/* 帳號管理（T-242 自 app.css 搬出）：只搬、不改規則內容，規則之間保持原本的先後順序；本檔在該頁其他模組 CSS 之前載入。 */
+.account-filter {
+  display: grid; margin-bottom: var(--stack-gap); grid-template-columns: minmax(260px, 1fr) minmax(200px, .38fr) auto;
+  align-items: end; gap: var(--stack-gap-sm);
+}
+.account-filter__actions { display: flex; gap: var(--space-2); }
+.account-panel__header {
+  display: flex; min-height: 78px; padding: var(--space-4) var(--space-5); align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--line-soft);
+}
+.account-panel__header > span { color: var(--muted); font-weight: 750; }
+.account-row {
+  display: grid; min-width: 0; padding: var(--space-4) var(--space-5); grid-template-columns: auto minmax(170px, 1.1fr) minmax(220px, 1fr) minmax(150px, .65fr) auto;
+  align-items: center; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line-soft);
+}
+.account-row:last-child { border-bottom: 0; }
+.account-row.is-inactive { background: var(--surface-soft); }
+.account-row.is-inactive .account-avatar { color: var(--muted); background: var(--line); }
+.account-avatar { font-size: var(--text-md); width:44px; height:44px; border-radius:50%; background:var(--surface-tint); display:grid; place-items:center; font-weight:800; color:var(--action-text,var(--forest)); }
+.account-identity { min-width: 0; }
+.account-identity p { margin: 3px 0 0; color: var(--muted); font-size: var(--text-sm); }
+.account-login span, .account-login strong { display: block; }
+.account-login span { color: var(--muted); font-size: var(--text-xs); font-weight: 750; }
+.account-login strong { margin-top: 3px; font-size: var(--text-sm); }
+.account-audit { margin-top: var(--stack-gap); padding: 0; }
+.account-audit summary {
+  display: flex; min-height: 68px; padding: var(--space-4) var(--card-pad); align-items: center; justify-content: space-between;
+  cursor: pointer; list-style: none;
+}
+.account-audit summary::-webkit-details-marker { display: none; }
+.account-audit__chevron { margin: calc(-1 * var(--space-1)) var(--space-1) 0 var(--space-3); color: var(--muted); }
+.account-audit[open] .account-audit__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
+.account-audit summary span:first-child small, .account-audit summary span:first-child strong { display: block; }
+.account-audit summary small { color: var(--muted); }
+.account-audit__list { display: grid; padding: 0 var(--card-pad) var(--card-pad); gap: 0; border-top: 1px solid var(--line-soft); }
+.account-audit__list > div { display: grid; padding: var(--space-4) 0; grid-template-columns: auto 1fr; gap: var(--space-3); border-bottom: 1px solid var(--line-soft); }
+.account-audit__list > div:last-child { border-bottom: 0; }
+.account-audit__dot { width: 9px; height: 9px; margin-top: var(--space-2); background: var(--forest); border-radius: 50%; }
+.account-audit__list p, .account-audit__list strong, .account-audit__list small { display: block; margin: 0; }
+.account-audit__list small { margin-top: var(--space-1); color: var(--muted); }
+@media (max-width: 860px) {
+  .account-filter { grid-template-columns: 1fr 1fr; }
+  .account-filter > div:first-child { grid-column: 1 / -1; }
+  .account-row { grid-template-columns: auto 1fr; align-items: start; }
+}
+.account-audit.card { padding: 0; }

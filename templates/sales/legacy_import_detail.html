@@ -1,4 +1,5 @@
-{% extends "base.html" %}{% load site_copy screen_access %}
+{% extends "base.html" %}{% load static %}{% load site_copy screen_access %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/legacy-import.css' %}">{% endblock %}
 {% load static pagination_tags %}
 {% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}

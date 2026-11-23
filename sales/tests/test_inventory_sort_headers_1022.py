@@ -9,7 +9,8 @@ from django.urls import reverse
 
 from sales.models import Store, VehicleColor, VehicleInventory, VehicleModel
 
-CSS = Path("static/css/app.css").read_text(encoding="utf-8")
+# T-242：庫存列表的排序與篩選樣式搬到 inventory-list.css（只搬不改內容），一起讀。
+CSS = Path("static/css/app.css").read_text(encoding="utf-8") + Path("static/css/inventory-list.css").read_text(encoding="utf-8")
 SCRIPT = Path("static/js/searchable-select.js").read_text(encoding="utf-8")
 
 

@@ -791,9 +791,10 @@ def _outstanding_terms(money, show_amounts):
     return terms
 
 
-# 撥款待入帳對回三格（T-284）：依序列已交車那兩格、再列未交車；suffix 表示只算那幾張的撥款部分。
-RECONCILIATION_TERMS = (("awaiting_payout", "已交車待撥款", ""), ("unsettled", "交車後未結清", "的撥款"),
-                        ("before_delivery", "未交車", "的撥款"))
+# 撥款待入帳對回三格（T-284）：依卡片順序（T-295 依時間）列未交車、已交車待撥款、交車後未結清；
+# suffix 表示只算那幾張的撥款部分。
+RECONCILIATION_TERMS = (("before_delivery", "未交車", "的撥款"), ("awaiting_payout", "已交車待撥款", ""),
+                        ("unsettled", "交車後未結清", "的撥款"))
 
 
 def _reconciliation_terms(reconciliation, split, show_amounts):

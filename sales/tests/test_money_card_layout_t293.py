@@ -165,18 +165,18 @@ class MoneyCardNumbersUnchangedTests(MoneyCardScenario):
 
     def test_three_card_counts_and_split_rows_are_unchanged(self):
         money, _, parser = self.card()
-        self.assertEqual([count(value) for value in parser.cards], [3, 3, 1])
-        self.assertEqual(parser.cards and [money["unsettled_count"], money["before_delivery_count"],
-                                           money["awaiting_payout_count"]], [3, 3, 1])
+        self.assertEqual([count(value) for value in parser.cards], [3, 1, 3])
+        self.assertEqual(parser.cards and [money["before_delivery_count"], money["awaiting_payout_count"],
+                                           money["unsettled_count"]], [3, 1, 3])
         rows = [[(row["span"].strip(), count(row["b"]), amount(row["small"]), AMOUNT.findall(row["parts"]))
                  for row in split] for split in parser.splits]
         self.assertEqual(rows, [
-            [("現金", 2, "$162,400", []), ("刷卡", 0, None, []), ("分期", 0, None, []), ("平台", 1, "$2,350", [])],
             [("現金", 1, "$82,150", []), ("刷卡", 0, None, []), ("分期", 1, "$270,310", ["$188,160", "$82,150"]),
              ("平台", 1, "$70,000", ["$70,000", "$0"])],
             [("現金", 0, None, []), ("刷卡", 0, None, []), ("分期", 1, "$72,300", []), ("平台", 0, None, [])],
+            [("現金", 2, "$162,400", []), ("刷卡", 0, None, []), ("分期", 0, None, []), ("平台", 1, "$2,350", [])],
         ])
-        for split, bucket in zip(rows, ("unsettled", "before_delivery", "awaiting_payout")):
+        for split, bucket in zip(rows, ("before_delivery", "awaiting_payout", "unsettled")):
             self.assertEqual([(label, number, value) for label, number, value, _ in split],
                              [(row["label"], row["count"], f"${int(row['amount']):,}" if row["amount"] else None)
                               for row in money["split"][bucket]])
@@ -219,8 +219,8 @@ class MoneyCardLayoutTests(MoneyCardScenario):
         _money, _cockpit, html = self.section()
         cards = re.findall(r'<div class="ops-fig ops-money__card ops-money__card--(\w+)"><h3 class="ops-money__label">'
                            r'<span>([^<]+)</span></h3>', html)
-        self.assertEqual(cards, [("unsettled", "交車後未結清"), ("before", "未交車・尾款待收"),
-                                 ("awaiting", "已交車待撥款")])
+        self.assertEqual(cards, [("before", "未交車・尾款待收"), ("awaiting", "已交車待撥款"),
+                                 ("unsettled", "交車後未結清")])
         self.assertIn('<span class="ops-money__amount">約 $422,460</span>', html)     # 未交車含平台預估
         self.assertIn('<span class="ops-money__amount">$164,750</span>', html)
 
@@ -247,8 +247,8 @@ class MoneyCardLayoutTests(MoneyCardScenario):
         self.assertIn('<strong class="ops-money__total-amount">約 $720,787</strong>', html)
         segments = re.findall(r'<span class="ops-money__seg ops-money__seg--(\w+)[^"]*" style="flex-grow: (\d+)"></span>',
                               html)
-        self.assertEqual(segments, [("unsettled", "164750"), ("unsettled", "61277"), ("before", "422460"),
-                                    ("awaiting", "72300")])
+        self.assertEqual(segments, [("before", "422460"), ("awaiting", "72300"), ("unsettled", "164750"),
+                                    ("unsettled", "61277")])
         self.assertEqual(sum(int(value) for _key, value in segments), int(money["outstanding_amount"]))
         details = re.findall(r'<details class="ops-money__how"><summary>怎麼算的 <span class="ops-money__i" '
                              r'aria-hidden="true">ⓘ</span></summary>(.*?)</details>', html, re.S)

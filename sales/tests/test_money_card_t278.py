@@ -256,7 +256,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
         self.assertEqual((row["delivered"]["count"], row["delivered"]["expected"]), (1, Decimal("72300")))
         self.assertEqual((row["before"]["count"], row["before"]["expected"]), (1, Decimal("188160")))
         self.assertEqual(row["pending"], 2)
-        self.assertContains(response, '<span>＝交車後未結清・分期 1 張的撥款 $72,300</span><span>＋未交車・分期 1 張的撥款 $188,160</span>')
+        self.assertContains(response, '<span>＝未交車・分期 1 張的撥款 $188,160</span><span>＋交車後未結清・分期 1 張的撥款 $72,300</span>')
         # 點進去的撥款對帳（依訂單）＝同一批兩張（QA 疑慮 c）。
         self.assertEqual(self.reconciliation_ids("installment", response), {delivered.pk, before.pk})
 

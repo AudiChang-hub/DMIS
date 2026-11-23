@@ -1,6 +1,6 @@
 """T-282（使用者 2026-11-23）：營運總表「錢」的待收合計寫出怎麼組成，「交車前應收（正常）」改名「未交車・尾款待收」。
 
-- 說明行：＝交車後未結清 N 張 $…＋（交車後未結清那幾張的撥款 $…）＋未交車・尾款待收 N 張 $…＋已交車待撥款 N 張 $…
+- 說明行（T-295 依卡片順序）：＝未交車・尾款待收 N 張 $…＋已交車待撥款 N 張 $…＋交車後未結清 N 張 $…＋（交車後未結清那幾張的撥款 $…）
 - 張數加總＝outstanding_count、金額加總＝outstanding_amount；含平台預估的項目標「預估」。
 - 沒有 operations 權限的人看不到金額，說明行也一樣（for_viewer）。
 """
@@ -40,29 +40,29 @@ class OutstandingFormulaTests(MoneyCardTestBase):
         money = cockpit["money"]
         terms = money["outstanding_terms"]
         self.assertEqual([term["label"] for term in terms],
-                         ["交車後未結清", "交車後未結清那幾張的撥款", "未交車・尾款待收", "已交車待撥款"])
+                         ["未交車・尾款待收", "已交車待撥款", "交車後未結清", "交車後未結清那幾張的撥款"])
         self.assertEqual(sum(term["count"] or 0 for term in terms), money["outstanding_count"])
         self.assertEqual(sum((term["amount"] for term in terms), ZERO), money["outstanding_amount"])
-        self.assertEqual([term["count"] for term in terms], [2, None, 2, 1])
-        self.assertEqual([term["estimated"] for term in terms], [False, True, True, False])
+        self.assertEqual([term["count"] for term in terms], [2, 1, 2, None])
+        self.assertEqual([term["estimated"] for term in terms], [True, False, False, True])
         # 名稱和卡片上方三格一致；含平台預估的項目標「預估」。
         for label in ("交車後未結清", "未交車・尾款待收", "已交車待撥款"):
             self.assertContains(response, f"<span>{label}")
         self.assertContains(response, f"<span>＋交車後未結清那幾張的撥款 預估 ${Decimal('61277'):,.0f}</span>")
         before = money["before_delivery_amount"]
-        self.assertContains(response, f"<span>＋未交車・尾款待收 2 張 預估 ${before:,.0f}</span>")
+        self.assertContains(response, f"<span>＝未交車・尾款待收 2 張 預估 ${before:,.0f}</span>")
         self.assertContains(response, "<span>＋已交車待撥款 1 張 $72,300</span>")
-        self.assertContains(response, f"<span>＝交車後未結清 2 張 ${money['unsettled_amount']:,.0f}</span>")
+        self.assertContains(response, f"<span>＋交車後未結清 2 張 ${money['unsettled_amount']:,.0f}</span>")
 
     def test_no_unsettled_payout_term_when_zero(self):
         self.order("delivery_pending", source_type="store", source=self.staff)
         response, cockpit = self.cockpit()
         money = cockpit["money"]
         terms = money["outstanding_terms"]
-        self.assertEqual([term["label"] for term in terms], ["交車後未結清", "未交車・尾款待收", "已交車待撥款"])
+        self.assertEqual([term["label"] for term in terms], ["未交車・尾款待收", "已交車待撥款", "交車後未結清"])
         self.assertEqual(sum(term["count"] for term in terms), money["outstanding_count"])
         self.assertEqual(sum((term["amount"] for term in terms), ZERO), money["outstanding_amount"])
-        self.assertContains(response, "<span>＝交車後未結清 0 張 $0</span>")
+        self.assertContains(response, "<span>＋交車後未結清 0 張 $0</span>")
         self.assertNotContains(response, "交車後未結清那幾張的撥款")
 
     def test_viewer_without_operations_gets_no_amounts(self):
@@ -73,9 +73,9 @@ class OutstandingFormulaTests(MoneyCardTestBase):
         self.client.force_login(user)
         response = self.client.get(reverse("operations_report"))
         terms = response.context["cockpit"]["money"]["outstanding_terms"]
-        self.assertEqual([term["label"] for term in terms], ["交車後未結清", "未交車・尾款待收", "已交車待撥款"])
+        self.assertEqual([term["label"] for term in terms], ["未交車・尾款待收", "已交車待撥款", "交車後未結清"])
         self.assertTrue(all(term["amount"] is None and not term["estimated"] for term in terms))
-        self.assertEqual([term["count"] for term in terms], [2, 2, 1])
+        self.assertEqual([term["count"] for term in terms], [2, 1, 2])
         self.assertNotContains(response, "data-outstanding-formula")
         self.assertNotContains(response, "72,300")
         self.assertNotContains(response, "61,277")

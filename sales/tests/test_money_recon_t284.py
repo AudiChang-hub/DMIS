@@ -48,14 +48,14 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         installment, platform = rows["installment"], rows["platform"]
         self.assertTrue(cockpit["reconciliation"]["matches"])
         self.assertEqual([(term["label"], term["count"], term["amount"]) for term in installment["card_terms"]],
-                         [("已交車待撥款・分期", 1, Decimal("86136")), ("未交車・分期", 1, Decimal("188160"))])
+                         [("未交車・分期", 1, Decimal("188160")), ("已交車待撥款・分期", 1, Decimal("86136"))])
         self.assertEqual(sum(term["count"] for term in installment["card_terms"]), installment["pending"])
         self.assertEqual(sum((term["amount"] for term in installment["card_terms"]), ZERO), installment["expected"])
         # 已交車／交車前兩邊各自對回一格（原本的「已交車 N・$／交車前 N・$」）。
-        self.assertEqual(installment["card_terms"][0]["amount"], installment["delivered"]["expected"])
-        self.assertEqual(installment["card_terms"][1]["amount"], installment["before"]["expected"])
+        self.assertEqual(installment["card_terms"][1]["amount"], installment["delivered"]["expected"])
+        self.assertEqual(installment["card_terms"][0]["amount"], installment["before"]["expected"])
         awaiting = {row["key"]: row for row in cockpit["money"]["split"]["awaiting_payout"]}
-        self.assertEqual(installment["card_terms"][0]["amount"], awaiting["installment"]["amount"])
+        self.assertEqual(installment["card_terms"][1]["amount"], awaiting["installment"]["amount"])
         # 分期撥款待入帳＝三格裡分期那幾格的撥款相加（直接從拆列算，不經 card_terms）。
         split = cockpit["money"]["split"]
         self.assertEqual(sum((row["payout"] for bucket in split.values() for row in bucket
@@ -67,8 +67,8 @@ class ReconciliationTermsTests(MoneyCardTestBase):
                          [("已交車待撥款・平台", 1, Decimal("61277"), True)])
         self.assertEqual((platform["pending"], platform["expected"]), (1, awaiting["platform"]["amount"]))
         self.assertContains(response, "其中：撥款待入帳（已含在上面三格）")
-        self.assertContains(response, "<span>＝已交車待撥款・分期 1 張 $86,136</span>"
-                                      "<span>＋未交車・分期 1 張的撥款 $188,160</span>")
+        self.assertContains(response, "<span>＝未交車・分期 1 張的撥款 $188,160</span>"
+                                      "<span>＋已交車待撥款・分期 1 張 $86,136</span>")
         self.assertContains(response, "<span>＝已交車待撥款・平台 1 張 預估 $61,277</span>")
         self.assertNotContains(response, "對帳佇列多")
         self.assertNotContains(response, "對帳佇列少")
@@ -117,7 +117,8 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         self.assertEqual(sum(term["count"] for term in row["card_terms"]) + row["gap"]["count"], row["pending"])
         self.assertContains(response, "撥款待入帳（和上面三格對不上的地方寫在各列）")
         self.assertNotContains(response, "已含在上面三格")
-        self.assertContains(response, "<span>上面三格裡是</span><span>已交車待撥款・分期 1 張 $86,136</span>")
+        self.assertContains(response, "<span>上面三格裡是</span><span>未交車・分期 1 張的撥款 $188,160</span>"
+                                      "<span>＋已交車待撥款・分期 1 張 $86,136</span>")
         self.assertContains(response, ">對帳佇列多 1 張、金額多 $14,000，到對帳頁核對</span>")
         self.assertTrue(self.channels(cockpit)["platform"]["matches"])
 
@@ -161,7 +162,7 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         self.assertTrue(all(row["matches"] for row in rows.values()))
         cells = cockpit["money"]["split"]["before_delivery"]
         self.assertTrue(all(row["payout"] is None and row["customer"] is None for row in cells))
-        self.assertContains(response, "<span>＝已交車待撥款・分期 1 張</span><span>＋未交車・分期 1 張的撥款</span>")
+        self.assertContains(response, "<span>＝未交車・分期 1 張的撥款</span><span>＋已交車待撥款・分期 1 張</span>")
         self.assertNotContains(response, "data-split-parts")
         for amount in ("86,136", "188,160", "61,277"):
             self.assertNotContains(response, amount)

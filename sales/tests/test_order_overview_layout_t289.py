@@ -103,3 +103,36 @@ class OrderOverviewLayoutTests(TestCase):
         self.assertNotRegex(css, r"\.order-overview__grid \{[^}]*columns:")
         self.assertIn(".order-overview__columns .order-overview__card { order: var(--overview-order, 0); }", css)
         self.assertIn("@container order-overview-grid (min-width: 700px)", css)
+
+    def test_every_section_has_a_column_and_every_jump_has_a_rendered_section(self):
+        """新增區塊忘了加進 OVERVIEW_COLUMNS 會從畫面消失（跳轉按鈕還在）：這裡把兩邊對齊。"""
+        from unittest import mock
+        from django.utils import timezone
+
+        # 原始碼裡所有 _section("key", ...) 都要有欄位，且只在一欄。
+        source = (Path(settings.BASE_DIR) / "sales" / "services" / "order_overview.py").read_text(encoding="utf-8")
+        declared = set(re.findall(r'_section\("(\w+)"', source))
+        assigned = [key for column in OVERVIEW_COLUMNS for key in column]
+        self.assertEqual(len(assigned), len(set(assigned)))
+        self.assertEqual(set(assigned), declared)
+
+        # 情境區塊全部出現的單（汰舊、取消與退款、車行獎勵）：區塊數＝兩欄合計＝跳轉按鈕數，且一一對得到。
+        order = self.rich_order()
+        SalesOrder.objects.filter(pk=order.pk).update(cancellation_requested_at=timezone.now(), cancellation_reason="客人改買他牌")
+        order = SalesOrder.objects.get(pk=order.pk)
+        reward = {"key": "dealer_reward", "title": "車行獎勵", "rows": [{"label": "傭金", "value": "$1,500", "copy": "1500", "wide": False, "mono": True}]}
+        with mock.patch("sales.services.order_overview._dealer_reward_section", return_value=reward):
+            overview = build_order_overview(order)
+            self.client.force_login(self.user)
+            page = self.client.get(reverse("order_overview", args=[order.pk]) + "?fragment=1").content.decode()
+        keys = self.keys(overview)
+        self.assertEqual(set(keys), declared)
+        self.assertEqual(sum(len(column) for column in overview["columns"]), len(keys))
+        self.assertEqual(sorted(section["key"] for column in overview["columns"] for section in column), sorted(keys))
+        jumps = re.findall(r'<a href="#overview-(\w+)" data-overview-jump>', page)
+        rendered = re.findall(r'<section class="order-overview__card[^"]*" id="overview-(\w+)"', page)
+        table_keys = [table["key"] for table in overview["tables"]]
+        self.assertEqual(len(jumps), len(keys) + len(table_keys))
+        self.assertEqual(sorted(jumps), sorted(rendered))
+        self.assertIn("cancellation", jumps)
+        self.assertIn("dealer_reward", jumps)

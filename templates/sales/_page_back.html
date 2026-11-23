@@ -12,7 +12,7 @@
 {% elif source and not source.same_parent %}
 <nav class="page-context-nav" aria-label="頁面導覽">
   <ol class="page-breadcrumbs" aria-label="目前位置">
-    <li class="page-breadcrumb-parent"><a class="back-link" href="{{ source.url }}" data-return-to data-back-source aria-label="回到{{ source.label }}"><span class="back-link__arrow" aria-hidden="true">←</span><span>{{ source.label }}</span></a></li>
+    <li class="page-breadcrumb-parent"><a class="back-link" href="{{ source.url }}" data-return-to aria-label="回到{{ source.label }}"><span class="back-link__arrow" aria-hidden="true">←</span><span>{{ source.label }}</span></a></li>
     <li class="page-breadcrumb-current" aria-current="page" data-current-page-label{% if not current_label %} hidden{% endif %}>{{ current_label }}</li>
   </ol>
 </nav>

@@ -6,11 +6,14 @@
 import re
 from urllib.parse import quote
 
-from django.test import RequestFactory, SimpleTestCase
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import resolve, reverse
 
 from sales.back_source import SOURCE_LABELS, resolve_back_source
+from sales.tests import test_order_flow as flow
 from sales.tests.test_finance_ledger import FinanceLedgerTestBase
+from sales.tests.test_order_compact_back_t214 import compact_bar
 
 
 def back_nav(html):
@@ -104,3 +107,38 @@ class BackSourcePageTests(FinanceLedgerTestBase):
                               self.client.get(reverse(name)).content.decode())
         self.assertIn('id="main-content" tabindex="-1">',
                       self.client.get(reverse("user_guide")).content.decode())
+
+
+
+class OrderCompactBarSourceTests(TestCase):
+    """手機上訂單頁頂端是精簡列（麵包屑被取代），精簡列返回鍵也要回到來源。"""
+    setUp = flow.OrderFlowTests.setUp
+    make_order = flow.OrderFlowTests.make_order
+
+    def links(self, query=""):
+        admin = get_user_model().objects.filter(username="admin").first() or get_user_model().objects.create_superuser(
+            "admin", password="test-only")
+        self.client.force_login(admin)
+        page = self.client.get(reverse("order_detail", args=[self.make_order().pk]) + query).content.decode()
+        crumb = re.search(r'<a class="back-link" href="([^"]+)" data-return-to aria-label="([^"]+)"', page)
+        bar = compact_bar(page)
+        back = re.search(r'<a class="order-compact-bar__back" href="([^"]+)" data-return-to aria-label="([^"]+)">'
+                         r'.*?__back-text">([^<]+)<', bar)
+        return crumb.groups(), back.groups()
+
+    def test_compact_back_follows_source(self):
+        crumb, back = self.links("?back_to=" + quote("/operations/?period=last_month", safe=""))
+        self.assertEqual(crumb, ("/operations/?period=last_month", "回到營運總表"))
+        self.assertEqual(back, ("/operations/?period=last_month", "回到營運總表", "營運總表"))
+
+    def test_compact_back_keeps_filtered_order_list(self):
+        crumb, back = self.links("?back_to=" + quote("/orders/?status=active", safe=""))
+        self.assertEqual(crumb, ("/orders/?status=active", "回到全部訂單"))
+        self.assertEqual(back, ("/orders/?status=active", "回到全部訂單", "全部訂單"))
+
+    def test_compact_back_unchanged_without_or_with_bad_source(self):
+        for query in ("", "?back_to=" + quote("//evil.example/", safe="")):
+            with self.subTest(query=query):
+                crumb, back = self.links(query)
+                self.assertEqual(back, (reverse("order_list"), "回到全部訂單", "全部訂單"))
+                self.assertEqual(back[:2], crumb)

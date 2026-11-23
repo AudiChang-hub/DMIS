@@ -707,6 +707,10 @@ class PageStylesheetSplitTests(SimpleTestCase):
 
     def test_module_stylesheets_load_first_in_their_pages(self):
         # 同一頁可能有好幾批搬出的檔案（第三批新檔排在前一批之前）：這些檔案要連續排在 {% block head %} 最前面。
+        # 搬出的規則原本在 app.css 裡，所以要緊接在 app.css 之後、其他頁面樣式之前載入，疊加順序才跟搬之前一樣：
+        # base.html 的 app.css 與 {% block head %} 之間不能夾別的樣式。
+        base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
+        self.assertRegex(base, r"<link rel=\"stylesheet\" href=\"{% static 'css/app\.css' %}\">\s*{% block head %}")
         split_files = {css for css, _ in self.MODULES.values()} | set(self.BATCH3)
         link = re.compile(r"<link rel=\"stylesheet\" href=\"{% static 'css/([\w.-]+)' %}\">")
         for prefixes, (css, pages) in self.MODULES.items():

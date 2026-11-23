@@ -70,6 +70,13 @@ def _source_tag(profile, form, name, manual):
     return ("", "")
 
 
+def _installment_extra_bonus(order):
+    """本單分期快照記下的額外撥款獎金；非分期單或快照沒有獎金時為 0。"""
+    if order.payment_type != order.PaymentType.INSTALLMENT:
+        return ZERO
+    return Decimal(str((order.installment_plan_snapshot or {}).get("extra_disbursement_bonus") or 0))
+
+
 def _order_overrides(profile):
     """依訂單狀況調整個別列的名稱與提示；只影響顯示。"""
     from sales.services.agency_fee import plate_fee_waived
@@ -86,6 +93,12 @@ def _order_overrides(profile):
             "可先填預估的平台撥款；在統一撥款對帳入帳後改為實際撥款" if payout == "platform"
             else "分期那筆×撥款比例＋客人自付車款；在統一撥款對帳入帳後改為實際"
         )
+    bonus = _installment_extra_bonus(order)
+    if bonus:
+        # 額外撥款獎金已含在車價收入、計入淨利（T-285 A 案，使用者 2026-11-23）；金額取本單快照，0 不顯示。
+        note = f"含分期公司額外撥款獎金 {bonus:,.0f} 元"
+        base = hints.get("actual_disbursement", HINTS.get("actual_disbursement", ""))
+        hints["actual_disbursement"] = f"{base}；{note}" if base else note
     if hasattr(order, "legacy_snapshot"):
         labels["agency_fee_income"] = "代辦費收入"
         hints["agency_fee_income"] = "Excel 匯入的代辦費"

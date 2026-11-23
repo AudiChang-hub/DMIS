@@ -1478,7 +1478,7 @@ class InstallmentPlanOptionForm(forms.ModelForm):
             "每張套用此方案的訂單都先帶入這個預估金額。"
         )
         self.fields["extra_disbursement_bonus"].help_text = (
-            "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，不會再重複列入淨利獎勵。"
+            "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，會隨車價收入計入淨利，不要再填到獎勵與補助。"
         )
         self.fields["extra_disbursement_bonus"].required = False
         apply_mobile_keyboard_attrs(self)

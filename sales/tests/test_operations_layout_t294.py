@@ -54,6 +54,9 @@ class OperationsLayoutTests(TestCase):
         self.assertIn('class="ops-card ops-attention is-clear"', html)
         self.assertIn('<p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span>'
                       '<strong>目前沒有需要處理的事</strong>', html)
+        clear = "、".join(response.context["cockpit"]["attention_clear"])
+        self.assertIn(f"<small>目前沒有：{clear}</small></p>", html)
+        self.assertNotIn("收款、撥款、庫存與流程都在正常範圍內。", html)
         self.assertNotIn('class="ops-clear"', html)
         self.assertNotIn("紅色優先，同色依金額與件數排序", html)
 

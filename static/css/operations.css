@@ -411,6 +411,12 @@ html[data-theme="night-blue"] .ops {
   font-size: var(--text-sm);
 }
 
+/* 「目前沒有：…」清單很長：寬版和標題同一列、清單在自己的欄內換行；窄版整段落到下一行。 */
+.ops-attention.is-clear .ops-attention__none {
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+
 .ops-attention__ok {
   color: var(--green);
   font-weight: 700;
@@ -421,6 +427,8 @@ html[data-theme="night-blue"] .ops {
 }
 
 .ops-attention__none small {
+  flex: 1 1 20rem;
+  min-width: 0;
   color: var(--muted);
   font-size: var(--text-xs);
 }

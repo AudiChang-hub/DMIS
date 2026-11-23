@@ -53,7 +53,7 @@
         {% if item.url %}<span class="ops-todo__go" aria-hidden="true">→</span></a>{% else %}</div>{% endif %}</li>{% endfor %}
       </ol>
     {% else %}
-      <p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span><strong>目前沒有需要處理的事</strong><small>收款、撥款、庫存與流程都在正常範圍內。</small></p>
+      <p class="ops-attention__none"><span class="ops-attention__ok" aria-hidden="true">✓</span><strong>目前沒有需要處理的事</strong><small>目前沒有：{{ c.attention_clear|join:"、" }}</small></p>
     {% endif %}
     {% if c.attention and c.attention_clear %}<p class="ops-clear">目前沒有：{{ c.attention_clear|join:"、" }}</p>{% endif %}
   </section>

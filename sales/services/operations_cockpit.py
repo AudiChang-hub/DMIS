@@ -775,17 +775,17 @@ def _attention(data, flags):
 
 
 def _outstanding_terms(money, show_amounts):
-    """待收合計怎麼組成（T-282）：三格（名稱同卡片上方）＋交車後未結清那幾張的撥款；張數、金額加總＝合計。
+    """待收合計怎麼組成（T-282）：三格（名稱、順序同卡片，T-295 依時間）＋交車後未結清那幾張的撥款；張數、金額加總＝合計。
     交車後未結清那幾張的撥款是同一批單，不另算張數；沒有 operations 權限時不給金額。"""
-    terms = [{"label": "交車後未結清", "count": money["unsettled_count"], "amount": money["unsettled_amount"],
+    terms = [{"label": "未交車・尾款待收", "count": money["before_delivery_count"],
+              "amount": money["before_delivery_amount"], "estimated": money["before_delivery_estimated"]},
+             {"label": "已交車待撥款", "count": money["awaiting_payout_count"],
+              "amount": money["awaiting_payout_amount"], "estimated": money["awaiting_payout_estimated"]},
+             {"label": "交車後未結清", "count": money["unsettled_count"], "amount": money["unsettled_amount"],
               "estimated": False}]
     if money["unsettled_payout_amount"]:
         terms.append({"label": "交車後未結清那幾張的撥款", "count": None, "amount": money["unsettled_payout_amount"],
                       "estimated": money["unsettled_payout_estimated"]})
-    terms.append({"label": "未交車・尾款待收", "count": money["before_delivery_count"],
-                  "amount": money["before_delivery_amount"], "estimated": money["before_delivery_estimated"]})
-    terms.append({"label": "已交車待撥款", "count": money["awaiting_payout_count"],
-                  "amount": money["awaiting_payout_amount"], "estimated": money["awaiting_payout_estimated"]})
     if not show_amounts:
         terms = [{**term, "amount": None, "estimated": False} for term in terms if term["count"] is not None]
     return terms

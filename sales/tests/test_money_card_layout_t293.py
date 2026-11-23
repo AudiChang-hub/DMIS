@@ -1,12 +1,17 @@
 """T-293（使用者 2026-11-23「照你的建議全部做」）：營運總表「錢」卡片只改呈現，數字一律不變。
 
+- 新結構：三張小卡＋色帶、0 張「—」、預估寫「約」、分段長條、算式收進「怎麼算的」、撥款待入帳小表、車行未付標籤；
+  CSS 用容器查詢，卡片變寬也成立。
 - 數字不變：同一組資料，卡片上看得到的每個金額、張數、帳齡、撥款待入帳、車行未付，改版前後完全相同。
   這組測試在改版前的模板上先跑過（全過）才動模板；值為 0 的拆列改顯示「—」，比對時當 0。
 """
 import re
 from decimal import Decimal
 from html.parser import HTMLParser
+from pathlib import Path
 
+from django.conf import settings
+from django.test import SimpleTestCase
 from django.utils import timezone
 
 from sales.models import OrderOperationsProfile, PaymentRecord, SalesOrder
@@ -106,7 +111,7 @@ def squash(value):
     return re.sub(r"\s+", " ", value).strip()
 
 
-class MoneyCardNumbersUnchangedTests(MoneyCardTestBase):
+class MoneyCardScenario(MoneyCardTestBase):
     """同一組資料涵蓋三格、四種付款方式、撥款＋客人、平台預估、帳齡、撥款待入帳、車行未付。"""
 
     maxDiff = None
@@ -142,6 +147,10 @@ class MoneyCardNumbersUnchangedTests(MoneyCardTestBase):
         parser.feed(response.content.decode())
         self.assertGreater(len(parser.text), 0, "找不到錢卡片")
         return cockpit["money"], cockpit, parser
+
+
+class MoneyCardNumbersUnchangedTests(MoneyCardScenario):
+    """改版前後同一組資料的金額、張數完全相同（先在舊模板上跑過）。"""
 
     def test_amount_set_is_unchanged(self):
         money, _, parser = self.card()
@@ -194,3 +203,102 @@ class MoneyCardNumbersUnchangedTests(MoneyCardTestBase):
         self.assertEqual(re.search(r"(\d+) 家共 (\d+) 張", text).groups(), ("1", "1"))
         self.assertEqual(re.search(r"車行未付[^$]*?(\$[\d,]+)", text).group(1),
                          f"${int(money['dealer_credit_total']):,}")
+
+
+class MoneyCardLayoutTests(MoneyCardScenario):
+    """新結構：三張小卡＋色帶、四列固定、0 張「—」、預估寫「約」、分段長條、算式收進「怎麼算的」、撥款待入帳小表、車行未付標籤。"""
+
+    def section(self):
+        self.scenario()
+        response, cockpit = self.cockpit()
+        html = response.content.decode()
+        start = html.index('aria-labelledby="ops-money-title"')
+        return cockpit["money"], cockpit, html[start:html.index("</section>", start)]
+
+    def test_three_cards_with_colour_bands_in_order(self):
+        _money, _cockpit, html = self.section()
+        cards = re.findall(r'<div class="ops-fig ops-money__card ops-money__card--(\w+)"><h3 class="ops-money__label">'
+                           r'<span>([^<]+)</span></h3>', html)
+        self.assertEqual(cards, [("unsettled", "交車後未結清"), ("before", "未交車・尾款待收"),
+                                 ("awaiting", "已交車待撥款")])
+        self.assertIn('<span class="ops-money__amount">約 $422,460</span>', html)     # 未交車含平台預估
+        self.assertIn('<span class="ops-money__amount">$164,750</span>', html)
+
+    def test_four_rows_fixed_zero_rows_show_dash(self):
+        _money, _cockpit, html = self.section()
+        lists = html.split('<ul class="ops-split"')[1:]
+        self.assertEqual(len(lists), 3)
+        for chunk in lists:
+            chunk = chunk.split("</ul>")[0]
+            positions = [chunk.index(f"<span>{label}</span>") for label in ("現金", "刷卡", "分期", "平台")]
+            self.assertEqual(positions, sorted(positions))
+            self.assertNotIn("<b>0</b>", chunk)
+        self.assertIn('<li class="is-zero" title="已交車待撥款（現金）"><span>現金</span><b aria-hidden="true">—</b>'
+                      '<span class="ops-visually-hidden">0 張</span></li>', html)
+        self.assertEqual(html.count('<b aria-hidden="true">—</b>'), 6)
+        # 預估金額加「約」；撥款＋客人附註保留。
+        self.assertIn("<small>約 $70,000</small>", html)
+        self.assertIn('<small class="ops-split__parts" data-split-parts><span class="ops-split__part">撥款 約 $70,000</span>'
+                      '<span class="ops-split__part">＋客人 $0</span></small>', html)
+        self.assertNotIn("預估 $", html.split('<div class="ops-money__total">')[0])
+
+    def test_total_has_stacked_bar_and_formula_folded_into_details(self):
+        money, _cockpit, html = self.section()
+        self.assertIn('<strong class="ops-money__total-amount">約 $720,787</strong>', html)
+        segments = re.findall(r'<span class="ops-money__seg ops-money__seg--(\w+)[^"]*" style="flex-grow: (\d+)"></span>',
+                              html)
+        self.assertEqual(segments, [("unsettled", "164750"), ("unsettled", "61277"), ("before", "422460"),
+                                    ("awaiting", "72300")])
+        self.assertEqual(sum(int(value) for _key, value in segments), int(money["outstanding_amount"]))
+        details = re.findall(r'<details class="ops-money__how"><summary>怎麼算的 <span class="ops-money__i" '
+                             r'aria-hidden="true">ⓘ</span></summary>(.*?)</details>', html, re.S)
+        self.assertEqual(len(details), 2)
+        self.assertIn("data-outstanding-formula", details[0])
+        self.assertIn("「約」：含平台撥款預估", details[0])
+        self.assertEqual(html.count("data-outstanding-formula"), 1)
+        self.assertEqual(html.count("data-recon-terms"), details[1].count("data-recon-terms"))
+        self.assertIn('data-recon-terms="installment"', details[1])
+
+    def test_reconciliation_is_a_small_table(self):
+        _money, _cockpit, html = self.section()
+        self.assertEqual(html.count("已含在上面三格"), 1)
+        self.assertIn('<thead><tr><th scope="col"><span class="ops-visually-hidden">撥款來源</span></th>'
+                      '<th scope="col">張數</th><th scope="col">金額</th></tr></thead>', html)
+        self.assertRegex(html, r'<th scope="row">分期撥款待入帳</th>\s*<td>.*?>2</a></td>\s*<td>\$260,460</td>')
+        self.assertRegex(html, r'<th scope="row">平台撥款待入帳</th>\s*<td>.*?>2</a></td>\s*<td>約 \$131,277</td>')
+
+    def test_dealer_credit_note_is_a_tag(self):
+        _money, _cockpit, html = self.section()
+        self.assertIn('車行未付<span class="ops-money__tag">已含在交車後未結清</span><small class="ops-facts__note">'
+                      '<span class="ops-facts__note-count">1 家共 1 張</span></small>', html)
+
+    def test_blocks_keep_order(self):
+        _money, _cockpit, html = self.section()
+        order = [html.index(marker) for marker in ('class="ops-money__cards"', 'class="ops-money__total"',
+                                                   'id="ops-recon-title"', 'class="ops-money__aging"', "車行未付")]
+        self.assertEqual(order, sorted(order))
+        self.assertEqual(len(re.findall(r'class="ops-bar__seg ops-bar__seg--[123]', html)), 3)
+
+
+class MoneyCardStylesTests(SimpleTestCase):
+    """CSS：容器查詢（不是視窗寬度）、色帶顏色、帳齡由淺到深、ⓘ 可聚焦、尊重減少動態。"""
+
+    def setUp(self):
+        css = (Path(settings.BASE_DIR) / "static" / "css" / "operations.css").read_text(encoding="utf-8")
+        self.css = css.replace("\r\n", "\n")
+
+    def test_container_query_and_bands(self):
+        self.assertIn("container: ops-money / inline-size;", self.css)
+        self.assertIn("@container ops-money (min-width: 22rem)", self.css)
+        self.assertIn("--money-unsettled: var(--amber-strong);", self.css)
+        self.assertIn("--money-before: var(--muted);", self.css)
+        self.assertIn("--money-awaiting: var(--blue);", self.css)
+        self.assertIn("border-top: 3px solid var(--money-band", self.css)
+
+    def test_aging_light_to_dark_and_details_accessible(self):
+        mixes = re.findall(r"\.ops-money \.ops-bar__seg--(\d),\n(?:\.ops-money \.ops-bar__seg\.is-late,\n)?"
+                           r"\.ops-money \.ops-legend__swatch\.ops-bar__seg--\d \{ background: color-mix\(in srgb, "
+                           r"var\(--ink\) (\d+)%, var\(--surface\)\); \}", self.css)
+        self.assertEqual(mixes, [("1", "50"), ("2", "70"), ("3", "90")])
+        self.assertIn(".ops-money__how > summary:focus-visible", self.css)
+        self.assertIn("@media (prefers-reduced-motion: no-preference) {\n  .ops-money__how[open]", self.css)

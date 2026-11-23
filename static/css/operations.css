@@ -683,47 +683,110 @@ html[data-theme="night-blue"] .ops {
   font-size: var(--text-xs);
 }
 
-/* 「錢」依付款方式拆列（T-275 第 9 項）：三欄的分項清單對齊同一條線（subgrid）。 */
-.ops-figs:has(.ops-split) {
-  row-gap: 0;
+/* ── 錢（T-293）：三張小卡＋待收合計分段長條＋「怎麼算的」收起算式。只改呈現，數字不變。
+   用容器查詢看卡片本身的寬度（不是視窗）：窄欄上下排、夠寬三張並排，之後整頁改版讓這張卡變寬也成立。
+   三張卡的色帶＝待收合計長條的三段：交車後未結清琥珀、未交車・尾款待收灰、已交車待撥款藍（各主題的設計參數）。 ── */
+.ops-money {
+  --money-unsettled: var(--amber-strong);
+  --money-before: var(--muted);
+  --money-awaiting: var(--blue);
+  container: ops-money / inline-size;
 }
 
-/* 數字、標籤＋四列付款方式＝6 列；四列也走 subgrid（T-284），同一種付款方式在三格同一列，
-   某一格多一行（撥款＋客人）時另外兩格同一列跟著加高。 */
-.ops-fig:has(.ops-split) {
+.ops-money__cards {
   display: grid;
-  grid-row: span 6;
-  grid-template-rows: subgrid;
-  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
 }
 
+.ops-money__card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  row-gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line-soft);
+  border-top: 3px solid var(--money-band, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.ops-money__card--unsettled { --money-band: var(--money-unsettled); }
+.ops-money__card--before { --money-band: var(--money-before); }
+.ops-money__card--awaiting { --money-band: var(--money-awaiting); }
+
+.ops-money__label {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ops-money .ops-money__label span {
+  color: inherit;
+  font-size: inherit;
+}
+
+.ops-money__sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-2);
+  margin: 0;
+}
+
+.ops-money .ops-money__count {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.ops-money .ops-money__count strong {
+  display: inline;
+  font-size: var(--text-xl);
+}
+
+.ops-money .ops-money__amount {
+  margin-inline-start: auto;
+  text-align: right;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 四列付款方式（T-275 第 9 項、T-284 固定四列）：標籤｜張數｜金額三欄，張數和金額各自靠右；整張卡的四列共用欄寬（subgrid）。 */
 .ops-split {
   display: grid;
-  grid-row: span 4;
-  grid-template-rows: subgrid;
-  gap: 2px;
-  margin: var(--space-2) 0 0;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: var(--space-2);
+  row-gap: 2px;
+  margin: var(--space-1) 0 0;
   padding: var(--space-2) 0 0;
-  border-top: 1px dashed var(--line-soft);
+  border-top: 1px solid var(--line);
   list-style: none;
   font-size: var(--text-xs);
 }
 
-.ops-split li > a,
-.ops-split li {
-  display: flex;
+.ops-split li,
+.ops-split li > a {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: baseline;
-  gap: var(--space-2);
   min-width: 0;
 }
 
 .ops-split li > a {
-  flex: 1;
   margin: 0 calc(var(--space-1) * -1);
   padding: 2px var(--space-1);
   border-radius: var(--radius-xs);
   color: var(--forest);
   text-decoration: none;
+  transition: background-color var(--dur-2) var(--ease-out);
 }
 
 .ops-split li > a:hover {
@@ -735,45 +798,323 @@ html[data-theme="night-blue"] .ops {
   outline-offset: 1px;
 }
 
-.ops-split span {
+.ops-money .ops-split span {
   color: var(--ink-soft);
   font-size: var(--text-xs);
 }
 
 .ops-split b {
-  margin-inline-start: auto;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .ops-split small {
-  color: var(--muted);
+  color: var(--ink-soft);
+  text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* 未交車・尾款待收的金額拆成撥款＋客人（T-284）：換一行、靠右對齊金額，手機寬度可在「＋」前後換行。 */
-.ops-split li:has(.ops-split__parts),
-.ops-split li:has(.ops-split__parts) > a {
-  flex-wrap: wrap;
-  row-gap: 0;
-}
-
+/* 撥款＋客人（T-284）：附註，小一級、淡色，整行靠右放在金額下方。 */
 .ops-split small.ops-split__parts {
-  flex: 1 0 100%;
-  text-align: right;
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  line-height: 1.35;
   white-space: normal;
 }
 
-.ops-split .ops-split__part {
+.ops-money .ops-split .ops-split__part {
   color: inherit;
   font-size: inherit;
   white-space: nowrap;
 }
 
-.ops-split li.is-zero span,
+/* 0 張：列保留、位置不變，張數改淡灰「—」。 */
+.ops-money .ops-split li.is-zero span,
 .ops-split li.is-zero b {
   color: var(--muted);
+  font-weight: 400;
+}
+
+/* 待收合計：總額、下方分段長條（長度依金額比例），算式收進「怎麼算的」。 */
+.ops-money__total,
+.ops-money__aging {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+}
+
+.ops-money__total-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  margin: 0;
+}
+
+.ops-money__total-label {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.ops-money__total-amount {
+  margin-inline-start: auto;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-money__stack {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+}
+
+.ops-money__seg {
+  flex-basis: 0;
+  min-width: 2px;
+}
+
+.ops-money__seg--unsettled { background: var(--money-unsettled); }
+.ops-money__seg--before { background: var(--money-before); }
+.ops-money__seg--awaiting { background: var(--money-awaiting); }
+
+/* 交車後未結清那幾張的撥款和客人應收同一段，不留縫。 */
+.ops-money__seg--joined {
+  margin-inline-start: -2px;
+}
+
+.ops-money__seg--empty {
+  flex-grow: 1;
+  background: var(--surface-soft);
+}
+
+.ops-money__how > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  margin-inline-start: calc(var(--space-1) * -1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  color: var(--forest);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--dur-2) var(--ease-out);
+}
+
+.ops-money__how > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 全站 summary 右側箭頭（app.css）在這裡由 ⓘ 取代；展開時底色標示狀態。 */
+.ops-money__how > summary::after {
+  content: none;
+  display: none;
+}
+
+.ops-money__how[open] > summary {
+  background: color-mix(in srgb, var(--forest) 8%, transparent);
+}
+
+.ops-money__how > summary:hover {
+  background: color-mix(in srgb, var(--forest) 8%, transparent);
+}
+
+.ops-money__how > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.ops-money__i {
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.ops-money__how-body {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.ops-money__how-body p {
+  margin: 0;
+}
+
+.ops-money__how-body b {
+  display: block;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.ops-money__how-body small {
+  display: block;
+  font-size: inherit;
+}
+
+.ops-money .ops-facts__formula span {
+  display: block;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-money__how:not(:has(.ops-facts__formula, p)) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ops-money__how[open] > .ops-money__how-body {
+    animation: ops-money-reveal var(--dur-2) var(--ease-out);
+  }
+}
+
+@keyframes ops-money-reveal {
+  from { opacity: 0; transform: translateY(-2px); }
+}
+
+/* 撥款待入帳：兩列小表（張數｜金額），小標寫一次「已含在上面三格」。 */
+.ops-money__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-money__table th,
+.ops-money__table td {
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ops-money__table thead th {
+  padding-top: 0;
+  padding-bottom: 2px;
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+}
+
+.ops-money__table th:first-child {
+  width: 100%;
+  padding-left: 0;
+  color: var(--ink-soft);
   font-weight: 500;
+  text-align: left;
+  white-space: normal;
+}
+
+.ops-money__table tbody tr + tr {
+  border-top: 1px solid var(--line-soft);
+}
+
+.ops-money__table a {
+  color: var(--forest);
+  text-decoration: none;
+}
+
+.ops-money__table a:hover {
+  text-decoration: underline;
+}
+
+.ops-money__table a:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ops-money__nil {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ops-money__table .ops-money__gap-row {
+  border-top: 0;
+}
+
+.ops-money__table .ops-money__gap-row td {
+  padding-top: 0;
+  padding-left: 0;
+  color: var(--red-ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+}
+
+/* 帳齡：0–7、8–30、30 天以上由淺到深，三段對卡片底色都在 3:1 以上（WCAG AA 非文字對比）。 */
+.ops-money .ops-bar__seg--1,
+.ops-money .ops-legend__swatch.ops-bar__seg--1 { background: color-mix(in srgb, var(--ink) 50%, var(--surface)); }
+.ops-money .ops-bar__seg--2,
+.ops-money .ops-legend__swatch.ops-bar__seg--2 { background: color-mix(in srgb, var(--ink) 70%, var(--surface)); }
+.ops-money .ops-bar__seg--3,
+.ops-money .ops-bar__seg.is-late,
+.ops-money .ops-legend__swatch.ops-bar__seg--3 { background: color-mix(in srgb, var(--ink) 90%, var(--surface)); }
+
+/* 車行未付：「已含在交車後未結清」改成旁邊的小標籤。 */
+.ops-money__tag {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.6;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+/* 卡片夠寬：三張並排，四列付款方式在三張卡同一列（subgrid；某張多一行撥款＋客人時同列一起加高）。 */
+@container ops-money (min-width: 22rem) {
+  .ops-money__cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 0;
+  }
+
+  .ops-money__card {
+    grid-row: span 6;
+    grid-template-rows: subgrid;
+    padding: var(--space-3) var(--space-2);
+  }
+
+  /* 三張並排但每張還窄：金額自成一行靠右，三張卡同一個位置。 */
+  .ops-money .ops-money__amount {
+    flex: 1 0 100%;
+  }
+
+  .ops-money .ops-split {
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+  }
+}
+
+@container ops-money (min-width: 44rem) {
+  .ops-money__card {
+    padding: var(--space-3);
+  }
+
+  .ops-money .ops-money__amount {
+    flex: 0 1 auto;
+  }
 }
 
 .ops-subhead {
@@ -1230,11 +1571,6 @@ html[data-theme="night-blue"] .ops {
 
   .ops-figs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /* 拆列後兩欄換行時，下一列的數字和上面的清單要有間距（T-275） */
-  .ops-fig:has(.ops-split) {
-    padding-bottom: var(--space-4);
   }
 
   .ops-track__count {

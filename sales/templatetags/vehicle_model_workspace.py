@@ -1,9 +1,12 @@
 """機種工作區：同一年式的規格、售價、分期、傭金、成本、獎勵與選車展示共用一組頁首與分頁。"""
+from urllib.parse import urlencode
+
 from django import template
 from django.urls import reverse
 from django.utils import timezone
 
 from sales.access.services import policy_for
+from sales.back_source import PARAM as BACK_PARAM, resolve_back_source
 
 register = template.Library()
 
@@ -53,6 +56,22 @@ def _back_target(context, policy):
         if policy.route(route):
             return reverse(route), label
     return reverse("data_maintenance"), "資料維護區"
+
+
+def _keep_back_source(request, tabs, navigator):
+    """從其他區帶 back_to 進來（T-291）：切分頁、換年式都是別的網址，要把來源帶著，返回才回得去。"""
+    source = resolve_back_source(request)
+    if not source:
+        return
+    suffix = "?" + urlencode({BACK_PARAM: source["url"]})
+    for tab in tabs:
+        if tab["url"]:
+            tab["url"] += suffix
+    for group in navigator:
+        for section in group["sections"]:
+            for family in section["families"]:
+                for year in family["years"]:
+                    year["url"] += suffix
 
 
 STATUS_UNITS = {
@@ -122,6 +141,7 @@ def vehicle_model_workspace(context, vehicle_model, active):
         from sales.services.vehicle_model_nav import build_model_navigator
 
         navigator = build_model_navigator(vehicle_model, active, TABS, policy)
+    _keep_back_source(request, tabs, navigator)
     return {
         "saved": saved,
         "tabs": tabs,

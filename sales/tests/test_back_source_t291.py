@@ -142,3 +142,42 @@ class OrderCompactBarSourceTests(TestCase):
                 crumb, back = self.links(query)
                 self.assertEqual(back, (reverse("order_list"), "回到全部訂單", "全部訂單"))
                 self.assertEqual(back[:2], crumb)
+
+
+class VehicleModelWorkspaceSourceTests(FinanceLedgerTestBase):
+    """機種工作區：從其他區（例：營運總表→缺貨風險車型）進來，切分頁、換年式後返回仍回到來源。"""
+    SOURCE = "/data/inventory/shortage/"
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def page(self, query=""):
+        return self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]) + query).content.decode()
+
+    @staticmethod
+    def workspace_links(html):
+        tabs = re.findall(r'<a class="model-workspace-tab[^"]*" href="([^"]+)"', html)
+        years = re.findall(r'<a class="model-nav__year[^"]*" href="([^"]+)"', html)
+        return [href.replace("&amp;", "&") for href in tabs + years]
+
+    def test_tabs_and_model_switch_keep_source(self):
+        html = self.page("?back_to=" + quote(self.SOURCE, safe=""))
+        self.assertEqual(parent_link(html), (self.SOURCE, "缺貨風險車型"))
+        links = self.workspace_links(html)
+        self.assertGreater(len(links), 2)
+        for href in links:
+            with self.subTest(href=href):
+                self.assertTrue(href.endswith("?back_to=" + quote(self.SOURCE, safe="")), href)
+        price_tab = reverse("vehicle_model_price_versions", args=[self.model.pk])
+        next_page = next(href for href in links if href.startswith(price_tab + "?"))
+        self.assertEqual(parent_link(self.client.get(next_page).content.decode()), (self.SOURCE, "缺貨風險車型"))
+
+    def test_without_or_with_bad_source_workspace_is_unchanged(self):
+        plain = self.page()
+        self.assertEqual(parent_link(plain), (reverse("vehicle_model_list"), "機種與售價"))
+        self.assertTrue(all("back_to" not in href for href in self.workspace_links(plain)))
+        for value in ("//evil.example/", "/no-such-page/"):
+            with self.subTest(value=value):
+                html = self.page("?back_to=" + quote(value, safe=""))
+                self.assertEqual(self.workspace_links(html), self.workspace_links(plain))
+                self.assertEqual(back_nav(html), back_nav(plain))

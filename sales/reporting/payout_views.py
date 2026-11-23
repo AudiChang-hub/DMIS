@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
@@ -113,6 +114,7 @@ def dealer_payout_list(request):
         "can_export": policy.screen("dealer_payouts", "export"),
         "queried_at": timezone.now(),
         "next_url": request.get_full_path(),
+        "payout_update_url": reverse("dealer_payout_update"),
     })
 
 

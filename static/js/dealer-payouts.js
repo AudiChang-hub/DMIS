@@ -20,6 +20,21 @@
     }
   });
 
+  // 每列勾選、備註的 csrf 與 next 整頁共用一份（T-281 h）：送出時照原本的順序放在最前面，伺服器收到的欄位與值和以前相同；
+  // 沒有 JavaScript 時這兩個欄位在各列的 noscript 裡，整頁送出照舊。
+  document.addEventListener("formdata", (event) => {
+    const form = event.target;
+    const shared = document.getElementById("payout-shared");
+    if (!form?.matches?.("form.payout-item__toggle, form[data-payout-note]") || !shared) return;
+    // 原地更新換入的區塊是 DOMParser 解析的（不執行腳本），noscript 裡的 csrf、next 會變成真的欄位：一律以共用的為準，不重複送。
+    const all = Array.from(event.formData.entries());
+    const own = all.filter(([name]) => name !== "csrfmiddlewaretoken" && name !== "next");
+    new Set(all.map(([name]) => name)).forEach((name) => event.formData.delete(name));
+    event.formData.append("csrfmiddlewaretoken", shared.elements.csrfmiddlewaretoken.value);
+    event.formData.append("next", shared.elements.next.value);
+    own.forEach(([name, value]) => event.formData.append(name, value));
+  }, true);
+
   // 台數獎金結算（T-203）：「結算」先開確認卡，按「確認結算」才送出；Esc、先不要、點背景都是取消。
   page.addEventListener("click", (event) => {
     const opener = event.target.closest("[data-settle-open]");

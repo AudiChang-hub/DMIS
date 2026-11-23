@@ -6,6 +6,24 @@
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
+// 訂單頁配件列（T-281 h）：既有列的配件名稱下拉只帶已選的那一項，完整清單從「新增配件」範本複製一份；
+// 和伺服器原本一樣，只標第一個值相同的選項（同一配件在多個類別時是第一組裡的那一項）。要在其他配件程式之前執行。
+(() => {
+  const source = document.getElementById("empty-accessory")?.content.querySelector('[name$="-accessory_product"]');
+  if (!source) return;
+  document.querySelectorAll('select[data-shared-options="accessory-product"]').forEach(select => {
+    const value = select.value;
+    select.replaceChildren(...Array.from(source.childNodes, node => node.cloneNode(true)));
+    let marked = false;
+    Array.from(select.options).forEach(option => {
+      option.defaultSelected = !marked && option.value === value;
+      if (option.defaultSelected) { marked = true; option.selected = true; }
+    });
+    select.removeAttribute("data-shared-options");
+  });
+})();
+</script>
+<script>
 // 補助方案：同一互斥群組（例如環保局的新購／汰舊）只能勾一個；換油車／電動車時只顯示適用的方案。
 (() => {
   const picker = document.querySelector("[data-subsidy-picker]");

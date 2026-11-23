@@ -5579,6 +5579,9 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         },
         status=400 if commission_form is not None and commission_form.is_bound and commission_form.errors else 200,
     )
+    # 訂單頁表單的 widget 用快速輸出，HTML 與內建模板逐字相同（T-281 h）。
+    from .form_rendering import use_fast_widgets
+    use_fast_widgets(response.context_data)
     return response.context_data if workspace_context_only else response
 
 
@@ -6053,7 +6056,8 @@ def _inline_order_form_context(request, order, form=None, formset=None, fee_form
             form.fields[field].widget.attrs["form"] = "order-form"
     return {
         "form": form,
-        "formset": formset or OrderPageAccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}),
+        # 既有列的配件名稱下拉共用新增列範本的清單（T-281 h）。
+        "formset": formset or OrderPageAccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")}).share_product_options(),
         "fee_formset": fee_formset or OrderPageOtherFeeFormSet(instance=order, prefix="other_fees"),
         "inline_order_form": True,
         "document_source": order,
@@ -6137,10 +6141,11 @@ def order_edit(request, pk):
     context = order_detail(request, pk, workspace_context_only=True)
     for field in ("is_trade_in_subsidy", "old_owner_different"):
         form.fields.pop(field, None)
+    from .form_rendering import use_fast_widgets
     return render(
         request,
         "sales/order_detail.html",
-        {
+        use_fast_widgets({
             **context,
             "form": form,
             "formset": formset,
@@ -6150,7 +6155,7 @@ def order_edit(request, pk):
             "document_model": "order",
             "vehicle_rate_data": _vehicle_rate_data(),
             "accessory_product_data": _accessory_product_data(),
-        },
+        }),
     )
 
 

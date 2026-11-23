@@ -3,14 +3,14 @@
   {# 台數獎金待結算（T-203）：還不能勾已給付，按右邊「結算」才生效。 #}
   <div class="payout-item__toggle"><span class="payout-check payout-check--settle" aria-hidden="true"><span class="payout-check__box"></span><span class="payout-check__text">待結算</span></span></div>
   {% else %}
-  <form class="payout-item__toggle" method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form{% if item.prior_settled %} data-confirm="「{{ item.dealer.name }} {{ item.label }}」其實還沒付？改回未給付後會建立給付紀錄、算進未給付金額。"{% elif item.paid %} data-confirm="取消「{{ item.dealer.name }} {{ item.label }}」的已給付？歷程會保留。"{% endif %}>
-    {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="{% if item.settled %}unpaid{% else %}paid{% endif %}">
+  <form class="payout-item__toggle" method="post" action="{{ payout_update_url }}" data-inplace-form{% if item.prior_settled %} data-confirm="「{{ item.dealer.name }} {{ item.label }}」其實還沒付？改回未給付後會建立給付紀錄、算進未給付金額。"{% elif item.paid %} data-confirm="取消「{{ item.dealer.name }} {{ item.label }}」的已給付？歷程會保留。"{% endif %}>
+    <input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="{% if item.settled %}unpaid{% else %}paid{% endif %}">
     <label class="payout-check">
       <input type="checkbox" id="paid-{{ item.source_key|slugify }}" name="paid_toggle" data-payout-toggle{% if item.settled %} checked{% endif %}{% if not can_operate or not item.checkable %} disabled{% endif %} aria-describedby="payout-label-{{ item.source_key|slugify }}">
       <span class="payout-check__box" aria-hidden="true"></span>
       <span class="payout-check__text">{% if item.estimate %}預估{% elif item.prior_settled %}已結清{% elif item.paid %}已給付{% elif item.settle_state %}待發放{% else %}未給付{% endif %}</span>
     </label>
-    <noscript>{% if can_operate and item.checkable %}<button class="button secondary small" type="submit">{% if item.prior_settled %}改回未給付{% elif item.paid %}取消已給付{% else %}標記已給付{% endif %}</button>{% endif %}</noscript>
+    <noscript>{% if can_operate and item.checkable %}<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ next_url }}"><button class="button secondary small" type="submit">{% if item.prior_settled %}改回未給付{% elif item.paid %}取消已給付{% else %}標記已給付{% endif %}</button>{% endif %}</noscript>
   </form>
   {% endif %}
   <div class="payout-item__main">
@@ -77,12 +77,12 @@
     </details>
     {% endif %}
     {% if can_operate and item.checkable and not item.prior_settled %}
-    <form class="payout-note" method="post" action="{% url 'dealer_payout_update' %}" data-inplace-form data-payout-note>
-      {% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"><input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="note">
+    <form class="payout-note" method="post" action="{{ payout_update_url }}" data-inplace-form data-payout-note>
+      <input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="note">
       <label class="visually-hidden" for="note-{{ item.source_key|slugify }}">{{ item.label }} 備註</label>
       <input id="note-{{ item.source_key|slugify }}" name="note" value="{{ item.note }}" maxlength="500" placeholder="備註（例：11/20 匯款、機油下次一起給）" autocomplete="off">
       <span class="payout-note__state" data-payout-note-state aria-live="polite"></span>
-      <noscript><button class="button ghost small" type="submit">儲存備註</button></noscript>
+      <noscript><input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ next_url }}"><button class="button ghost small" type="submit">儲存備註</button></noscript>
     </form>
     {% elif item.note %}<p class="payout-item__note">{{ item.note }}</p>{% endif %}
   </div>

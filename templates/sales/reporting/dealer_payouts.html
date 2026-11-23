@@ -39,6 +39,7 @@
   <div class="payout-filters__actions">{% if filters_active %}<a class="button ghost" href="{% url 'dealer_payout_list' %}">清除</a>{% endif %}<button class="button primary" type="submit">套用</button></div>
 </form>
 
+<form id="payout-shared" hidden>{# 各列勾選、備註表單共用的 csrf 與 next：每列只留勾選框、備註與辨識用的 key、action，送出時由 dealer-payouts.js 照原順序補回，沒有 JavaScript 時用各列 noscript 裡的（T-281 h）。 #}{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}"></form>
 <div class="payout-board" id="payout-board" data-inplace-region>
   <section class="payout-summary" aria-label="給付合計">
     <div class="payout-summary__lead">

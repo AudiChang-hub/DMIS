@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import re
@@ -2033,8 +2034,10 @@ class AccessoryLineForm(forms.ModelForm):
             "note",
         ]
 
-    def __init__(self, *args, allow_manual=False, purchase_only=False, **kwargs):
+    def __init__(self, *args, allow_manual=False, purchase_only=False, product_choices_cache=None, **kwargs):
         self.allow_manual = allow_manual
+        # 訂單頁 formset 的每一列共用同一份配件名稱清單（T-281 h）；沒傳時每列各自查詢（建單精靈等照舊）。
+        self.product_choices_cache = product_choices_cache
         super().__init__(*args, **kwargs)
         if purchase_only:
             self.fields["line_type"].choices = [("purchase", "加購")]
@@ -2088,6 +2091,17 @@ class AccessoryLineForm(forms.ModelForm):
     def _grouped_product_choices(self):
         """配件名稱依類別分組（optgroup），沒有類別的放最後「未分類」；畫面上選了類別就只顯示那一組。
         屬於多個類別的配件（T-179）放進每一個所屬分組，同一個值在各組各出現一次。"""
+        cache = self.product_choices_cache
+        if cache is None:
+            return self._query_grouped_product_choices()
+        # 已選的是停用配件時清單多這一項，另外計算；其餘各列（含新增列）的清單都一樣。
+        product = self.instance.accessory_product if self.instance.accessory_product_id else None
+        key = None if product is None or product.active else product.pk
+        if key not in cache:
+            cache[key] = self._query_grouped_product_choices()
+        return copy.deepcopy(cache[key])
+
+    def _query_grouped_product_choices(self):
         groups = {}
         for product in self.fields["accessory_product"].queryset.prefetch_related("categories"):
             categories = product.sorted_categories()
@@ -2218,11 +2232,51 @@ OtherFeeFormSet = inlineformset_factory(
 )
 
 
+class BaseOrderPageAccessoryFormSet(BaseInlineFormSet):
+    """訂單頁配件明細（T-281 h）：各列與新增列共用同一份配件名稱清單，不必每列各查一次。"""
+
+    def __init__(self, *args, **kwargs):
+        self._product_choices_cache = {}
+        super().__init__(*args, **kwargs)
+
+    def get_form_kwargs(self, index):
+        return {**super().get_form_kwargs(index), "product_choices_cache": self._product_choices_cache}
+
+    def share_product_options(self):
+        """既有列的配件名稱清單與新增列相同時，只輸出已選的那一項並標 data-shared-options；
+        載入時由 _order_form_scripts.html 從新增列範本複製完整清單、標回同一個選項，送出的值不變。"""
+        if self.is_bound:
+            return self
+        full = list(self.empty_form.fields["accessory_product"].choices)
+        for form in self.forms:
+            field = form.fields["accessory_product"]
+            if list(field.choices) != full:
+                continue
+            value = form["accessory_product"].value()
+            value = "" if value is None else str(value)
+            label = _first_choice_label(full, value)
+            if label is None:
+                continue
+            field.choices = [(value, label)]
+            field.widget.attrs["data-shared-options"] = "accessory-product"
+        return self
+
+
+def _first_choice_label(choices, value):
+    """Select 標 selected 的規則：依序第一個值相同的選項（分組內也算）。"""
+    for key, label in choices:
+        for sub_key, sub_label in (label if isinstance(label, (list, tuple)) else [(key, label)]):
+            if str("" if sub_key is None else sub_key) == value:
+                return sub_label
+    return None
+
+
 # 訂單頁只列已存的明細，不多一列空白（使用者 2026-10-21 T-43）；新增一律按「＋ 新增」。
 OrderPageAccessoryFormSet = inlineformset_factory(
     SalesOrder,
     AccessoryLine,
     form=AccessoryLineForm,
+    formset=BaseOrderPageAccessoryFormSet,
     extra=0,
     can_delete=True,
 )

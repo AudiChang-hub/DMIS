@@ -84,7 +84,6 @@ def operations(page, base, out, assets, facts):
     page.goto(f"{base}/operations/", wait_until="networkidle")
     page.wait_for_timeout(800)
     periods = mark(page, "a:has-text('上月'), button:has-text('上月')", "periods", "nav, div[class]")
-    headline = mark(page, "text=有 5 件需要處理", "headline", "p") if page.locator("text=件需要處理").count() else None
     headline = mark(page, "text=件需要處理", "headline", "p")
     tiles = leaf_text(page, "領牌台數", "tile-first")
     page.evaluate("()=>{let x=document.querySelector('[data-help-shot=tile-first]'); while(x && !/車款成交額/.test(x.innerText)) x=x.parentElement; x.setAttribute('data-help-shot','tiles')}")

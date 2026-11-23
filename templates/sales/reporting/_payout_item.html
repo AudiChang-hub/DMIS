@@ -18,7 +18,7 @@
     {% if item.pending_settle %}
     {% with dialog_id='settle-'|add:item.source_key|slugify %}
     <div class="payout-settle">
-      <p>期間已結束。按「結算」後，獎金才加進各單傭金支出、淨利跟著反映；另外發放給車行，不扣應收或掛帳。</p>
+      <p>期間已結束。按「結算」後，獎金才加進各單傭金支出、淨利跟著反映；另外發放給車行，不扣應收或車行未付。</p>
       {% if can_operate %}
       <button class="button primary small" type="button" data-settle-open="{{ dialog_id }}" aria-haspopup="dialog">結算</button>
       <dialog class="payout-settle-dialog" id="{{ dialog_id }}" aria-labelledby="{{ dialog_id }}-title" aria-describedby="{{ dialog_id }}-lead" data-settle-dialog>
@@ -41,7 +41,7 @@
           <ul class="payout-settle-dialog__effects">
             <li>各單傭金支出加上台數獎金，淨利跟著反映。</li>
             <li>這一列改為「待發放」，付給車行後勾「已給付」。</li>
-            <li>不扣任何訂單應收或車行掛帳。</li>
+            <li>不扣任何訂單應收或車行未付。</li>
             <li>之後改領牌日、刪單或退車不會改金額，只標「結算後有變」；可取消結算後重新結算。</li>
           </ul>
           <div class="payout-settle-dialog__actions">

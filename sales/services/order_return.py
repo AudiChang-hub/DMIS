@@ -160,7 +160,7 @@ def return_impacts(order, *, ledger, profile, vehicle):
         impacts.append(f"車行傭金 {_money(profile.dealer_commission_expense)} 元原本列在 {month} 的車行結算，退車後該月結算少這張；"
                        "如果已付給車行，請向車行追回（系統不另開追回單）。")
     if order.source_type == SalesOrder.SourceType.DEALER and order.cash_receivable_v2:
-        impacts.append("車行單的客戶應收尾款不再列入車行掛帳。")
+        impacts.append("車行單的客戶應收尾款不再列入車行未付。")
     allocations = order.dealer_volume_bonus_allocations.count()
     if allocations:
         impacts.append(f"已結算的台數獎金會自動扣掉本單 {allocations} 筆分配，並寫入結算調整紀錄。")

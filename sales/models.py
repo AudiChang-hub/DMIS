@@ -5028,7 +5028,7 @@ class DeliveryRecord(TimeStampedModel):
     accessories_checked = models.BooleanField("已核對配件與贈品", default=False)
     payment_checked = models.BooleanField("已核對收款狀態", default=False)
     on_account_amount = models.DecimalField(
-        "交車時掛帳金額", max_digits=12, decimal_places=0, default=0, editable=False,
+        "交車時車行未付金額", max_digits=12, decimal_places=0, default=0, editable=False,
     )
     damage_found = models.BooleanField("發現刮傷或損壞", default=False)
     damage_note = models.TextField("刮傷／損壞說明", blank=True)

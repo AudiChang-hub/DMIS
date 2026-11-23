@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">車行傭金與獎勵</p>
     <h1>車行傭金／獎金給付</h1>
-    <p class="muted">領牌完成後列出要給車行的傭金與實物；{{ start_date|date:'Y/m/d' }} 前領牌的 Excel 匯入單列為「匯入前已結清」，其實沒付可個別改回未給付。台數獎金在統計期間結束後列為「待結算」，按「結算」才加進傭金支出與淨利，之後另外發放給車行。勾「已給付」只做追蹤，不影響車行結算、掛帳與淨利。</p>
+    <p class="muted">領牌完成後列出要給車行的傭金與實物；{{ start_date|date:'Y/m/d' }} 前領牌的 Excel 匯入單列為「匯入前已結清」，其實沒付可個別改回未給付。台數獎金在統計期間結束後列為「待結算」，按「結算」才加進傭金支出與淨利，之後另外發放給車行。勾「已給付」只做追蹤，不影響車行結算、車行未付與淨利。</p>
   </div>
   {% if can_export %}<div class="hero-actions"><a class="button ghost" href="{% url 'dealer_payout_export' %}?{{ request.GET.urlencode }}" data-no-busy>匯出 CSV</a></div>{% endif %}
 </header>

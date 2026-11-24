@@ -8313,13 +8313,28 @@ def inventory_list(request):
     else:
         acquisition = ""
     # 庫齡（T-275）：營運總表「庫齡 90 天以上」點進來帶 age_min；只在帶參數時篩選，條件與卡片共用。
+    # T-304：貨卡庫齡區間的車型小卡再帶 age_max（含）與 model（單一車型），篩出「該車型＋該區間」那幾台，台數與小卡一致。
     age_min = request.GET.get("age_min", "")
-    if age_min.isdigit() and int(age_min) > 0:
+    age_max = request.GET.get("age_max", "")
+    age_max = age_max if age_max.isdigit() else ""
+    if age_min.isdigit() and (int(age_min) > 0 or age_max):
         from sales.services.operations_cockpit import aged_stock_cutoff
         age_cutoff = aged_stock_cutoff(timezone.localdate(), int(age_min))
         filters["age"] = Q(received_on__lte=age_cutoff)
     else:
         age_min, age_cutoff = "", None
+    age_floor = None
+    if age_max:
+        if age_min and int(age_max) < int(age_min):
+            age_max = ""
+        else:
+            from sales.services.operations_cockpit import aged_stock_cutoff
+            age_floor = aged_stock_cutoff(timezone.localdate(), int(age_max))
+            filters["age"] = filters.get("age", Q()) & Q(received_on__gte=age_floor)
+    model_filter = request.GET.get("model", "")
+    model_filter = VehicleModel.objects.filter(pk=int(model_filter)).first() if model_filter.isdigit() else None
+    if model_filter:
+        filters["model"] = Q(vehicle_model_id=model_filter.pk)
     selected_statuses = []
     status_values = set()
     for requested_status in requested_statuses:
@@ -8670,6 +8685,9 @@ def inventory_list(request):
                 "disposition_dealer": disposition_dealer,
                 "age_min": age_min,
                 "age_cutoff": age_cutoff,
+                "age_max": age_max,
+                "age_floor": age_floor,
+                "model": model_filter,
             },
             "acquisition_choices": acquisition_choices,
             "disposition_choices": disposition_choices,

@@ -39,6 +39,27 @@
       var hint = readout.textContent;
       var pinned = null;
       readout.hidden = false;
+      // T-304：長條下方的車型清單與表格對應列跟著換；沒有指到時回到預設那段（最久的那段）。
+      var models = card.querySelector("[data-ops-age-models]");
+      var fallbackGroup = models && models.querySelector("[data-ops-age-group]:not([hidden])");
+      var fallback = fallbackGroup ? fallbackGroup.getAttribute("data-ops-age-group") : null;
+      var leaveTimer = null;
+      var hoverTimer = null;
+      var hoverKey = null;
+
+      function showModels(key) {
+        if (!models) return;
+        var shown = key || fallback;
+        card.querySelectorAll("[data-ops-age-group]").forEach(function (item) {
+          var hidden = item.getAttribute("data-ops-age-group") !== shown;
+          if (item.hidden !== hidden) item.hidden = hidden;
+        });
+        card.querySelectorAll("[data-ops-age-row]").forEach(function (row) {
+          var note = row.querySelector('[data-ops-age-group="' + shown + '"]');
+          row.classList.toggle("is-age-hit", !!note);
+          row.classList.toggle("is-alert", !!note && note.classList.contains("is-alert"));
+        });
+      }
 
       function activate(key) {
         var seg = key ? bar.querySelector('[data-ops-age="' + key + '"]') : null;
@@ -48,6 +69,7 @@
           item.classList.toggle("is-active", !!seg && item.getAttribute("data-ops-age") === key);
         });
         readout.textContent = "";
+        showModels(seg ? key : null);
         if (!seg) {
           readout.setAttribute("data-empty", "");
           readout.textContent = hint;
@@ -64,15 +86,43 @@
         return item && card.contains(item) ? item.getAttribute("data-ops-age") : null;
       }
 
+      // 滑鼠從長條移到下方車型清單要點連結：離開後稍等再還原，進到清單就取消；
+      // 已經指著某段時，路過圖例其他項要停一下才換，斜著移到清單不會被換掉。
+      function revertLater() {
+        clearTimeout(hoverTimer);
+        clearTimeout(leaveTimer);
+        leaveTimer = setTimeout(function () { hoverKey = null; activate(pinned); }, 300);
+      }
+      function hoverTo(key) {
+        clearTimeout(hoverTimer);
+        if (!key || key === hoverKey) return;
+        if (hoverKey === null) {
+          activate(hoverKey = key);
+          return;
+        }
+        hoverTimer = setTimeout(function () { activate(hoverKey = key); }, 150);
+      }
+      if (models) {
+        models.addEventListener("pointerover", function () { clearTimeout(leaveTimer); });
+        models.addEventListener("pointerleave", revertLater);
+        models.addEventListener("focusout", function (event) {
+          if (!models.contains(event.relatedTarget) && !bar.contains(event.relatedTarget)) activate(pinned = null);
+        });
+      }
       [bar, legend].forEach(function (area) {
         area.addEventListener("pointerover", function (event) {
           var key = keyOf(event);
-          if (key) activate(key);
+          clearTimeout(leaveTimer);
+          if (!models) {
+            if (key) activate(key);
+            return;
+          }
+          hoverTo(key);
         });
-        area.addEventListener("pointerleave", function () { activate(pinned); });
+        area.addEventListener("pointerleave", models ? revertLater : function () { activate(pinned); });
         area.addEventListener("click", function (event) {
           var key = keyOf(event);
-          if (key) activate(pinned = key);
+          if (key) activate(hoverKey = pinned = key);
         });
       });
       bar.addEventListener("focusin", function (event) {
@@ -80,10 +130,21 @@
         if (key) activate(pinned = key);
       });
       bar.addEventListener("focusout", function (event) {
-        if (!bar.contains(event.relatedTarget)) activate(pinned = null);
+        if (!bar.contains(event.relatedTarget) && !(models && models.contains(event.relatedTarget))) activate(pinned = null);
+      });
+      // 鍵盤：在某段按 Enter／空白鍵，焦點移到下方這段的第一個車型連結。
+      bar.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        var key = keyOf(event);
+        var link = key && models && models.querySelector('[data-ops-age-group="' + key + '"] a');
+        if (!link) return;
+        event.preventDefault();
+        activate(pinned = key);
+        link.focus();
       });
       document.addEventListener("click", function (event) {
-        if (pinned && !bar.contains(event.target) && !legend.contains(event.target)) activate(pinned = null);
+        if (pinned && !bar.contains(event.target) && !legend.contains(event.target)
+            && !(models && models.contains(event.target))) activate(pinned = null);
       });
     });
 

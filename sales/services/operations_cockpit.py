@@ -58,6 +58,7 @@ STAGE_LIMITS = OrderedDict((
     ("delivery_pending", 7),
 ))
 STOCK_AGE_ALERT_DAYS = 90       # 庫齡達 90 天標紅
+STOCK_AGE_BUCKETS = ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上"))
 VELOCITY_DAYS = 90              # 可銷天數用近 90 天領牌台數算日均
 SLOW_COVER_DAYS = 90            # 可銷天數超過 90 天，或 90 天內 0 台＝滯銷
 SHORTAGE_MIN_SOLD = 3           # 近 90 天賣 3 台以上
@@ -553,12 +554,35 @@ def _stock(today):
     live = _on_hand()
     status_counts = Counter(vehicle.status for vehicle in live)
     ages = [(today - vehicle.received_on).days for vehicle in live if vehicle.received_on]
-    age_buckets = []
-    for low, high, label in ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上")):
-        count = sum(1 for age in ages if age >= low and (high is None or age <= high))
-        age_buckets.append({"label": label, "count": count, "alert": low >= STOCK_AGE_ALERT_DAYS,
-                            "share": round(count * 100 / len(ages)) if ages else 0})
     rows = model_velocity(today, live)
+    shown = rows[:6]
+    in_table = {row["model_id"] for row in shown}
+    hits = {row["model_id"]: [] for row in shown}
+    age_buckets = []
+    for key, (low, high, label) in enumerate(STOCK_AGE_BUCKETS, start=1):
+        alert = low >= STOCK_AGE_ALERT_DAYS
+        # T-304：這一段有哪些車型、各幾台（加總＝count）；點車型到庫存列表只列「該車型＋該庫齡區間」那幾台。
+        per_model, names = Counter(), {}
+        for vehicle in live:
+            age = (today - vehicle.received_on).days if vehicle.received_on else None
+            if age is not None and age >= low and (high is None or age <= high):
+                per_model[vehicle.vehicle_model_id] += 1
+                names[vehicle.vehicle_model_id] = vehicle.vehicle_model.name
+        count = sum(per_model.values())
+        models = []
+        for model_id, model_count in sorted(per_model.items(), key=lambda item: (-item[1], names[item[0]])):
+            params = {"model": model_id, "age_min": low, "sort": "received_asc"}
+            if high is not None:
+                params["age_max"] = high
+            entry = {"name": names[model_id], "count": model_count, "in_table": model_id in in_table,
+                     "url": _url("inventory_list", params)}
+            models.append(entry)
+            if model_id in hits:
+                hits[model_id].append({"key": key, "label": label, "count": model_count, "alert": alert, "url": entry["url"]})
+        age_buckets.append({"key": key, "label": label, "count": count, "alert": alert,
+                            "share": round(count * 100 / len(ages)) if ages else 0,
+                            "models": models, "outside": sum(1 for entry in models if not entry["in_table"])})
+    shown = [{**row, "age_hits": hits[row["model_id"]]} for row in shown]
     cutoff = aged_stock_cutoff(today)
     return {
         "on_hand": len(live),
@@ -568,7 +592,8 @@ def _stock(today):
         "aging": age_buckets,
         "aged": sum(1 for vehicle in live if vehicle.received_on and vehicle.received_on <= cutoff),
         "oldest": max(ages) if ages else None,
-        "models": rows[:6],
+        "models": shown,
+        "age_default": max((bucket["key"] for bucket in age_buckets if bucket["count"]), default=None),
         "model_count": len(rows),
         "shortage": [row["name"] for row in rows if row["shortage"]],
         "slow": [row["name"] for row in rows if row["slow"]],

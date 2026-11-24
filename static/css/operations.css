@@ -1442,6 +1442,137 @@ html[data-theme="night-blue"] .ops {
   opacity: .55;
 }
 
+/* T-304：庫齡＝實際已放多久、可銷天數＝預估值，兩個小標各帶一句說明；長條下方列出該段車型，表格對應列標出。 */
+.ops-age__head small,
+.ops-cover__head small,
+.ops-cover__th-note {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.ops-cover__th-note {
+  display: block;
+  font-size: var(--text-2xs);
+}
+
+.ops-age-models {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  font-size: var(--text-xs);
+}
+
+.ops-age-models__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ops-age-models__group[hidden],
+.ops-age-hit[hidden] {
+  display: none;
+}
+
+.ops-age-models__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-age-models__head small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.ops-age-models__group.is-alert .ops-age-models__head {
+  color: var(--red-ink);
+}
+
+.ops-age-models__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-age-models__list a,
+.ops-age-models__list span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+
+.ops-age-models__group.is-alert .ops-age-models__list a,
+.ops-age-models__group.is-alert .ops-age-models__list span {
+  border-color: var(--red-border);
+}
+
+.ops-age-models__list a:hover {
+  border-color: var(--ink-soft);
+}
+
+.ops-age-models__list a:focus-visible,
+.ops-age-hit:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ops-age-models__list small {
+  color: var(--muted);
+}
+
+.ops-cover-table tr.is-age-hit {
+  background: var(--surface-soft);
+  box-shadow: inset 3px 0 0 var(--ink-soft);
+}
+
+.ops-cover-table tr.is-age-hit.is-alert {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+
+.ops-cover-table tr.is-age-hit > * {
+  background: transparent;
+}
+
+.ops-cover-table .ops-age-hit {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ops-cover-table .ops-age-hit.is-alert {
+  color: var(--red-ink);
+}
+
+.ops-cover-table a.ops-age-hit:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-age-models__list a {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ops-age .ops-bar__seg,
   .ops-legend--linked li {

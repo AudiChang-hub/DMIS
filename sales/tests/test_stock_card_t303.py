@@ -80,7 +80,7 @@ class StockCardTests(TestCase):
     def test_aging_segments_focusable_labelled_and_linked_to_legend(self):
         html = self.card()
         self.assertIn('<div class="ops-bar ops-age" role="group" aria-labelledby="ops-age-title" data-ops-age-bar>', html)
-        self.assertIn('<span id="ops-age-title">庫齡（進車日起）</span>', html)
+        self.assertIn('<span id="ops-age-title">庫齡 <small>實際已放多久・從進車日算</small></span>', html)  # T-304 改字
         segments = re.findall(r'<span class="ops-bar__seg ops-bar__seg--\d[^"]*" style="flex-grow: \d+"([^>]*)>', html)
         self.assertEqual(len(segments), 4)
         self.assertIn('role="img" tabindex="0" aria-label="未滿 30 天 1 台，佔 33%" data-ops-age="1"', segments[0])
@@ -95,11 +95,13 @@ class StockCardTests(TestCase):
         self.assertNotIn("ops-cover__bar", html)
         self.assertIn('<b class="ops-cover__value">0 天</b><em class="ops-tag ops-tag--red">缺貨風險</em></span>'
                       '<small class="ops-cover__why">沒有庫存・月賣約 1 台</small>', html)
-        self.assertIn('<span class="ops-cover__main"><em class="ops-tag ops-tag--amber">90 天未售</em></span></span>', html)
+        self.assertIn('<span class="ops-cover__main"><em class="ops-tag ops-tag--amber">滯銷</em></span>'
+                      '<small class="ops-cover__why">近 90 天沒賣出</small></span>', html)  # T-304 改字
 
     def test_formula_hint_is_one_sentence(self):
         html = self.card()
-        self.assertIn('<p class="ops-hint">可銷天數：照近 90 天的賣速，現有在庫還能賣幾天。</p>', html)
+        self.assertIn('<p class="ops-hint">庫齡＝實際已放幾天；預估可銷天數＝照近 90 天賣速推估還能賣幾天。'
+                      '預估超過 90 天或 90 天沒賣出＝滯銷。</p>', html)  # T-304 改字
         self.assertNotIn("平均每天領牌台數", html)
 
     def test_money_card_aging_bar_unchanged(self):

@@ -118,9 +118,9 @@ register("dealer_payouts", "dealer_payout_export_legacy", "export")
 register("inventory", "inventory_list")
 register("inventory", "inventory_shortage")  # T-275：營運總表「缺貨風險車型」明細，同車輛庫存查看權限
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_history_photo_delete inventory_allocation_priority inventory_location", "operate")
-# 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。
+# 調出／調車紀錄：查看需庫存畫面；調出（T-310 庫存列表勾車）需庫存操作，舊調車簽收網址轉到列表；舊簽收單 PDF 屬匯出；作廢只限 admin。
 register("inventory", "transfer_signoff_list transfer_signoff_detail inventory_receipt_list")
-register("inventory", "transfer_signoff_create transfer_signoff_cancel", "operate")
+register("inventory", "transfer_signoff_create inventory_transfer_out", "operate")
 register("inventory", "transfer_signoff_pdf", "export")
 # 現有台數表：查看需庫存畫面，Excel 屬匯出。
 register("inventory", "inventory_stock_count")

@@ -12,7 +12,6 @@
     <a class="button ghost" href="{% url 'inventory_stock_count' %}">現有台數表</a>
     <a class="button ghost" href="{% url 'inventory_receipt_list' %}">進車紀錄</a>
     <a class="button ghost" href="{% url 'transfer_signoff_list' %}">調車紀錄</a>
-    <a class="button ghost" href="{% url 'transfer_signoff_create' %}">調車簽收</a>
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
   </div>
@@ -115,12 +114,13 @@
   </aside>
   {% endif %}
   {% if location_options %}
-  <p class="inventory-location-hint"><strong>實際位置</strong>直接在列表上選，選了就存，存好可以按「復原」。只改車放在哪裡，車仍是本店庫存、照常可以配車；要把車調給別的車行（離開庫存），請用<a href="{% url 'transfer_signoff_create' %}">調車簽收</a>。</p>
+  <p class="inventory-location-hint"><strong>實際位置</strong>直接在列表上選，選了就存，存好可以按「復原」。只改車放在哪裡，車仍是本店庫存、照常可以配車；要把車調給別的車行（離開庫存），請用該列的「調出」{% if transfer_out_names %}或勾選多台後一起調出{% endif %}。</p>
   {% endif %}
   <div class="inventory-table-wrap" tabindex="0" aria-label="車輛庫存清單，可左右捲動查看完整欄位">
-    <table class="inventory-table inventory-table--stock">
+    <table class="inventory-table inventory-table--stock"{% if transfer_out_names %} data-transfer-out-table{% endif %}>
       <thead>
         <tr>
+          {% if transfer_out_names %}<th scope="col" class="inventory-select-cell"><input class="inventory-select" type="checkbox" aria-label="全選這一頁可調出的車" data-transfer-out-all></th>{% endif %}
           {% include "sales/_inventory_sort_th.html" with column=sort_headers.received %}
           <th scope="col">出廠年月</th>
           {% if selected.scope == 'current' %}{% include "sales/_inventory_sort_th.html" with column=sort_headers.priority %}{% endif %}
@@ -136,6 +136,7 @@
       <tbody>
         {% for vehicle in vehicles %}
         <tr{% if vehicle.status == 'condition_issue' %} class="inventory-row--condition-issue"{% endif %}>
+          {% if transfer_out_names %}<td class="inventory-select-cell">{% if vehicle.status == 'reserved' %}<input class="inventory-select" type="checkbox" disabled aria-label="{{ vehicle.identifier }} 已配給訂單，不能調出" title="已配給訂單，不能調出">{% else %}<input class="inventory-select" type="checkbox" value="{{ vehicle.pk }}" aria-label="選 {{ vehicle.identifier }} 調出" data-transfer-out-check data-model="{{ vehicle.vehicle_model.name }}" data-color="{{ vehicle.color.label }}" data-identifier="{{ vehicle.identifier }}">{% endif %}</td>{% endif %}
           <td data-label="進車日期">{{ vehicle.received_on }}</td>
           <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           {% if selected.scope == 'current' %}
@@ -175,10 +176,10 @@
               <span class="inventory-condition has-note">有備註</span><small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>
             {% else %}<span class="inventory-condition is-normal">正常</span>{% endif %}
           </td>
-          <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}{% if can_restore_stock %}<a class="button secondary small" href="{% url 'inventory_restore' vehicle.pk %}">改回庫存</a>{% endif %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
+          <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}{% if can_restore_stock %}<a class="button secondary small" href="{% url 'inventory_restore' vehicle.pk %}">改回庫存</a>{% endif %}{% if transfer_out_names %}{% if vehicle.status == 'reserved' %}<button class="button ghost small inventory-transfer-out-button" type="button" disabled title="已配給訂單，不能調出">已配車</button>{% else %}<button class="button secondary small inventory-transfer-out-button" type="button" data-transfer-out-one="{{ vehicle.pk }}" aria-label="調出 {{ vehicle.identifier }}">調出</button>{% endif %}{% endif %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if selected.scope == 'current' %}10{% else %}9{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
+        <tr><td colspan="{% if selected.scope == 'current' %}{% if transfer_out_names %}11{% else %}10{% endif %}{% else %}9{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -189,6 +190,51 @@
 {# T-308 B：整頁共用一份位置選項，點開某列的選單時才複製進去（車行多時每列不必各帶一份）。 #}
 <template id="inventory-location-options" data-csrf="{{ csrf_token }}"><optgroup label="本店">{% for value, label in location_options.home_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</optgroup>{% if location_options.dealer_choices %}<optgroup label="車行">{% for value, label in location_options.dealer_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</optgroup>{% endif %}</template>
 <script src="{% static 'js/inventory-location.js' %}" defer></script>
+{% endif %}
+{% if transfer_out_names %}
+{# T-310：調出（離開本店庫存）。勾車 → 調給哪一家 → 確認，不簽名、不產生 PDF。 #}
+<div class="transfer-out-bar" role="region" aria-label="已選要調出的車" data-transfer-out-bar hidden>
+  <span>已選 <b data-transfer-out-count>0</b> 台</span>
+  <button class="transfer-out-bar__clear" type="button" data-transfer-out-clear>清除</button>
+  <button class="transfer-out-bar__go" type="button" data-transfer-out-selected>調出 <span data-transfer-out-count>0</span> 台</button>
+</div>
+<dialog class="transfer-out-dialog" id="transfer-out-dialog" aria-labelledby="transfer-out-title" data-transfer-out-dialog>
+  <form class="transfer-out-form" method="post" action="{% url 'inventory_transfer_out' %}" novalidate data-transfer-out-form data-allow-multiple-submit="true">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div data-transfer-out-inputs></div>
+    <header class="transfer-out-dialog__head">
+      <h2 id="transfer-out-title" data-transfer-out-title>調出車輛</h2>
+      <p>調出後車改成「已調出」，不算本店庫存，進車紀錄保留；不用簽名。</p>
+    </header>
+    <ul class="transfer-out-dialog__cars" aria-label="要調出的車" data-transfer-out-cars></ul>
+    <div class="transfer-out-field">
+      <label for="transfer-out-name">調給哪一家<small>直接打店名，或點下面的建議</small></label>
+      <input class="transfer-out-field__input transfer-out-field__input--name" id="transfer-out-name" name="name" type="text" maxlength="120" autocomplete="off" spellcheck="false" required role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="transfer-out-suggest" aria-describedby="transfer-out-home-hint" data-transfer-out-name data-no-recent-values>
+      <ul class="transfer-out-suggest" id="transfer-out-suggest" role="listbox" aria-label="店名建議" data-transfer-out-suggest hidden></ul>
+      <p class="transfer-out-field__hint" id="transfer-out-home-hint">放到本店其他門市（{{ transfer_out_names.home|join:"、" }}）不是調出，請直接改列表上的「實際位置」，車仍是庫存。</p>
+    </div>
+    <div class="transfer-out-field">
+      <label for="transfer-out-note">備註<small>選填</small></label>
+      <input class="transfer-out-field__input" id="transfer-out-note" name="note" type="text" maxlength="200" autocomplete="off" placeholder="例如：含鑰匙兩副">
+    </div>
+    <p class="transfer-out-dialog__error" role="alert" data-transfer-out-error hidden></p>
+    <div class="transfer-out-dialog__actions">
+      <button class="button ghost" type="button" data-transfer-out-cancel>取消</button>
+      <button class="button primary" type="submit" data-transfer-out-submit>確認調出</button>
+    </div>
+  </form>
+</dialog>
+{{ transfer_out_names|json_script:"transfer-out-names" }}
+<script src="{% static 'js/inventory-transfer-out.js' %}" defer></script>
+{% endif %}
+{% if transfer_done %}
+<div class="transfer-out-toast" role="status" data-transfer-out-toast>
+  <span>已調出 {{ transfer_done.count }} 台給 {{ transfer_done.name }}</span>
+  <a href="{{ transfer_done.url }}">看調車紀錄</a>
+  <button class="transfer-out-toast__close" type="button" aria-label="關閉提示" data-transfer-out-toast-close>×</button>
+</div>
+{% if not transfer_out_names %}<script src="{% static 'js/inventory-transfer-out.js' %}" defer></script>{% endif %}
 {% endif %}
 <script src="{% static 'js/allocation-priority.js' %}" defer></script>
 {% endblock %}

@@ -1,15 +1,19 @@
-"""1.62.0：調車簽收（同一車行多台簽一次、只在店內簽署、簽後改為已調出、admin 可作廢）。"""
-import base64
-from io import BytesIO
+"""調出（T-310，原 1.62.0 調車簽收）：庫存列表勾車 → 調給哪一家 → 確認，不簽名、不產生 PDF、沒有預備調車。
+
+調出後改為已調出（不算庫存），留一筆調車紀錄；admin 可作廢。2026-11-24 以前已簽名的舊紀錄照常顯示簽名與 PDF。
+"""
+from datetime import date
 from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.signals import request_finished
 from django.db import close_old_connections
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from PIL import Image, ImageDraw
+from django.utils import timezone
 
+from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.registry import ROOT_ONLY, ROUTES
 from sales.models import (
     SalesSource,
@@ -19,15 +23,9 @@ from sales.models import (
     VehicleModel,
     VehicleTransferSignoff,
 )
+from sales.services.transfer_signoff import name_suggestions
 
-
-def signature_data_url():
-    image = Image.new("RGBA", (600, 200), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.line([(30, 150), (200, 40), (380, 160), (560, 50)], fill=(0, 0, 0, 255), width=6)
-    output = BytesIO()
-    image.save(output, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(output.getvalue()).decode()
+AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
 
 
 class TransferSignoffTests(TestCase):
@@ -53,36 +51,27 @@ class TransferSignoffTests(TestCase):
         self.override.disable()
         self.tempdir.cleanup()
 
-    def form(self, cars, **extra):
+    def transfer_out(self, cars, name="示範車行甲", note="含鑰匙", ajax=False, **extra):
         data = {
-            "dealer": self.dealer.pk, "dealer_name": "", "note": "含鑰匙", "vehicles": [car.pk for car in cars],
+            "vehicles": [car.pk for car in cars], "name": name, "note": note,
+            "next": f"{reverse('inventory_list')}?scope=current", **extra,
         }
-        data.update(extra)
-        return data
+        return self.client.post(reverse("inventory_transfer_out"), data, **(AJAX if ajax else {}))
 
-    def review(self, cars, **extra):
-        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(cars, **extra), "step": "review"})
-        self.assertEqual(response.status_code, 200, response.context and response.context["errors"])
-        self.assertEqual(response.context["step"], "sign")
-        return response.context["fingerprint"]
-
-    def sign(self, cars, fingerprint, **extra):
-        payload = {**self.form(cars), "step": "sign", "agree": "1", "fingerprint": fingerprint,
-                   "signature": signature_data_url(), **extra}
-        return self.client.post(reverse("transfer_signoff_create"), payload)
-
-    def test_one_signature_for_several_cars_marks_them_transferred_out(self):
+    def test_transfer_out_several_cars_without_signature(self):
         cars = self.cars[:3]
-        response = self.sign(cars, self.review(cars))
+        response = self.transfer_out(cars)
         signoff = VehicleTransferSignoff.objects.get()
-        self.assertRedirects(response, reverse("transfer_signoff_detail", args=[signoff.pk]))
+        self.assertRedirects(response, f"{reverse('inventory_list')}?scope=current", fetch_redirect_response=False)
+        self.assertEqual(signoff.status, VehicleTransferSignoff.Status.SIGNED)
         self.assertEqual(signoff.dealer, self.dealer)
         self.assertEqual(signoff.dealer_name, "示範車行甲")
         self.assertEqual(len(signoff.vehicles_snapshot), 3)
         self.assertEqual(signoff.vehicles.count(), 3)
-        self.assertTrue(signoff.signed_pdf.name.endswith(".pdf"))
-        self.assertTrue(signoff.signature_image.name.endswith(".png"))
-        self.assertEqual(len(signoff.pdf_sha256), 64)
+        self.assertFalse(signoff.signed_pdf)
+        self.assertFalse(signoff.signature_image)
+        self.assertEqual(signoff.pdf_sha256, "")
+        self.assertEqual(signoff.fingerprint, "")
         for car in cars:
             car.refresh_from_db()
             self.assertEqual(car.status, VehicleInventory.Status.TRANSFERRED_OUT)
@@ -94,6 +83,126 @@ class TransferSignoffTests(TestCase):
         detail = self.client.get(reverse("transfer_signoff_detail", args=[signoff.pk]))
         self.assertContains(detail, "調往 示範車行甲")
         self.assertContains(detail, "含鑰匙")
+        self.assertNotContains(detail, "領車人簽名")
+        self.assertNotContains(detail, "開啟簽收單 PDF")
+        self.assertEqual(self.client.get(reverse("transfer_signoff_pdf", args=[signoff.pk])).status_code, 404)
+        # 回到列表：底部提示「已調出 N 台給 X｜看調車紀錄」只出現一次；已調出的車不在現有庫存，列在「已售出／調出」。
+        listing = self.client.get(reverse("inventory_list"))
+        self.assertContains(listing, "已調出 3 台給 示範車行甲")
+        self.assertContains(listing, reverse("transfer_signoff_detail", args=[signoff.pk]))
+        self.assertNotIn(cars[0], list(listing.context["vehicles"]))
+        self.assertNotContains(self.client.get(reverse("inventory_list")), "已調出 3 台給")
+        self.assertIn(cars[0], list(self.client.get(reverse("inventory_list"), {"scope": "sold"}).context["vehicles"]))
+
+    def test_ajax_reply_carries_redirect_back_to_the_same_list(self):
+        response = self.transfer_out(self.cars[:1], ajax=True, next="/data/inventory/?scope=current&page=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["redirect"], "/data/inventory/?scope=current&page=2")
+        self.assertTrue(response.json()["ok"])
+        outside = self.transfer_out(self.cars[1:2], ajax=True, next="https://evil.example/")
+        self.assertEqual(outside.json()["redirect"], f"{reverse('inventory_list')}?scope=current")
+
+    def test_dealer_not_in_master_uses_typed_name(self):
+        cars = self.cars[:1]
+        self.transfer_out(cars, name="示範車行丙")
+        signoff = VehicleTransferSignoff.objects.get()
+        self.assertIsNone(signoff.dealer)
+        self.assertEqual(signoff.dealer_name, "示範車行丙")
+        cars[0].refresh_from_db()
+        self.assertEqual(cars[0].disposition_dealer_name, "示範車行丙")
+
+    def test_typed_name_equal_to_active_dealer_links_master(self):
+        SalesSource.objects.create(name="停用車行", source_type=SalesSource.SourceType.DEALER, active=False)
+        self.transfer_out(self.cars[:1], name="  示範車行甲 ")
+        self.transfer_out(self.cars[1:2], name="停用車行")
+        first, second = VehicleTransferSignoff.objects.order_by("id")
+        self.assertEqual((first.dealer, first.dealer_name), (self.dealer, "示範車行甲"))
+        self.assertEqual((second.dealer, second.dealer_name), (None, "停用車行"), "停用車行不連主檔，只存原文")
+
+    def test_factory_recall_option(self):
+        cars = self.cars[:2]
+        self.transfer_out(cars, name="原廠／總公司（調回）")
+        signoff = VehicleTransferSignoff.objects.get()
+        self.assertIsNone(signoff.dealer)
+        self.assertEqual(signoff.dealer_name, "原廠／總公司")
+        cars[0].refresh_from_db()
+        self.assertEqual(cars[0].status, VehicleInventory.Status.TRANSFERRED_OUT)
+        self.assertEqual(cars[0].disposition_dealer_name, "原廠／總公司")
+
+    def test_reserved_car_cannot_be_transferred(self):
+        response = self.transfer_out(self.cars[2:], ajax=True)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("不能調出", response.json()["message"])
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
+        self.assertEqual(VehicleInventory.objects.get(pk=self.cars[2].pk).status, "condition_issue", "整批不調")
+
+    def test_car_allocated_after_dialog_opened_blocks_whole_batch(self):
+        cars = self.cars[:2]
+        self.assertEqual(self.client.get(reverse("inventory_list")).status_code, 200)
+        VehicleInventory.objects.filter(pk=cars[0].pk).update(status="reserved")
+        response = self.transfer_out(cars, ajax=True)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(cars[0].identifier, response.json()["message"])
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
+        self.assertEqual(VehicleInventory.objects.get(pk=cars[1].pk).status, "available")
+
+    def test_no_signature_or_agreement_needed(self):
+        cars = self.cars[:1]
+        response = self.transfer_out(cars, ajax=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(VehicleTransferSignoff.objects.count(), 1)
+        cars[0].refresh_from_db()
+        self.assertEqual(cars[0].status, VehicleInventory.Status.TRANSFERRED_OUT)
+
+    def test_name_is_required(self):
+        response = self.transfer_out(self.cars[:1], name="  ", ajax=True)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("調給哪一家", response.json()["message"])
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
+
+    def test_home_store_names_are_blocked_and_point_to_actual_location(self):
+        for name in ("本店", "本店：馭盛", "馭盛", " 永 湛 "):
+            response = self.transfer_out(self.cars[:1], name=name, ajax=True)
+            self.assertEqual(response.status_code, 400, name)
+            self.assertIn("實際位置", response.json()["message"])
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
+        self.assertEqual(VehicleInventory.objects.get(pk=self.cars[0].pk).status, "available")
+
+    def test_transferred_or_sold_cars_and_resubmits_are_rejected(self):
+        self.transfer_out(self.cars[:1])
+        again = self.transfer_out(self.cars[:1], ajax=True)
+        self.assertEqual(again.status_code, 400, "同一請求重送時車已調出，不會重複調出")
+        self.assertEqual(VehicleTransferSignoff.objects.count(), 1)
+        VehicleInventory.objects.filter(pk=self.cars[1].pk).update(status="sold")
+        self.assertEqual(self.transfer_out(self.cars[1:2], ajax=True).status_code, 400)
+        self.assertEqual(self.transfer_out([], ajax=True).status_code, 400)
+
+    def test_transfer_out_keeps_actual_location_fields(self):
+        car = self.cars[0]
+        VehicleInventory.objects.filter(pk=car.pk).update(current_dealer=self.dealer)
+        self.transfer_out([car], name="示範車行丙")
+        car.refresh_from_db()
+        self.assertEqual(car.current_dealer, self.dealer)
+        self.assertEqual(car.location_store, self.store)
+
+    def test_get_is_not_allowed(self):
+        self.assertEqual(self.client.get(reverse("inventory_transfer_out")).status_code, 405)
+
+    def test_old_create_url_redirects_to_inventory_list(self):
+        response = self.client.get(reverse("transfer_signoff_create"))
+        self.assertRedirects(response, f"{reverse('inventory_list')}?scope=current")
+
+    def test_old_signed_record_still_shows_signature_and_pdf(self):
+        signoff = VehicleTransferSignoff.objects.create(
+            dealer=self.dealer, dealer_name=self.dealer.name, staff_name="合成", signed_at=timezone.now(),
+            vehicles_snapshot=[], fingerprint="a" * 64, pdf_sha256="b" * 64,
+        )
+        signoff.signature_image.save("old-signature.png", ContentFile(b"\x89PNG\r\n\x1a\n"), save=False)
+        signoff.signed_pdf.save("old.pdf", ContentFile(b"%PDF-1.4 old"), save=False)
+        signoff.save()
+        detail = self.client.get(reverse("transfer_signoff_detail", args=[signoff.pk]))
+        self.assertContains(detail, "領車人簽名")
+        self.assertContains(detail, "開啟簽收單 PDF")
         pdf = self.client.get(reverse("transfer_signoff_pdf", args=[signoff.pk]))
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(b"".join(pdf.streaming_content).startswith(b"%PDF"))
@@ -106,61 +215,10 @@ class TransferSignoffTests(TestCase):
             image.close()
         finally:
             request_finished.connect(close_old_connections)
-        # 已調出的車不在現有庫存，列在「已售出／調出」。
-        self.assertNotIn(cars[0], list(self.client.get(reverse("inventory_list")).context["vehicles"]))
-        self.assertIn(cars[0], list(self.client.get(reverse("inventory_list"), {"scope": "sold"}).context["vehicles"]))
-
-    def test_dealer_not_in_master_uses_typed_name(self):
-        cars = self.cars[:1]
-        fingerprint = self.review(cars, dealer="", dealer_name="示範車行丙")
-        self.sign(cars, fingerprint, dealer="", dealer_name="示範車行丙")
-        signoff = VehicleTransferSignoff.objects.get()
-        self.assertIsNone(signoff.dealer)
-        self.assertEqual(signoff.dealer_name, "示範車行丙")
-        cars[0].refresh_from_db()
-        self.assertEqual(cars[0].disposition_dealer_name, "示範車行丙")
-
-    def test_factory_recall_option(self):
-        cars = self.cars[:2]
-        fingerprint = self.review(cars, dealer="factory", dealer_name="")
-        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(cars, dealer="factory", dealer_name=""), "step": "review"})
-        self.assertContains(response, "調回 <span>原廠／總公司</span>", html=False)
-        self.sign(cars, fingerprint, dealer="factory", dealer_name="")
-        signoff = VehicleTransferSignoff.objects.get()
-        self.assertIsNone(signoff.dealer)
-        self.assertEqual(signoff.dealer_name, "原廠／總公司")
-        cars[0].refresh_from_db()
-        self.assertEqual(cars[0].status, VehicleInventory.Status.TRANSFERRED_OUT)
-        self.assertEqual(cars[0].disposition_dealer_name, "原廠／總公司")
-
-    def test_reserved_car_cannot_be_transferred(self):
-        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(self.cars[2:]), "step": "review"})
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.context["step"], "select")
-        self.assertIn("不能調出", "".join(response.context["errors"]))
-
-    def test_changed_content_after_review_requires_new_confirmation(self):
-        cars = self.cars[:2]
-        fingerprint = self.review(cars)
-        response = self.sign(cars, fingerprint, note="改過的備註")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("剛被修改", "".join(response.context["errors"]))
-        self.assertFalse(VehicleTransferSignoff.objects.exists())
-
-    def test_signature_and_agreement_required(self):
-        cars = self.cars[:1]
-        fingerprint = self.review(cars)
-        response = self.sign(cars, fingerprint, agree="")
-        self.assertEqual(response.status_code, 400)
-        response = self.sign(cars, fingerprint, signature="")
-        self.assertEqual(response.status_code, 400)
-        self.assertFalse(VehicleTransferSignoff.objects.exists())
-        cars[0].refresh_from_db()
-        self.assertEqual(cars[0].status, VehicleInventory.Status.AVAILABLE)
 
     def test_void_restores_previous_status_and_keeps_record(self):
         cars = self.cars[:3]
-        self.sign(cars, self.review(cars))
+        self.transfer_out(cars)
         signoff = VehicleTransferSignoff.objects.get()
         response = self.client.post(reverse("transfer_signoff_void", args=[signoff.pk]), {"reason": "選錯車"})
         self.assertRedirects(response, reverse("transfer_signoff_detail", args=[signoff.pk]))
@@ -177,10 +235,10 @@ class TransferSignoffTests(TestCase):
 
     def test_void_skips_cars_transferred_again_later(self):
         car = self.cars[0]
-        self.sign([car], self.review([car]))
+        self.transfer_out([car])
         first = VehicleTransferSignoff.objects.get()
         self.client.post(reverse("transfer_signoff_void", args=[first.pk]), {"reason": "先作廢"})
-        self.sign([car], self.review([car]))
+        self.transfer_out([car])
         second = VehicleTransferSignoff.objects.exclude(pk=first.pk).get()
         self.assertEqual(VehicleInventory.objects.get(pk=car.pk).status, VehicleInventory.Status.TRANSFERRED_OUT)
         self.assertNotEqual(first, second)
@@ -188,6 +246,8 @@ class TransferSignoffTests(TestCase):
     def test_routes_are_registered_and_void_is_admin_only(self):
         self.assertIn("transfer_signoff_void", ROOT_ONLY)
         self.assertEqual(ROUTES["transfer_signoff_create"], ("inventory", "operate"))
+        self.assertEqual(ROUTES["inventory_transfer_out"], ("inventory", "operate"))
+        self.assertNotIn("transfer_signoff_cancel", ROUTES)
         self.assertEqual(ROUTES["transfer_signoff_list"][0], "inventory")
         staff = get_user_model().objects.create_user("staff", password="Local-staff-984!")
         self.client.force_login(staff)
@@ -195,71 +255,22 @@ class TransferSignoffTests(TestCase):
         self.assertIn(response.status_code, {302, 403, 404})
         self.assertFalse(VehicleTransferSignoff.objects.filter(voided_at__isnull=False).exists())
 
-    def test_sign_step_hides_navigation_and_offers_no_external_link(self):
-        cars = self.cars[:1]
-        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(cars), "step": "review"})
-        self.assertContains(response, "signing-page")
-        self.assertContains(response, 'data-signature-skip')
-        # 簽名腳本送出時會停用確認按鈕（按鈕值不會送出），步驟必須放在隱藏欄位。
-        self.assertContains(response, '<input type="hidden" name="step" value="sign">')
-        self.assertNotContains(response, 'name="step" value="sign" data-signature-submit')
-
-    def test_back_button_value_overrides_hidden_sign_step(self):
-        cars = self.cars[:1]
-        payload = {**self.form(cars), "fingerprint": self.review(cars)}
-        response = self.client.post(reverse("transfer_signoff_create") , {**payload, "step": ["sign", "edit"]})
-        self.assertEqual(response.context["step"], "select")
-        self.assertFalse(VehicleTransferSignoff.objects.exists())
-
 
 class TransferPendingAndRecordsTests(TransferSignoffTests):
-    """1.66.0：預備調車（先存、等人來再簽）、調車紀錄篩選、進車紀錄。"""
-
-    def test_prepare_then_sign_later(self):
-        cars = self.cars[:2]
-        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(cars), "step": "save"})
-        self.assertRedirects(response, reverse("transfer_signoff_create"))
-        pending = VehicleTransferSignoff.objects.get()
-        self.assertEqual(pending.status, VehicleTransferSignoff.Status.PENDING)
-        self.assertEqual(VehicleInventory.objects.get(pk=cars[0].pk).status, "available", "預備時車輛不異動")
-        page = self.client.get(reverse("transfer_signoff_create"))
-        self.assertContains(page, "預備調車・待簽收")
-        self.assertContains(page, "開始簽收")
-        start = self.client.get(reverse("transfer_signoff_create"), {"pending": pending.pk, "sign": "1"})
-        self.assertEqual(start.context["step"], "sign")
-        fingerprint = start.context["fingerprint"]
-        response = self.sign(cars, fingerprint, pending=pending.pk)
-        self.assertRedirects(response, reverse("transfer_signoff_detail", args=[pending.pk]))
-        pending.refresh_from_db()
-        self.assertEqual(pending.status, VehicleTransferSignoff.Status.SIGNED)
-        self.assertEqual(VehicleTransferSignoff.objects.count(), 1, "簽收沿用同一筆預備，不另建")
-        self.assertEqual(VehicleInventory.objects.get(pk=cars[0].pk).status, "transferred_out")
-
-    def test_prepared_car_allocated_meanwhile_cannot_be_signed(self):
-        cars = self.cars[:2]
-        self.client.post(reverse("transfer_signoff_create"), {**self.form(cars), "step": "save"})
-        pending = VehicleTransferSignoff.objects.get()
-        VehicleInventory.objects.filter(pk=cars[0].pk).update(status="reserved")
-        start = self.client.get(reverse("transfer_signoff_create"), {"pending": pending.pk, "sign": "1"})
-        self.assertEqual(start.context["step"], "select")
-        self.assertIn("不能調出", "".join(start.context["errors"]))
-
-    def test_cancel_pending_removes_it(self):
-        self.client.post(reverse("transfer_signoff_create"), {**self.form(self.cars[:1]), "step": "save"})
-        pending = VehicleTransferSignoff.objects.get()
-        self.client.post(reverse("transfer_signoff_cancel", args=[pending.pk]))
-        self.assertFalse(VehicleTransferSignoff.objects.exists())
+    """1.66.0：調車紀錄篩選、進車紀錄；T-310 起沒有預備調車，舊的待簽收資料不列在調車紀錄。"""
 
     def test_records_list_only_signed_and_filters_by_date(self):
-        self.client.post(reverse("transfer_signoff_create"), {**self.form(self.cars[1:2]), "step": "save"})
-        self.sign(self.cars[:1], self.review(self.cars[:1]))
+        pending = VehicleTransferSignoff.objects.create(
+            dealer=self.dealer, dealer_name=self.dealer.name, staff_name="合成", status=VehicleTransferSignoff.Status.PENDING,
+        )
+        pending.vehicles.add(self.cars[1])
+        self.transfer_out(self.cars[:1])
         records = self.client.get(reverse("transfer_signoff_list"))
         self.assertEqual(len(records.context["signoffs"]), 1, "預備調車不列在調車紀錄")
         empty = self.client.get(reverse("transfer_signoff_list"), {"from": "2000-01-01", "to": "2000-01-02"})
         self.assertEqual(len(empty.context["signoffs"]), 0)
 
     def test_receipt_records_filter_by_date(self):
-        from datetime import date
         VehicleInventory.objects.filter(pk=self.cars[0].pk).update(received_on=date(2026, 9, 1))
         VehicleInventory.objects.filter(pk__in=[c.pk for c in self.cars[1:]]).update(received_on=date(2026, 9, 5))
         response = self.client.get(reverse("inventory_receipt_list"), {"from": "2026-09-05", "to": "2026-09-05"})
@@ -267,9 +278,78 @@ class TransferPendingAndRecordsTests(TransferSignoffTests):
         self.assertEqual(response.context["page_obj"].paginator.count, 3)
         self.assertContains(response, "09/05")
 
-    def test_vehicle_cards_show_factory_month_and_filters(self):
-        VehicleInventory.objects.filter(pk=self.cars[0].pk).update(manufactured_year_month="2026/06")
-        page = self.client.get(reverse("transfer_signoff_create"))
-        self.assertContains(page, "出廠 2026/06")
-        self.assertContains(page, 'data-transfer-filter="model"')
-        self.assertNotContains(page, "領車人姓名")
+    def test_inventory_list_offers_checkboxes_and_transfer_out_buttons(self):
+        page = self.client.get(reverse("inventory_list"))
+        html = page.content.decode()
+        self.assertNotIn(reverse("transfer_signoff_create"), html, "標題列不再有「調車簽收」按鈕")
+        self.assertIn(reverse("transfer_signoff_list"), html)
+        self.assertIn("data-transfer-out-all", html)
+        for car in self.cars[:3]:
+            self.assertIn(f'data-transfer-out-one="{car.pk}"', html)
+            self.assertIn(f'value="{car.pk}" aria-label="選 {car.identifier} 調出"', html)
+        reserved = self.cars[3]
+        self.assertNotIn(f'data-transfer-out-one="{reserved.pk}"', html)
+        self.assertIn(f"{reserved.identifier} 已配給訂單，不能調出", html)
+        self.assertIn(">已配車</button>", html)
+        self.assertIn('id="transfer-out-names"', html)
+        self.assertIn(reverse("inventory_transfer_out"), html)
+        self.assertNotIn("領車人", html)
+        # 停用、已售出／調出分頁沒有勾選與調出。
+        for scope in ("history", "sold"):
+            other = self.client.get(reverse("inventory_list"), {"scope": scope}).content.decode()
+            self.assertNotIn("data-transfer-out", other)
+
+    def test_name_suggestions_merge_used_names_and_dealers_without_home_stores(self):
+        SalesSource.objects.create(name="示範車行乙", source_type=SalesSource.SourceType.DEALER)
+        SalesSource.objects.create(name="永湛", source_type=SalesSource.SourceType.DEALER)
+        SalesSource.objects.create(name="停用車行", source_type=SalesSource.SourceType.DEALER, active=False)
+        VehicleInventory.objects.filter(pk=self.cars[0].pk).update(
+            status="transferred_out", disposition="transfer_out", disposition_dealer_name="興隆機車行",
+            disposition_on=date(2026, 3, 1),
+        )
+        VehicleInventory.objects.filter(pk=self.cars[1].pk).update(
+            status="transferred_out", disposition="transfer_out", disposition_dealer_name="示範車行甲",
+            disposition_on=date(2026, 5, 1),
+        )
+        VehicleInventory.objects.filter(pk=self.cars[2].pk).update(
+            status="sold", disposition="sold", disposition_dealer_name="馭盛", disposition_on=date(2026, 6, 1),
+        )
+        names = name_suggestions()
+        self.assertEqual(names["factory"], "原廠／總公司（調回）")
+        self.assertEqual([item["name"] for item in names["used"]], ["示範車行甲", "興隆機車行"], "最近用過的在前、不含本店")
+        self.assertIn("1 台", names["used"][0]["meta"])
+        self.assertEqual(names["dealers"], ["示範車行乙"], "打過的不重複、不含本店與停用車行")
+        self.assertEqual(names["home"], ["馭盛", "永湛"])
+
+
+class TransferOutPermissionTests(TestCase):
+    def setUp(self):
+        store = Store.objects.create(name="總店", code="MAIN")
+        model = VehicleModel.objects.create(brand="SYM", name="JET SL 125", model_number="T310P")
+        color = VehicleColor.objects.create(vehicle_model=model, name="消光黑")
+        self.car = VehicleInventory.objects.create(
+            vehicle_model=model, color=color, frame_number="T310P0001", ownership_store=store, location_store=store,
+        )
+        self.user = get_user_model().objects.create_user("viewer", password="Local-t310-553!")
+        UserAccessState.objects.create(user=self.user, configured=True)
+        self.grant = ScreenAccessGrant.objects.create(user=self.user, screen_key="inventory", view=True)
+        self.client.force_login(self.user)
+
+    def post(self):
+        return self.client.post(
+            reverse("inventory_transfer_out"), {"vehicles": [self.car.pk], "name": "示範車行丙"}, **AJAX,
+        )
+
+    def test_view_only_user_gets_403_and_sees_no_checkboxes(self):
+        self.assertEqual(self.post().status_code, 403)
+        self.assertEqual(VehicleInventory.objects.get(pk=self.car.pk).status, "available")
+        html = self.client.get(reverse("inventory_list")).content.decode()
+        self.assertNotIn("data-transfer-out", html)
+        self.assertNotIn("transfer-out-names", html)
+
+    def test_operate_user_can_transfer_out(self):
+        self.grant.operate = True
+        self.grant.save()
+        self.assertIn("data-transfer-out-all", self.client.get(reverse("inventory_list")).content.decode())
+        self.assertEqual(self.post().status_code, 200)
+        self.assertEqual(VehicleInventory.objects.get(pk=self.car.pk).status, "transferred_out")

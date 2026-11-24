@@ -95,8 +95,8 @@ def restore_blockers(vehicle):
         signed = (vehicle.transfer_signoffs.filter(status=VehicleTransferSignoff.Status.SIGNED, voided_at__isnull=True)
                   .order_by("-signed_at", "-id").first())
         if signed:
-            blockers.append((f"由調車簽收 {signed.number} 調出。請在調車單用「作廢調車簽收」改回，簽收紀錄才會一致。",
-                             reverse("transfer_signoff_detail", args=[signed.pk]), "開啟調車單"))
+            blockers.append((f"由調車 {signed.number} 調出。請在調車紀錄用「作廢」改回，紀錄才會一致。",
+                             reverse("transfer_signoff_detail", args=[signed.pk]), "開啟調車紀錄"))
     return blockers
 
 

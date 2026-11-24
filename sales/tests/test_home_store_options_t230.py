@@ -1,7 +1,8 @@
 """T-230：車行選單／篩選器最上面固定一組「本店：馭盛、永湛」，和車行分開。
 
 本店不進車行名單；選到本店只記名稱、不連車行主檔，不會產生車行傭金、獎勵、掛帳或台數獎金。
-範圍只有調車簽收、報表中心篩選、禮品名單三處（使用者 2026-11-18 勾選）。
+範圍只有報表中心篩選、禮品名單兩處（使用者 2026-11-18 勾選）；調車的本店選項 T-310 收回：
+放到本店其他門市改用「實際位置」，車仍是庫存，不能調出（使用者 2026-11-24）。
 """
 from datetime import date
 from pathlib import Path
@@ -28,7 +29,7 @@ from sales.reporting.engine import base_query
 from sales.reporting.forms import FilterForm
 from sales.reporting.views import initial_config
 from sales.services.home_stores import home_store_choices
-from sales.tests.test_transfer_signoff import signature_data_url
+from sales.services.transfer_signoff import name_suggestions
 
 HOME = ["store:yusheng", "store:yongzhan"]
 
@@ -62,43 +63,27 @@ class TransferHomeStoreTests(TestCase):
         self.override.disable()
         self.tempdir.cleanup()
 
-    def post(self, step, **extra):
-        data = {"dealer": "store:yongzhan", "dealer_name": "", "note": "", "vehicles": [car.pk for car in self.cars],
-                "step": step, **extra}
-        return self.client.post(reverse("transfer_signoff_create"), data)
+    def post(self, name):
+        data = {"name": name, "note": "", "vehicles": [car.pk for car in self.cars]}
+        return self.client.post(reverse("inventory_transfer_out"), data, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
 
-    def test_home_stores_are_pinned_on_top_and_not_in_dealer_list(self):
-        response = self.client.get(reverse("transfer_signoff_create"))
-        html = response.content.decode()
-        self.assertIn('<option value="store:yusheng" data-pinned="1">本店：馭盛</option>', html)
-        self.assertIn('<option value="store:yongzhan" data-pinned="1">本店：永湛</option>', html)
-        self.assertLess(html.index("本店：馭盛"), html.index("原廠／總公司（調回）"))
-        self.assertEqual(list(response.context["dealers"]), [self.dealer])
-        self.assertNotIn(f'<option value="{self.yongzhan.pk}"', html)
+    def test_suggestions_have_no_home_stores_and_list_active_dealers(self):
+        names = name_suggestions()
+        self.assertEqual(names["dealers"], [self.dealer.name])
+        self.assertNotIn("永湛", [item["name"] for item in names["used"]])
+        html = self.client.get(reverse("inventory_list")).content.decode()
+        self.assertNotIn("本店：馭盛", html.split('id="transfer-out-names"')[1].split("</script>")[0])
+        self.assertIn("請直接改列表上的「實際位置」", html)
 
-    def test_signing_to_home_store_records_name_without_dealer(self):
-        fingerprint = self.post("review").context["fingerprint"]
-        response = self.post("sign", agree="1", fingerprint=fingerprint, signature=signature_data_url())
-        signoff = VehicleTransferSignoff.objects.get()
-        self.assertRedirects(response, reverse("transfer_signoff_detail", args=[signoff.pk]))
-        self.assertIsNone(signoff.dealer)
-        self.assertEqual(signoff.dealer_name, "永湛")
+    def test_typing_home_store_name_is_blocked_and_cars_stay_in_stock(self):
+        response = self.post("永湛")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("實際位置", response.json()["message"])
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
         for car in self.cars:
             car.refresh_from_db()
-            self.assertEqual(car.status, VehicleInventory.Status.TRANSFERRED_OUT)
-            self.assertIsNone(car.disposition_dealer, "本店不連車行主檔，不會被當成車行計算")
-            self.assertEqual(car.disposition_dealer_name, "永湛")
-
-    def test_typed_name_is_ignored_when_home_store_is_chosen(self):
-        self.post("save", dealer="store:yusheng", dealer_name="亂填")
-        self.assertEqual(VehicleTransferSignoff.objects.get().dealer_name, "馭盛")
-
-    def test_reopening_pending_home_store_keeps_it_selected(self):
-        self.post("save")
-        pending = VehicleTransferSignoff.objects.get()
-        response = self.client.get(reverse("transfer_signoff_create"), {"pending": pending.pk})
-        self.assertContains(response, '<option value="store:yongzhan" data-pinned="1" selected>本店：永湛</option>', html=False)
-        self.assertNotContains(response, 'name="dealer_name" maxlength="120" value="永湛"', html=False)
+            self.assertEqual(car.status, VehicleInventory.Status.AVAILABLE)
+            self.assertEqual(car.disposition_dealer_name, "")
 
 
 class GiftHomeStoreTests(TestCase):

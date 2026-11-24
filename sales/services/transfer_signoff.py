@@ -1,33 +1,38 @@
-"""調車簽收：同一車行一次調走多台、領車人在店內裝置簽名一次。
+"""調出（調車）：把本店庫存的車調給別家店，離開本店庫存（T-310，使用者 2026-11-24）。
 
-只在登入後的店內平板／手機簽署，不產生對外簽署連結。簽署後車輛改為「已調出」
-（不算庫存也不算售出，保留進車紀錄）；作廢保留簽收紀錄，仍為已調出的車改回簽署前狀態。
+庫存列表勾車 → 填「調給哪一家」→ 確認，一步完成：不簽名、不勾聲明、不產生 PDF、沒有預備調車。
+調出後車輛改為「已調出」（不算庫存也不算售出，保留進車紀錄），並留一筆調車紀錄（單號 TS 不變）。
+放到本店其他門市不是調出，請改列表上的「實際位置」（T-308），車仍是庫存；所以不能調給本店。
+作廢保留紀錄，仍為已調出的車改回調出前狀態。
+
+2026-11-24 以前的紀錄有領車人簽名與簽收單 PDF（已存檔），明細照常顯示與下載。
 """
-import hashlib
-import json
-from io import BytesIO
-from xml.sax.saxutils import escape
-
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import Count, Max
 from django.utils import timezone
 
 from sales.models import (
     PrintCompany,
+    SalesSource,
     VehicleInventory,
     VehicleTransferSignoff,
     record_vehicle_history,
 )
 from sales.services.audit_note import note_or_summary, with_note
-from sales.services.inventory_location_note import FACTORY_LABEL
-from sales.services.pdf_signature import DocumentSignature
+from sales.services.home_stores import home_store_labels
+from sales.services.inventory_location_note import FACTORY_LABEL, FACTORY_WORDS
 
 ELIGIBLE_STATUSES = (
     VehicleInventory.Status.AVAILABLE,
     VehicleInventory.Status.CONDITION_ISSUE,
 )
+# 舊紀錄（有簽名）的點交聲明；新流程不勾聲明，只在舊紀錄明細顯示。
 STATEMENT = "上列車輛已由領車人於本店當面點交，車況、車身與引擎號碼確認無誤後領走。"
+FACTORY_OPTION = f"{FACTORY_LABEL}（調回）"
+NAME_MAX = 120
+NOTE_MAX = 200
+HOME_STORE_HINT = "放到本店其他門市請直接改列表上的「實際位置」，車仍是本店庫存。"
 
 
 def eligible_vehicles():
@@ -45,14 +50,16 @@ def selected_vehicles(vehicle_ids, *, lock=False):
         raise ValidationError("請至少選擇一台要調出的車。")
     queryset = VehicleInventory.objects.select_related("vehicle_model", "color", "current_dealer")
     if lock:
+        # 車行、門市可為空（LEFT JOIN），PostgreSQL 不允許鎖外部連接的一側，只鎖車輛本身。
         queryset = queryset.select_for_update(of=("self",))
     vehicles = list(queryset.filter(pk__in=ids).order_by("id"))
     if len(vehicles) != len(ids):
-        raise ValidationError("部分車輛已不存在，請重新選擇。")
+        raise ValidationError("部分車輛已不存在，請重新整理後再選。")
     blocked = [v.identifier for v in vehicles if v.status not in ELIGIBLE_STATUSES]
     if blocked:
         raise ValidationError(
-            f"{'、'.join(blocked)} 目前不是可銷售或車況異常（可能已配車、售出或調出），不能調出。"
+            f"{'、'.join(blocked)} 目前不是可銷售或車況異常（可能剛被配車、售出或調出），不能調出；"
+            "這次都沒有調出，請重新整理後再選。"
         )
     return vehicles
 
@@ -73,21 +80,6 @@ def vehicle_snapshot(vehicles):
     ]
 
 
-def content_fingerprint(*, dealer, dealer_name, note, vehicles):
-    """簽收時確認的內容；送出前內容被改過（例如車被配走）就要重新確認。不記錄領車人姓名電話（使用者 2026-10-10）。"""
-    payload = {
-        "dealer": dealer.pk if dealer else None,
-        "dealer_name": dealer_name,
-        "note": note,
-        "vehicles": [
-            [item["id"], item["model"], item["color"], item["engine_number"], item["frame_number"]]
-            for item in vehicle_snapshot(vehicles)
-        ],
-    }
-    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
-
 def home_company():
     company = PrintCompany.objects.filter(key="home").first()
     if not company:
@@ -95,170 +87,118 @@ def home_company():
     return {key: getattr(company, key) for key in ("legal_name", "tax_id", "address", "phone")}
 
 
-def build_signoff_pdf(signoff, signature=None):
-    """A4 簽收單：抬頭、調往對象、車輛清單、點交聲明與簽名；車多時自動換頁。"""
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+def _active_dealers():
+    return SalesSource.objects.filter(active=True, source_type=SalesSource.SourceType.DEALER)
 
-    import sales.services.privacy_consent_pdf  # noqa: F401  註冊正式中文字型
 
-    regular, bold = "PrivacyFormal", "PrivacyFormal-Bold"
-    title = ParagraphStyle("ts-title", fontName=bold, fontSize=19, leading=26, alignment=1, spaceAfter=2)
-    sub = ParagraphStyle("ts-sub", fontName=regular, fontSize=9.5, leading=14, alignment=1, textColor=colors.HexColor("#555555"))
-    body = ParagraphStyle("ts-body", fontName=regular, fontSize=10.5, leading=16)
-    cell = ParagraphStyle("ts-cell", fontName=regular, fontSize=9.5, leading=13)
-    head = ParagraphStyle("ts-head", parent=cell, fontName=bold)
-    muted = ParagraphStyle("ts-muted", fontName=regular, fontSize=7, leading=10, textColor=colors.HexColor("#777777"))
+def _compact(name):
+    return "".join((name or "").split())
 
-    company = signoff.company_snapshot or {}
-    signed_at = timezone.localtime(signoff.signed_at)
-    story = [Paragraph("車 輛 調 車 簽 收 單", title)]
-    if company.get("legal_name"):
-        story.append(Paragraph(escape(
-            "　".join(part for part in (company.get("legal_name"), company.get("address"), company.get("phone")) if part)
-        ), sub))
-    story.append(Spacer(1, 7 * mm))
 
-    def row(label, value):
-        return [Paragraph(label, head), Paragraph(escape(value or "—"), cell)]
+def is_home_store(name):
+    """本店（馭盛、永湛）：打「馭盛」「本店」「本店：永湛」都算。"""
+    compact = _compact(name)
+    if compact.startswith("本店"):
+        compact = compact[2:].lstrip("：:")
+        if not compact:
+            return True
+    return compact in home_store_labels()
 
-    info = Table(
-        [
-            row("簽收單號", signoff.number) + row("簽收日期", f"{signed_at:%Y/%m/%d %H:%M}"),
-            row("調往車行", signoff.dealer_name) + row("車輛台數", f"{len(signoff.vehicles_snapshot)} 台"),
-            row("經手人", signoff.staff_name) + row("備註", signoff.note),
+
+def resolve_destination(raw_name):
+    """自由輸入的店名 → (存檔名稱, 車行主檔或 None)。
+
+    和啟用中車行名稱完全相同（去頭尾空白）才連主檔，否則只存原文，和「主檔沒有的車行」一樣。
+    原廠、總公司等統一記為「原廠／總公司」。本店不能調出（要改實際位置）。
+    """
+    name = " ".join((raw_name or "").split())[:NAME_MAX]
+    if not name:
+        raise ValidationError("請填寫要調給哪一家。")
+    if is_home_store(name):
+        raise ValidationError(f"「{name}」是本店，不能調出。{HOME_STORE_HINT}")
+    if name in FACTORY_WORDS or name == FACTORY_OPTION:
+        return FACTORY_LABEL, None
+    dealer = _active_dealers().filter(name=name).order_by("id").first()
+    return name, dealer
+
+
+def _short_date(value, today):
+    if not value:
+        return ""
+    return f"{value:%m/%d}" if value.year == today.year else f"{value:%Y/%m/%d}"
+
+
+def name_suggestions():
+    """調出小視窗的店名建議：打過的店名（調車紀錄＋車輛去向原文，最近用過的在前）與啟用中車行。
+
+    不含本店；「原廠／總公司」由畫面固定放在最上面。正式站約兩百個短字串，整頁只輸出一份。
+    """
+    today = timezone.localdate()
+    used = {}
+
+    def remember(name, when, count):
+        name = " ".join((name or "").split())
+        if not name or name == FACTORY_LABEL or is_home_store(name):
+            return
+        entry = used.setdefault(name, {"name": name, "last": None, "count": 0})
+        if when and (entry["last"] is None or when > entry["last"]):
+            entry["last"] = when
+        entry["count"] += count
+
+    rows = (
+        VehicleInventory.objects.exclude(disposition_dealer_name="").order_by()
+        .values("disposition_dealer_name").annotate(last=Max("disposition_on"), total=Count("id"))
+    )
+    for row in rows:
+        remember(row["disposition_dealer_name"], row["last"], row["total"])
+    signed = (
+        VehicleTransferSignoff.objects.filter(status=VehicleTransferSignoff.Status.SIGNED).order_by()
+        .values("dealer_name").annotate(last=Max("signed_at"))
+    )
+    for row in signed:
+        remember(row["dealer_name"], timezone.localdate(row["last"]) if row["last"] else None, 0)
+
+    ordered = sorted(
+        used.values(),
+        key=lambda item: (item["last"] is None, -(item["last"].toordinal() if item["last"] else 0), item["name"]),
+    )
+    used_names = {item["name"] for item in ordered}
+    dealers = [
+        name for name in _active_dealers().order_by("name").values_list("name", flat=True).distinct()
+        if name not in used_names and not is_home_store(name)
+    ]
+    return {
+        "factory": FACTORY_OPTION,
+        "used": [
+            {
+                "name": item["name"],
+                "meta": "・".join(part for part in (
+                    _short_date(item["last"], today), f"{item['count']} 台" if item["count"] else "",
+                ) if part),
+            }
+            for item in ordered
         ],
-        colWidths=[24 * mm, 61 * mm, 24 * mm, 61 * mm],
-    )
-    info.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#999999")),
-        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f1f1ee")),
-        ("BACKGROUND", (2, 0), (2, -1), colors.HexColor("#f1f1ee")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    story += [info, Spacer(1, 6 * mm)]
-
-    rows = [[Paragraph(text, head) for text in ("序", "車型", "車色", "引擎號碼", "車身號碼")]]
-    for index, item in enumerate(signoff.vehicles_snapshot, 1):
-        model = item["model"] + (f"（{item['model_number']}）" if item.get("model_number") else "")
-        rows.append([
-            Paragraph(str(index), cell), Paragraph(escape(model), cell), Paragraph(escape(item["color"]), cell),
-            Paragraph(escape(item["engine_number"] or "—"), cell), Paragraph(escape(item["frame_number"] or "—"), cell),
-        ])
-    vehicles = Table(rows, colWidths=[10 * mm, 52 * mm, 26 * mm, 41 * mm, 41 * mm], repeatRows=1)
-    vehicles.setStyle(TableStyle([
-        ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#999999")),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f1ee")),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]))
-    story += [vehicles, Spacer(1, 6 * mm), Paragraph(STATEMENT, body), Spacer(1, 8 * mm)]
-
-    if signature:
-        image = Image(BytesIO(signature.image))
-        scale = min(70 * mm / image.imageWidth, 22 * mm / image.imageHeight)
-        image.drawWidth, image.drawHeight = image.imageWidth * scale, image.imageHeight * scale
-        signed_cell = image
-    else:
-        signed_cell = Paragraph("", body)
-    sign_table = Table(
-        [[Paragraph("領車人簽名：", body), signed_cell]],
-        colWidths=[28 * mm, 80 * mm], hAlign="RIGHT", rowHeights=[26 * mm],
-    )
-    sign_table.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-        ("LINEBELOW", (1, 0), (1, 0), 0.8, colors.black),
-    ]))
-    story.append(sign_table)
-    if signature:
-        story += [Spacer(1, 3 * mm), Paragraph(escape(
-            f"電子簽署 {signed_at:%Y-%m-%d %H:%M}・經手 {signature.staff_name}"
-            f"・內容指紋 {signature.fingerprint[:12].upper()}・本簽收單僅於店內裝置簽署"
-        ), muted)]
-
-    output = BytesIO()
-    document = SimpleDocTemplate(
-        output, pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm, topMargin=18 * mm, bottomMargin=16 * mm,
-        title=f"{signoff.number} 調車簽收單", author=company.get("legal_name", ""),
-    )
-    document.build(story)
-    return output.getvalue()
+        "dealers": dealers,
+        "home": home_store_labels(),
+    }
 
 
 @transaction.atomic
-def prepare_transfer(*, dealer, dealer_name, vehicle_ids, note, user, pending=None):
-    """預備調車：先存成「待簽收」，等人來再簽名。車輛暫不改狀態，簽收時再檢查一次是否仍可調出。"""
-    vehicles = selected_vehicles(vehicle_ids)
-    actor = (user.get_full_name() or user.get_username())[:150]
-    if pending is not None:
-        signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=pending.pk)
-        if not signoff.is_pending:
-            raise ValidationError("這筆預備調車已經簽收，不能再修改。")
-    else:
-        signoff = VehicleTransferSignoff(status=VehicleTransferSignoff.Status.PENDING)
-    signoff.dealer = dealer
-    signoff.dealer_name = dealer_name
-    signoff.note = note
-    signoff.vehicles_snapshot = vehicle_snapshot(vehicles)
-    signoff.prepared_by = actor
-    signoff.save()
-    signoff.vehicles.set(vehicles)
-    return signoff
-
-
-@transaction.atomic
-def cancel_pending(signoff):
-    """取消預備調車：還沒簽收、車輛也沒異動，直接移除這筆預備。"""
-    signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=signoff.pk)
-    if not signoff.is_pending:
-        raise ValidationError("這筆調車已經簽收，請改用作廢。")
-    signoff.delete()
-
-
-@transaction.atomic
-def sign_transfer(*, dealer, dealer_name, vehicle_ids, note, expected_fingerprint, signature_png,
-                  user, client_ip, user_agent, pending=None):
+def transfer_out(*, vehicle_ids, name, note, user):
+    """調出：一個交易內鎖車、重新檢查狀態（期間被配走就整批不調），車改已調出並留一筆調車紀錄。"""
+    dealer_name, dealer = resolve_destination(name)
+    note = " ".join((note or "").split())[:NOTE_MAX]
     vehicles = selected_vehicles(vehicle_ids, lock=True)
-    fingerprint = content_fingerprint(dealer=dealer, dealer_name=dealer_name, note=note, vehicles=vehicles)
-    if fingerprint != expected_fingerprint:
-        raise ValidationError("車輛或簽收內容剛被修改，請返回重新確認後再簽名。")
     staff_name = (user.get_full_name() or user.get_username())[:60]
-    signed_at = timezone.now()
-    fields = dict(
+    signoff = VehicleTransferSignoff.objects.create(
         status=VehicleTransferSignoff.Status.SIGNED, dealer=dealer, dealer_name=dealer_name,
         vehicles_snapshot=vehicle_snapshot(vehicles), company_snapshot=home_company(), note=note,
-        fingerprint=fingerprint, signed_at=signed_at, staff=user, staff_name=staff_name,
-        client_ip=client_ip or "", user_agent=(user_agent or "")[:300],
+        signed_at=timezone.now(), staff=user, staff_name=staff_name,
     )
-    if pending is not None:
-        signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=pending.pk)
-        if not signoff.is_pending:
-            raise ValidationError("這筆預備調車已經簽收過了。")
-        for name, value in fields.items():
-            setattr(signoff, name, value)
-        signoff.save()
-    else:
-        signoff = VehicleTransferSignoff.objects.create(**fields)
-    signature = DocumentSignature(
-        image=signature_png, signer_name="", signed_at=timezone.localtime(signed_at),
-        fingerprint=fingerprint, staff_name=staff_name,
-    )
-    pdf = build_signoff_pdf(signoff, signature)
-    stem = f"{signoff.number}-{signed_at:%H%M%S}"
-    signoff.signature_image.save(f"{stem}-signature.png", ContentFile(signature_png), save=False)
-    signoff.signed_pdf.save(f"{stem}.pdf", ContentFile(pdf), save=False)
-    signoff.pdf_sha256 = hashlib.sha256(pdf).hexdigest()
-    signoff.save(update_fields=["signature_image", "signed_pdf", "pdf_sha256", "updated_at"])
     signoff.vehicles.set(vehicles)
 
     today = timezone.localdate()
-    reason = f"調車簽收 {signoff.number}：調往 {dealer_name}"
+    reason = with_note(f"調出 {signoff.number}：調給 {dealer_name}", note, "，")
     for vehicle in vehicles:
         before_status = vehicle.status
         vehicle.status = VehicleInventory.Status.TRANSFERRED_OUT

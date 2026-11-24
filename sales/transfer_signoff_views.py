@@ -1,6 +1,7 @@
-"""調車簽收（可先預備、等人來再簽）、調車紀錄與進車紀錄。
+"""調出（T-310）、調車紀錄與進車紀錄。
 
-只在店內登入後的裝置簽署，不提供對外簽署連結；不記錄領車人姓名電話，直接簽名（使用者 2026-10-10）。
+調出在庫存列表勾車後一步完成，不簽名、不產生 PDF、沒有預備調車（使用者 2026-11-24）。
+舊的調車簽收頁網址轉到庫存列表；2026-11-24 以前已簽名的紀錄照常可看簽名與簽收單 PDF。
 """
 from io import BytesIO
 
@@ -9,185 +10,74 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from sales.access.services import is_root
-from sales.models import SalesSource, VehicleColor, VehicleInventory, VehicleModel, VehicleTransferSignoff
-from sales.services.document_signing import decode_signature
-from sales.services.home_stores import home_store_choices, home_store_label, home_store_value_for_label
-from sales.services.inventory_location_note import FACTORY_LABEL
-from sales.services.transfer_signoff import (
-    STATEMENT,
-    cancel_pending,
-    content_fingerprint,
-    eligible_vehicles,
-    prepare_transfer,
-    selected_vehicles,
-    sign_transfer,
-    void_signoff,
-)
-from sales.views import _protect_private_response, _signing_client_ip
+from sales.models import VehicleColor, VehicleInventory, VehicleModel, VehicleTransferSignoff
+from sales.services.transfer_signoff import STATEMENT, transfer_out, void_signoff
+from sales.views import _protect_private_response
+
+# 調出完成後回到庫存列表，列表底部顯示「已調出 N 台給 X｜看調車紀錄」。
+TRANSFER_DONE_SESSION_KEY = "inventory_transfer_out_done"
 
 
-def _dealers():
-    return SalesSource.objects.filter(active=True, source_type=SalesSource.SourceType.DEALER).order_by("name")
-
-
-def _pending_or_none(value):
-    if not str(value or "").isdigit():
-        return None
-    return VehicleTransferSignoff.objects.filter(pk=int(value), status=VehicleTransferSignoff.Status.PENDING).first()
-
-
-def _read_form(request):
-    post = request.POST
-    dealer_id = post.get("dealer", "")
-    dealer = _dealers().filter(pk=dealer_id).first() if dealer_id.isdigit() else None
-    factory = dealer_id == "factory"  # 原廠或總公司調回
-    home_store = home_store_label(dealer_id)  # 本店（馭盛、永湛）：只記名稱，不連車行主檔（T-230）
-    data = {
-        "dealer": dealer,
-        "factory": factory,
-        "home_store": dealer_id if home_store else "",
-        # 選了車行主檔（或原廠／總公司、本店）就以選項名稱為準；主檔沒有的車行才用手填名稱。
-        "dealer_name": (
-            FACTORY_LABEL if factory else home_store or (dealer.name if dealer else post.get("dealer_name", "").strip())
-        )[:120],
-        "vehicle_ids": [int(value) for value in post.getlist("vehicles") if value.isdigit()],
-        "note": post.get("note", "").strip()[:200],
-        "pending": _pending_or_none(post.get("pending")),
-    }
-    errors = []
-    if not data["dealer_name"]:
-        errors.append("請選擇調往的車行或原廠／總公司，主檔沒有的車行請填寫名稱。")
-    return data, errors
-
-
-def _data_from_pending(pending):
-    return {
-        "dealer": pending.dealer,
-        "factory": not pending.dealer_id and pending.dealer_name == FACTORY_LABEL,
-        "home_store": "" if pending.dealer_id else home_store_value_for_label(pending.dealer_name),
-        "dealer_name": pending.dealer_name,
-        "vehicle_ids": list(pending.vehicles.values_list("pk", flat=True)),
-        "note": pending.note,
-        "pending": pending,
-    }
-
-
-def _fingerprint(data, vehicles):
-    return content_fingerprint(dealer=data["dealer"], dealer_name=data["dealer_name"], note=data["note"], vehicles=vehicles)
+def _inventory_url():
+    return f"{reverse('inventory_list')}?scope=current"
 
 
 @login_required
 def transfer_signoff_create(request):
-    """調車簽收：上方列出待簽收的預備調車，下方選車行與車輛；可先存成預備，或直接交給領車人簽名。"""
-    step, errors, vehicles, fingerprint = "select", [], [], ""
-    pending = _pending_or_none(request.GET.get("pending"))
-    data = _data_from_pending(pending) if pending else {
-        "dealer": None, "factory": False, "home_store": "", "dealer_name": "", "note": "", "pending": None,
-        "vehicle_ids": [int(value) for value in request.GET.getlist("vehicle") if value.isdigit()],
-    }
-    if request.method == "POST":
-        data, errors = _read_form(request)
-        action = request.POST.get("step", "review")
-        try:
-            vehicles = selected_vehicles(data["vehicle_ids"])
-        except ValidationError as exc:
-            errors.extend(exc.messages)
-        if action == "save" and not errors:
-            try:
-                saved = prepare_transfer(
-                    dealer=data["dealer"], dealer_name=data["dealer_name"], vehicle_ids=data["vehicle_ids"],
-                    note=data["note"], user=request.user, pending=data["pending"],
-                )
-            except ValidationError as exc:
-                errors.extend(exc.messages)
-            else:
-                messages.success(request, f"已存成預備調車（{saved.dealer_name}，{len(saved.vehicles_snapshot)} 台）；等人來再按「開始簽收」。")
-                return redirect("transfer_signoff_create")
-        elif action == "sign" and not errors:
-            step = "sign"
-            if request.POST.get("agree") != "1":
-                errors.append("請領車人先勾選「已當面點交無誤」。")
-            signature_png = None
-            if not errors:
-                try:
-                    signature_png = decode_signature(request.POST.get("signature", ""))
-                except ValidationError as exc:
-                    errors.extend(exc.messages)
-            if not errors:
-                try:
-                    signoff = sign_transfer(
-                        dealer=data["dealer"], dealer_name=data["dealer_name"], vehicle_ids=data["vehicle_ids"],
-                        note=data["note"], expected_fingerprint=request.POST.get("fingerprint", ""),
-                        signature_png=signature_png, user=request.user, client_ip=_signing_client_ip(request),
-                        user_agent=request.META.get("HTTP_USER_AGENT", ""), pending=data["pending"],
-                    )
-                except ValidationError as exc:
-                    errors.extend(exc.messages)
-                else:
-                    messages.success(request, f"已完成調車簽收 {signoff.number}，{len(signoff.vehicles_snapshot)} 台車改為已調出。")
-                    return redirect("transfer_signoff_detail", pk=signoff.pk)
-        elif action == "review" and not errors:
-            step = "sign"
-        if step == "sign":
-            fingerprint = _fingerprint(data, vehicles)
-    elif pending and request.GET.get("sign") == "1":
-        # 預備調車「開始簽收」：直接進入簽名頁；車輛若已被配走等，回到選車並顯示原因。
-        try:
-            vehicles = selected_vehicles(data["vehicle_ids"])
-        except ValidationError as exc:
-            errors.extend(exc.messages)
-        else:
-            step = "sign"
-            fingerprint = _fingerprint(data, vehicles)
-    candidates = list(eligible_vehicles())
-    response = render(
-        request,
-        "sales/transfer_signoff_sign.html" if step == "sign" else "sales/transfer_signoff_form.html",
-        {
-            "step": step,
-            "errors": errors,
-            "data": data,
-            "dealers": _dealers(),
-            "home_stores": home_store_choices(),
-            "candidates": candidates,
-            "selected_ids": set(data["vehicle_ids"]),
-            "vehicles": vehicles,
-            "fingerprint": fingerprint,
-            "statement": STATEMENT,
-            "pending_list": VehicleTransferSignoff.objects.filter(status=VehicleTransferSignoff.Status.PENDING)
-            .annotate(vehicle_count=Count("vehicles")).order_by("-updated_at", "-id"),
-            "filter_models": sorted({v.vehicle_model.name for v in candidates}),
-            "filter_colors": sorted({v.color.name for v in candidates}),
-            "filter_locations": sorted({v.actual_location_label for v in candidates}),
-        },
-        status=400 if errors and request.method == "POST" else 200,
-    )
-    return _protect_private_response(response)
+    """舊的「調車簽收」頁已移除（T-310）：調出改在庫存列表勾車完成，舊書籤轉到庫存列表。"""
+    return redirect(_inventory_url())
+
+
+def _next_url(request):
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        next_url = _inventory_url()
+    return next_url
 
 
 @login_required
 @require_POST
-def transfer_signoff_cancel(request, pk):
-    signoff = get_object_or_404(VehicleTransferSignoff, pk=pk)
+def inventory_transfer_out(request):
+    """調出：勾好的車＋「調給哪一家」＋備註（選填），確認後一次完成。"""
+    next_url = _next_url(request)
+    ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
     try:
-        cancel_pending(signoff)
+        signoff = transfer_out(
+            vehicle_ids=request.POST.getlist("vehicles"), name=request.POST.get("name", ""),
+            note=request.POST.get("note", ""), user=request.user,
+        )
     except ValidationError as exc:
-        messages.error(request, "未取消：" + "；".join(exc.messages))
-    else:
-        messages.success(request, f"已取消預備調車（{signoff.dealer_name}）。")
-    return redirect("transfer_signoff_create")
+        message = "未調出：" + "；".join(exc.messages)
+        if ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
+        return redirect(next_url)
+    count = len(signoff.vehicles_snapshot)
+    request.session[TRANSFER_DONE_SESSION_KEY] = {"pk": signoff.pk, "count": count, "name": signoff.dealer_name}
+    if ajax:
+        return JsonResponse({"ok": True, "redirect": next_url, "message": f"已調出 {count} 台給 {signoff.dealer_name}"})
+    return redirect(next_url)
+
+
+def pop_transfer_done(request):
+    """庫存列表讀一次就清掉的調出完成提示。"""
+    done = request.session.pop(TRANSFER_DONE_SESSION_KEY, None)
+    if not isinstance(done, dict) or not str(done.get("pk", "")).isdigit():
+        return None
+    return {**done, "url": reverse("transfer_signoff_detail", args=[done["pk"]])}
 
 
 @login_required
 def transfer_signoff_list(request):
-    """調車紀錄：已簽收（含作廢）的調車，可依日期、對象或車號篩選。"""
+    """調車紀錄：已調出（含作廢）的調車，可依日期、對象或車號篩選；預備調車不列。"""
     signoffs = VehicleTransferSignoff.objects.filter(status=VehicleTransferSignoff.Status.SIGNED).select_related("dealer")
     date_from = parse_date(request.GET.get("from", "") or "")
     date_to = parse_date(request.GET.get("to", "") or "")
@@ -266,7 +156,7 @@ def inventory_receipt_list(request):
 def transfer_signoff_detail(request, pk):
     signoff = get_object_or_404(VehicleTransferSignoff.objects.select_related("dealer"), pk=pk)
     if signoff.is_pending:
-        return redirect(f"{reverse('transfer_signoff_create')}?pending={signoff.pk}")
+        return redirect(_inventory_url())
     current = {vehicle.pk: vehicle for vehicle in signoff.vehicles.all()}
     rows = [{**item, "vehicle": current.get(item["id"])} for item in signoff.vehicles_snapshot]
     response = render(
@@ -276,6 +166,9 @@ def transfer_signoff_detail(request, pk):
             "signoff": signoff,
             "rows": rows,
             "can_void": is_root(request.user) and not signoff.is_voided,
+            # 2026-11-24 以前在店內簽名的紀錄才有簽名與 PDF；依檔案是否存在判斷，不看日期。
+            "has_signature": bool(signoff.signature_image),
+            "has_pdf": bool(signoff.signed_pdf),
             "signature_url": reverse("protected_media", args=["transfer_signoff", signoff.pk, "signature_image"]),
             "statement": STATEMENT,
         },

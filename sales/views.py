@@ -8541,6 +8541,15 @@ def inventory_list(request):
             for vehicle in page.object_list:
                 vehicle.location_value = location_options.value_for(vehicle)
                 vehicle.location_option_label = location_options.label_for(vehicle)
+    # T-310：現有庫存每列可勾選「調出」（離開本店庫存）；有操作權限才輸出勾選框與店名建議。
+    transfer_out_names = None
+    if scope == "current":
+        from sales.access.services import policy_for
+        if policy_for(request).route("inventory_transfer_out", "POST"):
+            from sales.services.transfer_signoff import name_suggestions
+            transfer_out_names = name_suggestions()
+    from sales.transfer_signoff_views import pop_transfer_done
+    transfer_done = pop_transfer_done(request)
     filter_params = request.GET.copy()
     filter_params.pop("page", None)
 
@@ -8682,6 +8691,8 @@ def inventory_list(request):
             "vehicles": page.object_list,
             "page_obj": page,
             "location_options": location_options,
+            "transfer_out_names": transfer_out_names,
+            "transfer_done": transfer_done,
             # 停用分頁標示「刪單待確認」；admin 在停用與已售出／調出分頁可直接改回現有庫存。
             "deletion_review_ids": deletion_review_vehicle_ids() if scope == "history" else set(),
             "can_restore_stock": scope != "current" and is_root(request.user),

@@ -118,7 +118,8 @@ class InventoryRestoreTests(TestCase):
         signed = VehicleTransferSignoff.objects.create(dealer=self.dealer, dealer_name=self.dealer.name, staff_name="合成",
                                                        status=VehicleTransferSignoff.Status.SIGNED, signed_at=timezone.now())
         signed.vehicles.add(vehicle)
-        self.assertIn("作廢調車簽收", restore_blockers(vehicle)[0][0])
+        self.assertIn("作廢", restore_blockers(vehicle)[0][0])
+        self.assertIn("調車紀錄", restore_blockers(vehicle)[0][0])
         VehicleTransferSignoff.objects.filter(pk=signed.pk).update(voided_at=timezone.now())
         self.assertEqual(restore_blockers(vehicle), [])
         pending = VehicleTransferSignoff.objects.create(dealer=self.dealer, dealer_name=self.dealer.name, staff_name="合成",

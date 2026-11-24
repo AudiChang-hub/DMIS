@@ -144,6 +144,20 @@ class SharedTokenTests(SimpleTestCase):
             for background in ("surface", "red-soft"):
                 self.assertGreaterEqual(_contrast(tokens["red"], tokens[background]), 4.5, f"{name} --red on --{background}")
 
+    def test_warning_callout_icon_contrast(self):
+        """亮色警告框圖示：白色「!」放在 --amber-ink 圓底上 ≥4.5，圓底對 amber-soft ≥3；暗色維持深色字放在 --amber-strong 上。"""
+        self.assertIn(".callout--warning .callout__icon { background: var(--amber-ink); }", self.css)
+        self.assertIn('html[data-theme="night-blue"] .callout--warning .callout__icon { background: var(--callout-accent); }', self.css)
+        self.assertIn('html[data-theme="system"] .callout--warning .callout__icon { background: var(--callout-accent); }', self.css)
+        themes = self.themes()
+        light = themes["light"]
+        self.assertGreaterEqual(_contrast(light["on-status"], light["amber-ink"]), 4.5)
+        self.assertGreaterEqual(_contrast(light["amber-ink"], light["amber-soft"]), 3)
+        for name in ("night-blue", "system-dark"):
+            dark = themes[name]
+            self.assertGreaterEqual(_contrast(dark["on-status"], dark["amber-strong"]), 4.5, name)
+            self.assertGreaterEqual(_contrast(dark["amber-strong"], dark["amber-soft"]), 3, name)
+
     def test_amber_strong_is_no_longer_used_as_text(self):
         for path in sorted(CSS_DIR.glob("*.css")):
             with self.subTest(css=path.name):

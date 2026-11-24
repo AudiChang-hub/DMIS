@@ -5819,6 +5819,10 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .callout--info { --callout-accent: var(--blue); background: var(--blue-soft); border-color: var(--blue-border); }
 .callout--success { --callout-accent: var(--green); background: var(--mint); border-color: var(--green-border); }
 .callout__icon { display: grid; width: 28px; height: 28px; place-items: center; color: var(--on-status); background: var(--callout-accent); border-radius: 50%; font-size: var(--text-sm); font-weight: 900; line-height: 1; }
+/* T-300：亮色警告框圖示圓底改深琥珀（--amber-ink），白色「!」對比 ≥4.5、圓底對 amber-soft ≥3；暗色維持 --callout-accent（深色字放在亮琥珀上）。 */
+.callout--warning .callout__icon { background: var(--amber-ink); }
+html[data-theme="night-blue"] .callout--warning .callout__icon { background: var(--callout-accent); }
+@media (prefers-color-scheme: dark) { html[data-theme="system"] .callout--warning .callout__icon { background: var(--callout-accent); } }
 .callout h3 { margin: 3px 0 var(--space-2); font-size: var(--text-base); }
 .callout p { margin: var(--space-2) 0 0; color: var(--ink-soft); line-height: 1.7; }
 .callout ul { display: grid; margin: 0; padding: 0; gap: var(--space-2); list-style: none; }

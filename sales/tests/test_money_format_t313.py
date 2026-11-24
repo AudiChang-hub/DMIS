@@ -189,3 +189,61 @@ class LedgerItemFormatTests(TestCase):
         self.assertIn(f"<dt>配件金 1000（配件金）</dt><dd>{MINUS}$1,000</dd>", ledger)
         self.assertIn("<dt>後保桿</dt><dd>$1,800</dd>", ledger)
         self.assertNotIn("$-1,000", ledger)
+
+
+class ContractPdfCreditMinusTests(AccessoryCreditBase):
+    """6. 訂購單 PDF 配件金的單價／小計原本印 ASCII「-1,000」「-600」。
+
+    U+2212「−」在 PDF 用的兩套字型（本機 msjh、正式站／CI wqy-zenhei）都沒有字形，印出來會是方塊或空白；
+    改用兩套都有的全形「－」（U+FF0D）。金額欄照舊不加 $、保留千分位、0 不帶負號；一般配件不變。
+    """
+    FULLWIDTH_MINUS = "－"  # U+FF0D
+
+    def setUp(self):
+        super().setUp()
+        self.add_line(self.helmet)  # 配件小計 600，配件金面額 1,000 只折 600
+        self.add_line(self.credit)
+
+    def pdf_page(self):
+        import fitz
+
+        from sales.services.order_contract_pdf import build_order_contract_pdf
+
+        order = self.reload()
+        order.print_company_snapshot = {"legal_name": "測試機車行", "tax_id": "12345678", "address": "測試地址", "phone": "02-1234"}
+        return fitz.open(stream=build_order_contract_pdf(order), filetype="pdf")[0]
+
+    def test_registered_font_has_the_minus_glyph(self):
+        from reportlab.pdfbase import pdfmetrics
+
+        import sales.services.order_contract_pdf  # noqa: F401  註冊 MSJH 字型
+
+        for name in ("MSJH", "MSJH-Bold"):
+            self.assertIn(ord(self.FULLWIDTH_MINUS), pdfmetrics.getFont(name).face.charToGlyph, name)
+
+    def test_credit_amounts_use_a_minus_the_font_can_draw(self):
+        import fitz
+
+        page = self.pdf_page()
+        text = page.get_text()
+        self.assertIn(f"{self.FULLWIDTH_MINUS}1,000", text)
+        self.assertIn(f"{self.FULLWIDTH_MINUS}600", text)
+        self.assertNotIn("-1,000", text)
+        self.assertNotIn("-600", text)
+        self.assertNotIn("−", text)  # U+2212 沒有字形，不能出現
+        # 字元真的畫出來了：負號所在位置有深色像素（空白字形會是全白）。
+        boxes = page.search_for(f"{self.FULLWIDTH_MINUS}600")
+        self.assertTrue(boxes)
+        box = boxes[0]
+        minus_box = fitz.Rect(box.x0, box.y0, box.x0 + (box.x1 - box.x0) * 0.4, box.y1)
+        pixmap = page.get_pixmap(clip=minus_box, dpi=300, colorspace=fitz.csGRAY)
+        self.assertLess(min(pixmap.samples), 128, "負號位置沒有畫出任何東西")
+
+    def test_regular_accessory_row_unchanged(self):
+        # 一般配件列：類別、項目、數量、單價（售價＋工資）、小計，照舊（訂購單不印說明欄）。
+        self.assertIn("配件\n安全帽\n1\n600\n600\n", self.pdf_page().get_text())
+
+    def test_fully_voided_credit_prints_zero_without_sign(self):
+        AccessoryLine.objects.filter(order=self.order, is_credit=False).delete()
+        text = self.pdf_page().get_text()
+        self.assertIn(f"配件金 1000\n1\n{self.FULLWIDTH_MINUS}1,000\n0\n", text)

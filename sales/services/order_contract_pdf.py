@@ -157,6 +157,12 @@ def money(value):
     return f"{value:,.0f}"
 
 
+def _credit_money(value):
+    """配件金列的金額欄：負號用全形「－」（U+FF0D），例「－1,000」；0 不帶負號，不加 $（T-313）。
+    U+2212「−」在本機 msjh 與正式站 wqy-zenhei 都沒有字形會印成方塊，全形負號兩套字型都有。"""
+    return ("－" if value < 0 else "") + money(abs(value))
+
+
 def printed_detail_total(order):
     """「車價與費用明細」逐列小計的合計（與下方各列的條件一致；照系統算的牌險印「另計」不計入）。"""
     zero = Decimal("0")
@@ -509,8 +515,8 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
             note = f"配件金：最多折到配件小計 0 元，{money(accessory.credit_void)} 元作廢" if accessory.credit_void else "配件金：只折配件"
             rows.append([
                 p("配件金"), p(safe(accessory.name)), p(safe("、".join(item for item in (note, accessory.note) if item))),
-                p(accessory.quantity, center_style), p(money(accessory.amount), right_style),
-                p(money(accessory.effective_total), right_style),
+                p(accessory.quantity, center_style), p(_credit_money(accessory.amount), right_style),
+                p(_credit_money(accessory.effective_total), right_style),
             ])
             continue
         rows.append(

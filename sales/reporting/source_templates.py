@@ -40,7 +40,7 @@ def electric_vehicle_sales():
                             "owner_name", "legacy_gift_card", "legacy_platform_gift", "legacy_premium",
                             "payment_confirmed", "historical_received_price", "total_received"],
         # T-311（使用者選 B）：兩張月份圖在閱讀頁合成一張可切換的圖（型號在前），下面並排型號、銷售來源兩個圓餅；
-        # 銷售來源占比是新增的圖卡。正式站已發布的 #5 #7 由 migration 0226 同步（只調順序＋加這張圓餅）。
+        # 銷售來源占比是新增的圖卡。正式站已發布的 #5 #7 由 migration 0227 同步（只調順序＋加這張圓餅）。
         "cards": [
             card("電動車每月銷售型號", "stacked", "month", 20, "key_desc", series="legacy_model", series_limit=20, series_other=False, series_sort="value"),
             card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value", width=12),

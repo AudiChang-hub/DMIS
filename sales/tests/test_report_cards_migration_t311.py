@@ -1,4 +1,4 @@
-"""T-311 migration 0226：#5 電動車、#7 油車銷售統計改成 B 案圖卡（月份圖型號在前、加銷售來源圓餅）。
+"""T-311 migration 0227：#5 電動車、#7 油車銷售統計改成 B 案圖卡（月份圖型號在前、加銷售來源圓餅）。
 
 只改內建原樣的這兩張；自建或改過的報表不動；可重跑；reverse 還原原本三張；設定與 source_templates 一致。
 """
@@ -16,9 +16,9 @@ from sales.reporting.source_templates import (
     electric_platform_sales, electric_vehicle_sales, gasoline_vehicle_sales, total_vehicle_sales,
 )
 
-BEFORE = ("sales", "0225_t305_accessory_credit")
-AFTER = ("sales", "0226_t311_energy_sales_cards")
-migration = import_module("sales.migrations.0226_t311_energy_sales_cards")
+BEFORE = ("sales", "0226_t309_compulsory_insurance_gift")
+AFTER = ("sales", "0227_t311_energy_sales_cards")
+migration = import_module("sales.migrations.0227_t311_energy_sales_cards")
 
 
 def legacy(config):

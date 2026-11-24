@@ -95,7 +95,7 @@ class ReportingTests(TestCase):
         from sales.reporting.source_templates import SOURCE_TEMPLATES
         migrate=import_module('sales.migrations.0123_remaining_report_readers').upgrade_readers
         created=[]
-        before_t311=import_module('sales.migrations.0226_t311_energy_sales_cards').downgraded
+        before_t311=import_module('sales.migrations.0227_t311_energy_sales_cards').downgraded
         for name,factory in SOURCE_TEMPLATES.items():
             config=factory()
             if name in ('total','electric'):
@@ -199,7 +199,7 @@ class ReportingTests(TestCase):
         from django.db import connection
         from sales.reporting.source_templates import electric_vehicle_sales, gasoline_vehicle_sales
         migrate = import_module('sales.migrations.0122_electric_sales_overview').upgrade_electric
-        config = import_module('sales.migrations.0226_t311_energy_sales_cards').downgraded(electric_vehicle_sales())  # 0122 當時的三張圖卡
+        config = import_module('sales.migrations.0227_t311_energy_sales_cards').downgraded(electric_vehicle_sales())  # 0122 當時的三張圖卡
         config.pop('reader_layout')
         config['cards'][0].pop('width')
         config['cards'][1].update(dimension='day', title='電動車每日銷售型號')

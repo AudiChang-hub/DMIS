@@ -105,5 +105,5 @@ def backwards(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("sales", "0225_t305_accessory_credit")]
+    dependencies = [("sales", "0226_t309_compulsory_insurance_gift")]
     operations = [migrations.RunPython(forwards, backwards)]

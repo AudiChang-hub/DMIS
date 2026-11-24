@@ -109,7 +109,9 @@
     if (actualPlateInsuranceFee.value !== "") return Number(actualPlateInsuranceFee.value) || 0;
     const estimate = plateEstimate() || 0;
     // 配件贈送強制險（T-309）：牌險費留空時扣掉強制險，與伺服器 services/compulsory_gift.py 同一算法。
-    // 建單才用得到（訂單頁的試算值由伺服器帶入、已扣過）。
+    // 這個值只用在建單精靈的優惠預覽，所以只在建單時扣。訂單頁沒有優惠預覽、用不到這個值：伺服器帶入的試算值
+    // （data-estimate）在油車載入時會被 calculateRegistrationFee() 覆蓋成完整試算合計（沒扣強制險），不是扣過的值；
+    // 訂單頁的牌險費由伺服器依配件重算（services/compulsory_gift.py refresh_auto_plate_fee）。
     if (!editingOrderId && compulsoryInsuranceGifted()) {
       return Math.max(estimate - (Number(byId("id_compulsory_insurance_fee")?.value) || 0), 0);
     }
@@ -1377,8 +1379,6 @@
       row.querySelector('[name$="-labor_fee"]').value = 0;
       row.querySelector('[name$="-quantity"]').value = 1;
     }
-    const compulsoryNote = row.querySelector("[data-accessory-compulsory-note]");
-    if (compulsoryNote) compulsoryNote.hidden = !compulsory;
     if (credit) {
       lineType.value = "purchase";
       row.querySelector('[name$="-amount"]').value = product.sale_price;

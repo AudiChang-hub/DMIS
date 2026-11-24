@@ -9,6 +9,7 @@
   - 不標「牌險差異待確認」（門檻改成試算合計－強制險），也不標「牌險少收」；
   - 不計入配件小計，不影響配件金折抵；訂購單照贈品的方式印出來。
 """
+import re
 import tempfile
 import uuid
 from datetime import date
@@ -437,3 +438,35 @@ class CompulsoryGiftTests(TestCase):
         page = self.client.get(reverse("order_list"), {"tab": "all"}).content.decode()
         self.assertIn(order.number, page)
         self.assertNotIn("order-plate-shortfall", page)
+
+    # 驗收後使用者決定（2026-11-24）：建單畫面客人看得到，BUSINESS_RULES 規定客人看得到的畫面不露出牌險算法，
+    # 選了強制險的配件列不再顯示「只能贈送；牌險費留空時扣掉強制險」。自動改成贈送、鎖 0 元的行為照舊。
+    PLATE_RULE_HINT = "牌險費留空時扣掉強制險"
+
+    @staticmethod
+    def visible(html):
+        """只看畫面上的標記；行內 <script> 的程式註解不會顯示在畫面上。"""
+        return re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.S)
+
+    def test_wizard_accessory_step_does_not_show_plate_fee_rule(self):
+        lines = {"accessories-TOTAL_FORMS": "1", "accessories-INITIAL_FORMS": "0",
+                 **self.lines_data([(self.compulsory, "gift")])}
+        self.key = str(uuid.uuid4())
+        draft = self.walk_to("deposit", plate_insurance_fee="", **lines)
+        response = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "accessories"})
+        self.assertEqual(response.status_code, 200)
+        page = response.content.decode()
+        self.assertIn("訂單精靈・第 5／7 步", page)
+        self.assertTrue(any(str(form["accessory_product"].value()) == str(self.compulsory.pk)
+                            for form in response.context["formset"].forms))
+        self.assertIn('input.dataset.compulsoryLocked = "1"', page)
+        self.assertNotIn(self.PLATE_RULE_HINT, self.visible(page))
+        self.assertNotIn("data-accessory-compulsory-note", page)
+
+    def test_order_page_does_not_show_plate_fee_rule(self):
+        order = self.create(lines=[(self.compulsory, "gift")], plate_insurance_fee="")
+        self.assertTrue(order.accessories.filter(is_compulsory_insurance=True, line_type="gift", amount=0).exists())
+        page = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "order"}).content.decode()
+        self.assertIn(f'value="{self.compulsory.pk}" selected', page)
+        self.assertNotIn(self.PLATE_RULE_HINT, self.visible(page))
+        self.assertNotIn("data-accessory-compulsory-note", page)

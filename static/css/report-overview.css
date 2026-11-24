@@ -297,3 +297,5 @@
 @media (max-width: 800px) {
   .report-reader-shell .report-reader-main .report-chart:has(> .report-card-foot--overview) { padding-bottom:var(--space-4); }
 }
+.report-reader-shell .report-reader-main .report-chart .report-card-toolbar > div:has(> .report-card-count) > small { display:inline; }
+.report-card-toolbar > div > .report-card-count::before { content:" · "; }

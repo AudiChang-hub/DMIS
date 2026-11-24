@@ -96,12 +96,12 @@ class StockCardTests(TestCase):
         self.assertIn('<b class="ops-cover__value">0 天</b><em class="ops-tag ops-tag--red">缺貨風險</em></span>'
                       '<small class="ops-cover__why">沒有庫存・月賣約 1 台</small>', html)
         self.assertIn('<span class="ops-cover__main"><em class="ops-tag ops-tag--amber">滯銷</em></span>'
-                      '<small class="ops-cover__why">近 90 天沒賣出</small></span>', html)  # T-304 改字
+                      '<small class="ops-cover__why">已放 95 天沒賣出</small></span>', html)  # T-316：滯銷改看進車日
 
     def test_formula_hint_is_one_sentence(self):
         html = self.card()
         self.assertIn('<p class="ops-hint">庫齡＝實際已放幾天；預估可銷天數＝照近 90 天賣速推估還能賣幾天。'
-                      '預估超過 90 天或 90 天沒賣出＝滯銷。</p>', html)  # T-304 改字
+                      '車放了 90 天以上，從進車到現在這個車型都沒賣出＝滯銷。</p>', html)  # T-316 改字
         self.assertNotIn("平均每天領牌台數", html)
 
     def test_money_card_aging_bar_unchanged(self):

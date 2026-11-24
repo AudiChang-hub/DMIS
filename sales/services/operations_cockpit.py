@@ -60,7 +60,7 @@ STAGE_LIMITS = OrderedDict((
 STOCK_AGE_ALERT_DAYS = 90       # 庫齡達 90 天標紅
 STOCK_AGE_BUCKETS = ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上"))
 VELOCITY_DAYS = 90              # 可銷天數用近 90 天領牌台數算日均
-SLOW_COVER_DAYS = 90            # 可銷天數超過 90 天，或 90 天內 0 台＝滯銷
+SLOW_PARKED_DAYS = 90           # T-316：最早進車那台已放 90 天以上、進車後這個車型都沒賣出＝滯銷
 SHORTAGE_MIN_SOLD = 3           # 近 90 天賣 3 台以上
 SHORTAGE_COVER_DAYS = 14        # 且可銷天數不到 14 天＝缺貨風險
 RECEIVABLE_AGE_BUCKETS = ((0, 7, "0–7 天"), (8, 30, "8–30 天"), (31, None, "30 天以上"))
@@ -511,7 +511,7 @@ def _on_hand():
 
 
 def _cover_reason(on_hand, sold):
-    """可銷天數旁的一行原因（T-303）：用月賣台數說明天數怎麼來；沒賣出算不出天數，交給「90 天未售」標籤。"""
+    """可銷天數旁的一行原因（T-303）：用月賣台數說明天數怎麼來；沒賣出算不出天數，由模板另寫一行。"""
     if not sold:
         return ""
     per_month = sold * 30 / VELOCITY_DAYS
@@ -532,6 +532,23 @@ def model_velocity(today, live=None):
                    .filter(registration_confirmed_q(), registration_date__gt=since, registration_date__lte=today)
                    .values_list("vehicle_model_id", flat=True))
     stock = Counter(vehicle.vehicle_model_id for vehicle in live)
+    # T-316 滯銷：最早進車那台已放 ≥ 90 天，且從那天起這個車型都沒領牌（使用者 2026-11-24 定義）。
+    first_in = {}
+    for vehicle in live:
+        if vehicle.received_on and (vehicle.vehicle_model_id not in first_in
+                                    or vehicle.received_on < first_in[vehicle.vehicle_model_id]):
+            first_in[vehicle.vehicle_model_id] = vehicle.received_on
+    parked = {model_id: (today - day).days for model_id, day in first_in.items()
+              if (today - day).days >= SLOW_PARKED_DAYS}
+    sold_since = set()
+    if parked:
+        for model_id, day in (SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
+                              .filter(registration_confirmed_q(), vehicle_model_id__in=parked,
+                                      registration_date__gte=min(first_in[pk] for pk in parked),
+                                      registration_date__lte=today)
+                              .values_list("vehicle_model_id", "registration_date")):
+            if day >= first_in[model_id]:
+                sold_since.add(model_id)
     names = dict(VehicleModel.objects.filter(pk__in=set(stock) | set(sold)).values_list("pk", "name"))
     families = dict(VehicleModel.objects.filter(pk__in=set(stock) | set(sold)).values_list("pk", "family_id"))
     rows = []
@@ -539,12 +556,13 @@ def model_velocity(today, live=None):
         on_hand, recent = stock[model_id], sold[model_id]
         cover = round(on_hand * VELOCITY_DAYS / recent) if recent else None
         shortage = recent >= SHORTAGE_MIN_SOLD and (cover or 0) < SHORTAGE_COVER_DAYS
-        slow = on_hand > 0 and (recent == 0 or (cover is not None and cover > SLOW_COVER_DAYS))
+        slow = model_id in parked and model_id not in sold_since
         if not on_hand and not shortage:
             continue
         family = families.get(model_id)
         rows.append({"model_id": model_id, "name": names.get(model_id, "—"), "on_hand": on_hand, "sold": recent, "cover": cover,
                      "reason": _cover_reason(on_hand, recent), "shortage": shortage, "slow": slow,
+                     "stale_days": parked[model_id] if slow else None,
                      "url": _url("inventory_list", {"vehicle_family": family} if family else {"q": names.get(model_id, "")})})
     rows.sort(key=lambda row: (not row["shortage"], not row["slow"], -row["on_hand"], row["name"]))
     return rows

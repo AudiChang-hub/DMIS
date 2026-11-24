@@ -181,12 +181,12 @@
           <th data-label="車型">{% if c.links.inventory_list %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}{% for hit in row.age_hits %}{% if c.links.inventory_list %}<a class="ops-age-hit{% if hit.alert %} is-alert{% endif %}" href="{{ hit.url }}" data-ops-age-group="{{ hit.key }}"{% if hit.key != c.stock.age_default %} hidden{% endif %}>已放 {{ hit.label }} {{ hit.count }} 台</a>{% else %}<span class="ops-age-hit{% if hit.alert %} is-alert{% endif %}" data-ops-age-group="{{ hit.key }}"{% if hit.key != c.stock.age_default %} hidden{% endif %}>已放 {{ hit.label }} {{ hit.count }} 台</span>{% endif %}{% endfor %}</th>
           <td data-label="在庫" class="is-number">{{ row.on_hand }}</td>
           <td data-label="近 90 天" class="is-number">{{ row.sold }}</td>
-          <td data-label="預估可銷天數"><span class="ops-cover"><span class="ops-cover__main">{% if row.cover is not None %}<b class="ops-cover__value">{% if row.cover %}約 {% endif %}{{ row.cover }} 天</b>{% endif %}{% if row.shortage %}<em class="ops-tag ops-tag--red">缺貨風險</em>{% elif row.slow %}<em class="ops-tag ops-tag--amber">滯銷</em>{% endif %}</span>{% if row.reason %}<small class="ops-cover__why">{{ row.reason }}</small>{% elif row.slow and row.cover is None %}<small class="ops-cover__why">近 90 天沒賣出</small>{% endif %}</span></td>
+          <td data-label="預估可銷天數"><span class="ops-cover"><span class="ops-cover__main">{% if row.cover is not None %}<b class="ops-cover__value">{% if row.cover %}約 {% endif %}{{ row.cover }} 天</b>{% endif %}{% if row.shortage %}<em class="ops-tag ops-tag--red">缺貨風險</em>{% elif row.slow %}<em class="ops-tag ops-tag--amber">滯銷</em>{% endif %}</span>{% if row.reason %}<small class="ops-cover__why">{{ row.reason }}</small>{% elif row.slow %}<small class="ops-cover__why">已放 {{ row.stale_days }} 天沒賣出</small>{% elif row.cover is None %}<small class="ops-cover__why">近 90 天沒賣出，算不出天數</small>{% endif %}</span></td>
         </tr>{% endfor %}</tbody>
       </table></div>
       {% if c.stock.model_count > c.stock.models|length %}<p class="ops-hint">另有 {{ c.stock.model_count|add:"-6" }} 款在庫車型，見庫存列表。</p>{% endif %}
       {% endif %}
-      <p class="ops-hint">庫齡＝實際已放幾天；預估可銷天數＝照近 90 天賣速推估還能賣幾天。預估超過 90 天或 90 天沒賣出＝滯銷。</p>
+      <p class="ops-hint">庫齡＝實際已放幾天；預估可銷天數＝照近 90 天賣速推估還能賣幾天。車放了 90 天以上，從進車到現在這個車型都沒賣出＝滯銷。</p>
     </section>
     {% endif %}
     <section class="ops-card ops-energy" aria-labelledby="ops-energy-title" data-side-nav-section="油電領牌">

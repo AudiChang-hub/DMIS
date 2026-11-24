@@ -17,7 +17,7 @@ from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from sales.models import VehicleColor, VehicleModel
+from sales.models import SalesOrder, VehicleColor, VehicleModel
 from sales.services import operations_cockpit
 from sales.tests.test_operations_cockpit import make_vehicle
 
@@ -49,6 +49,13 @@ class AgeBucketModelsTests(TestCase):
         for index in range(1, 7):                  # 機種1～6 在庫比較多，排進表格前 6 列
             add(index, *([5] * (10 - index)))
         add(7, 120)                                # 機種7 只有 1 台，排不進表格
+        # T-316：滯銷改看進車日（放 ≥90 天且進車後沒賣出），滯銷車型排前面；機種7 進車後賣過 1 台，不算滯銷，仍排不進表格。
+        model, color = self.models[7]
+        SalesOrder.objects.create(
+            owner_name="T304 合成", owner_phone="0912345678", owner_address="合成地址", owner_id_number="A123456789",
+            vehicle_model=model, color=color, registration_date=today - timedelta(days=30),
+            established_on=today - timedelta(days=30), status="completed", vehicle_price=80000,
+            registration_completed_at=timezone.now())
 
     def stock(self):
         return operations_cockpit.build("month", timezone.localdate())["stock"]

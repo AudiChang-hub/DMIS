@@ -116,6 +116,10 @@
   {% if location_options %}
   <p class="inventory-location-hint"><strong>實際位置</strong>直接在列表上選，選了就存，存好可以按「復原」。只改車放在哪裡，車仍是本店庫存、照常可以配車；要把車調給別的車行（離開庫存），請用該列的「調出」{% if transfer_out_names %}或勾選多台後一起調出{% endif %}。</p>
   {% endif %}
+  {% if transfer_out_names %}
+  {# T-310：手機卡片沒有表頭，表頭的全選框看不到；這一列只在手機顯示，和表頭全選同步（inventory-transfer-out.js）。 #}
+  <label class="inventory-select-all"><span>全選這一頁可調出的車<small>已配給訂單的車不會選到</small></span><input class="inventory-select" type="checkbox" data-transfer-out-all data-transfer-out-all-mobile></label>
+  {% endif %}
   <div class="inventory-table-wrap" tabindex="0" aria-label="車輛庫存清單，可左右捲動查看完整欄位">
     <table class="inventory-table inventory-table--stock"{% if transfer_out_names %} data-transfer-out-table{% endif %}>
       <thead>

@@ -3,8 +3,10 @@
 調出後改為已調出（不算庫存），留一筆調車紀錄；admin 可作廢。2026-11-24 以前已簽名的舊紀錄照常顯示簽名與 PDF。
 """
 from datetime import date
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.signals import request_finished
@@ -298,6 +300,29 @@ class TransferPendingAndRecordsTests(TransferSignoffTests):
         for scope in ("history", "sold"):
             other = self.client.get(reverse("inventory_list"), {"scope": scope}).content.decode()
             self.assertNotIn("data-transfer-out", other)
+
+    def test_mobile_cards_have_their_own_select_all(self):
+        """手機卡片版把 thead 整個藏起來（app.css），全選要另有一列；JS 讓兩個全選框同步。"""
+        html = self.client.get(reverse("inventory_list")).content.decode()
+        self.assertEqual(html.count("data-transfer-out-all"), 3, "表頭一個、手機列一個（含 data-transfer-out-all-mobile）")
+        self.assertRegex(
+            html,
+            r'<label class="inventory-select-all"><span>全選這一頁可調出的車<small>[^<]+</small></span>'
+            r'<input class="inventory-select" type="checkbox" data-transfer-out-all data-transfer-out-all-mobile></label>',
+        )
+        for scope in ("history", "sold"):
+            self.assertNotIn("inventory-select-all", self.client.get(reverse("inventory_list"), {"scope": scope}).content.decode())
+
+        static = Path(settings.BASE_DIR) / "static"
+        css = (static / "css" / "inventory-list.css").read_text(encoding="utf-8")
+        self.assertIn(".inventory-select-all { display: none; }", css, "桌面有表頭全選，手機列不顯示")
+        mobile = css[css.index("@media (max-width: 600px) {\n  /* 手機卡片：勾選框放右上角"):]
+        mobile = mobile[:mobile.index("\n}\n")]
+        self.assertRegex(mobile, r"\.inventory-select-all \{\s*display: flex;")
+        js = (static / "js" / "inventory-transfer-out.js").read_text(encoding="utf-8")
+        self.assertIn('querySelectorAll("[data-transfer-out-all]")', js)
+        self.assertIn("alls.forEach((all) => {", js, "選取變動時兩個全選框的勾選／半選狀態一起更新")
+        self.assertIn("if (alls.includes(event.target))", js, "任一個全選框都能全選或清除")
 
     def test_name_suggestions_merge_used_names_and_dealers_without_home_stores(self):
         SalesSource.objects.create(name="示範車行乙", source_type=SalesSource.SourceType.DEALER)

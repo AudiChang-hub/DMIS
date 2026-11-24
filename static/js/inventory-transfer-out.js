@@ -33,7 +33,8 @@
 
   const bar = document.querySelector("[data-transfer-out-bar]");
   const panel = table.closest(".inventory-list-panel");
-  const all = table.querySelector("[data-transfer-out-all]");
+  // 全選框有兩個：桌面在表頭，手機卡片沒有表頭，改用列表上方那一列；兩個同步。
+  const alls = Array.from((panel || table).querySelectorAll("[data-transfer-out-all]"));
   const form = dialog.querySelector("[data-transfer-out-form]");
   const inputs = dialog.querySelector("[data-transfer-out-inputs]");
   const title = dialog.querySelector("[data-transfer-out-title]");
@@ -66,11 +67,11 @@
     const picked = selected();
     const enabled = checks();
     checks().forEach((check) => check.closest("tr")?.classList.toggle("is-transfer-selected", check.checked));
-    if (all) {
+    alls.forEach((all) => {
       all.checked = enabled.length > 0 && picked.length === enabled.length;
       all.indeterminate = picked.length > 0 && picked.length < enabled.length;
       all.disabled = enabled.length === 0;
-    }
+    });
     if (bar) {
       bar.querySelectorAll("[data-transfer-out-count]").forEach((node) => { node.textContent = String(picked.length); });
       const wasHidden = bar.hidden;
@@ -81,16 +82,16 @@
     }
   };
 
-  table.addEventListener("change", (event) => {
-    if (event.target === all) {
-      checks().forEach((check) => { check.checked = all.checked; });
+  (panel || table).addEventListener("change", (event) => {
+    if (alls.includes(event.target)) {
+      checks().forEach((check) => { check.checked = event.target.checked; });
     }
     refresh();
   });
   bar?.querySelector("[data-transfer-out-clear]")?.addEventListener("click", () => {
     checks().forEach((check) => { check.checked = false; });
     refresh();
-    all?.focus();
+    alls.find((all) => all.getClientRects().length > 0)?.focus();
   });
 
   // ---------- 小視窗 ----------

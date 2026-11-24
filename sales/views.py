@@ -8240,6 +8240,18 @@ def subsidy_ocr_decision(request, pk):
     return redirect(detail_url)
 
 
+# T-304：庫存列表 age_max 最多 100 年；再大 today - timedelta 會超出日期範圍（500），超過就當作沒帶上限。
+INVENTORY_AGE_MAX_DAYS = 36500
+
+
+def _query_int(value, upper=None):
+    """網址參數的非負整數：只收 ASCII 數字（「²」isdigit 為真但 int 會失敗），超過 upper 也不收；不收回傳 None。"""
+    if not (value.isascii() and value.isdigit()):
+        return None
+    number = int(value)
+    return None if upper is not None and number > upper else number
+
+
 @login_required
 def inventory_list(request):
     current_statuses = (
@@ -8316,7 +8328,7 @@ def inventory_list(request):
     # T-304：貨卡庫齡區間的車型小卡再帶 age_max（含）與 model（單一車型），篩出「該車型＋該區間」那幾台，台數與小卡一致。
     age_min = request.GET.get("age_min", "")
     age_max = request.GET.get("age_max", "")
-    age_max = age_max if age_max.isdigit() else ""
+    age_max = age_max if _query_int(age_max, INVENTORY_AGE_MAX_DAYS) is not None else ""
     if age_min.isdigit() and (int(age_min) > 0 or age_max):
         from sales.services.operations_cockpit import aged_stock_cutoff
         age_cutoff = aged_stock_cutoff(timezone.localdate(), int(age_min))
@@ -8332,7 +8344,7 @@ def inventory_list(request):
             age_floor = aged_stock_cutoff(timezone.localdate(), int(age_max))
             filters["age"] = filters.get("age", Q()) & Q(received_on__gte=age_floor)
     model_filter = request.GET.get("model", "")
-    model_filter = VehicleModel.objects.filter(pk=int(model_filter)).first() if model_filter.isdigit() else None
+    model_filter = VehicleModel.objects.filter(pk=int(model_filter)).first() if _query_int(model_filter) is not None else None
     if model_filter:
         filters["model"] = Q(vehicle_model_id=model_filter.pk)
     selected_statuses = []

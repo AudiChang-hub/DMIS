@@ -109,6 +109,36 @@ class AgeBucketModelsTests(TestCase):
         response = self.client.get(url, {"model": "x", "age_max": "y"})
         self.assertEqual(response.context["page_obj"].paginator.count, 9 + sum(10 - index for index in range(1, 7)) + 1)
 
+    def test_inventory_list_ignores_bad_age_max_and_model(self):
+        """QA 退件：age_max 超出日期範圍、或 age_max／model 是上標數字「²」（isdigit 為真但 int 失敗）時不可 500。
+
+        行為：age_max 只收 ASCII 數字且不超過 36500 天（100 年），否則當作沒帶上限；model 只收 ASCII 數字，否則當作沒帶車型。
+        """
+        self.client.force_login(self.admin)
+        model0 = self.models[0][0]
+        url = reverse("inventory_list")
+        everything = 9 + sum(10 - index for index in range(1, 7)) + 1
+        cases = {
+            "age_max 一百萬天": ({"model": model0.pk, "age_min": 30, "age_max": "1000000"}, 7),   # 等於只帶 age_min=30
+            "age_max 上標數字": ({"model": model0.pk, "age_min": 30, "age_max": "²"}, 7),
+            "model 上標數字": ({"model": "²", "age_min": 90}, 3),                                  # 等於只帶 age_min=90
+            "只帶過大的 age_max": ({"age_max": "1000000"}, everything),
+        }
+        for name, (params, count) in cases.items():
+            with self.subTest(name):
+                response = self.client.get(url, params)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["page_obj"].paginator.count, count)
+        response = self.client.get(url, {"model": model0.pk, "age_min": 30, "age_max": "1000000"})
+        self.assertNotContains(response, 'name="age_max"')
+        # 上限 36500 天本身照常套用（剛好在範圍內，不會被忽略）
+        response = self.client.get(url, {"model": model0.pk, "age_min": 0, "age_max": "36500"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<input type="hidden" name="age_max" value="36500">')
+        self.assertEqual(response.context["page_obj"].paginator.count, 9)
+        response = self.client.get(url, {"model": model0.pk, "age_min": 0, "age_max": "36501"})
+        self.assertNotContains(response, 'name="age_max"')
+
     def test_inventory_list_says_what_is_filtered(self):
         self.client.force_login(self.admin)
         model0 = self.models[0][0]

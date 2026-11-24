@@ -205,13 +205,20 @@ class ContractPdfCreditMinusTests(AccessoryCreditBase):
         self.add_line(self.credit)
 
     def pdf_page(self):
-        import fitz
+        # 用 requirements 已有的 pypdfium2 讀 PDF（CI 沒有 PyMuPDF）。
+        import pypdfium2 as pdfium
 
         from sales.services.order_contract_pdf import build_order_contract_pdf
 
         order = self.reload()
         order.print_company_snapshot = {"legal_name": "測試機車行", "tax_id": "12345678", "address": "測試地址", "phone": "02-1234"}
-        return fitz.open(stream=build_order_contract_pdf(order), filetype="pdf")[0]
+        document = pdfium.PdfDocument(build_order_contract_pdf(order))
+        self.addCleanup(document.close)
+        return document[0]
+
+    def page_lines(self, page):
+        # pdfium 把同一列表格的儲存格以空白連成一行，行與行用 CRLF 分開。
+        return page.get_textpage().get_text_range().split("\r\n")
 
     def test_registered_font_has_the_minus_glyph(self):
         from reportlab.pdfbase import pdfmetrics
@@ -222,28 +229,33 @@ class ContractPdfCreditMinusTests(AccessoryCreditBase):
             self.assertIn(ord(self.FULLWIDTH_MINUS), pdfmetrics.getFont(name).face.charToGlyph, name)
 
     def test_credit_amounts_use_a_minus_the_font_can_draw(self):
-        import fitz
-
         page = self.pdf_page()
-        text = page.get_text()
+        lines = self.page_lines(page)
+        text = "\n".join(lines)
         self.assertIn(f"{self.FULLWIDTH_MINUS}1,000", text)
         self.assertIn(f"{self.FULLWIDTH_MINUS}600", text)
+        self.assertIn(f"配件金 配件金 1000 1 {self.FULLWIDTH_MINUS}1,000 {self.FULLWIDTH_MINUS}600", lines)
         self.assertNotIn("-1,000", text)
         self.assertNotIn("-600", text)
         self.assertNotIn("−", text)  # U+2212 沒有字形，不能出現
-        # 字元真的畫出來了：負號所在位置有深色像素（空白字形會是全白）。
-        boxes = page.search_for(f"{self.FULLWIDTH_MINUS}600")
-        self.assertTrue(boxes)
-        box = boxes[0]
-        minus_box = fitz.Rect(box.x0, box.y0, box.x0 + (box.x1 - box.x0) * 0.4, box.y1)
-        pixmap = page.get_pixmap(clip=minus_box, dpi=300, colorspace=fitz.csGRAY)
-        self.assertLess(min(pixmap.samples), 128, "負號位置沒有畫出任何東西")
+        # 字元真的畫出來了：負號字元框（loose，依字型行高，不依字形外框）內有深色像素（空白字形會是全白）。
+        textpage = page.get_textpage()
+        found = textpage.search(f"{self.FULLWIDTH_MINUS}600").get_next()
+        self.assertIsNotNone(found)
+        index, _count = found
+        self.assertEqual(textpage.get_text_range(index, 1), self.FULLWIDTH_MINUS)
+        left, bottom, right, top = textpage.get_charbox(index, loose=True)
+        self.assertGreater((right - left) * (top - bottom), 0)
+        scale = 300 / 72
+        image = page.render(scale=scale, grayscale=True).to_pil().convert("L")
+        height = page.get_height()
+        crop = image.crop((int(left * scale), int((height - top) * scale), int(right * scale) + 1, int((height - bottom) * scale) + 1))
+        self.assertLess(min(crop.getdata()), 128, "負號位置沒有畫出任何東西")
 
     def test_regular_accessory_row_unchanged(self):
         # 一般配件列：類別、項目、數量、單價（售價＋工資）、小計，照舊（訂購單不印說明欄）。
-        self.assertIn("配件\n安全帽\n1\n600\n600\n", self.pdf_page().get_text())
+        self.assertIn("配件 安全帽 1 600 600", self.page_lines(self.pdf_page()))
 
     def test_fully_voided_credit_prints_zero_without_sign(self):
         AccessoryLine.objects.filter(order=self.order, is_credit=False).delete()
-        text = self.pdf_page().get_text()
-        self.assertIn(f"配件金 1000\n1\n{self.FULLWIDTH_MINUS}1,000\n0\n", text)
+        self.assertIn(f"配件金 配件金 1000 1 {self.FULLWIDTH_MINUS}1,000 0", self.page_lines(self.pdf_page()))

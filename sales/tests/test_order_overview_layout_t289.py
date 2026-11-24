@@ -98,7 +98,12 @@ class OrderOverviewLayoutTests(TestCase):
     def test_css_uses_fixed_pairs_not_masonry(self):
         css = (Path(settings.BASE_DIR) / "static" / "css" / "order-overview.css").read_text(encoding="utf-8")
         # 不用多欄瀑布流（CSS columns 依卡片高度分欄，每張單排列不同）。
-        self.assertNotRegex(css, r"\.order-overview__(grid|pairs) \{[^}]*[{;]\s*columns:")
+        # columns: 可能是區塊第一個屬性，也可能接在 ; 後面；grid-template-columns 不算。
+        masonry = r"\.order-overview__(grid|pairs) \{(?:[^}]*;)?\s*columns:"
+        self.assertRegex(".order-overview__grid { columns: 2 320px; }", masonry)
+        self.assertRegex(".order-overview__pairs { gap: 1rem; columns: 2; }", masonry)
+        self.assertNotRegex(".order-overview__grid { grid-template-columns: 1fr 1fr; }", masonry)
+        self.assertNotRegex(css, masonry)
         self.assertIn("@container order-overview-grid (min-width: 700px)", css)
         self.assertRegex(css, r"\.order-overview__pairs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-items: stretch;")
 

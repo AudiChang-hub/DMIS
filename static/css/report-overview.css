@@ -183,3 +183,38 @@
   .report-heat__month em, .report-heat__month b i, .report-heat__month small { display:none; }
   .report-heat__month.is-partial b { color:var(--ink); text-decoration:underline dotted; text-underline-offset:3px; }
 }
+/* T-311 台數統計（report-count.js）：點車行名稱就地展開訂單；金額 0 顯示淡灰「—」；全部明細預設收合。 */
+.report-count-toggle { display:inline-flex; align-items:center; gap:var(--space-2); font-weight:700; color:var(--ink); text-decoration:none; }
+.report-count-toggle::before { content:"▸"; display:inline-block; width:1em; text-align:center; color:var(--muted); transition:transform var(--dur-1) var(--ease-out); }
+.report-count-toggle[aria-expanded=true]::before { transform:rotate(90deg); }
+.report-count-toggle:hover { color:var(--action-text); }
+.report-count-toggle:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:var(--radius-xs); }
+.report-summary-table tr.is-expanded > * { background:var(--surface-soft); }
+.report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tr.report-count-detail > td { padding:0 0 var(--space-3) !important; background:var(--surface-soft); text-align:left; white-space:normal; }
+.report-count-detail__status { margin:0; padding:var(--space-3) var(--space-4); font-size:var(--text-sm); color:var(--muted); }
+.report-count-orders { padding:0 var(--space-4); text-align:left; white-space:normal; }
+.report-count-orders__list { list-style:none; margin:0; padding:0; font-size:var(--text-sm); font-variant-numeric:tabular-nums; }
+.report-count-orders__list > li { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1.4fr) 6.5em 6.5em 5em; align-items:center; column-gap:var(--space-3); padding:var(--space-2) 0; border-top:1px solid var(--line-soft); }
+.report-count-orders__list > .report-count-orders__head { border-top:0; font-size:var(--text-xs); font-weight:650; color:var(--muted); }
+.report-count-orders__list > li > :nth-child(3), .report-count-orders__list > li > :nth-child(4), .report-count-orders__go { text-align:right; }
+.report-count-orders__list > .report-count-orders__empty { display:block; color:var(--muted); }
+.report-count-orders__date { color:var(--muted); margin-right:var(--space-1); }
+.report-count-orders__tag { display:inline-block; margin-left:var(--space-1); padding:0 var(--space-2); border-radius:var(--radius-xs); background:color-mix(in srgb, var(--chart-s4) 16%, var(--surface)); font-size:var(--text-xs); font-weight:650; color:var(--ink); }
+.report-count-orders__more { margin:var(--space-2) 0 0; font-size:var(--text-xs); color:var(--muted); }
+.report-count-zero { color:var(--muted); opacity:.7; }
+.report-records-fold { margin-top:var(--space-2); border:1px solid var(--line-soft); border-radius:var(--radius-md); }
+.report-records-fold > summary { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--space-1) var(--space-3); min-height:44px; padding:var(--space-3) var(--space-4); cursor:pointer; font-weight:700; }
+.report-records-fold > summary small { font-weight:500; font-size:var(--text-xs); color:var(--muted); }
+.report-records-fold[open] > summary { border-bottom:1px solid var(--line-soft); }
+@media (max-width: 800px) {
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tr.report-count-detail { display:block; padding:0 0 var(--space-2); }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tr.report-count-detail > td { display:block; padding:0 !important; }
+  .report-reader-shell .report-reader-main[data-reader-layout="count_overview"] .report-summary-table tr.report-count-detail > td::before { content:none; }
+  .report-count-orders { padding:0 var(--space-4); }
+  .report-count-orders__list > .report-count-orders__head { display:none; }
+  .report-count-orders__list > li { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr) auto; row-gap:2px; }
+  .report-count-orders__who, .report-count-orders__car { grid-column:1 / -1; }
+  .report-count-orders__list > li > .report-count-orders__money { text-align:left; }
+  .report-count-orders__money::before { content:attr(data-label) " "; font-size:var(--text-xs); color:var(--muted); }
+}
+@media (prefers-reduced-motion: reduce) { .report-count-toggle::before { transition:none; } }

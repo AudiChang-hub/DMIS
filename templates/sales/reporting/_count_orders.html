@@ -1,0 +1,13 @@
+{% load screen_access %}{# T-311 台數統計：點車行就地展開的訂單（views.count_orders）。用清單而非巢狀表格，手機不受彙總表卡片樣式影響。0 顯示淡灰「—」；歸屬車行與該車行不同時才標「歸屬：X」。 #}
+<div class="report-count-orders" data-count-orders>
+<ul class="report-count-orders__list" aria-label="共 {{ page_obj.paginator.count }} 張訂單">
+<li class="report-count-orders__head" aria-hidden="true"><span>領牌日期 · 車主</span><span>車型 · 車色</span><span>台數獎金</span><span>傭金</span><span></span></li>
+{% for row in rows %}<li>
+<span class="report-count-orders__who"><span class="report-count-orders__date">{{ row.registration_date }}</span> {{ row.owner_name }}{% if row.other_recipient %} <span class="report-count-orders__tag">歸屬：{{ row.commission_recipient }}</span>{% endif %}</span>
+<span class="report-count-orders__car">{{ row.model_number }} · {{ row.color }}</span>
+<span class="report-count-orders__money" data-label="台數獎金">{% if row.dealer_bonus %}{{ row.dealer_bonus }}{% else %}<span class="report-count-zero" aria-label="台數獎金 0">—</span>{% endif %}</span>
+<span class="report-count-orders__money" data-label="傭金">{% if row.dealer_commission %}{{ row.dealer_commission }}{% else %}<span class="report-count-zero" aria-label="傭金 0">—</span>{% endif %}</span>
+<span class="report-count-orders__go">{% if_access 'order_detail' row.pk %}<a href="{% url 'order_detail' row.pk %}">看訂單</a>{% endif_access %}</span>
+</li>{% empty %}<li class="report-count-orders__empty">目前沒有符合的訂單，來源可能已更新。</li>{% endfor %}</ul>
+{% if page_obj.has_next %}<p class="report-count-orders__more">只列最近 {{ rows|length }} 張；共 {{ page_obj.paginator.count }} 張，其餘請看下方全部明細。</p>{% endif %}
+</div>

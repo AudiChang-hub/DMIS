@@ -719,6 +719,8 @@ function initReportVisuals(root) {
   });
   // T-311：#4 #5 #7 的月份圖切換；圖都畫好後才隱藏未選的細分（寬度量得到）。
   if (typeof initReportMonthSwitch === "function") initReportMonthSwitch(root);
+  // T-311：台數統計點車行就地展開訂單。
+  if (typeof initReportCountExpand === "function") initReportCountExpand(root);
 
 }
 if (typeof document !== "undefined") initReportVisuals(document);
@@ -797,6 +799,8 @@ if (typeof document !== "undefined") initReportVisuals(document);
       const oldRecords = reader.querySelector(".report-record-panel"), newRecords = next.querySelector(".report-record-panel");
       if (newRecords) {
         const imported = document.importNode(newRecords, true);
+        // T-311：台數統計的全部明細預設收合；使用者已打開的，連動更新後維持打開。
+        if (oldRecords?.querySelector('[data-records-fold]')?.open) imported.querySelector('[data-records-fold]')?.setAttribute('open', '');
         if (oldRecords) oldRecords.replaceWith(imported); else reader.querySelector("[data-report-exploration]").after(imported);
       } else oldRecords?.remove();
       const currentForm = reader.querySelector('.report-filter'), nextForm = next.querySelector('.report-filter');

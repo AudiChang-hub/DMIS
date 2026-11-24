@@ -549,6 +549,8 @@ def detail(request, pk, index):
         queryset = drill_query(config, card, card_filters(filters, index), request.GET.get("group", "__all__"))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
+    if request.GET.get("inline") == "1" and request.GET.get("view") == "count" and report.published.get("reader_layout") == "count_overview":
+        return count_orders(request, report, card, queryset)
     page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient", "operations").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
     from sales.services.order_origin import attach_order_origin
     page.object_list = attach_order_origin(page.object_list)
@@ -558,6 +560,44 @@ def detail(request, pk, index):
     return render(request, template, {"report": report, "card": card, "page_obj": page,
                   "scope_labels": scope_labels(report.published.get("fixed_filters", {})) + scope_labels(card.get("fixed_filters", {})),
                   "query": query.urlencode(), "back_query": filter_query(filters)})
+
+
+# T-311 台數統計（#13 #14）點車行就地展開：同一個 report_detail、同一個 group，只換成對帳用的精簡欄位
+# （領牌日期、車主、車型 · 車色、台數獎金、傭金、看訂單）。欄位與數字沿用明細的 record_cells，不另算。
+COUNT_ORDER_COLUMNS = ["registration_date", "owner_name", "model_number", "color", "commission_recipient", "dealer_bonus", "dealer_commission"]
+
+
+def _count_money(text):
+    """金額加千分位；0 回傳空字串（畫面顯示淡灰「—」）；「待補收支資料」等文字照原樣。"""
+    from decimal import Decimal, InvalidOperation
+    try:
+        value = Decimal(str(text))
+    except (InvalidOperation, ValueError):
+        return text
+    if not value:
+        return ""
+    return f"{value:,.0f}" if value == value.to_integral_value() else f"{value:,.2f}"
+
+
+def count_orders(request, report, card, queryset):
+    from .financial_query import with_saved_bonus
+    from django.db.models import F
+    ordering = F(report.published.get("date_basis", "registration_date")).desc(nulls_first=True)
+    queryset = with_saved_bonus(queryset).select_related(
+        "source", "commission_recipient", "vehicle_model", "color", "allocated_vehicle", "legacy_snapshot__import_row", "operations",
+    ).order_by(ordering, "-pk")
+    page = Paginator(queryset, 50).get_page(request.GET.get("page"))
+    dealer = request.GET.get("label", "")
+    rows = []
+    for order in page:
+        cells = {cell["key"]: cell["value"] for cell in record_cells(order, COUNT_ORDER_COLUMNS)}
+        for key in ("dealer_bonus", "dealer_commission"):
+            cells[key] = _count_money(cells[key])
+        rows.append({"pk": order.pk, **cells, "other_recipient": bool(dealer) and cells["commission_recipient"] != dealer})
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(request, "sales/reporting/_count_orders.html", {"report": report, "card": card, "page_obj": page, "rows": rows,
+                  "query": query.urlencode()})
 
 
 def csv_safe(value):

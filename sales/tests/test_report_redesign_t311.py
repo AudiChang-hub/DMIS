@@ -124,3 +124,54 @@ class HeatTableAssetsTests(SimpleTestCase):
         for page in ("layout.html", "designer_frame.html"):
             html = (ROOT / "templates/sales/reporting" / page).read_text(encoding="utf-8")
             self.assertLess(html.index("js/report-heat.js"), html.index("js/report-interactions.js"))
+
+
+class CountExpandTests(TestCase):
+    """台數統計（#13 #14）：點車行就地展開訂單，用同一個 report_detail 與 group，只多 view=count。"""
+    @classmethod
+    def setUpTestData(cls):
+        from sales.tests import test_reporting as fixtures
+        fixtures.ReportingTests.setUpTestData.__func__(cls)
+
+    def setUp(self):
+        from sales.reporting.engine import validate_config
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        from sales.tests import test_reporting as fixtures
+        self.report.published = validate_config(SOURCE_TEMPLATES["gasoline-count"]())
+        self.report.save()
+        fixtures.ReportingTests.login(self)
+
+    def test_page_folds_full_records_and_loads_expand_script(self):
+        html = self.client.get(reverse("report_display", args=[self.report.pk])).content.decode()
+        self.assertIn("data-records-fold", html)
+        self.assertNotIn("data-records-fold open", html)
+        self.assertIn("js/report-count.js", html)
+        opened = self.client.get(reverse("report_display", args=[self.report.pk]), {"records_page": "1"}).content.decode()
+        self.assertIn("data-records-fold open", opened)
+
+    def test_count_view_lists_orders_with_short_columns(self):
+        from sales.reporting.views import publication_key
+        url = reverse("report_detail", args=[self.report.pk, 0])
+        base = {"group": "__all__", "inline": "1", "revision": publication_key(self.report)}
+        html = self.client.get(url, {**base, "view": "count", "label": "不存在的車行"}).content.decode()
+        self.assertIn("data-count-orders", html)
+        self.assertIn("領牌日期 · 車主", html)
+        self.assertIn("歸屬：", html)  # 歸屬車行和展開的車行不同時才標
+        plain = self.client.get(url, base).content.decode()
+        self.assertNotIn("data-count-orders", plain)  # 沒有 view=count 照舊
+
+    def test_count_view_only_for_count_layout(self):
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        from sales.reporting.views import publication_key
+        self.report.published = SOURCE_TEMPLATES["gasoline"]()
+        self.report.save()
+        url = reverse("report_detail", args=[self.report.pk, 0])
+        html = self.client.get(url, {"group": "__all__", "inline": "1", "view": "count", "revision": publication_key(self.report)}).content.decode()
+        self.assertNotIn("data-count-orders", html)
+
+    def test_money_format(self):
+        from sales.reporting.views import _count_money
+        self.assertEqual(_count_money("0.00"), "")
+        self.assertEqual(_count_money("1500.00"), "1,500")
+        self.assertEqual(_count_money("12.50"), "12.50")
+        self.assertEqual(_count_money("待補收支資料"), "待補收支資料")

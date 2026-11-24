@@ -1319,6 +1319,33 @@
       if (salePrice && (changed || gift || salePrice.value === "")) salePrice.value = gift ? 0 : product.sale_price;
       if (laborFee && (changed || gift || laborFee.value === "")) laborFee.value = gift ? 0 : product.labor_fee;
     }
+    // 配件金（T-305）：面額由主檔帶出，售價、工資、數量鎖住、不能贈送；換回一般配件時恢復原本的鎖定狀態。
+    const credit = Boolean(product?.credit);
+    row.classList.toggle("is-credit", credit);
+    ["amount", "labor_fee", "quantity"].forEach(name => {
+      const input = row.querySelector(`[name$="-${name}"]`);
+      if (!input) return;
+      if (credit) {
+        input.readOnly = true;
+        input.tabIndex = -1;
+        input.dataset.creditLocked = "1";
+      } else if (input.dataset.creditLocked) {
+        delete input.dataset.creditLocked;
+        const locked = input.hasAttribute("data-price-locked") && productInput?.value !== "other";
+        input.readOnly = locked;
+        input.tabIndex = locked ? -1 : 0;
+      }
+    });
+    const lineType = row.querySelector('[name$="-line_type"]');
+    lineType.querySelectorAll('option[value="gift"]').forEach(option => option.disabled = credit);
+    if (credit) {
+      lineType.value = "purchase";
+      row.querySelector('[name$="-amount"]').value = product.sale_price;
+      row.querySelector('[name$="-labor_fee"]').value = 0;
+      row.querySelector('[name$="-quantity"]').value = 1;
+    }
+    const creditNote = row.querySelector("[data-accessory-credit-note]");
+    if (creditNote) creditNote.hidden = !credit;
     const total = Number(row.querySelector('[name$="-amount"]').value || 0) + Number(row.querySelector('[name$="-labor_fee"]').value || 0);
     row.querySelector('[data-accessory-total]').textContent = total.toLocaleString('zh-TW');
     const quantity = Number(row.querySelector('[name$="-quantity"]').value || 0);
@@ -2275,14 +2302,33 @@
   const depositAmount = byId("id_deposit_amount");
   const depositHint = byId("deposit-hint");
   function accessoryPurchaseTotal() {
-    return [...document.querySelectorAll("[data-accessory-row]")].reduce((sum, row) => {
-      if (row.classList.contains("is-pending-delete")) return sum;
-      if (row.querySelector('[name$="-line_type"]')?.value === "gift") return sum;
-      const named = row.querySelector('[name$="-accessory_product"]')?.value || row.querySelector('[name$="-custom_name"]')?.value.trim();
-      if (!named) return sum;
-      const unit = Number(row.querySelector('[name$="-amount"]')?.value || 0) + Number(row.querySelector('[name$="-labor_fee"]')?.value || 0);
-      return sum + unit * Number(row.querySelector('[name$="-quantity"]')?.value || 0);
-    }, 0);
+    // 配件金（T-305）只折配件、最多折到配件小計 0 元；與伺服器 services/accessory_credit.py 同一算法，規則值由主檔資料帶來。
+    let subtotal = 0, priceOnly = 0;
+    const credits = [];
+    document.querySelectorAll("[data-accessory-row]").forEach(row => {
+      if (row.classList.contains("is-pending-delete")) return;
+      if (row.querySelector('[name$="-line_type"]')?.value === "gift") return;
+      const productValue = row.querySelector('[name$="-accessory_product"]')?.value;
+      const named = productValue || row.querySelector('[name$="-custom_name"]')?.value.trim();
+      if (!named) return;
+      const amount = Number(row.querySelector('[name$="-amount"]')?.value || 0);
+      const product = accessoryProductData[productValue];
+      if (product?.credit) {
+        credits.push({face: -amount, coversLabor: product.covers_labor !== false});
+        return;
+      }
+      const quantity = Number(row.querySelector('[name$="-quantity"]')?.value || 0);
+      subtotal += (amount + Number(row.querySelector('[name$="-labor_fee"]')?.value || 0)) * quantity;
+      priceOnly += amount * quantity;
+    });
+    let remaining = null, applied = 0;
+    credits.forEach(credit => {
+      if (remaining === null) remaining = Math.max(credit.coversLabor ? subtotal : priceOnly, 0);
+      const use = Math.min(credit.face, remaining);
+      remaining -= use;
+      applied += use;
+    });
+    return subtotal - applied;
   }
   function otherFeeTotal() {
     return [...document.querySelectorAll("#other-fee-forms [data-dynamic-row]")].reduce((sum, row) => {

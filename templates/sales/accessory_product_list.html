@@ -71,6 +71,7 @@
               <input type="hidden" name="row" value="{{ item.pk }}">
               <input type="hidden" name="p{{ item.pk }}-version" value="{{ row.version }}">
               <input class="form-control" type="text" name="p{{ item.pk }}-name" value="{{ form.name.value|default_if_none:'' }}" data-original="{{ item.name }}" maxlength="160" required aria-label="{{ item.name }} 的配件名稱"{% if form.name.errors %} aria-invalid="true"{% endif %}>
+              {% if item.is_credit %}<span class="accessory-kind-badge">配件金（售價欄＝可折抵金額）</span>{% endif %}
               {% if item.note %}<span class="accessory-bulk-note">{{ item.note }}</span>{% endif %}
               {% if row.bound and form.errors %}<span class="accessory-bulk-errors" role="alert">{% for error in form.non_field_errors %}{{ error }} {% endfor %}{% for field in form %}{% for error in field.errors %}{{ field.label }}：{{ error }} {% endfor %}{% endfor %}</span>{% endif %}
             </td>
@@ -83,7 +84,7 @@
                 </fieldset>
               </details>
             </td>
-            <td data-label="售價"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-sale_price" value="{{ form.sale_price.value|default_if_none:'' }}" data-original="{{ item.sale_price }}" required aria-label="{{ item.name }} 的售價"{% if form.sale_price.errors %} aria-invalid="true"{% endif %}></td>
+            <td data-label="售價"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-sale_price" value="{{ form.sale_price.value|default_if_none:'' }}" data-original="{% if item.is_credit %}{{ item.credit_amount }}{% else %}{{ item.sale_price }}{% endif %}" required aria-label="{{ item.name }} 的{% if item.is_credit %}配件金金額{% else %}售價{% endif %}"{% if form.sale_price.errors %} aria-invalid="true"{% endif %}></td>
             <td data-label="工資"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-labor_fee" value="{{ form.labor_fee.value|default_if_none:'' }}" data-original="{{ item.labor_fee }}" required aria-label="{{ item.name }} 的工資"{% if form.labor_fee.errors %} aria-invalid="true"{% endif %}></td>
             <td data-label="參考成本"><input class="form-control accessory-bulk-money" type="number" step="1" inputmode="numeric" name="p{{ item.pk }}-cost" value="{{ form.cost.value|default_if_none:'' }}" data-original="{{ item.cost|default_if_none:'' }}" placeholder="未維護" aria-label="{{ item.name }} 的參考成本"{% if form.cost.errors %} aria-invalid="true"{% endif %}></td>
             <td data-label="啟用"><label class="accessory-bulk-active"><input type="checkbox" name="p{{ item.pk }}-active"{% if form.active.value %} checked{% endif %} data-original="{{ item.active|yesno:'1,0' }}"><span>啟用中</span></label></td>
@@ -105,9 +106,9 @@
       <tbody>
         {% for row in rows %}{% with item=row.product %}
         <tr>
-          <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+          <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.is_credit %}<span class="accessory-kind-badge">配件金</span>{% endif %}{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類別">{% for category in item.categories.all %}{{ category.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分類{% endfor %}</td>
-          <td data-label="售價">${{ item.sale_price|floatformat:0 }}</td>
+          <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|floatformat:0 }}{% else %}${{ item.sale_price|floatformat:0 }}{% endif %}</td>
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
           <td data-label="歷史使用">{{ item.usage_count }} 筆</td>

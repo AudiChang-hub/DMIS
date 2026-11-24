@@ -114,8 +114,9 @@ def balance_breakdown(order, summary=None, records=None):
     deposit_received = sum((p.received_amount or ZERO for p in customer if p.system_key == "deposit" and p.confirmed), ZERO)
     other_received = summary["customer_received"] - deposit_received
 
-    accessories = [(f"{line.name}{f' ×{line.quantity}' if line.quantity != 1 else ''}", line.line_total)
-                   for line in order.accessories.all() if line.line_total]
+    # 配件金列列實際折抵（最多折到配件小計 0，T-305），子項加總＝配件合計。
+    accessories = [(f"{line.name}{'（配件金）' if line.is_credit else ''}{f' ×{line.quantity}' if line.quantity != 1 else ''}", line.effective_total)
+                   for line in order.accessory_lines if line.effective_total]
     fees = [(fee.name or "其他費用", fee.amount) for fee in order.other_fees.all() if fee.amount]
     charges = [
         {"label": "車價", "amount": order.vehicle_price or ZERO, "items": []},

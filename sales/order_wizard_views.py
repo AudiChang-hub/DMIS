@@ -228,11 +228,21 @@ def build_summary(form, formset, fee_formset, draft):
         if data.get("DELETE") or not (data.get("accessory_product") or data.get("custom_name")):
             continue
         name = data.get("custom_name") or str(data.get("accessory_product"))
+        if getattr(data.get("accessory_product"), "is_credit", False):
+            # 配件金（T-305）：列面額，實際折抵由下方合計套用「最多折到配件小計 0 元」。
+            accessories.append(f"{name}（配件金）面額 {-(data.get('amount') or Decimal('0')):,.0f} 元")
+            continue
         quantity = data.get("quantity") or 1
         amount = (data.get("amount") or Decimal("0")) + (data.get("labor_fee") or Decimal("0"))
         line_type = dict(row.fields["line_type"].choices).get(data.get("line_type"), "") if "line_type" in row.fields else ""
         accessories.append(f"{name} × {quantity}（{line_type}）{amount * quantity:,.0f} 元" if line_type else f"{name} × {quantity}　{amount * quantity:,.0f} 元")
         accessory_total += amount * quantity
+    from sales.services.accessory_credit import breakdown, form_lines
+
+    credit = breakdown(form_lines(formset))
+    if credit.credit_face:
+        accessory_total = credit.total
+        accessories.append(f"配件金實際折抵 {credit.credit_applied:,.0f} 元" + (f"，{credit.credit_void:,.0f} 元作廢" if credit.credit_void else ""))
     fees = []
     for row in fee_formset.forms:
         data = getattr(row, "cleaned_data", None) or {}

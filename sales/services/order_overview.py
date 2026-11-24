@@ -11,6 +11,15 @@ from sales.services.registration_fee import registration_rate_label
 EMPTY = "—"
 
 
+def _credit_note(line):
+    """配件金列的備註：實際折抵與作廢（T-305）；一般配件回傳空字串。"""
+    if not line.is_credit:
+        return ""
+    text = f"配件金最多折到配件小計 0 元，實際折抵 {-line.effective_total:,.0f} 元"
+    text += f"，{line.credit_void:,.0f} 元作廢" if line.credit_void else ""
+    return "；".join(item for item in (text, line.note) if item)
+
+
 def _text(value):
     return str(value or "").strip()
 
@@ -254,7 +263,7 @@ def build_order_overview(order, *, include_finance=True):
     sections.append(_section("note", "備註", [_row("備註", order.note, wide=True)]))
 
     tables = []
-    accessories = list(order.accessories.all())
+    accessories = order.accessory_lines
     # 明細表一律列出（沒有資料顯示空狀態）：加購→其他費用→補助項目→收支（T-289、T-292）。
     tables.append({
         "key": "accessories",
@@ -263,8 +272,8 @@ def build_order_overview(order, *, include_finance=True):
         "columns": ("項目", "類型", "數量", "單價", "工資", "小計", "備註"),
         "numeric": (2, 3, 4, 5),
         "rows": [
-            (line.name, line.get_line_type_display(), str(line.quantity), _money(line.amount)[0],
-             _money(line.labor_fee)[0], _money(line.line_total)[0], line.note or EMPTY)
+            (line.name, "配件金" if line.is_credit else line.get_line_type_display(), str(line.quantity), _money(line.amount)[0],
+             _money(line.labor_fee)[0], _money(line.effective_total)[0], _credit_note(line) or line.note or EMPTY)
             for line in accessories
         ],
     })

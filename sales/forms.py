@@ -2118,6 +2118,14 @@ class AccessoryLineForm(forms.ModelForm):
         ):
             self.add_error("line_type", "沒有新增或變更贈送配件的權限，請洽 admin。")
         custom_name = (data.get("custom_name") or "").strip()
+        if product is not None and product.is_credit:
+            return self._clean_credit(data, product)
+        if not product and self.instance.pk and self.instance.is_credit and custom_name == self.instance.name:
+            # 主檔已斷開連結的配件金歷史列：原樣保留面額，不當成自行填寫的負數。
+            for key in ("amount", "labor_fee", "quantity", "line_type"):
+                data[key] = self.cleaned_data[key] = getattr(self.instance, key)
+            return data
+        self.instance.is_credit = False
         if self.data.get(self.add_prefix("accessory_product")) == "other" and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
             return data
@@ -2179,11 +2187,46 @@ class AccessoryLineForm(forms.ModelForm):
             self.cleaned_data["labor_fee"] = self.instance.labor_fee
         return data
 
+    def _clean_credit(self, data, product):
+        """配件金（T-305）：面額一律由主檔帶出，有調價權限也改不了；不能贈送、數量 1、沒有工資。
+        已存的同一筆配件金保留當時的面額（主檔之後改金額不回頭改舊單）。"""
+        if data.get("line_type") == AccessoryLine.LineType.GIFT:
+            self.add_error("line_type", "配件金不能設為贈送。")
+        same = self.instance.pk and self.instance.is_credit and product.pk == self.original_accessory_product_id
+        values = {
+            "amount": self.instance.amount if same else product.sale_price,
+            "labor_fee": Decimal("0"), "quantity": 1, "line_type": AccessoryLine.LineType.PURCHASE,
+        }
+        for key, value in values.items():
+            data[key] = self.cleaned_data[key] = value
+        self.instance.name = product.name
+        self.instance.is_credit = True
+        return data
+
+
+class BaseAccessoryFormSet(BaseInlineFormSet):
+    """整張訂單的配件金規則（筆數、車行單；`services/accessory_credit.py` 的常數，T-305）。"""
+
+    def clean(self):
+        super().clean()
+        from sales.services.accessory_credit import credit_row_errors
+
+        credit_forms = [
+            form for form in self.forms
+            if getattr(form, "cleaned_data", None) and not self._should_delete_form(form) and form.instance.is_credit
+        ]
+        # 訂單頁先驗證訂單表單，來源改成車行時這裡已讀到新來源。
+        errors = credit_row_errors(len(credit_forms), getattr(self.instance, "source_type", None))
+        for index, messages in errors.items():
+            for message in messages:
+                credit_forms[index].add_error("accessory_product", message)
+
 
 AccessoryFormSet = inlineformset_factory(
     SalesOrder,
     AccessoryLine,
     form=AccessoryLineForm,
+    formset=BaseAccessoryFormSet,
     extra=1,
     can_delete=True,
 )
@@ -2228,7 +2271,7 @@ OtherFeeFormSet = inlineformset_factory(
 )
 
 
-class BaseOrderPageAccessoryFormSet(BaseInlineFormSet):
+class BaseOrderPageAccessoryFormSet(BaseAccessoryFormSet):
     """訂單頁配件明細（T-281 h）：各列與新增列共用同一份配件名稱清單，不必每列各查一次。"""
 
     def __init__(self, *args, **kwargs):
@@ -3115,11 +3158,21 @@ class VehiclePriceVersionForm(forms.ModelForm):
 class AccessoryProductForm(forms.ModelForm):
     class Meta:
         model = AccessoryProduct
-        fields = ["name", "categories", "sale_price", "labor_fee", "cost", "active", "note"]
+        fields = ["name", "kind", "categories", "sale_price", "labor_fee", "cost", "active", "note"]
         widgets = {"categories": forms.CheckboxSelectMultiple}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "kind" in self.fields:
+            # 沒送種類（舊畫面、草稿）就沿用原本的種類，新增時是一般配件。
+            self.fields["kind"].required = False
+            self.fields["kind"].help_text = "配件金：客人買配件時可折抵的金額，只折配件、最多折到配件小計 0 元，不走折扣核准。"
+        self.fields["sale_price"].help_text = "配件金填可折抵的金額（例 1000），訂單上會帶出 −1,000。"
+        # 配件金沒有工資，可以留空；一般配件仍必填（clean 檢查）。
+        self.fields["labor_fee"].required = False
+        # 配件金在資料庫存負數售價，畫面上一律顯示成正的配件金金額（T-305）。
+        if self.instance.pk and self.instance.is_credit and not self.is_bound:
+            self.initial["sale_price"] = self.instance.credit_amount
         # 類別可隨時改、可複選（T-138、T-179）；停用的類別只保留這一項已選的。都不勾就是未分類。
         current = list(self.instance.categories.values_list("pk", flat=True)) if self.instance.pk else []
         self.fields["categories"].queryset = AccessoryCategory.objects.filter(
@@ -3135,6 +3188,33 @@ class AccessoryProductForm(forms.ModelForm):
                 self.initial[field_name] = ""
         apply_mobile_keyboard_attrs(self)
 
+    def clean(self):
+        data = super().clean()
+        kind = (data.get("kind") if "kind" in self.fields else None) or self.instance.kind
+        if "kind" in self.fields:
+            data["kind"] = kind
+        if self.instance.pk and kind != self.instance.kind and self.instance.order_lines.exists():
+            self.add_error("kind", "已有訂單使用這一項，不能改種類；請另外新增一筆。")
+            return data
+        price, labor = data.get("sale_price"), data.get("labor_fee")
+        if kind == AccessoryProduct.Kind.CREDIT:
+            if price is not None and price <= 0:
+                self.add_error("sale_price", "請填配件金金額（大於 0）。")
+            if labor:
+                self.add_error("labor_fee", "配件金沒有安裝工資，請留 0。")
+            if data.get("cost"):
+                self.add_error("cost", "配件金沒有成本，請留空。")
+            if price is not None and price > 0:
+                data["sale_price"] = -price
+            data["labor_fee"] = Decimal("0")
+        else:
+            if labor is None and "labor_fee" not in self.errors:
+                self.add_error("labor_fee", forms.Field.default_error_messages["required"])
+            for name, value in (("sale_price", price), ("labor_fee", labor)):
+                if value is not None and value < 0:
+                    self.add_error(name, "金額不可小於零。")
+        return data
+
 
 class AccessoryProductBulkForm(AccessoryProductForm):
     """配件清單上直接修改（T-178）：沿用單筆表單的驗證（名稱不重複、金額格式），不含內部備註。
@@ -3147,6 +3227,8 @@ class AccessoryProductBulkForm(AccessoryProductForm):
         super().__init__(*args, **kwargs)
         for field_name in ("sale_price", "labor_fee", "cost"):
             self.initial[field_name] = getattr(self.instance, field_name)
+        if self.instance.is_credit:
+            self.initial["sale_price"] = self.instance.credit_amount
 
 
 class AccessoryCategoryForm(forms.ModelForm):
@@ -3172,7 +3254,8 @@ class AccessoryProductMergeForm(forms.Form):
 
     def __init__(self, *args, source, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["target"].queryset = AccessoryProduct.objects.filter(active=True).exclude(pk=source.pk).order_by("name")
+        # 一般配件與配件金不能互相合併（T-305）：合併只改掛主檔，金額正負會對不上。
+        self.fields["target"].queryset = AccessoryProduct.objects.filter(active=True, kind=source.kind).exclude(pk=source.pk).order_by("name")
         self.fields["target"].widget.attrs.update({"class": "form-control"})
 
 

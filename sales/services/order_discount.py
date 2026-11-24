@@ -81,13 +81,10 @@ def intake_pre_discount_total(form, formset, fee_formset):
         + _money(instance.registration_extra_fee_total)
         + _money(instance.effective_installment_fee) + _money(instance.old_vehicle_tax)
     )
-    for row in formset.forms:
-        data = getattr(row, "cleaned_data", None) or {}
-        if data.get("DELETE") or not (data.get("accessory_product") or (data.get("custom_name") or "").strip()):
-            continue
-        if data.get("line_type") == "gift":
-            continue
-        total += (_money(data.get("amount")) + _money(data.get("labor_fee"))) * (data.get("quantity") or 0)
+    # 配件合計與 `SalesOrder.accessory_total` 同一算法（含配件金最多折到 0，T-305）。
+    from sales.services.accessory_credit import breakdown, form_lines
+
+    total += breakdown(form_lines(formset)).total
     for row in fee_formset.forms:
         data = getattr(row, "cleaned_data", None) or {}
         if data.get("DELETE") or not data.get("name"):

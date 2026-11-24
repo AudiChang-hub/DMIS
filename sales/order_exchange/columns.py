@@ -125,11 +125,15 @@ def _settled_flag(name):
     return lambda order: is_settled_history(order) or stored(order)
 
 
+def _accessory_text(line):
+    if line.is_credit:
+        # 配件金（T-305）：面額與實際折抵（最多折到配件小計 0 元）。
+        return f"{line.name}（配件金）{line.amount:,.0f}，實際折抵 {line.effective_total:,.0f}"
+    return f"{line.name}×{line.quantity} {line.amount:,.0f}" if line.quantity != 1 else f"{line.name} {line.amount:,.0f}"
+
+
 def _accessories(order):
-    return "；".join(
-        f"{line.name}×{line.quantity} {line.amount:,.0f}" if line.quantity != 1 else f"{line.name} {line.amount:,.0f}"
-        for line in order.accessories.all()
-    )
+    return "；".join(_accessory_text(line) for line in order.accessory_lines)
 
 
 def _other_fees(order):

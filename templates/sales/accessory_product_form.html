@@ -13,6 +13,7 @@
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <div class="operation-grid">
     {% include "sales/_field.html" with field=form.name %}
+    {% include "sales/_field.html" with field=form.kind %}
     {# 類別可複選（T-179）：同一項配件出現在每個勾選的類別。 #}
     <fieldset class="field accessory-category-choices{% if form.categories.errors %} has-error{% endif %}" data-field-container aria-describedby="{{ form.categories.auto_id }}_help">
       <legend>{{ form.categories.label }}（可複選）</legend>

@@ -1042,7 +1042,16 @@ class AccessoryCategory(TimeStampedModel):
 
 
 class AccessoryProduct(TimeStampedModel):
+    class Kind(models.TextChoices):
+        ACCESSORY = "accessory", "一般配件"
+        # 配件金（T-305 方案 A）：客人買配件時可折抵的金額，售價存負數（例 −1,000）、工資 0；
+        # 只折配件、最多折到配件小計 0 元，規則見 services/accessory_credit.py。
+        CREDIT = "credit", "配件金（折抵）"
+
     name = models.CharField("配件名稱", max_length=160, unique=True)
+    kind = models.CharField(
+        "種類", max_length=20, choices=Kind.choices, default=Kind.ACCESSORY, db_default=Kind.ACCESSORY,
+    )
     # 舊的單一類別（T-138）。T-179 起改用 categories，這一欄由 sync_primary_category 同步寫入排序最前的類別，
     # 部署期間與退回舊版時仍讀得到；下一版移除（先擴充、後收斂）。新程式不要再直接讀寫這一欄。
     category = models.ForeignKey(
@@ -1074,6 +1083,23 @@ class AccessoryProduct(TimeStampedModel):
         ordering = ["name"]
         verbose_name = "配件主檔"
         verbose_name_plural = "配件主檔"
+        constraints = [
+            # 一般配件不能是負數；只有配件金是負的售價且沒有工資（T-305：關掉「主檔存負數繞過折扣核准」）。
+            models.CheckConstraint(
+                condition=(Q(kind="accessory") & Q(sale_price__gte=0) & Q(labor_fee__gte=0))
+                | (Q(kind="credit") & Q(sale_price__lt=0) & Q(labor_fee=0)),
+                name="accessory_product_kind_amounts",
+            ),
+        ]
+
+    @property
+    def is_credit(self):
+        return self.kind == self.Kind.CREDIT
+
+    @property
+    def credit_amount(self):
+        """配件金面額（正數）；一般配件為 None。"""
+        return -self.sale_price if self.is_credit else None
 
     def sorted_categories(self):
         """所屬類別依排序；有 prefetch 時不另查資料庫。"""
@@ -4191,11 +4217,31 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def accessory_total(self):
-        return (
-            sum(line.line_total for line in self.accessories.all())
-            if self.pk
-            else 0
-        )
+        """配件合計：加購配件（售價＋工資）×數量，扣掉配件金實際折抵（最多折到 0，T-305）。"""
+        if not self.pk:
+            return 0
+        from sales.services.accessory_credit import breakdown
+
+        return breakdown(self.accessories.all()).total
+
+    @property
+    def accessory_credit(self):
+        """配件金折抵明細（小計、面額、實際折抵、作廢）；沒有配件金時面額為 0。"""
+        from sales.services.accessory_credit import breakdown
+
+        return breakdown(self.accessories.all() if self.pk else ())
+
+    @property
+    def accessory_lines(self):
+        """畫面與訂購單用的配件明細：每列有 `effective_total`，配件金列另有 `credit_face`、`credit_void`。"""
+        from sales.services.accessory_credit import display_lines
+
+        return display_lines(self.accessories.all() if self.pk else ())
+
+    @property
+    def delivery_accessory_lines(self):
+        """交車前要對照實車的配件：配件金不是實物，不列（T-305）。"""
+        return [line for line in self.accessories.all() if not line.is_credit] if self.pk else []
 
     @property
     def other_fee_total(self):
@@ -5899,14 +5945,25 @@ class AccessoryLine(TimeStampedModel):
         "安裝工資", max_digits=12, decimal_places=0, default=0
     )
     note = models.CharField("備註", max_length=250, blank=True)
+    # 配件金快照（T-305）：建立明細時由主檔種類帶入，主檔斷開連結後仍看得出是配件金。
+    is_credit = models.BooleanField("配件金", default=False, db_default=False, editable=False)
 
     class Meta:
         ordering = ["id"]
         verbose_name = "配件"
         verbose_name_plural = "配件"
+        constraints = [
+            # 一般配件與自行填寫不能是負數；配件金只能是負的面額、沒有工資、數量 1、加購（T-305）。
+            models.CheckConstraint(
+                condition=(Q(is_credit=False) & Q(amount__gte=0) & Q(labor_fee__gte=0))
+                | (Q(is_credit=True) & Q(amount__lte=0) & Q(labor_fee=0) & Q(quantity=1) & Q(line_type="purchase")),
+                name="accessory_line_credit_amounts",
+            ),
+        ]
 
     @property
     def line_total(self):
+        """本列面額；配件金是負的面額，實際折抵（最多折到配件小計 0）看 `SalesOrder.accessory_lines`。"""
         if self.line_type == self.LineType.GIFT:
             return 0
         return (self.amount + self.labor_fee) * self.quantity

@@ -4227,14 +4227,19 @@ def _learned_accessory_payload(names):
 
 
 def _accessory_product_data():
+    from sales.services.accessory_credit import CREDIT_COVERS_LABOR
+
     return {
         str(product.pk): {
             "name": product.name,
             "sale_price": str(product.sale_price),
             "labor_fee": str(product.labor_fee),
+            # 配件金（T-305）：畫面鎖住售價、工資、數量，伺服器也一律改回主檔面額。
+            "credit": product.is_credit,
+            **({"covers_labor": CREDIT_COVERS_LABOR} if product.is_credit else {}),
         }
         for product in AccessoryProduct.objects.filter(active=True).only(
-            "id", "name", "sale_price", "labor_fee"
+            "id", "name", "sale_price", "labor_fee", "kind"
         )
     }
 
@@ -6012,7 +6017,7 @@ def _order_snapshot(order):
         {
             "名稱": line.name,
             "數量": line.quantity,
-            "類型": line.get_line_type_display(),
+            "類型": "配件金" if line.is_credit else line.get_line_type_display(),
             "售價": str(line.amount),
             "工資": str(line.labor_fee),
             "總價": str(line.display_total),

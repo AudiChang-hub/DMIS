@@ -93,14 +93,26 @@
   .inventory-location__undo { min-height: 36px; padding-inline: var(--space-3); }
 }
 /* T-310：調出（車離開本店庫存）。勾選欄放最左、「調出」在操作欄；底部選取列與小視窗。T-308 位置欄不動。 */
+/* 桌機表格寬度（2.40.0 驗收，1440 寬多出 6px 捲軸）：勾選欄左側留 --space-4（和上方提示列同一條線）、
+   「調出／已配車」左右只留 --space-2，T-310 多佔的寬度少 24px；手機卡片（≤600px）另有規則，不受影響。 */
 .inventory-table[data-transfer-out-table] .inventory-select-cell { width: 44px; padding-right: 0; }
+@media (min-width: 600.02px) {
+  /* 要蓋過 app.css 首欄左距（--card-pad）的同層級選擇器，才寫這麼長。 */
+  .inventory-list-panel > .inventory-table-wrap > .inventory-table[data-transfer-out-table] :is(th, td).inventory-select-cell {
+    width: calc(20px + var(--space-4)); padding-left: var(--space-4);
+  }
+  .inventory-row-action .button.inventory-transfer-out-button { padding-inline: var(--space-2); }
+}
 .inventory-select { width: 20px; height: 20px; margin: 0; accent-color: var(--action-bg); cursor: pointer; vertical-align: middle; }
 .inventory-select:disabled { cursor: not-allowed; opacity: .45; }
 .inventory-select:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .inventory-table[data-transfer-out-table] tbody tr.is-transfer-selected > td { background: color-mix(in srgb, var(--mint) 70%, var(--surface)); }
 .inventory-row-action .inventory-transfer-out-button { margin-right: var(--space-2); }
 .inventory-row-action .inventory-transfer-out-button:disabled { color: var(--muted); cursor: not-allowed; opacity: 1; }
-.inventory-list-panel.has-transfer-out-bar { margin-bottom: 88px; }
+/* 底部選取列出現時留出它的高度：按鈕 44px＋上下 --space-2，加上它離底部的 --space-5，再多留 --space-2 不貼著最後一列。 */
+.inventory-list-panel.has-transfer-out-bar {
+  margin-bottom: calc(44px + 2 * var(--space-2) + var(--space-5) + var(--space-2) + env(safe-area-inset-bottom));
+}
 .inventory-select-all { display: none; }
 .transfer-out-bar, .transfer-out-toast {
   position: fixed; z-index: 34; left: 50%; bottom: calc(var(--space-5) + env(safe-area-inset-bottom));

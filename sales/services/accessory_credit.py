@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 ZERO = Decimal("0")
 
-# ---- 使用者決定的規則（2026-11-24 PM 先照建議實作；使用者改變決定時只改這三個值，
+# ---- 使用者決定的規則（2026-11-24 使用者確認；改變決定時只改這三個值，
 #      再同步說明頁 help/articles_manage.py「配件金」FAQ 與 BUSINESS_RULES「配件金」）----
 # 每張訂單最多幾筆配件金；None＝不限筆數。每筆數量固定 1（資料庫約束）。
 MAX_CREDIT_LINES_PER_ORDER = 1

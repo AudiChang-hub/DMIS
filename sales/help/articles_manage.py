@@ -189,7 +189,7 @@ MANAGE = (
             Faq("參考成本有什麼用？", "算訂單收支時當作配件成本參考。"),
             Faq("客人有配件金可以折抵？", "按 [[＋ 新增配件]]，種類選「配件金（折抵）」，售價欄填可折抵的金額（例 1000）。"
                 "訂單配件區選這一項就帶出 −1,000，金額改不了；只折配件、最多折到配件小計 0 元，多的作廢；"
-                "不走折扣核准，也不影響淨利。每張訂單最多一筆。"),
+                "安裝工資也算在可折範圍；不走折扣核准，也不影響淨利。每張訂單最多一筆，車行單也能用。"),
         ),
         related=("create-order", "order-pricing"),
         routes=("accessory_product_list", "accessory_product_create", "accessory_product_edit", "accessory_category_list"),

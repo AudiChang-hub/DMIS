@@ -98,8 +98,9 @@
 .report-reader-shell .report-chart .report-pie-legend .report-overview-legend__name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; overflow-wrap:normal; font-weight:650; }
 .report-pie-legend__other .report-overview-legend__name { color:var(--muted); }
 .report-pie-legend__members { grid-column:2 / -1; margin:0; font-size:var(--text-xs); line-height:1.5; color:var(--muted); }
-.report-pie-legend__members a { color:inherit; text-decoration:underline; text-decoration-color:var(--line-strong); text-underline-offset:2px; }
-.report-pie-legend__members a:hover { color:var(--ink); }
+/* 成員連結是行內文字：蓋掉圖例列的 grid（.report-reader-shell .report-overview-legend a）與 overflow-wrap:anywhere，否則一字一行。 */
+.report-reader-shell .report-chart .report-pie-legend .report-pie-legend__members a { display:inline; grid-template-columns:none; gap:0; padding:0; border:0; border-radius:0; background:none; font-weight:inherit; overflow-wrap:normal; color:inherit; text-decoration:underline; text-decoration-color:var(--line-strong); text-underline-offset:2px; }
+.report-reader-shell .report-chart .report-pie-legend .report-pie-legend__members a:hover { color:var(--ink); background:none; }
 @container (min-width: 480px) {
   .report-pie__inner { grid-template-columns:minmax(180px, 220px) minmax(0, 1fr); gap:var(--space-6); justify-items:stretch; }
   .report-reader-shell .report-chart .report-pie svg.report-pie__plot { width:100%; }

@@ -139,6 +139,27 @@ class AgeBucketModelsTests(TestCase):
         response = self.client.get(url, {"model": model0.pk, "age_min": 0, "age_max": "36501"})
         self.assertNotContains(response, 'name="age_max"')
 
+    def test_inventory_list_ignores_bad_age_min(self):
+        """同類問題（T-275 起）：age_min 超出日期範圍或是上標數字「²」時不可 500；比照 age_max，只收 ASCII 數字、最多 36500 天，否則當作沒帶下限。"""
+        self.client.force_login(self.admin)
+        model0 = self.models[0][0]
+        url = reverse("inventory_list")
+        cases = {
+            "age_min 一百萬天": ({"model": model0.pk, "age_min": "1000000"}, 9),                 # 等於只帶 model
+            "age_min 上標數字": ({"model": model0.pk, "age_min": "²"}, 9),
+            "age_min 一百萬天＋合法上限": ({"model": model0.pk, "age_min": "1000000", "age_max": 29}, 2),   # 上限照常套用
+            "age_min 上標數字＋合法上限": ({"model": model0.pk, "age_min": "²", "age_max": 29}, 2),
+            "age_min 剛好 36500": ({"model": model0.pk, "age_min": "36500"}, 0),
+            "age_min 36501": ({"model": model0.pk, "age_min": "36501"}, 9),
+        }
+        for name, (params, count) in cases.items():
+            with self.subTest(name):
+                response = self.client.get(url, params)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["page_obj"].paginator.count, count)
+        response = self.client.get(url, {"model": model0.pk, "age_min": "1000000"})
+        self.assertNotContains(response, 'name="age_min"')
+
     def test_inventory_list_says_what_is_filtered(self):
         self.client.force_login(self.admin)
         model0 = self.models[0][0]

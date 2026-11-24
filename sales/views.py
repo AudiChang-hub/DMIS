@@ -8240,7 +8240,7 @@ def subsidy_ocr_decision(request, pk):
     return redirect(detail_url)
 
 
-# T-304：庫存列表 age_max 最多 100 年；再大 today - timedelta 會超出日期範圍（500），超過就當作沒帶上限。
+# T-304：庫存列表 age_min／age_max 最多 100 年；再大 today - timedelta 會超出日期範圍（500），超過就當作沒帶這個條件。
 INVENTORY_AGE_MAX_DAYS = 36500
 
 
@@ -8329,7 +8329,7 @@ def inventory_list(request):
     age_min = request.GET.get("age_min", "")
     age_max = request.GET.get("age_max", "")
     age_max = age_max if _query_int(age_max, INVENTORY_AGE_MAX_DAYS) is not None else ""
-    if age_min.isdigit() and (int(age_min) > 0 or age_max):
+    if _query_int(age_min, INVENTORY_AGE_MAX_DAYS) is not None and (int(age_min) > 0 or age_max):
         from sales.services.operations_cockpit import aged_stock_cutoff
         age_cutoff = aged_stock_cutoff(timezone.localdate(), int(age_min))
         filters["age"] = Q(received_on__lte=age_cutoff)

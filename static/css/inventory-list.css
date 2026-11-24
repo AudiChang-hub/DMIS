@@ -56,3 +56,39 @@
   display: inline-grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center;
   color: var(--surface); background: var(--amber); border-radius: 50%; font-size: var(--text-xs);
 }
+/* T-308 B：現有庫存「實際位置」直接下拉改，選了就存。 */
+.inventory-location-hint {
+  margin: 0; padding: var(--space-3) var(--space-4); color: var(--ink-soft);
+  border-bottom: 1px solid var(--line); font-size: var(--text-sm); line-height: 1.6;
+}
+.inventory-location-hint strong { margin-right: var(--space-2); color: var(--ink); }
+.inventory-location-hint a { color: var(--action-text); font-weight: 800; text-underline-offset: 3px; }
+.inventory-location-hint a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
+.inventory-location-cell { min-width: 176px; }
+.inventory-location { display: grid; gap: var(--space-1); justify-items: start; max-width: 220px; }
+.inventory-table select.inventory-location__select {
+  width: 100%; min-height: 36px; padding-block: var(--space-1); font-size: var(--text-sm); font-weight: 800;
+}
+.inventory-location.is-saving .inventory-location__select { opacity: .7; cursor: progress; }
+.inventory-location__status {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0;
+  color: var(--green); font-size: var(--text-xs); font-weight: 800; line-height: 1.4;
+}
+.inventory-location__status[hidden] { display: none; }
+.inventory-location__status.is-saving { color: var(--muted); }
+.inventory-location__status.is-error { color: var(--red); }
+.inventory-table .inventory-location__status span { display: inline; }
+.inventory-location__undo {
+  min-height: 28px; padding: 0 var(--space-2); color: var(--action-text); background: transparent;
+  border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 900; cursor: pointer;
+  transition: background-color var(--dur-2) var(--ease-out);
+}
+.inventory-location__undo:hover { background: var(--surface-subtle); }
+.inventory-location__undo:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .inventory-location-cell { min-width: 0; }
+  .inventory-location { max-width: none; width: 100%; }
+  /* 16px 以上，iOS 點選單時不會自動放大畫面。 */
+  .inventory-table select.inventory-location__select { min-height: 44px; font-size: max(var(--text-base), 16px); }
+  .inventory-location__undo { min-height: 36px; padding-inline: var(--space-3); }
+}

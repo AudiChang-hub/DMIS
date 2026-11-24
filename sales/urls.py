@@ -12,6 +12,7 @@ from . import import_review_views
 from . import historical_delivery_views
 from . import transfer_signoff_views
 from . import inventory_restore_views
+from . import inventory_location_views
 from . import stock_count_views
 from . import order_return_views
 from . import subsidy_program_views
@@ -773,6 +774,11 @@ urlpatterns = [
         "data/inventory/<int:pk>/history/<int:history_pk>/photo/delete/",
         views.inventory_history_photo_delete,
         name="inventory_history_photo_delete",
+    ),
+    path(
+        "data/inventory/<int:pk>/location/",
+        inventory_location_views.inventory_location,
+        name="inventory_location",
     ),
     path(
         "data/inventory/<int:pk>/allocation-priority/",

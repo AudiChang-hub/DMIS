@@ -8519,6 +8519,18 @@ def inventory_list(request):
     vehicles = vehicles.order_by(*sort_options[sort])
     paginator = Paginator(vehicles, 100)
     page = paginator.get_page(request.GET.get("page"))
+    # T-308 B：現有庫存的實際位置直接下拉改。整頁共用一份選項（<template>），每列只放目前位置，
+    # 點開時才換成完整選單，車行再多也不會讓每列都帶一整份。沒有操作權限只看文字。
+    location_options = None
+    if scope == "current":
+        from sales.access.services import policy_for
+        from sales.services.inventory_location import LocationOptions
+        if policy_for(request).route("inventory_location", "POST"):
+            location_options = LocationOptions()
+            page.object_list = list(page.object_list)
+            for vehicle in page.object_list:
+                vehicle.location_value = location_options.value_for(vehicle)
+                vehicle.location_option_label = location_options.label_for(vehicle)
     filter_params = request.GET.copy()
     filter_params.pop("page", None)
 
@@ -8659,6 +8671,7 @@ def inventory_list(request):
         {
             "vehicles": page.object_list,
             "page_obj": page,
+            "location_options": location_options,
             # 停用分頁標示「刪單待確認」；admin 在停用與已售出／調出分頁可直接改回現有庫存。
             "deletion_review_ids": deletion_review_vehicle_ids() if scope == "history" else set(),
             "can_restore_stock": scope != "current" and is_root(request.user),

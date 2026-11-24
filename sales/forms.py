@@ -90,7 +90,12 @@ from .services.registration_fee import (
 )
 from .services.installment_plan import resolve_installment_plan_option
 from .services.audit_note import NOTE_HELP, NOTE_LABEL, note_or_summary
-from .services.home_stores import home_location_stores
+from .services.inventory_location import (
+    current_location_value,
+    home_location_map,
+    location_choice_list,
+    location_dealer_queryset,
+)
 from .services.dealer_regions import option_attrs as dealer_option_attrs
 from .services.price_version import (
     recommended_price_from_snapshot,
@@ -2475,19 +2480,9 @@ class VehicleInventoryForm(forms.ModelForm):
                 "data-search-placeholder": "輸入型號或年份",
             }
         )
-        dealer_queryset = SalesSource.objects.filter(
-            active=True,
-            source_type=SalesSource.SourceType.DEALER,
-        ).order_by("name")
-        if self.instance.pk and self.instance.current_dealer_id:
-            dealer_queryset = SalesSource.objects.filter(
-                Q(
-                    active=True,
-                    source_type=SalesSource.SourceType.DEALER,
-                )
-                | Q(pk=self.instance.current_dealer_id)
-            ).order_by("name")
-        self.fields["current_dealer"].queryset = dealer_queryset
+        self.fields["current_dealer"].queryset = location_dealer_queryset(
+            self.instance.current_dealer_id if self.instance.pk else None
+        )
         self.fields["current_dealer"].empty_label = "本店"
         disposition_dealer_queryset = SalesSource.objects.filter(
             Q(active=True, source_type=SalesSource.SourceType.DEALER)
@@ -2546,7 +2541,7 @@ class VehicleInventoryForm(forms.ModelForm):
     def _use_home_locations(self):
         """T-230 B：實際位置最上面固定本店門市（馭盛、永湛），選了存「實際存放門市」、不放車行。
         沒有本店門市資料時維持原本的「本店／車行」選單。"""
-        self.home_locations = {f"home-{store.pk}": store for store in home_location_stores()}
+        self.home_locations = home_location_map()
         if not self.home_locations:
             return
         dealer_field = self.fields["current_dealer"]
@@ -2554,16 +2549,10 @@ class VehicleInventoryForm(forms.ModelForm):
         self.fields["current_dealer"] = forms.ChoiceField(
             label=dealer_field.label, required=False,
             help_text="放在本店請選本店門市；放在車行時選車行名稱。",
-            choices=[(value, f"本店：{store.name}") for value, store in self.home_locations.items()]
-            + [(value, dealer.name) for value, dealer in self.location_dealers.items()],
+            choices=location_choice_list(self.home_locations, self.location_dealers),
             widget=PinnedOptionSelect(attrs=dealer_field.widget.attrs),
         )
-        instance = self.instance
-        home_value = f"home-{instance.location_store_id}"
-        self.initial["current_dealer"] = (
-            str(instance.current_dealer_id) if instance.current_dealer_id
-            else home_value if home_value in self.home_locations else next(iter(self.home_locations))
-        )
+        self.initial["current_dealer"] = current_location_value(self.instance, self.home_locations)
 
     def clean_current_dealer(self):
         value = self.cleaned_data.get("current_dealer")

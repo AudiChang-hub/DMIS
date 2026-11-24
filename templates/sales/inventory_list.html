@@ -114,6 +114,9 @@
     <p><strong>優先配車規則</strong>出廠年月超過 {{ priority_age_months }} 個月（目前為 {{ priority_cutoff }} 以前出廠）系統自動開啟並標示「自動」，且不能關閉。未滿 {{ priority_age_months }} 個月的車可由人員手動開啟並標示「人工」，到期後仍為「人工」；手動關閉後改回依車齡判斷，到期自動開啟。訂單配車時，優先配車的車輛排在選單最上面。{% if_access 'allocation_rule_settings' %} <a href="{% url 'allocation_rule_settings' %}">調整月數</a>{% endif_access %}</p>
   </aside>
   {% endif %}
+  {% if location_options %}
+  <p class="inventory-location-hint"><strong>實際位置</strong>直接在列表上選，選了就存，存好可以按「復原」。只改車放在哪裡，車仍是本店庫存、照常可以配車；要把車調給別的車行（離開庫存），請用<a href="{% url 'transfer_signoff_create' %}">調車簽收</a>。</p>
+  {% endif %}
   <div class="inventory-table-wrap" tabindex="0" aria-label="車輛庫存清單，可左右捲動查看完整欄位">
     <table class="inventory-table inventory-table--stock">
       <thead>
@@ -163,7 +166,7 @@
             {% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}
           </td>
           {% else %}
-          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong>{% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}</td>
+          <td data-label="實際位置"{% if location_options %} class="inventory-location-cell"{% endif %}>{% if location_options %}<div class="inventory-location" data-inventory-location data-url="{% url 'inventory_location' vehicle.pk %}" data-identifier="{{ vehicle.identifier }}"><select id="inventory-location-{{ vehicle.pk }}" class="inventory-location__select" name="location" aria-label="實際位置 {{ vehicle.identifier }}（選了就存）" data-location-current="{{ vehicle.location_value }}"><option value="{{ vehicle.location_value }}" selected>{{ vehicle.location_option_label }}</option></select><p class="inventory-location__status" role="status" data-location-status hidden></p></div>{% else %}<strong>{{ vehicle.actual_location_label }}</strong>{% endif %}{% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}</td>
           {% endif %}
           <td data-label="車況">
             {% if vehicle.status == 'condition_issue' %}
@@ -182,5 +185,10 @@
   </div>
   {% pagination page_obj aria_label="庫存分頁" %}
 </section>
+{% if location_options %}
+{# T-308 B：整頁共用一份位置選項，點開某列的選單時才複製進去（車行多時每列不必各帶一份）。 #}
+<template id="inventory-location-options" data-csrf="{{ csrf_token }}"><optgroup label="本店">{% for value, label in location_options.home_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</optgroup>{% if location_options.dealer_choices %}<optgroup label="車行">{% for value, label in location_options.dealer_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</optgroup>{% endif %}</template>
+<script src="{% static 'js/inventory-location.js' %}" defer></script>
+{% endif %}
 <script src="{% static 'js/allocation-priority.js' %}" defer></script>
 {% endblock %}

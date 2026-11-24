@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
@@ -2116,11 +2117,9 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'class="inventory-row--condition-issue"')
         self.assertContains(response, "車況異常")
         self.assertContains(response, "測試車行")
-        self.assertContains(
-            response,
-            '<td data-label="實際位置"><strong>測試車行</strong></td>',
-            html=True,
-        )
+        # T-308 B：有操作權限者的實際位置改成下拉（PM 同意改此斷言），該列只選目前位置一個選項。
+        row = self.inventory_row_html(response, second)
+        self.assertEqual(self.selected_option_labels(row), ["測試車行"])
         self.assertNotContains(response, "<span>車行</span>", html=True)
         self.assertNotContains(response, "庫存歸屬")
         self.assertNotContains(response, 'name="ownership_store"')
@@ -2131,12 +2130,27 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("inventory_list"), {"q": "ENG-001"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            '<td data-label="實際位置"><strong>本店</strong></td>',
-            html=True,
-        )
+        # T-308 B：有操作權限者的實際位置改成下拉（PM 同意改此斷言）。下拉只選目前位置一個選項，
+        # 而且同一列除了這個下拉，其他格子不再用文字顯示一次位置。
+        row = self.inventory_row_html(response, self.vehicle)
+        self.assertEqual(self.selected_option_labels(row), ["本店"])
+        row_without_select = re.sub(r"<select\b.*?</select>", "", row, flags=re.S)
+        self.assertNotIn("本店", re.sub(r"<[^>]+>", "", row_without_select))
         self.assertNotContains(response, "<span>本店</span>", html=True)
+
+    def inventory_row_html(self, response, vehicle):
+        """現有庫存列表中這台車那一列的 HTML（以位置下拉的 id 找）。"""
+        match = re.search(
+            r'<tr\b(?:(?!</tr>).)*?id="inventory-location-%d"(?:(?!</tr>).)*</tr>' % vehicle.pk,
+            response.content.decode(),
+            re.S,
+        )
+        self.assertIsNotNone(match, "找不到這台車的實際位置下拉")
+        return match.group(0)
+
+    @staticmethod
+    def selected_option_labels(row_html):
+        return re.findall(r"<option\b[^>]*\bselected\b[^>]*>([^<]*)</option>", row_html)
 
     def test_inventory_model_filter_lists_each_family_once_and_filters_all_years(self):
         newer_model = VehicleModel.objects.create(

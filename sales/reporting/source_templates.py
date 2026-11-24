@@ -39,23 +39,32 @@ def electric_vehicle_sales():
         "records_columns": ["registration_date", "legacy_source_name", "legacy_sales_source", "model_number", "identifier", "legacy_energy", "energy", "color",
                             "owner_name", "legacy_gift_card", "legacy_platform_gift", "legacy_premium",
                             "payment_confirmed", "historical_received_price", "total_received"],
+        # T-311（使用者選 B）：兩張月份圖在閱讀頁合成一張可切換的圖（型號在前），下面並排型號、銷售來源兩個圓餅；
+        # 銷售來源占比是新增的圖卡。正式站已發布的 #5 #7 由 migration 0226 同步（只調順序＋加這張圓餅）。
         "cards": [
-            card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value", width=12),
             card("電動車每月銷售型號", "stacked", "month", 20, "key_desc", series="legacy_model", series_limit=20, series_other=False, series_sort="value"),
+            card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value", width=12),
             card("電動車型號占比", "donut", "legacy_model", 20),
+            card("電動車銷售來源占比", "donut", "legacy_sales_source", 10),
         ],
     }
+
+
+def _monthly_source_card(config):
+    """電動車／油車頁的「每月銷售來源」月份圖；平台、車行頁以它為底（T-311 起它不一定排第一張）。"""
+    return next(card for card in config["cards"] if card["chart"] == "stacked" and card.get("series") == "legacy_sales_source")
 
 
 def electric_platform_sales():
     """p_oyi9bhn3wd：月份主軸、清洗後平台名稱系列，非 DMIS 通路主檔 ID。"""
     config = electric_vehicle_sales()
     config['reader_layout'] = 'platform_overview'
-    config["cards"][0].pop("width", None)
+    source = _monthly_source_card(config)
+    source.pop("width", None)
     config.update(title="電動車－網路平台銷售統計", page_order=30,
                   description="依原平台分頁的一張月份堆疊圖與來源明細建立。平台名稱沿用原報表清洗方式，不改寫通路主檔。原能源／來源公式與資料差異仍在核對，尚未通過跨來源完整驗收。歷史贈品記載不代表已發放。")
     config["fixed_filters"]["legacy_source"] = ["網路平台"]
-    config["cards"] = [{**config["cards"][0], "title": "電動車平台每月銷售", "series": "legacy_dealer"}]
+    config["cards"] = [{**source, "title": "電動車平台每月銷售", "series": "legacy_dealer"}]
     config["records_columns"] = ["registration_date", "legacy_dealer", "model_number", "identifier", "color",
                                  "owner_name", "legacy_gift_card", "legacy_platform_gift", "legacy_premium",
                                  "payment_confirmed", "historical_received_price", "total_received"]
@@ -66,13 +75,14 @@ def gasoline_vehicle_sales():
     """p_vi50zol3wd：Chrome 原圖按月，油車型號系列上限10，電車20。"""
     config = electric_vehicle_sales()
     config['reader_layout'] = 'gasoline_overview'
-    config["cards"][1].update(dimension="month", title="電動車每月銷售型號")
+    model = next(card for card in config["cards"] if card["chart"] == "stacked" and card.get("series") == "legacy_model")
+    model.update(dimension="month", title="電動車每月銷售型號")
     config.update(title="油車銷售統計", page_order=60,
                   description="依原油車頁三圖與明細建立；油車／電車依車型主檔能源別分類，不改動 DMIS 車型、訂單或財務。原分類公式與來源資料仍有待釐清差異，本頁尚未通過完整跨來源驗收。歷史禮券與贈品不代表目前已發放。")
     config["fixed_filters"]["legacy_energy"] = ["油車"]
     for card in config["cards"]:
         card["title"] = card["title"].replace("電動車", "油車")
-    config["cards"][1]["series_limit"] = 10
+    model["series_limit"] = 10
     return config
 
 

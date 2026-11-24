@@ -67,13 +67,42 @@ function reportEmptyState(chart) {
   }
   return box;
 }
+/* T-311 月份切換圖的圖例與註記：圖例每個細分加上合計與占比（占圖卡合計）；圖下一行說明進行中的月份與未填日期。只做顯示用加總。 */
+function reportMonthSwitchNotes(chart, plotNode, groups, monthRows, currentPeriod) {
+  const doc = chart.ownerDocument, total = Number(chart.dataset.total) || 0;
+  const unit = chart.dataset.metricLabel === '訂單台數' ? ' 張' : '';
+  const sums = new Map();
+  chart.querySelectorAll('[data-stack-segment]').forEach(segment => {
+    const label = segment.dataset.seriesLabel;
+    sums.set(label, (sums.get(label) || 0) + (Number(segment.dataset.pointValue) || 0));
+  });
+  chart.querySelectorAll('.report-series-legend > span').forEach(entry => {
+    if (entry.querySelector('.report-series-legend__count')) return;
+    const label = entry.textContent.trim(), value = sums.get(label);
+    if (value === undefined) return;
+    const count = doc.createElement('small'); count.className = 'report-series-legend__count';
+    count.textContent = `${Number(value).toLocaleString('zh-TW')}${unit} · ${reportFraction(value, total).toFixed(1)}%`;
+    entry.append(count);
+  });
+  const notes = [];
+  const labels = groups.map(group => group.querySelector('.report-stack-caption strong').textContent.trim());
+  const current = currentPeriod && labels.includes(currentPeriod) ? reportDateParts(currentPeriod) : null;
+  if (current?.month) notes.push(`${Number(current.month)}月統計到今天，斜線表示尚未滿月`);
+  monthRows.forEach((row, index) => {
+    if (reportDateParts(labels[index] || '') || !(Number(row.dataset.pointValue) > 0)) return;
+    notes.push(`另有 ${row.dataset.pointDisplay}${unit}${row.dataset.pointLabel}，不畫在月份圖，仍算在合計`);
+  });
+  if (!notes.length) return;
+  const note = doc.createElement('p'); note.className = 'report-month-note'; note.textContent = `${notes.join('；')}。`;
+  plotNode.after(note);
+}
 function reportDateParts(label) {
   const match = /^(\d{4})(?:[/-](\d{1,2}))?(?:[/-](\d{1,2}))?$/.exec(String(label).trim());
   return match ? {year: match[1], month: match[2], day: match[3]} : null;
 }
 /* 堆疊圖（T-182）：依卡片實際寬度繪製，不再固定 740px 再撐出橫向捲動。
    月／年資料且卡片夠寬時畫直條（時間由左到右），其餘畫橫條；字級 12–13px，直條只標最高與最新的數字。 */
-function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false, colorOf, attach, wrapLabels = false}) {
+function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false, colorOf, attach, wrapLabels = false, currentPeriod = '', skipUndated = false}) {
   const ns = 'http://www.w3.org/2000/svg', doc = chart.ownerDocument, svg = doc.createElementNS(ns, 'svg');
   const box = chart.getBoundingClientRect(), style = getComputedStyle(chart);
   const inner = box.width - parseFloat(style.paddingLeft || 0) - parseFloat(style.paddingRight || 0) - parseFloat(style.borderLeftWidth || 0) - parseFloat(style.borderRightWidth || 0);
@@ -84,7 +113,21 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
     if (text !== undefined) item.textContent = text;
     svg.append(item); return item;
   };
+  // T-311：進行中的期別（本月）加斜線，提醒還沒滿月、不要跟其他月比高低。
+  const hatchId = `report-partial-${chart.dataset.chartIndex || 0}`;
+  const hatch = attrs => {
+    if (!svg.querySelector(`#${hatchId}`)) {
+      const defs = doc.createElementNS(ns, 'defs'), pattern = doc.createElementNS(ns, 'pattern');
+      Object.entries({id: hatchId, width: 7, height: 7, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)'}).forEach(([key, value]) => pattern.setAttribute(key, String(value)));
+      const stripe = doc.createElementNS(ns, 'rect');
+      Object.entries({width: 3, height: 7, class: 'report-plot-partial-stripe'}).forEach(([key, value]) => stripe.setAttribute(key, String(value)));
+      pattern.append(stripe); defs.append(pattern); svg.prepend(defs);
+    }
+    return element('rect', {...attrs, fill: `url(#${hatchId})`, class: 'report-plot-partial', 'aria-hidden': 'true', 'pointer-events': 'none'});
+  };
   let order = groups.map((group, index) => ({group, row: totalsRows[index], label: group.querySelector('.report-stack-caption strong').textContent.trim()}));
+  // T-311 月份切換圖（skipUndated）：日期未填寫不畫成一根長條，由呼叫端在圖下註明。
+  if (skipUndated) order = order.filter(item => reportDateParts(item.label));
   const dated = order.filter(item => reportDateParts(item.label)), undated = order.filter(item => !reportDateParts(item.label));
   const columns = ['month', 'year'].includes(chart.dataset.dimension) && dated.length >= 2 && width >= 560;
   if (columns) order = [...dated.sort((a, b) => a.label.localeCompare(b.label)), ...undated];
@@ -122,11 +165,13 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
         if (interactiveSegments) attach(rect, segment); else rect.setAttribute('aria-hidden', 'true');
         offset += h;
       });
+      const partial = Boolean(currentPeriod) && item.label === currentPeriod;
+      if (partial && offset) hatch({x, y:bottom - offset, width:barWidth, height:offset});
       if (index === peak || index === latest) element('text', {x:x + barWidth / 2, y:bottom - offset - 7, 'text-anchor':'middle', class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
       const parts = reportDateParts(item.label);
       // 最後一期固定標示；太靠近它的間隔標籤略過，避免文字重疊（T-245）。
       if ((index % every === 0 && order.length - 1 - index >= every / 2) || index === order.length - 1) {
-        element('text', {x:x + barWidth / 2, y:bottom + 17, 'text-anchor':'middle', class:'report-plot-tick'}, parts?.month ? `${Number(parts.month)}月` : item.label);
+        element('text', {x:x + barWidth / 2, y:bottom + 17, 'text-anchor':'middle', class:partial ? 'report-plot-tick report-plot-tick--partial' : 'report-plot-tick'}, (parts?.month ? `${Number(parts.month)}月` : item.label) + (partial ? '·進行中' : ''));
         if (parts?.month && parts.year !== lastYear) { element('text', {x:x + barWidth / 2, y:bottom + 32, 'text-anchor':'middle', class:'report-plot-tick report-plot-year'}, parts.year); lastYear = parts.year; }
       }
       const hit = element('rect', {x:left + step * index, y:top - 18, width:step, height:plotHeight + 18, fill:'transparent'});
@@ -174,7 +219,9 @@ function reportStackPlot(chart, groups, totalsRows, {interactiveSegments = false
         if (interactiveSegments) attach(rect, segment); else rect.setAttribute('aria-hidden', 'true');
         offset += w;
       });
-      element('text', {x:labelWidth + offset + 8, y:barY + barHeight / 2 + 4, class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay);
+      const partialRow = Boolean(currentPeriod) && item.label === currentPeriod;
+      if (partialRow && offset) hatch({x:labelWidth, y:barY, width:offset, height:barHeight});
+      element('text', {x:labelWidth + offset + 8, y:barY + barHeight / 2 + 4, class:'report-bar-total-label report-plot-value', 'pointer-events':'none'}, item.row.dataset.pointDisplay + (partialRow ? ' · 進行中' : ''));
       // 整列包含短小系列與空白處，滑鼠提示及點選皆使用該分類，不誤變為分類加系列。
       const hit = above && interactiveSegments ? element('rect', {x:0, y:y + 1, width, height:labelBand, fill:'transparent'})
         : element('rect', {x:interactiveSegments ? 0 : labelWidth, y:y + 1, width:interactiveSegments ? labelWidth - 5 : plotWidth, height:rowHeight - 2, fill:'transparent'});
@@ -553,7 +600,10 @@ function initReportVisuals(root) {
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {
         const monthRows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
-        const plot = reportStackPlot(chart, groups, monthRows, {interactiveSegments: layout === 'dealer_overview', colorOf: overviewColor, attach});
+        // T-311：#4 #5 #7 的月份切換圖——本月加斜線、日期未填寫改成圖下註記、圖例寫出合計與占比；其他版型照舊。
+        const monthSwitch = Boolean(chart.closest('[data-chart-switch]')) && ['month', 'year', 'day'].includes(chart.dataset.dimension);
+        const currentPeriod = monthSwitch && chart.dataset.dimension === 'month' ? (overview.dataset.currentMonth || '') : '';
+        const plot = reportStackPlot(chart, groups, monthRows, {interactiveSegments: layout === 'dealer_overview', colorOf: overviewColor, attach, currentPeriod, skipUndated: monthSwitch});
         const svg = plot.svg, columns = plot.columns;
         let brushStart = null, brushing = false, suppressClick = false;
         const points = [...svg.querySelectorAll('.report-month-target')];
@@ -583,6 +633,7 @@ function initReportVisuals(root) {
         svg.addEventListener('pointercancel',()=>{ brushStart=null; brushing=false; clearBrush(); });
         svg.addEventListener('click',event=>{ if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); } },true);
         stacks.before(plot.node);
+        if (monthSwitch) reportMonthSwitchNotes(chart, plot.node, groups, monthRows, currentPeriod);
         if (plot.node !== svg) plot.node.scrollLeft = plot.node.scrollWidth; // 直條時間由左到右，先看最新一期
       }
       // 已有可聚焦的圖形及提示；保留原 DOM 作為連結來源，不重複呈現展開操作。
@@ -593,7 +644,9 @@ function initReportVisuals(root) {
       chart.querySelectorAll("svg circle").forEach((dot, index) => { dot.setAttribute("r", "7"); attach(dot, validRows[index]); });
       chart.querySelectorAll("svg polyline").forEach(line => { line.style.pointerEvents = "none"; });
     }
-    if (chart.dataset.chart === "donut") {
+    // T-311：閱讀版型（非 standard）的圓餅改用 report-pie.js（圖例一列一項、扇區百分比、前 5 名＋其他）；一般報表照舊。
+    if (chart.dataset.chart === "donut" && overview && typeof renderReportPie === "function") renderReportPie(chart, rows, attach);
+    else if (chart.dataset.chart === "donut") {
       const total = Number(chart.dataset.total);
       const host = chart.querySelector("[data-line-chart]");
       if (total > 0 && rows.length) {
@@ -626,7 +679,7 @@ function initReportVisuals(root) {
     }
     if (overview) {
       const table = chart.querySelector('.report-table-wrap');
-      if (table && chart.dataset.chart === 'donut') {
+      if (table && chart.dataset.chart === 'donut' && !chart.querySelector('.report-pie-legend')) {
         const legend = document.createElement('div'); legend.className = 'report-overview-legend';
         rows.forEach(row => {
           const link = row.querySelector('[data-report-drill]');
@@ -661,6 +714,8 @@ function initReportVisuals(root) {
     });
     chart.addEventListener("keydown", event => { if (event.key === "Escape") { chart.classList.remove("report-chart-expanded"); const button = chart.querySelector("[data-chart-fullscreen]"); if (button) button.textContent = "放大圖表"; } });
   });
+  // T-311：#4 #5 #7 的月份圖切換；圖都畫好後才隱藏未選的細分（寬度量得到）。
+  if (typeof initReportMonthSwitch === "function") initReportMonthSwitch(root);
 
 }
 if (typeof document !== "undefined") initReportVisuals(document);

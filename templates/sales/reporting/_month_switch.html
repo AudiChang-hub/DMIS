@@ -1,0 +1,5 @@
+{# T-311：#4 #5 #7 的月份圖合成一張，切換鈕換細分方式（reader_layouts.reader_cards）。每個細分仍是原本的圖卡，連動、匯出、明細照舊。 #}
+<section class="report-panel report-chart-switch" data-chart-switch aria-label="每月{% if members.0.result.card.metric == 'count' %}台數{% else %}{{ members.0.result.metric_label }}{% endif %}">
+<div class="report-chart-switch__bar"><div class="report-chart-switch__tabs" role="tablist" aria-label="月份圖細分方式">{% for member in members %}<button type="button" role="tab" id="chart-switch-tab-{{ member.result.index }}" aria-controls="chart-{{ member.result.index }}" aria-selected="{{ forloop.first|yesno:'true,false' }}" tabindex="{{ forloop.first|yesno:'0,-1' }}" data-switch-tab="{{ member.result.index }}">{{ member.label }}</button>{% endfor %}</div></div>
+{% for member in members %}{% include 'sales/reporting/result.html' with result=member.result switch_panel=True %}{% endfor %}
+</section>

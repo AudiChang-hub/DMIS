@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 
 from .engine import DATE_DIMENSIONS, NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .kpis import reader_kpis
+from .reader_layouts import reader_cards
 from .forms import CardFormSet, FilterForm, ReportForm
 from .tree_filter import build_tree, drop_stale_focus, expand_cards, tree_enabled
 from .models import ReportDefinition, ReportRevision
@@ -477,7 +478,7 @@ def display(request, pk):
                   "reader_title": reader_title(report.published),
                   "reader_overview": report.published.get('reader_layout', 'standard') != 'standard',
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
-                  "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
+                  "filter_form": form, "results": items, "reader_cards": reader_cards(report.published, items), **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "kpis": reader_kpis(items), "publication_key": publication_key(report), "focus_items": focus_items,
                   "active_filters": active_filters, "clear_filters_query": clear_filters_query, "tree_filter": tree, "per_model": per_model,
                   "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),

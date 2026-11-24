@@ -6,6 +6,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 RELEASE_RULES = {
     ("2.40.0", "新增"): [("accessory_product_list", "internal"), ("order_list", "internal")] + [("inventory_transfer_out", "internal")] * 3,
     ("2.40.0", "改善"): [("inventory_transfer_out", "internal")] * 2,
+    ("2.40.0", "修正"): [("order_list", "internal"), ("order_export", "internal"), ("accessory_product_list", "internal"), ("reconciliation_list", "internal")],
     ("2.39.0", "新增"): [("order_list", "internal")] * 2 + [("inventory_location", "internal")],
     ("2.39.0", "改善"): [("order_list", "internal")],
     ("2.39.0", "修正"): [("order_list", "internal")],

@@ -1,6 +1,7 @@
 {% comment %}訂單總覽內容（唯讀）：訂單頁側邊列的總覽面板以 ?fragment=1 載入，完整頁面也共用。
 每個值可直接選取，或按右側「複製」；金額複製純數字。{% endcomment %}
 <div class="order-overview" data-order-overview>
+  {% if not note_in_hero %}{% include "sales/_order_overview_note.html" %}{% endif %}
   <div class="order-overview__tools">
     <label class="order-overview__search">
       <span class="visually-hidden">搜尋欄位</span>
@@ -8,16 +9,23 @@
       <input type="search" placeholder="搜尋欄位或內容，例如：地址、車身、電話" autocomplete="off" data-overview-search>
     </label>
     <nav class="order-overview__jump" aria-label="跳到區塊">
-      {% for section in overview.sections %}{% if section.rows %}<a href="#overview-{{ section.key }}" data-overview-jump>{{ section.title }}</a>{% endif %}{% endfor %}
+      {% for section in overview.cards %}{% if section.rows %}<a href="#overview-{{ section.key }}" data-overview-jump>{{ section.title }}</a>{% endif %}{% endfor %}
       {% for table in overview.tables %}<a href="#overview-{{ table.key }}" data-overview-jump>{{ table.title }}</a>{% endfor %}
     </nav>
   </div>
 
-  {# T-289：兩欄固定指派（OVERVIEW_COLUMNS），不依卡片高度分欄；窄版合成單欄，依 --overview-order（跳轉順序）排列。 #}
-  <div class="order-overview__grid"><div class="order-overview__columns">
-    {% for column in overview.columns %}<div class="order-overview__column" data-overview-column="{{ forloop.counter }}">
-    {% for section in column %}
-    <section class="order-overview__card" id="overview-{{ section.key }}" style="--overview-order: {{ section.position }}" data-overview-section aria-labelledby="overview-{{ section.key }}-title">
+  {# T-307：重點摘要四格（點一格跳到該卡片）＋卡片一列兩張、左右對齊、同列等高；窄版單欄，順序不變。 #}
+  <div class="order-overview__grid">
+    <div class="order-overview__glances" role="group" aria-label="重點摘要" data-overview-glances>
+      {% for glance in overview.glances %}<a class="order-overview__glance" href="#overview-{{ glance.key }}" data-overview-glance>
+        <span class="order-overview__glance-label">{{ glance.title }}<span aria-hidden="true">↓</span></span>
+        <span class="order-overview__glance-main{% if glance.none %} is-none{% endif %}">{{ glance.main }}</span>
+        {% for line in glance.lines %}<span class="order-overview__glance-line"><span>{{ line.label }}</span><span class="{% if line.blank %}is-blank{% elif line.tone %}is-{{ line.tone }}{% endif %}"{% if not line.blank %} title="{{ line.value }}"{% endif %}>{{ line.value }}</span></span>{% endfor %}
+      </a>{% endfor %}
+    </div>
+    <div class="order-overview__pairs">
+    {% for section in overview.cards %}
+    <section class="order-overview__card" id="overview-{{ section.key }}" data-overview-section aria-labelledby="overview-{{ section.key }}-title">
       <header class="order-overview__card-head">
         <h3 id="overview-{{ section.key }}-title">{{ section.title }}</h3>
         <button type="button" class="order-overview__copy-section" data-overview-copy-section>複製本區</button>
@@ -32,8 +40,8 @@
       </dl>
     </section>
     {% endfor %}
-    </div>{% endfor %}
-  </div></div>
+    </div>
+  </div>
 
   {% if overview.tables %}<div class="order-overview__tables">
     {% for table in overview.tables %}

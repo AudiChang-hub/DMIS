@@ -59,6 +59,53 @@
     return [title, ...visibleRows(section).map((row) => `${row.dataset.label}：${row.dataset.copy.replace(/\n/g, "、")}`)].join("\n");
   };
 
+  // T-307 備註便條紙：內容放不下（被截斷）時才顯示「看全文」；寬度改變時重新判斷。
+  const fitNote = (note) => {
+    const more = note?.querySelector("[data-overview-note-more]");
+    const text = note?.querySelector("[data-overview-note-text]");
+    if (!more || !text) return;
+    // line-clamp 會連 scrollHeight 一起截掉：暫時拿掉截斷量全文高度，再跟顯示高度比。
+    const shown = text.clientHeight;
+    text.style.display = "block";
+    text.style.webkitLineClamp = "none";
+    const full = text.scrollHeight;
+    text.style.display = "";
+    text.style.webkitLineClamp = "";
+    const clipped = full > shown + 1;
+    more.hidden = !clipped;
+    if (!clipped) more.open = false;
+  };
+  const fitNotes = () => document.querySelectorAll("[data-overview-note]").forEach(fitNote);
+  window.addEventListener("resize", fitNotes);
+  document.fonts?.ready.then(fitNotes);
+  fitNotes();
+
+  // 「看全文」浮層：Esc 或點外面收起（Esc 先收浮層，不關掉整個總覽）。
+  let swallowCancel = false;
+  const closeNoteMore = (except) => {
+    let closed = false;
+    document.querySelectorAll("[data-overview-note-more][open]").forEach((more) => {
+      if (more === except) return;
+      more.open = false;
+      closed = true;
+    });
+    return closed;
+  };
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const open = document.querySelector("[data-overview-note-more][open]");
+    if (!open) return;
+    closeNoteMore();
+    open.querySelector("summary")?.focus({ preventScroll: true });
+    event.preventDefault();
+    event.stopPropagation();
+    swallowCancel = true;
+    window.setTimeout(() => { swallowCancel = false; }, 0);
+  }, true);
+  document.addEventListener("click", (event) => {
+    closeNoteMore(event.target.closest?.("[data-overview-note-more]"));
+  });
+
   const plainText = (scope) => {
     const data = scope.querySelector("#order-overview-text");
     try { return data ? JSON.parse(data.textContent) : ""; } catch (error) { return ""; }
@@ -110,13 +157,20 @@
       card.hidden = !any;
       if (any) shown += 1;
     });
+    // 備註便條紙在標題區：符合就標亮，不隱藏。
+    const note = (root.closest("dialog") || document).querySelector("[data-overview-note]");
+    if (note) {
+      const match = terms.length > 0 && terms.every((term) => `備註 ${note.dataset.copy}`.toLowerCase().includes(term));
+      note.classList.toggle("is-match", match);
+      if (match) shown += 1;
+    }
     root.querySelector("[data-overview-empty]").hidden = shown > 0;
     root.classList.toggle("is-filtering", terms.length > 0);
   });
 
-  // 區塊跳轉：在面板內捲動，不改網址。
+  // 區塊跳轉（跳轉按鈕與重點摘要四格）：在面板內捲動，不改網址。
   document.addEventListener("click", (event) => {
-    const jump = event.target.closest("[data-overview-jump]");
+    const jump = event.target.closest("[data-overview-jump], [data-overview-glance]");
     if (!jump) return;
     const target = document.getElementById(jump.getAttribute("href").slice(1));
     if (!target) return;
@@ -129,16 +183,36 @@
 
   if (!dialog) return;
 
+  // T-307：便條紙在片段裡，載入後搬到面板標題區（姓名與「複製全部」之間）；載入中先放同尺寸的空位，標題區不跳動。
+  const head = dialog.querySelector(".order-overview-dialog__head");
+  const placeNote = (note) => {
+    head?.querySelector("[data-overview-note]")?.remove();
+    if (!note || !head) return;
+    head.insertBefore(note, head.querySelector(".order-overview-dialog__actions"));
+    fitNote(note);
+  };
+  const notePlaceholder = () => {
+    const note = document.createElement("div");
+    note.className = "order-overview-note is-loading";
+    note.setAttribute("aria-hidden", "true");
+    note.dataset.overviewNote = "";
+    note.dataset.copy = "";
+    return note;
+  };
+
   const load = async (url) => {
     body.setAttribute("aria-busy", "true");
+    placeNote(notePlaceholder());
     body.innerHTML = '<div class="order-overview-dialog__loading" role="status"><span></span><span></span><span></span><p>正在整理訂單資料…</p></div>';
     const separator = url.includes("?") ? "&" : "?";
     try {
       const response = await fetch(`${url}${separator}fragment=1`, { headers: { "X-Requested-With": "fetch" }, credentials: "same-origin" });
       if (!response.ok) throw new Error(String(response.status));
       body.innerHTML = await response.text();
+      placeNote(body.querySelector("[data-overview-note]"));
       body.querySelector("[data-overview-search]")?.focus({ preventScroll: true });
     } catch (error) {
+      placeNote(null);
       body.innerHTML = '<div class="order-overview-dialog__error" role="alert"><p>訂單總覽載入失敗，請檢查網路後再試一次。</p><button type="button" class="button ghost small" data-overview-retry>重新載入</button></div>';
     } finally {
       body.setAttribute("aria-busy", "false");
@@ -198,7 +272,7 @@
     if (event.target === dialog || event.target.closest("[data-overview-close]")) close();
     if (event.target.closest("[data-overview-retry]")) loading = load(dialog.dataset.url);
   });
-  dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
+  dialog.addEventListener("cancel", (event) => { event.preventDefault(); if (!swallowCancel) close(); });
   dialog.addEventListener("close", () => {
     if (ownsHistory) { ownsHistory = false; history.back(); }  // 不是經由返回關掉的，也要收回多推的那一筆
     document.documentElement.classList.remove("has-overview-open");

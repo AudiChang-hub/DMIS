@@ -8,9 +8,11 @@
 {% include "sales/_page_back.html" with fallback_url=order_url label=order.owner_name root_url=dashboard_url root_label="首頁" %}
 <section class="hero-row compact-hero order-overview-hero">
   <div><p class="eyebrow">訂單總覽・唯讀</p><h1>{{ order.owner_name }}</h1><p class="muted">{{ order.number }} · {{ order.display_status }}</p><p class="order-origin-line">{% order_origin_badge order detail=True %}</p></div>
+  {# T-307：備註便條紙夾在標題與「複製全部」之間。 #}
+  {% include "sales/_order_overview_note.html" %}
   <div class="hero-actions"><button type="button" class="button primary" data-overview-copy-all>複製全部</button></div>
 </section>
-{% include "sales/_order_overview.html" %}
+{% include "sales/_order_overview.html" with note_in_hero=True %}
 <p class="visually-hidden" role="status" aria-live="polite" data-overview-status></p>
 <script src="{% static 'js/order-overview.js' %}" defer></script>
 {% endblock %}

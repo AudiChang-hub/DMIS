@@ -1,0 +1,12 @@
+{% comment %}T-307 備註便條紙（唯讀）：彈窗載入後由 order-overview.js 搬到標題區（姓名與「複製全部」之間），完整頁面放在 hero。
+高度固定，超過行數截斷；內容放不下時才顯示「看全文」浮層。「複製全部」照舊包含【備註】。{% endcomment %}
+{% with note=overview.note %}<aside class="order-overview-note{% if not note.copy %} is-empty{% endif %}" aria-label="備註" data-overview-note data-overview-row data-label="備註" data-copy="{{ note.copy }}">
+  <div class="order-overview-note__head">
+    <span class="order-overview-note__label">備註</span>
+    {% if note.copy %}<span class="order-overview-note__tools">
+      <details class="order-overview-note__more" data-overview-note-more hidden><summary>看全文</summary><div class="order-overview-note__full" tabindex="-1">{{ note.copy }}</div></details>
+      <button type="button" class="order-overview-note__copy" data-overview-copy aria-label="複製備註">複製</button>
+    </span>{% endif %}
+  </div>
+  <p class="order-overview-note__text" data-overview-note-text>{% if note.copy %}{{ note.copy }}{% else %}無備註{% endif %}</p>
+</aside>{% endwith %}

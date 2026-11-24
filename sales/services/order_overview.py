@@ -120,17 +120,26 @@ def _dealer_reward_section(order, include_finance):
     return _section("dealer_reward", "車行獎勵", rows)
 
 
-# 桌面兩欄的固定指派（T-289）：每個區塊永遠在同一欄、欄內上下順序與跳轉按鈕一致。
+# T-307 卡片成對排列：一列兩張、左右對齊（寬度不足時合成單欄，順序不變）。
 # 所有區塊每張單一律輸出（T-292），車行獎勵、汰舊、取消與退款沒資料也列（各欄「—」）。
-# 手機單欄依 sections 順序（＝跳轉按鈕順序）。
-OVERVIEW_COLUMNS = (
-    ("order", "owner", "vehicle", "trade_in", "delivery", "cancellation", "note"),
-    ("registration", "dealer_reward", "price", "installment"),
+# 畫面卡片與跳轉按鈕依這個順序；sections（「複製全部」的順序與內容）不變。備註不是卡片，改成標題區的便條紙。
+OVERVIEW_PAIRS = (
+    ("owner", "vehicle"),
+    ("registration", "trade_in"),
+    ("order", "price"),
+    ("installment", "delivery"),
+    ("dealer_reward", "cancellation"),
 )
+NOTE_KEY = "note"
+# 重點摘要四格（T-307）：最常看的四項，點一格跳到該卡片。
+GLANCE_KEYS = ("owner", "vehicle", "registration", "trade_in")
 
 
 def build_order_overview(order, *, include_finance=True):
-    """回傳 {sections, columns, tables, plain_text}；sections 為標籤／值（跳轉順序），columns 為桌面兩欄的固定指派，tables 為明細列。
+    """回傳 {sections, cards, glances, note, tables, plain_text}。
+
+    sections 為標籤／值（含備註，「複製全部」依此順序）；cards 為畫面上成對排列的卡片（OVERVIEW_PAIRS 順序，不含備註）；
+    glances 為重點摘要四格（只顯示，不進複製內容）；note 為標題區便條紙的備註列；tables 為明細列。
 
     include_finance=False 時不列收入與支出明細（沒有訂單作業權限的人在訂單頁也看不到）。
     """
@@ -322,10 +331,48 @@ def build_order_overview(order, *, include_finance=True):
             }
             for row in table["rows"]
         ]
-    for position, section in enumerate(sections, start=1):
-        section["position"] = position
-    columns = [[section for section in sections if section["key"] in keys] for keys in OVERVIEW_COLUMNS]
-    return {"sections": sections, "columns": columns, "tables": tables, "plain_text": _plain_text(order, sections, tables)}
+    by_key = {section["key"]: section for section in sections}
+    cards = [by_key[key] for pair in OVERVIEW_PAIRS for key in pair]
+    note = by_key[NOTE_KEY]["rows"][0]
+    return {
+        "sections": sections, "cards": cards, "glances": _glances(order, sections), "note": note,
+        "tables": tables, "plain_text": _plain_text(order, sections, tables),
+    }
+
+
+def _glances(order, sections):
+    """重點摘要四格：取各卡片既有的值組成，不另外計算；沒有資料的格顯示「—」。"""
+    values = {section["key"]: {row["label"]: row["copy"] and row["value"] for row in section["rows"]} for section in sections}
+    titles = {section["key"]: section["title"] for section in sections}
+    owner, vehicle, registration, trade_in = (values[key] for key in GLANCE_KEYS)
+
+    if order.registration_completed_at:
+        # 已按「確認完成」：實際領牌日（沒填日期就用完成時間的日期）。
+        from django.utils import timezone
+        done_on = order.registration_date or timezone.localtime(order.registration_completed_at).date()
+        plate_state, tone = f"已領牌 {_date(done_on)}", "done"
+    elif order.registration_date:
+        plate_state, tone = f"預計 {_date(order.registration_date)}", "plan"
+    else:
+        plate_state, tone = "", ""
+    has_trade_in = bool(trade_in["舊車車牌"] or trade_in["新舊車主"])
+
+    def glance(key, main, lines, *, none=False):
+        main = main or ""
+        return {
+            "key": key, "title": titles[key], "main": main or EMPTY, "none": none or not main,
+            "lines": [{"label": label, "value": value or EMPTY, "blank": not value, "tone": tone if value else ""}
+                      for label, value, tone in lines],
+        }
+
+    return [
+        glance("owner", owner["姓名／公司名稱"], [("電話", owner["電話"], "")]),
+        glance("vehicle", _join(vehicle["廠牌"], vehicle["車款"], sep=" "),
+               [("車色", vehicle["車色"], ""), ("引擎", vehicle["引擎號碼"], "")]),
+        glance("registration", registration["選號方式"],
+               [("車牌", registration["車牌號碼"], ""), ("領牌", plate_state, tone)]),
+        glance("trade_in", "有汰舊" if has_trade_in else "無汰舊", [("舊車車牌", trade_in["舊車車牌"], "")], none=not has_trade_in),
+    ]
 
 
 def _plain_text(order, sections, tables):

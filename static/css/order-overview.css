@@ -86,16 +86,35 @@ html.has-overview-open { overflow: hidden; }
 .order-overview__jump a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .order-overview.is-filtering .order-overview__jump { display: none; }
 
-/* T-289 區塊位置固定：不再用瀑布流（依卡片高度分欄會讓每張單排列不同）。
-   每個區塊固定在同一欄（模板依 OVERVIEW_COLUMNS 輸出兩欄）；寬度不足時兩欄拆開合成單欄，
-   依 --overview-order（＝跳轉按鈕順序）排列。明細表另起一區占滿寬度。 */
-.order-overview__grid { container: order-overview-grid / inline-size; }
-.order-overview__columns { display: flex; flex-direction: column; gap: var(--space-4); }
-.order-overview__column { display: contents; }
-.order-overview__columns .order-overview__card { order: var(--overview-order, 0); }
+/* T-307 版面：重點摘要四格在最上面，下面卡片一列兩張、左右對齊（同列等高）；寬度不足時合成單欄，順序不變。
+   每張單同一組卡片、同一個位置（T-289、T-292），空白欄位留在原位只是縮小。明細表另起一區占滿寬度。 */
+.order-overview__grid { display: grid; gap: var(--space-4); container: order-overview-grid / inline-size; }
+.order-overview__glances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.order-overview__glance {
+  display: grid; min-width: 0; padding: var(--space-3) var(--space-4); align-content: start; gap: var(--space-1);
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft); text-decoration: none;
+  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out), transform var(--dur-1) var(--ease-out);
+}
+.order-overview__glance:hover { background: var(--surface-tint); border-color: color-mix(in srgb, var(--forest) 40%, var(--line)); }
+.order-overview__glance:active { transform: scale(.985); }
+.order-overview__glance:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.order-overview__glance-label { display: flex; justify-content: space-between; color: var(--action-text); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .04em; }
+.order-overview__glance-main { font-size: var(--text-base); font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.order-overview__glance-main.is-none { color: var(--muted); font-weight: 700; }
+.order-overview__glance-line { display: flex; min-width: 0; flex-wrap: wrap; column-gap: var(--space-2); font-size: var(--text-sm); font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.order-overview__glance-line > span:first-child { flex: none; color: var(--muted); font-weight: 700; }
+/* 值不從中間斷行（電話、引擎號碼斷開很難讀）：放不下就整段換到下一行，仍放不下才以「…」截斷，完整內容在卡片裡。 */
+.order-overview__glance-line > span:last-child { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.order-overview__glance-line .is-blank { color: var(--muted); font-weight: 400; }
+.order-overview__glance-line .is-done { color: var(--green-ink); }
+.order-overview__glance-line .is-plan { color: var(--amber); }
+.order-overview.is-filtering .order-overview__glances { display: none; }
+.order-overview__pairs { display: flex; flex-direction: column; gap: var(--space-4); }
+.order-overview__pairs > .order-overview__card { display: flex; flex-direction: column; }
+@container order-overview-grid (min-width: 640px) { .order-overview__glances { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @container order-overview-grid (min-width: 700px) {
-  .order-overview__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
-  .order-overview__column { display: flex; min-width: 0; flex-direction: column; gap: var(--space-4); }
+  .order-overview__pairs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: var(--space-4); }
 }
 .order-overview__tables { display: grid; gap: var(--space-4); }
 .order-overview__table-empty td { grid-column: 1 / -1; color: var(--muted); font-weight: 400; text-align: center; }
@@ -132,6 +151,10 @@ html.has-overview-open { overflow: hidden; }
 .order-overview__value.is-mono { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .order-overview__row.is-empty .order-overview__value { color: var(--line-strong); font-weight: 400; }
 .order-overview__row.is-wide { grid-template-columns: 1fr; gap: var(--space-1); align-items: start; }
+/* T-307 空白欄位留在原位：標籤與「—」改小字、行高縮小（不調淡顏色，維持 AA）；窄版也維持一行。 */
+.order-overview__row.is-empty { min-height: 30px; padding-block: var(--space-1); grid-template-columns: 8.5em minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+.order-overview__row.is-empty dt { font-size: var(--text-2xs); font-weight: 500; }
+.order-overview__row.is-empty .order-overview__value { font-size: var(--text-xs); line-height: 1.4; }
 
 .order-overview__copy {
   display: inline-flex; flex: none; min-height: 32px; padding: 0 var(--space-2); align-items: center; gap: var(--space-1);
@@ -157,6 +180,53 @@ html.has-overview-open { overflow: hidden; }
 /* 完整頁面：工具列不需要抵銷面板內距。 */
 .order-overview-hero + .order-overview .order-overview__tools { margin: 0; padding: var(--space-3) 0; background: color-mix(in srgb, var(--paper) 92%, transparent); border-bottom: 0; top: 78px; }
 
+/* T-307 備註便條紙：標題區（姓名右邊、「複製全部」左邊）。高度固定，不論有沒有備註、多長，標題區都不變高；
+   超過三行就截斷，「看全文」用浮層顯示全文（浮在上面，不推動下方版面）。 */
+.order-overview-dialog__head, .order-overview-hero { position: relative; z-index: 3; }
+.order-overview-note {
+  position: relative; display: grid; flex: 0 1 380px; min-width: 200px; height: 104px; margin-left: auto; padding: var(--space-3) var(--space-4) var(--space-2);
+  grid-template-rows: auto minmax(0, 1fr); gap: 2px; align-self: center;
+  color: var(--ink); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 22%, transparent);
+  border-radius: 2px 2px var(--radius-md) 2px; box-shadow: 0 6px 14px color-mix(in srgb, var(--shadow-ink) 12%, transparent);
+  transform: rotate(-.6deg); transition: box-shadow var(--dur-2) var(--ease-out);
+}
+.order-overview-note::before { /* 膠帶 */
+  position: absolute; top: -7px; left: 50%; width: 56px; height: 14px; content: ""; transform: translateX(-50%) rotate(2deg);
+  background: color-mix(in srgb, var(--surface) 70%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+.order-overview-note.is-match { box-shadow: 0 0 0 3px var(--focus-ring), 0 6px 14px color-mix(in srgb, var(--shadow-ink) 12%, transparent); }
+.order-overview-note.is-loading { visibility: hidden; }
+.order-overview-note__head { display: flex; min-height: 20px; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.order-overview-note__label { color: var(--amber); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .04em; }
+.order-overview-note__tools { display: flex; align-items: center; gap: var(--space-1); }
+.order-overview-note__text {
+  margin: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  font-size: var(--text-sm); font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; user-select: text;
+}
+.order-overview-note.is-empty { background: color-mix(in srgb, var(--amber-soft) 45%, var(--surface)); box-shadow: none; }
+.order-overview-note.is-empty .order-overview-note__text { color: var(--muted); font-weight: 500; }
+.order-overview-note__more summary, .order-overview-note__copy {
+  display: inline-flex; min-height: 24px; margin-block: -2px; padding: 0 var(--space-2); align-items: center; list-style: none;
+  color: var(--amber); background: transparent; border: 0; border-radius: var(--radius-sm);
+  font: inherit; font-size: var(--text-2xs); font-weight: 800; cursor: pointer;
+  transition: background var(--dur-2) var(--ease-out);
+}
+.order-overview-note__more summary::-webkit-details-marker { display: none; }
+/* 全站 details 的箭頭（app.css :where 規則）不用在便條紙：「看全文」是文字按鈕，展開的是浮層。 */
+.order-overview-note__more > summary::after { content: none; }
+.order-overview-note__more summary:hover, .order-overview-note__copy:hover, .order-overview-note__more[open] summary { background: color-mix(in srgb, var(--amber) 12%, transparent); }
+.order-overview-note__more summary:focus-visible, .order-overview-note__copy:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.order-overview-note__copy.is-copied { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.order-overview-note__full {
+  position: absolute; z-index: 5; top: calc(100% + var(--space-2)); right: 0; width: min(420px, calc(100vw - 32px)); max-height: 50vh; overflow-y: auto;
+  padding: var(--space-4); color: var(--ink); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent); border-radius: var(--radius-md);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-ink) 22%, transparent);
+  font-size: var(--text-sm-plus); font-weight: 600; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; user-select: text; transform: rotate(.6deg);
+  animation: overview-fade-in var(--dur-2) var(--ease-out);
+}
+.order-overview-note__full:focus { outline: 0; }
+.order-overview-hero .order-overview-note { margin-right: var(--space-4); }
+
 /* 手機版返回鍵：電腦版不顯示（用右上角 ×）。 */
 .order-overview-dialog__back { display: none; }
 
@@ -167,8 +237,11 @@ html.has-overview-open { overflow: hidden; }
   .order-overview-dialog__sheet { border-left: 0; box-shadow: none; }
   .order-overview-dialog__head {
     display: grid; padding: calc(env(safe-area-inset-top) + var(--space-2)) var(--space-4) var(--space-3);
-    grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "back actions" "title title"; align-items: center; gap: var(--space-3);
+    grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "back actions" "title title" "note note"; align-items: center; gap: var(--space-3);
   }
+  /* T-307：便條紙在姓名下方占一整列、固定兩行高，跟標題區一起固定在頂端；「看全文」照舊。 */
+  .order-overview-dialog__head .order-overview-note { grid-area: note; flex: none; width: 100%; height: 82px; min-width: 0; margin: 0; transform: none; }
+  .order-overview-dialog__head .order-overview-note__text { -webkit-line-clamp: 2; }
   .order-overview-dialog__head > div:not(.order-overview-dialog__actions) { grid-area: title; min-width: 0; }
   .order-overview-dialog__head h2 { font-size: var(--text-xl); overflow-wrap: anywhere; }
   .order-overview-dialog__back {
@@ -194,6 +267,11 @@ html.has-overview-open { overflow: hidden; }
   .order-overview__copy-section { min-height: var(--control-h); }
   .order-overview__copy { min-height: var(--control-h); min-width: var(--control-h); justify-content: center; }
 }
+/* T-307 完整頁面手機版：標題區改直排時，便條紙同樣在姓名下方占一整列、固定兩行高。 */
+@media (max-width: 600px) {
+  .order-overview-hero .order-overview-note { flex: none; width: 100%; height: 82px; min-width: 0; margin: 0; transform: none; }
+  .order-overview-hero .order-overview-note__text { -webkit-line-clamp: 2; }
+}
 /* 明細表手機卡片：名稱與備註整列，金額、日期、方式兩兩一列的小格（欄名在上）。 */
 @media (max-width: 600px) {
   .order-overview__table tr { padding-inline: var(--space-4); }
@@ -204,6 +282,7 @@ html.has-overview-open { overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .order-overview-dialog[open], .order-overview-dialog[open]::backdrop, .order-overview-dialog.is-closing, .order-overview-dialog.is-closing::backdrop,
-  .order-overview__card.is-target, .order-overview-dialog__loading span { animation: none; }
+  .order-overview__card.is-target, .order-overview-dialog__loading span, .order-overview-note__full { animation: none; }
+  .order-overview-note, .order-overview-note__full { transform: none; }
   .order-overview-dialog__close:hover { transform: none; }
 }

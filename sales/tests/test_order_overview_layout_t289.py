@@ -1,4 +1,8 @@
-"""T-289 訂單總覽區塊位置固定：每張單同一組區塊、同一欄、同一順序，資料少也照樣輸出。"""
+"""T-289 訂單總覽區塊位置固定：每張單同一組區塊、同一位置、同一順序，資料少也照樣輸出。
+
+T-307 起兩欄固定指派（OVERVIEW_COLUMNS）改為卡片成對排列（OVERVIEW_PAIRS），備註改成標題區便條紙；
+「位置固定」的檢查改對成對順序。
+"""
 import re
 from decimal import Decimal
 from pathlib import Path
@@ -8,12 +12,13 @@ from django.test import TestCase
 from django.urls import reverse
 
 from sales.models import AccessoryLine, PaymentRecord, SalesOrder
-from sales.services.order_overview import OVERVIEW_COLUMNS, build_order_overview
+from sales.services.order_overview import NOTE_KEY, OVERVIEW_PAIRS, build_order_overview
 from sales.tests import test_order_lifecycle as lifecycle
 
 CORE_SECTIONS = ["order", "owner", "vehicle", "registration", "price", "installment", "delivery", "note"]
-LEFT = ["order", "owner", "vehicle", "delivery", "note"]
-RIGHT = ["registration", "price", "installment"]
+# T-307 畫面順序：一列兩張（左｜右），備註不是卡片。
+CARD_ORDER = ["owner", "vehicle", "registration", "trade_in", "order", "price", "installment", "delivery",
+              "dealer_reward", "cancellation"]
 
 
 class OrderOverviewLayoutTests(TestCase):
@@ -57,23 +62,16 @@ class OrderOverviewLayoutTests(TestCase):
         self.assertNotIn("【其他費用】", overview["plain_text"])
         self.assertNotIn("【補助項目】", overview["plain_text"])
 
-    def test_columns_are_fixed_regardless_of_content(self):
+    def test_cards_are_paired_in_fixed_order_regardless_of_content(self):
         sparse = build_order_overview(self.sparse_order())
         rich = build_order_overview(self.rich_order())
         for overview in (sparse, rich):
-            left, right = ([section["key"] for section in column] for column in overview["columns"])
-            self.assertEqual([key for key in left if key in CORE_SECTIONS], LEFT)
-            self.assertEqual([key for key in right if key in CORE_SECTIONS], RIGHT)
-            # 欄內上下順序＝跳轉順序；手機單欄依 position 排，也是跳轉順序。
-            for column in overview["columns"]:
-                positions = [section["position"] for section in column]
-                self.assertEqual(positions, sorted(positions))
-            self.assertEqual([section["position"] for section in overview["sections"]], list(range(1, len(overview["sections"]) + 1)))
-        self.assertEqual([key for key in self.keys(rich) if key in CORE_SECTIONS], CORE_SECTIONS)
-        self.assertIn("trade_in", [section["key"] for section in rich["columns"][0]])
-        for keys in OVERVIEW_COLUMNS:
-            self.assertEqual(len(keys), len(set(keys)))
-        self.assertFalse(set(OVERVIEW_COLUMNS[0]) & set(OVERVIEW_COLUMNS[1]))
+            self.assertEqual([section["key"] for section in overview["cards"]], CARD_ORDER)
+            self.assertNotIn(NOTE_KEY, [section["key"] for section in overview["cards"]])
+            # 「複製全部」的區塊順序（sections）不跟著畫面改。
+            self.assertEqual([key for key in self.keys(overview) if key in CORE_SECTIONS], CORE_SECTIONS)
+        self.assertEqual([key for pair in OVERVIEW_PAIRS for key in pair], CARD_ORDER)
+        self.assertTrue(all(len(pair) == 2 for pair in OVERVIEW_PAIRS))
 
     def test_rows_inside_each_core_section_are_fixed(self):
         sparse = build_order_overview(self.sparse_order())
@@ -85,42 +83,38 @@ class OrderOverviewLayoutTests(TestCase):
         self.assertEqual((price["牌險"]["value"], price["牌險"]["copy"]), ("—", ""))
         self.assertEqual(price["分期外應收"]["value"], "—")
 
-    def test_page_renders_two_fixed_columns_and_jump_in_section_order(self):
+    def test_page_renders_paired_cards_and_jump_in_card_order(self):
         self.client.force_login(self.user)
         for order in (self.sparse_order(), self.rich_order()):
             page = self.client.get(reverse("order_overview", args=[order.pk]) + "?fragment=1").content.decode()
-            grid = page.split('class="order-overview__grid"', 1)[1].split('class="order-overview__tables"', 1)[0]
-            chunks = grid.split('data-overview-column="')[1:]
-            self.assertEqual([chunk[0] for chunk in chunks], ["1", "2"])
-            ids = [re.findall(r'<section class="order-overview__card" id="overview-(\w+)"', chunk) for chunk in chunks]
-            self.assertEqual([key for key in ids[0] if key in CORE_SECTIONS], LEFT)
-            self.assertEqual([key for key in ids[1] if key in CORE_SECTIONS], RIGHT)
+            pairs = page.split('class="order-overview__pairs"', 1)[1].split('class="order-overview__tables"', 1)[0]
+            ids = re.findall(r'<section class="order-overview__card" id="overview-(\w+)"', pairs)
+            self.assertEqual(ids, CARD_ORDER)
             jumps = re.findall(r'<a href="#overview-(\w+)" data-overview-jump>', page)
-            self.assertEqual([key for key in jumps if key in CORE_SECTIONS + ["accessories", "payments"]],
-                             CORE_SECTIONS + ["accessories", "payments"])
-            orders = dict(re.findall(r'id="overview-(\w+)" style="--overview-order: (\d+)"', page))
-            self.assertEqual([key for key in jumps if key in orders], sorted(orders, key=lambda key: int(orders[key])))
+            self.assertEqual(jumps, CARD_ORDER + ["accessories", "fees", "subsidies", "payments"])
+            self.assertNotIn('id="overview-note"', page)
         self.assertIn("沒有加購項目或贈品", self.client.get(reverse("order_overview", args=[self.sparse_order().pk])).content.decode())
 
-    def test_css_uses_fixed_columns_not_masonry(self):
+    def test_css_uses_fixed_pairs_not_masonry(self):
         css = (Path(settings.BASE_DIR) / "static" / "css" / "order-overview.css").read_text(encoding="utf-8")
-        self.assertNotRegex(css, r"\.order-overview__grid \{[^}]*columns:")
-        self.assertIn(".order-overview__columns .order-overview__card { order: var(--overview-order, 0); }", css)
+        # 不用多欄瀑布流（CSS columns 依卡片高度分欄，每張單排列不同）。
+        self.assertNotRegex(css, r"\.order-overview__(grid|pairs) \{[^}]*[{;]\s*columns:")
         self.assertIn("@container order-overview-grid (min-width: 700px)", css)
+        self.assertRegex(css, r"\.order-overview__pairs \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-items: stretch;")
 
-    def test_every_section_has_a_column_and_every_jump_has_a_rendered_section(self):
-        """新增區塊忘了加進 OVERVIEW_COLUMNS 會從畫面消失（跳轉按鈕還在）：這裡把兩邊對齊。"""
+    def test_every_section_has_a_place_and_every_jump_has_a_rendered_section(self):
+        """新增區塊忘了加進 OVERVIEW_PAIRS 會從畫面消失：這裡把兩邊對齊（備註在標題區便條紙）。"""
         from unittest import mock
         from django.utils import timezone
 
-        # 原始碼裡所有 _section("key", ...) 都要有欄位，且只在一欄。
+        # 原始碼裡所有 _section("key", ...) 都要有位置（成對卡片或便條紙），且只出現一次。
         source = (Path(settings.BASE_DIR) / "sales" / "services" / "order_overview.py").read_text(encoding="utf-8")
         declared = set(re.findall(r'_section\("(\w+)"', source))
-        assigned = [key for column in OVERVIEW_COLUMNS for key in column]
+        assigned = [key for pair in OVERVIEW_PAIRS for key in pair] + [NOTE_KEY]
         self.assertEqual(len(assigned), len(set(assigned)))
         self.assertEqual(set(assigned), declared)
 
-        # 情境區塊全部出現的單（汰舊、取消與退款、車行獎勵）：區塊數＝兩欄合計＝跳轉按鈕數，且一一對得到。
+        # 情境區塊全部出現的單（汰舊、取消與退款、車行獎勵）：卡片數＋便條紙＝區塊數，跳轉按鈕與卡片一一對得到。
         order = self.rich_order()
         SalesOrder.objects.filter(pk=order.pk).update(cancellation_requested_at=timezone.now(), cancellation_reason="客人改買他牌")
         order = SalesOrder.objects.get(pk=order.pk)
@@ -131,12 +125,12 @@ class OrderOverviewLayoutTests(TestCase):
             page = self.client.get(reverse("order_overview", args=[order.pk]) + "?fragment=1").content.decode()
         keys = self.keys(overview)
         self.assertEqual(set(keys), declared)
-        self.assertEqual(sum(len(column) for column in overview["columns"]), len(keys))
-        self.assertEqual(sorted(section["key"] for column in overview["columns"] for section in column), sorted(keys))
+        self.assertEqual(len(overview["cards"]) + 1, len(keys))
+        self.assertEqual(sorted([section["key"] for section in overview["cards"]] + [NOTE_KEY]), sorted(keys))
         jumps = re.findall(r'<a href="#overview-(\w+)" data-overview-jump>', page)
         rendered = re.findall(r'<section class="order-overview__card[^"]*" id="overview-(\w+)"', page)
         table_keys = [table["key"] for table in overview["tables"]]
-        self.assertEqual(len(jumps), len(keys) + len(table_keys))
+        self.assertEqual(len(jumps), len(overview["cards"]) + len(table_keys))
         self.assertEqual(sorted(jumps), sorted(rendered))
         self.assertIn("cancellation", jumps)
         self.assertIn("dealer_reward", jumps)

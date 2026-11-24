@@ -51,7 +51,7 @@ class OrderOverviewIdenticalTests(TestCase):
         """排列骨架：區塊（跳轉順序）、各欄區塊、每區塊的欄位列位置、明細表。"""
         return {
             "sections": [section["key"] for section in overview["sections"]],
-            "columns": [[section["key"] for section in column] for column in overview["columns"]],
+            "cards": [section["key"] for section in overview["cards"]],
             "rows": {section["key"]: len(section["rows"]) for section in overview["sections"]},
             "labels": {section["key"]: [row["label"] for row in section["rows"]] for section in overview["sections"]},
             "tables": [table["key"] for table in overview["tables"]],
@@ -65,9 +65,10 @@ class OrderOverviewIdenticalTests(TestCase):
             "order", "owner", "vehicle", "registration", "dealer_reward", "price", "installment",
             "trade_in", "delivery", "cancellation", "note",
         ])
-        self.assertEqual(self.shape(cash)["columns"], [
-            ["order", "owner", "vehicle", "trade_in", "delivery", "cancellation", "note"],
-            ["registration", "dealer_reward", "price", "installment"],
+        # T-307：畫面改成一列兩張（備註在標題區便條紙）。
+        self.assertEqual(self.shape(cash)["cards"], [
+            "owner", "vehicle", "registration", "trade_in", "order", "price",
+            "installment", "delivery", "dealer_reward", "cancellation",
         ])
         self.assertEqual(self.shape(cash)["tables"], ["accessories", "fees", "subsidies", "payments"])
 
@@ -89,8 +90,8 @@ class OrderOverviewIdenticalTests(TestCase):
         def skeleton(order):
             page = self.client.get(reverse("order_overview", args=[order.pk]) + "?fragment=1").content.decode()
             grid = page.split('class="order-overview__grid"', 1)[1].split('class="order-overview__tables"', 1)[0]
-            columns = [re.findall(r'<section class="order-overview__card" id="overview-(\w+)"', chunk)
-                       for chunk in grid.split('data-overview-column="')[1:]]
+            pairs = grid.split('class="order-overview__pairs"', 1)[1]
+            columns = re.findall(r'<section class="order-overview__card" id="overview-(\w+)"', pairs)
             sections = re.findall(r'<section class="order-overview__card[^"]*" id="overview-(\w+)"', page)
             rows = [len(re.findall(r"<dt>", card)) for card in grid.split("<section ")[1:]]
             jumps = re.findall(r'<a href="#overview-(\w+)" data-overview-jump>', page)

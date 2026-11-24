@@ -510,3 +510,36 @@ class SharedBaseTests(TestCase):
         for marker in ("data-report-meta", "report-card-orders", "report-card-foot--overview", "report-overview-hint",
                        "data-record-extra", "report-kpi__spark", "data-chart-switch"):
             self.assertNotIn(marker, html)
+
+
+class PlatformDealerHeaderTests(TestCase):
+    """平台（#6 #8）、車行（#11 #12）頁：熱度格不能點，提示只寫能做的事（N1）。"""
+    @classmethod
+    def setUpTestData(cls):
+        MonthSwitchPageTests.setUpTestData.__func__(cls)
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def page(self, config):
+        report = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        return self.client.get(reverse("report_display", args=[report.pk])).content.decode()
+
+    def hint(self, html):
+        return re.search(r'<p class="report-overview-hint">([^<]*)</p>', html).group(1)
+
+    def test_hint_matches_what_the_page_can_do(self):
+        from sales.reporting.source_templates import dealer_sales, electric_platform_sales, gasoline_platform_sales
+        # 平台頁：平台是系列，熱度格的平台名稱與格子都不能點，只能用上方篩選或「看訂單」。
+        for config in (electric_platform_sales(), gasoline_platform_sales()):
+            with self.subTest(title=config["title"]):
+                html = self.page(config)
+                self.assertEqual(self.hint(html), "表格只顯示台數；要看某個平台，用上方「平台」篩選，或按「看訂單 →」。")
+                self.assertIn('class="report-card-orders" data-report-open-detail', html)
+        # 車行頁：車行名稱沿用原本的下鑽連結，點了整頁連動；格子不能點。
+        for config in (dealer_sales(), dealer_sales(gasoline=True)):
+            with self.subTest(title=config["title"]):
+                self.assertEqual(self.hint(self.page(config)), "點車行名稱，整頁一起篩選；再點一次取消。每月格子只顯示台數。")
+        # 其他閱讀版型不變
+        self.assertEqual(self.hint(self.page(electric_vehicle_sales())), "點圖上的長條、扇區或格子，整頁一起篩選；再點一次取消。")
+

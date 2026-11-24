@@ -255,9 +255,10 @@ def _legacy_commission(profile):
     return sum((value for _label, value in parts), ZERO), f"Excel：{text}" if text else ""
 
 
-def commission_items():
+def commission_items(orders=None):
+    """`orders` 給定時只算這些單（T-315 訂單頁用 `_payout_orders().filter(pk=…)`，條件不變）。"""
     items = []
-    for order in _payout_orders():
+    for order in (_payout_orders() if orders is None else orders):
         profile = getattr(order, "operations", None)
         dealer = order.effective_commission_recipient
         if profile is None or dealer is None:
@@ -294,11 +295,12 @@ def _reward_key(line):
     return f"reward:order:{line.order_id}:campaign:{line.campaign_id}:{item}"
 
 
-def reward_items():
+def reward_items(order_id=None):
     """車行實物獎勵（T-149 `OrderDealerRewardLine`）：每張單 × 活動 × 品項一列，記數量與單位、不記金額。
 
     確認領牌前依訂單成立日預先觸發、確認後依實際領牌日（T-176）；確認後固定。尚未確認的單也列、也能勾，
     標「依訂單日・待領牌確認」。收款車行由明細記錄（含指定給車行的本店單）。一律「另付」。
+    `order_id` 給定時只查這張單（T-315 訂單頁），條件不變。
     """
     from django.db.models import Q
 
@@ -316,6 +318,8 @@ def reward_items():
         .select_related("order", "order__vehicle_model", "order__color", "order__legacy_snapshot", "dealer")
         .order_by("order__registration_date", "order__established_on", "order_id", "campaign_id", "id")
     )
+    if order_id is not None:
+        lines = lines.filter(order_id=order_id)
     items = OrderedDict()
     for line in lines:
         key = _reward_key(line)
@@ -349,7 +353,7 @@ def _period_text(period):
     return f"{period.starts_on:%Y/%m/%d}－{period.ends_on:%m/%d}"
 
 
-def volume_bonus_items(include_estimate=False):
+def volume_bonus_items(include_estimate=False, order_id=None):
     """台數獎金（`OrderVolumeBonus`）：每期 × 每家收款車行 × 每條規則一列，金額＝逐單合計。
 
     T-203（使用者 2026-11-17 選 C）：
@@ -357,6 +361,7 @@ def volume_bonus_items(include_estimate=False):
     - 期間結束、還沒結算：預設列出、標「待結算」，可按「結算」；不能勾已給付、不算進未給付金額。
     - 已結算（有效的 `VolumeBonusSettlement`）：金額固定，標「待發放」，可勾已給付；結算後有變只標示。
     統計期間結束日早於 `PAYOUT_START_DATE` 的不列。另外發放給車行，不扣訂單應收（一律「另付」）。
+    `order_id` 給定時只算含這張單的群組（T-315 訂單頁唯讀顯示），群組內容與金額照舊是整組。
     """
     from sales.models import OrderVolumeBonus, VolumeBonusSettlement
     from sales.services.volume_bonus import commission_note, period_ended, settlement_changes
@@ -366,12 +371,23 @@ def volume_bonus_items(include_estimate=False):
         .select_related("rule", "period", "dealer", "order", "order__vehicle_model", "order__color")
         .order_by("period__starts_on", "rule_id", "dealer_id", "order__registration_date", "order_id")
     )
+    settlement_rows = VolumeBonusSettlement.objects.filter(cancelled_at__isnull=True)
+    if order_id is not None:
+        scopes = set(rows.filter(order_id=order_id).values_list("rule_id", "period_id", "dealer_id"))
+        if not scopes:
+            return []
+        rows = rows.filter(period_id__in={scope[1] for scope in scopes})
+        settlement_rows = settlement_rows.filter(period_id__in={scope[1] for scope in scopes})
+    else:
+        scopes = None
     groups = OrderedDict()
     for row in rows:
-        groups.setdefault((row.rule_id, row.period_id, row.dealer_id), []).append(row)
+        key = (row.rule_id, row.period_id, row.dealer_id)
+        if scopes is None or key in scopes:
+            groups.setdefault(key, []).append(row)
     settlements = {
         (item.rule_id, item.period_id, item.dealer_id): item
-        for item in VolumeBonusSettlement.objects.filter(cancelled_at__isnull=True).select_related("rule", "period", "dealer")
+        for item in settlement_rows.select_related("rule", "period", "dealer")
     } if groups else {}
     items = []
     for (rule_id, period_id, dealer_id), members in groups.items():
@@ -413,12 +429,27 @@ def volume_bonus_items(include_estimate=False):
     return items
 
 
-def collect_items(*, include_estimate=False):
-    items = commission_items() + reward_items() + volume_bonus_items(include_estimate)
+def _attach_entries(items):
     entries = DealerPayoutEntry.objects.in_bulk([item.source_key for item in items], field_name="source_key")
     for item in items:
         item.entry = entries.get(item.source_key)
     return items
+
+
+def collect_items(*, include_estimate=False):
+    return _attach_entries(commission_items() + reward_items() + volume_bonus_items(include_estimate))
+
+
+def order_items(order):
+    """只算這張單的應付項目（T-315 訂單頁）：傭金、每個活動×品項的實物獎勵，加上含這張單、已結算的台數獎金群組。
+
+    條件與 `collect_items()` 完全相同（同一組函式只加上訂單篩選），不重算全公司。台數獎金是整批（規則×期間×車行），
+    只給訂單頁顯示；勾選由 `set_order_paid` 擋下。
+    """
+    bonuses = [item for item in volume_bonus_items(order_id=order.pk) if item.settle_state == "settled"]
+    return _attach_entries(
+        commission_items(_payout_orders().filter(pk=order.pk)) + reward_items(order_id=order.pk) + bonuses
+    )
 
 
 def orphan_entries(items):
@@ -443,6 +474,91 @@ def orphan_entries(items):
 
 def current_item(source_key):
     return next((item for item in collect_items(include_estimate=True) if item.source_key == source_key), None)
+
+
+# ── 訂單頁「車行獎勵」卡（T-315） ─────────────────────────────────────
+
+
+def _not_listed_reason(order, kind):
+    """卡片上有、給付頁沒有的項目，說明為什麼不能在這裡登記（條件同 `_payout_orders`、`reward_items`）。"""
+    from sales.models import SalesOrder
+
+    start = f"{PAYOUT_START_DATE:%Y/%m/%d}"
+    if getattr(order, "deleted_at", None) or order.status in EXCLUDED_STATUSES:
+        return "訂單已取消或結案，不列入給付追蹤"
+    if kind == DealerPayoutEntry.Kind.COMMISSION:
+        if order.source_type != SalesOrder.SourceType.DEALER:
+            return "本店單指定給車行的傭金，給付頁目前不列"
+        if not order.registration_completed_at or not order.registration_date:
+            return "確認領牌後才能登記給付"
+        if order.registration_date < PAYOUT_START_DATE:
+            return f"領牌日早於 {start}，不列入給付追蹤"
+    else:
+        confirmed = bool(order.registration_completed_at)
+        basis = order.registration_date if confirmed else order.established_on
+        if basis and basis < PAYOUT_START_DATE:
+            return f"{'領牌日' if confirmed else '訂單成立日'}早於 {start}，不列入給付追蹤"
+    return "不列入給付追蹤"
+
+
+def order_card(order, commission, rewards):
+    """訂單頁「車行獎勵」卡逐項列（T-315，使用者選 A）：傭金、台數獎金、每個活動×品項各一列。
+
+    `commission`＝`order_commission_display()`、`rewards`＝`order_dealer_rewards()`（卡片原本的兩份資料，金額照舊）。
+    傭金列＝傭金支出扣掉已結算台數獎金；台數獎金另列、整批發放只顯示。可勾的列都對到給付頁同一個 `source_key`。
+    """
+    items = order_items(order)
+    by_key = {item.source_key: item for item in items}
+    rows = []
+    included_bonus = commission["volume_bonus"] if commission else ZERO
+    if commission and commission["amount"] - included_bonus > ZERO:
+        item = by_key.get(f"commission:order:{order.pk}")
+        amount = commission["amount"] - included_bonus
+        rows.append({
+            "kind": DealerPayoutEntry.Kind.COMMISSION, "name": "傭金", "item": item,
+            "state": commission["state"], "state_label": commission["state_label"],
+            "amount": amount,
+            # 匯入單給付頁金額＝Excel 四欄加總（T-275），可能和傭金支出不同，列出來免得對不起來。
+            "payout_amount": item.amount if item and item.amount != amount else None,
+            "reason": "" if item else _not_listed_reason(order, DealerPayoutEntry.Kind.COMMISSION),
+        })
+    bonus_rows = []
+    for item in items:
+        if item.kind != DealerPayoutEntry.Kind.VOLUME_BONUS:
+            continue
+        share = sum((detail["amount"] for detail in item.details if detail["number"] == order.number), ZERO)
+        if share <= ZERO:  # 結算後才加進群組、沒有算進這次結算的單，台數獎金不在它的傭金支出裡
+            continue
+        bonus_rows.append({"kind": item.kind, "name": "台數獎金", "item": item, "amount": share, "batch": True})
+    reward_rows = OrderedDict()
+    for line in (rewards or {}).get("lines", []):
+        key = _reward_key(line)
+        if key in reward_rows:  # 同一活動重複列同一品項，與給付頁一樣合併數量
+            reward_rows[key]["quantity"] += line.quantity
+            continue
+        item = by_key.get(key)
+        reward_rows[key] = {
+            "kind": DealerPayoutEntry.Kind.REWARD, "name": line.name, "campaign": line.campaign_name,
+            "item": item, "quantity": line.quantity, "unit": line.unit,
+            "reason": "" if item else (
+                "數量為 0，不需給付" if line.quantity <= 0 else _not_listed_reason(order, DealerPayoutEntry.Kind.REWARD)
+            ),
+        }
+    checkable = [row for row in rows + list(reward_rows.values()) if row["item"] is not None]
+    dealer = next((row["item"].dealer for row in checkable), None) or (commission or {}).get("recipient")
+    days = [row["item"].day for row in checkable if row["item"].day]
+    return {
+        "commission_rows": rows + bonus_rows,
+        "reward_rows": list(reward_rows.values()),
+        "paid_count": sum(1 for row in checkable if row["item"].settled),
+        "total": len(checkable),
+        "included_bonus": included_bonus,
+        "has_bonus": bool(bonus_rows),
+        "dealer": dealer,
+        "start": min(days) if days else None,
+        "end": max(days) if days else None,
+        "payout_start": PAYOUT_START_DATE,
+    }
 
 
 # ── 篩選與彙總 ────────────────────────────────────────────────────────
@@ -603,12 +719,15 @@ def _mark_paid(entry, item, actor_name, action=DealerPayoutEvent.Action.PAID):
 
 
 @transaction.atomic
-def set_paid(source_keys, paid, actor_name):
-    """勾選或取消已給付；批次時任何一筆不合格就整批不寫入。回傳實際改變的筆數。"""
+def set_paid(source_keys, paid, actor_name, *, items=None):
+    """勾選或取消已給付；批次時任何一筆不合格就整批不寫入。回傳實際改變的筆數。
+
+    `items` 給定時（T-315 訂單頁傳 `order_items(order)`）只在這些項目裡找，不重算全公司；其餘邏輯相同。
+    """
     keys = list(dict.fromkeys(source_keys))
     if not keys:
         raise ValidationError("請先勾選要登記的項目。")
-    items_by_key = {item.source_key: item for item in collect_items()}
+    items_by_key = {item.source_key: item for item in (collect_items() if items is None else items)}
     items = [_require_item(key, items_by_key) for key in keys]
     changed = 0
     for item in sorted(items, key=lambda row: row.source_key):
@@ -633,6 +752,24 @@ def set_paid(source_keys, paid, actor_name):
             _event(entry, DealerPayoutEvent.Action.UNPAID, actor_name, item=item)
             changed += 1
     return changed
+
+
+@transaction.atomic
+def set_order_paid(order, source_keys, paid, actor_name):
+    """訂單頁「車行獎勵」卡逐項勾選（T-315，使用者選 A）：寫入與給付頁同一筆 `DealerPayoutEntry`。
+
+    只接受這張單自己的傭金與實物獎勵；台數獎金是多張單合成一筆，勾或取消會連帶改到同批其他單，一律拒絕。
+    """
+    items = order_items(order)
+    own = {item.source_key: item for item in items}
+    for key in dict.fromkeys(source_keys):
+        item = own.get(key)
+        if item is not None and item.kind == DealerPayoutEntry.Kind.VOLUME_BONUS:
+            raise ValidationError("台數獎金是整批發放（同車行、同期間的多張單合成一筆），請到「車行傭金／獎金給付」頁勾選。")
+        if item is None and key.startswith("volume_bonus:"):
+            raise ValidationError("台數獎金是整批發放，請到「車行傭金／獎金給付」頁勾選。")
+    return set_paid(source_keys, paid, actor_name,
+                    items=[item for item in items if item.kind != DealerPayoutEntry.Kind.VOLUME_BONUS])
 
 
 @transaction.atomic

@@ -181,6 +181,35 @@ def dealer_payout_update(request):
 
 
 @login_required
+@require_POST
+def order_payout_update(request, pk):
+    """訂單頁「車行獎勵」卡逐項勾已給付（T-315，使用者選 A）。
+
+    權限同給付頁的「操作」；寫入走 `payouts.set_order_paid`（只接受這張單的傭金與實物獎勵，台數獎金拒絕），
+    與給付頁是同一筆紀錄。完成後導回訂單領牌步驟，由 inplace-regions.js 原地換入卡片。
+    """
+    from django.shortcuts import get_object_or_404
+
+    from sales.models import SalesOrder
+
+    _require(request, "operate")
+    order = get_object_or_404(SalesOrder, pk=pk)
+    action = request.POST.get("action", "")
+    keys = [key for key in request.POST.getlist("key") if key]
+    try:
+        if action not in {"paid", "unpaid"}:
+            raise ValidationError("無法辨識要執行的動作，請重新整理後再試。")
+        count = payouts.set_order_paid(order, keys, action == "paid", _actor(request.user))
+        if action == "paid":
+            messages.success(request, "已登記已給付，給付頁同步更新。" if count else "這一筆已經是已給付。")
+        else:
+            messages.success(request, "已取消已給付，給付頁同步改回未給付，歷程已保留。" if count else "這一筆原本就是未給付。")
+    except ValidationError as exc:
+        messages.error(request, "；".join(exc.messages))
+    return redirect(f"{reverse('order_detail', args=[order.pk])}?tab=registration#order-dealer-rewards")
+
+
+@login_required
 @never_cache
 @require_GET
 def dealer_payout_export(request):

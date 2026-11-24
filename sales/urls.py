@@ -105,6 +105,7 @@ urlpatterns = [
     path("data/dealer-payouts/", payout_views.dealer_payout_list, name="dealer_payout_list"),
     path("data/dealer-payouts/update/", payout_views.dealer_payout_update, name="dealer_payout_update"),
     path("data/dealer-payouts/export/", payout_views.dealer_payout_export, name="dealer_payout_export"),
+    path("orders/<int:pk>/dealer-payouts/", payout_views.order_payout_update, name="order_dealer_payout_update"),
     path("reports/dealer-payouts/", payout_views.legacy_redirect("dealer_payout_list"), name="dealer_payout_list_legacy"),
     path("reports/dealer-payouts/update/", payout_views.dealer_payout_update, name="dealer_payout_update_legacy"),
     path("reports/dealer-payouts/export/", payout_views.legacy_redirect("dealer_payout_export"), name="dealer_payout_export_legacy"),

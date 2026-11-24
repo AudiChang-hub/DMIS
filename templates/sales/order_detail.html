@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
 {% load order_origin_tags id_crop_tags back_source_tags %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}"><link rel="stylesheet" href="{% static 'css/signing.css' %}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}"><link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}"><link rel="stylesheet" href="{% static 'css/signing.css' %}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -458,26 +458,33 @@
         <p class="figure-card__meta">{% if operations_profile.incentive_registration_date %}{% if order.is_registration_complete %}依 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 領牌{% else %}依訂單成立日 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 預先觸發{% endif %}{% if incentive_applications %}符合的活動{% else %}的車型版本{% endif %} · {% endif %}{% if operations_profile.incentive_locked_at %}{{ operations_profile.incentive_locked_at|date:"Y/m/d H:i" }} 固定，不受後續活動異動影響{% else %}確認領牌後固定{% endif %}</p>
       </section>
       {% endif %}
-      {# 車行獎勵＝傭金＋活動獎勵（T-258）：傭金與收入與支出同一欄，狀態各自標示；台數獎金月底結算，不列在這裡。 #}
+      {# 車行獎勵＝傭金＋活動獎勵（T-258）。T-315（使用者選 A）：每列直接勾已給付，與給付頁同一筆紀錄；傭金與已結算台數獎金分兩列（台數獎金整批發放只顯示），實物每個活動×品項一列；勾選權限同給付頁「操作」。 #}
       {% if dealer_commission or dealer_rewards.lines %}
-      <section class="figure-card" aria-labelledby="figure-dealer-reward" data-order-dealer-rewards>
+      <section class="figure-card order-payouts-card" id="order-dealer-rewards" aria-labelledby="figure-dealer-reward" data-order-dealer-rewards data-inplace-region>
         <header class="figure-card__head">
           <h3 id="figure-dealer-reward">車行獎勵</h3>
+          {% if order_payouts.total %}<span class="ledger-tag{% if order_payouts.paid_count == order_payouts.total %} ledger-tag--locked{% endif %}">已給付 {{ order_payouts.paid_count }}／{{ order_payouts.total }}</span>{% endif %}
         </header>
-        {% if dealer_commission %}
-        <dl class="figure-list" data-dealer-commission>
-          <div class="figure-list__row"><dt>傭金 <span class="ledger-tag ledger-tag--{{ dealer_commission.state }}">{{ dealer_commission.state_label }}</span></dt><dd>${{ dealer_commission.amount|number_with_commas }}</dd></div>
+        {% if order_payouts.commission_rows %}
+        <dl class="order-payouts" data-dealer-commission>
+          {% for row in order_payouts.commission_rows %}{% include "sales/_order_payout_row.html" %}{% endfor %}
         </dl>
-        <p class="figure-card__meta">{% if dealer_commission.recipient %}{% if not dealer_rewards.lines or dealer_commission.recipient != dealer_rewards.dealer %}給 {{ dealer_commission.recipient.name }} · {% endif %}{% endif %}與「收入與支出」的傭金支出同一筆{% if dealer_commission.volume_bonus %}，含已結算台數獎金 ${{ dealer_commission.volume_bonus|number_with_commas }}{% endif %}{% if dealer_commission.state == "estimate" and not order.registration_completed_at %} · 確認領牌後固定{% endif %}</p>
+        {% endif %}
+        {% if order_payouts.reward_rows %}
+        <dl class="order-payouts" data-dealer-reward-lines>
+          {% for row in order_payouts.reward_rows %}{% include "sales/_order_payout_row.html" %}{% endfor %}
+        </dl>
+        {% endif %}
+        {% if dealer_commission %}
+        <p class="figure-card__meta">{% if dealer_commission.recipient %}{% if not dealer_rewards.lines or dealer_commission.recipient != dealer_rewards.dealer %}給 {{ dealer_commission.recipient.name }} · {% endif %}{% endif %}{% if order_payouts.included_bonus %}傭金＋台數獎金＝${{ dealer_commission.amount|number_with_commas }}，{% endif %}與「收入與支出」的傭金支出同一筆{% if dealer_commission.state == "estimate" and not order.registration_completed_at %} · 確認領牌後固定{% endif %}</p>
         {% endif %}
         {% if dealer_rewards.lines %}
-        <dl class="figure-list" data-dealer-reward-lines>
-          {% for total in dealer_rewards.totals %}<div class="figure-list__row"><dt>{{ total.name }} {% if dealer_rewards.locked %}<span class="ledger-tag ledger-tag--locked">已固定</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}</dt><dd>{{ total.quantity }} {{ total.unit }}</dd></div>{% endfor %}
-        </dl>
-        <ul class="figure-card__sources">{% for line in dealer_rewards.lines %}<li><span>{{ line.campaign_name }}</span>{{ line.display_label }}</li>{% endfor %}</ul>
         <p class="figure-card__meta">給 {{ dealer_rewards.dealer.name }} · {% if dealer_rewards.pre_triggered %}依訂單成立日 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 預先觸發，確認領牌時依實際領牌日重新判斷{% else %}依 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 領牌符合的車行獎勵活動{% endif %} · {% if dealer_rewards.locked %}已固定，不受後續活動異動影響{% else %}確認領牌後固定{% endif %}</p>
         {% elif dealer_rewards.dealer %}
         <p class="figure-card__meta">{% if order.registration_completed_at %}領牌時沒有符合的車行獎勵活動。{% else %}給 {{ dealer_rewards.dealer.name }}；訂單成立日 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 沒有符合的車行獎勵活動，確認領牌時依實際領牌日重新判斷。{% endif %}</p>
+        {% endif %}
+        {% if order_payouts.total or order_payouts.has_bonus %}
+        <p class="order-payouts__sync"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>勾選和「車行傭金／獎金給付」頁是<b>同一筆紀錄</b>，任一邊改，另一邊同步。只影響給付登記，不動傭金、掛帳、淨利與收支。{% if not can_operate_payouts %}需要「車行傭金／獎金給付」的操作權限才能勾選。{% endif %}{% if can_view_payouts and order_payouts.dealer %} <a class="order-payouts__link" href="{% url 'dealer_payout_list' %}?dealer={{ order_payouts.dealer.pk }}{% if order_payouts.start %}&amp;start={{ order_payouts.start|date:'Y-m-d' }}&amp;end={{ order_payouts.end|date:'Y-m-d' }}{% endif %}">在給付頁看這張單</a>{% endif %}</span></p>
         {% endif %}
       </section>
       {% endif %}
@@ -1110,6 +1117,7 @@
 <script src="{% static 'js/order-commission-attribution.js' %}" defer></script>
 <script src="{% static 'js/inplace-regions.js' %}" defer></script>
 <script src="{% static 'js/lock-confirm.js' %}" defer></script>
+<script src="{% static 'js/order-dealer-payouts.js' %}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}" defer></script>
 <script src="{% static 'js/order-compact-bar.js' %}" defer></script>
 <script src="{% static 'js/order-hero-note.js' %}" defer></script>

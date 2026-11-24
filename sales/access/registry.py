@@ -111,6 +111,8 @@ register("reconciliation", "reconciliation_list reconciliation_update reconcilia
 register("dealer_payouts", "dealer_payout_list")
 register("dealer_payouts", "dealer_payout_update", "operate")
 register("dealer_payouts", "dealer_payout_export", "export")
+# T-315：訂單頁「車行獎勵」卡逐項勾已給付，與給付頁同一個「操作」權限（不是訂單作業權限）。
+register("dealer_payouts", "order_dealer_payout_update", "operate")
 # T-259：給付頁從報表中心移到「車行傭金與獎勵」頁籤；舊網址照原權限導向新位置（舊頁面送出的表單仍可送到舊網址）。
 register("dealer_payouts", "dealer_payout_list_legacy")
 register("dealer_payouts", "dealer_payout_update_legacy", "operate")

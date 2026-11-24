@@ -302,6 +302,7 @@ jobs:
           sales.tests.test_autosave_guards_t130
           sales.tests.test_incentive_campaigns sales.tests.test_registration_edit_t147
           sales.tests.test_dealer_payouts_t150
+          sales.tests.test_order_dealer_payout_t315
           sales.tests.test_volume_bonus_settle_t203 sales.tests.test_volume_bonus_auto_t148
 
   django-migrations:

@@ -271,6 +271,7 @@ from .services.settlement_cost import (
 )
 from .services.dealer_reward_campaign import order_dealer_rewards
 from .services.dealer_commission import order_commission_display
+from .reporting.payouts import order_card as order_payout_card
 from .services.incentive_rule import (
     apply_order_incentive_rule,
 )
@@ -5541,6 +5542,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             and policy_for(request).route("order_edit", "POST", kwargs={"pk": order.pk})):
         # 沒有修改權限的人仍看唯讀摘要，不顯示會一直存不進去的表單。
         inline_order_context = _inline_order_form_context(request, order)
+    dealer_rewards = order_dealer_rewards(order)
+    dealer_commission = order_commission_display(order, operations_profile)
     response = TemplateResponse(
         request,
         "sales/order_detail.html",
@@ -5596,9 +5599,16 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "incentive_applications": (
                 list(operations_profile.incentive_applications.all()) if operations_profile else []
             ),
-            "dealer_rewards": order_dealer_rewards(order),
+            "dealer_rewards": dealer_rewards,
             # 車行獎勵卡第一列的傭金（T-258），與收入與支出同一欄。
-            "dealer_commission": order_commission_display(order, operations_profile),
+            "dealer_commission": dealer_commission,
+            # T-315：卡片逐項列與給付頁同一筆的已給付狀態；勾選權限同給付頁「操作」。
+            "order_payouts": (
+                order_payout_card(order, dealer_commission, dealer_rewards)
+                if dealer_commission or dealer_rewards["lines"] else None
+            ),
+            "can_operate_payouts": policy_for(request).screen("dealer_payouts", "operate"),
+            "can_view_payouts": policy_for(request).screen("dealer_payouts", "view"),
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "active_tab": active_tab,

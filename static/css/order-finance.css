@@ -212,6 +212,62 @@
 /* 原廠獎勵活動與車行獎勵的來源明細（T-149） */
 .figure-card__sources { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; overflow-wrap: anywhere; }
 .figure-card__sources span { display: inline-block; margin-right: var(--space-2); padding: 0 var(--space-2); border-radius: var(--radius-pill); background: var(--surface-soft); color: var(--ink); font-weight: 700; }
+/* 車行獎勵卡逐項勾已給付（T-315，使用者選 A）：勾選｜名稱與狀態｜金額三欄，勾選元件沿用給付頁 payout-check。
+   只作用在卡片內（.order-payouts*、.order-payout*）。 */
+.order-payouts { display: grid; margin: 0; }
+.order-payouts + .order-payouts { border-top: 1px solid var(--line-soft); }
+.order-payout {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "toggle main value" "confirm confirm confirm";
+  align-items: center; column-gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line-soft);
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+.order-payout:last-child { border-bottom: 0; }
+.order-payout > dt { grid-area: main; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-width: 0; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
+.order-payout > dt .ledger-tag, .order-payout > dt .payout-method { justify-self: auto; margin: 0; }
+.order-payout__sub { flex: 1 0 100%; color: var(--muted); font-size: var(--text-xs); font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.order-payout__sub b { color: var(--ink-soft); font-weight: 700; }
+.order-payout__diff { color: var(--amber-ink); }
+.order-payout__value { grid-area: value; margin: 0; color: var(--ink); font-size: var(--text-base); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; text-align: right; }
+.order-payout__value small { font-size: var(--text-xs); font-weight: 650; color: var(--ink-soft); }
+.order-payout__toggle { grid-area: toggle; margin: 0; }
+.order-payout__toggle form { margin: 0; }
+.order-payout .payout-check { font-size: var(--text-xs); }
+.order-payout.is-batch .order-payout__value, .order-payout.is-unlisted .order-payout__value { color: var(--ink-soft); }
+.order-payout.is-saving { opacity: .55; }
+.order-payout--changed .payout-check { border-color: var(--amber-border); }
+.order-payout__lock {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-3) 0 var(--space-2);
+  border: 1px dashed var(--line-strong); border-radius: var(--radius-pill); color: var(--ink-soft); font-size: var(--text-xs); font-weight: 650; white-space: nowrap;
+}
+.order-payout__lock.is-unlisted { color: var(--muted); border-color: var(--line); }
+.order-payout__lock svg { flex: 0 0 auto; }
+.order-payout__confirm { grid-area: confirm; margin: var(--space-2) 0 0; }
+.order-payout.is-confirming { background: color-mix(in srgb, var(--blue-soft) 35%, transparent); margin-inline: calc(-1 * var(--space-3)); padding-inline: var(--space-3); border-radius: var(--radius-sm); }
+.order-payout-confirm {
+  display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-soft);
+}
+.order-payout-confirm.is-warn { border-color: var(--amber-border); background: color-mix(in srgb, var(--amber-soft) 45%, var(--surface)); }
+.order-payout-confirm__title { margin: 0; color: var(--ink); font-size: var(--text-sm); font-weight: 800; }
+.order-payout-confirm__text { margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.6; }
+.order-payout-confirm__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.order-payout-confirm__actions .button { min-height: 40px; }
+.order-payouts__link { color: var(--blue-ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.order-payouts__link:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: 2px; }
+.order-payouts__sync {
+  display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); background: var(--surface-soft); color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.55;
+}
+.order-payouts__sync svg { flex: 0 0 auto; margin-top: 2px; color: var(--green-ink); }
+@media (max-width: 600px) {
+  .order-payout { column-gap: var(--space-2); }
+  .order-payout__lock { width: 44px; min-height: 44px; padding: 0; }
+  .order-payout__lock-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .order-payout__lock.is-unlisted { padding: 0; }
+  .order-payout-confirm { padding: var(--space-3); }
+  .order-payout-confirm__actions .button { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .order-payout { transition: none; } }
 .finance-ledger__legend { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 2; }
 .finance-ledger__legend .ledger-tag { margin: 0 var(--space-1); vertical-align: 1px; }
 

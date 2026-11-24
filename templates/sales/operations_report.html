@@ -217,7 +217,7 @@
         <thead><tr><th>車型</th><th class="is-number">本期</th><th class="is-number">去年同期</th><th class="is-number">差</th></tr></thead>
         <tbody>{% for row in c.movers %}<tr><th data-label="車型">{{ row.name }}</th><td data-label="本期" class="is-number">{{ row.current }}</td><td data-label="去年同期" class="is-number">{{ row.last_year }}</td><td data-label="差" class="is-number ops-delta{% if row.delta > 0 %} is-up{% elif row.delta < 0 %} is-down{% endif %}">{{ row.delta_text }}</td></tr>{% endfor %}</tbody>
       </table></div>
-      <p class="ops-hint">依本期與去年同期較大的台數排序，取前 5 款；完整排行在報表中心。</p>
+      <p class="ops-hint">列出本期或去年同期任一期賣得最多的 5 款，並排比較兩期台數；完整排行在報表中心。</p>
       {% else %}
       <p class="ops-empty">本期與去年同期都沒有成交。</p>
       {% endif %}

@@ -95,10 +95,13 @@ class ReportingTests(TestCase):
         from sales.reporting.source_templates import SOURCE_TEMPLATES
         migrate=import_module('sales.migrations.0123_remaining_report_readers').upgrade_readers
         created=[]
+        before_t311=import_module('sales.migrations.0226_t311_energy_sales_cards').downgraded
         for name,factory in SOURCE_TEMPLATES.items():
             config=factory()
             if name in ('total','electric'):
                 continue
+            if name=='gasoline':
+                config=before_t311(config)  # T-311 之前的三張圖卡，0123 當時的樣子
             config.pop('reader_layout',None)
             if name=='gasoline':
                 config['cards'][1].update(dimension='day',title='油車每日銷售型號')
@@ -156,8 +159,8 @@ class ReportingTests(TestCase):
         from sales.reporting.forms import FilterForm
         config = validate_config(SOURCE_TEMPLATES['electric']())
         self.assertEqual(config['reader_layout'], 'electric_overview')
-        self.assertEqual([card['dimension'] for card in config['cards']], ['month','month','legacy_model'])
-        self.assertEqual(config['cards'][0]['width'], 12)
+        self.assertEqual([card['dimension'] for card in config['cards']], ['month','month','legacy_model','legacy_sales_source'])
+        self.assertEqual(config['cards'][1]['width'], 12)
         for name, factory in SOURCE_TEMPLATES.items():
             if name not in ('electric','total'):
                 self.assertNotEqual(factory().get('reader_layout'), 'electric_overview')
@@ -175,7 +178,7 @@ class ReportingTests(TestCase):
         response = self.client.get(reverse('report_display', args=[self.report.pk]))
         self.assertContains(response, 'report-electric-overview')
         self.assertNotContains(response, 'data-report-multiple')
-        self.assertEqual([r['count'] for r in response.context['results']], [3,3,3])
+        self.assertEqual([r['count'] for r in response.context['results']], [3,3,3,3])
         from sales.reporting.views import publication_key
         filters = {'revision':publication_key(self.report), 'focus':json.dumps([{'card':1,'group':'2026-08-01','grain':'month'}])}
         response = self.client.get(reverse('report_display', args=[self.report.pk]), filters)
@@ -184,8 +187,8 @@ class ReportingTests(TestCase):
         self.assertEqual(response.context['records_page'].paginator.count, 1)
         for key in ('empty_months','empty_legacy_source'):
             response = self.client.get(reverse('report_display', args=[self.report.pk]), {key:'1'})
-            self.assertEqual([r['count'] for r in response.context['results']], [0,0,0])
-        self.assertEqual([card_result(config, card, {'legacy_energy':['油車']})['count'] for card in config['cards']], [0,0,0])
+            self.assertEqual([r['count'] for r in response.context['results']], [0,0,0,0])
+        self.assertEqual([card_result(config, card, {'legacy_energy':['油車']})['count'] for card in config['cards']], [0,0,0,0])
         self.login(self.user)
         self.assertEqual(self.client.get(reverse('report_display', args=[self.report.pk])).status_code, 404)
 
@@ -196,7 +199,7 @@ class ReportingTests(TestCase):
         from django.db import connection
         from sales.reporting.source_templates import electric_vehicle_sales, gasoline_vehicle_sales
         migrate = import_module('sales.migrations.0122_electric_sales_overview').upgrade_electric
-        config = electric_vehicle_sales()
+        config = import_module('sales.migrations.0226_t311_energy_sales_cards').downgraded(electric_vehicle_sales())  # 0122 當時的三張圖卡
         config.pop('reader_layout')
         config['cards'][0].pop('width')
         config['cards'][1].update(dimension='day', title='電動車每日銷售型號')
@@ -846,8 +849,8 @@ class ReportingTests(TestCase):
         self.assertIsNone(report.published)
         self.assertEqual(report.draft["audience"], "admin")
         self.assertEqual(report.draft["fixed_filters"]["legacy_energy"], ["電車"])
-        self.assertEqual(len(report.draft["cards"]), 3)
-        self.assertEqual(report.draft["cards"][1]["series"], "legacy_model")
+        self.assertEqual(len(report.draft["cards"]), 4)
+        self.assertEqual(report.draft["cards"][0]["series"], "legacy_model")
         self.assertIn("legacy_premium", report.draft["records_columns"])
         for card in report.draft["cards"]:
             self.assertEqual(card_result(report.draft, card, {"legacy_energy": ["油車"]})["count"], 0)
@@ -869,7 +872,7 @@ class ReportingTests(TestCase):
         from sales.reporting.source_templates import electric_vehicle_sales, gasoline_vehicle_sales, gasoline_platform_sales
         from sales.reporting.records import record_context
         before = list(SalesOrder.objects.order_by("pk").values())
-        for page, factory, cards in (("gasoline", gasoline_vehicle_sales, 3), ("gasoline-platform", gasoline_platform_sales, 1)):
+        for page, factory, cards in (("gasoline", gasoline_vehicle_sales, 4), ("gasoline-platform", gasoline_platform_sales, 1)):
             with self.subTest(page=page):
                 config = validate_config(factory())
                 self.assertEqual(len(config["cards"]), cards)
@@ -892,8 +895,8 @@ class ReportingTests(TestCase):
                 self.login(self.user)
                 self.assertEqual(self.client.get(reverse("report_edit", args=[report.pk])).status_code, 403)
                 self.assertEqual(self.client.get(reverse("report_display", args=[report.pk])).status_code, 404)
-        self.assertEqual(gasoline_vehicle_sales()["cards"][1]["series_limit"], 10)
-        self.assertEqual(electric_vehicle_sales()["cards"][1]["series_limit"], 20)
+        self.assertEqual(gasoline_vehicle_sales()["cards"][0]["series_limit"], 10)
+        self.assertEqual(electric_vehicle_sales()["cards"][0]["series_limit"], 20)
         self.assertEqual(list(SalesOrder.objects.order_by("pk").values()), before)
 
     def test_gasoline_platform_drills_use_both_fixed_filters(self):

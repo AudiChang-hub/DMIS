@@ -1,6 +1,6 @@
 """T-293（使用者 2026-11-23「照你的建議全部做」）：營運總表「錢」卡片只改呈現，數字一律不變。
 
-- 新結構：三張小卡＋色帶、0 張「—」、預估寫「約」、分段長條、算式收進「怎麼算的」、撥款待入帳小表、車行未付標籤；
+- 新結構：三張小卡＋色帶、0 張「—」、預估寫「約」、分段長條、算式收進「怎麼算的」、撥款待入帳小表；T-301 起車行未付不再加「已含在交車後未結清」標籤；
   CSS 用容器查詢，卡片變寬也成立。
 - 數字不變：同一組資料，卡片上看得到的每個金額、張數、帳齡、撥款待入帳、車行未付，改版前後完全相同。
   這組測試在改版前的模板上先跑過（全過）才動模板；值為 0 的拆列改顯示「—」，比對時當 0。
@@ -275,10 +275,11 @@ class MoneyCardLayoutTests(MoneyCardScenario):
         self.assertRegex(html, r'對帳頁的分期撥款待入帳 <a [^>]*>2 張</a> · \$260,460')
         self.assertRegex(html, r'對帳頁的平台撥款待入帳 <a [^>]*>2 張</a> · 約 \$131,277')
 
-    def test_dealer_credit_note_is_a_tag(self):
+    def test_dealer_credit_note_has_no_tag(self):
         _money, _cockpit, html = self.section()
-        self.assertIn('車行未付<span class="ops-money__tag">已含在交車後未結清</span><small class="ops-facts__note">'
+        self.assertIn('車行未付<small class="ops-facts__note">'
                       '<span class="ops-facts__note-count">1 家共 1 張</span></small>', html)
+        self.assertNotIn("已含在交車後未結清", html)
 
     def test_blocks_keep_order(self):
         _money, _cockpit, html = self.section()

@@ -1248,20 +1248,6 @@ html[data-theme="night-blue"] .ops {
 .ops-money .ops-bar__seg.is-late,
 .ops-money .ops-legend__swatch.ops-bar__seg--3 { background: color-mix(in srgb, var(--ink) 90%, var(--surface)); }
 
-/* 車行未付：「已含在交車後未結清」改成旁邊的小標籤。 */
-.ops-money__tag {
-  display: inline-block;
-  margin-inline-start: var(--space-2);
-  padding: 0 var(--space-1);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
-  color: var(--muted);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  line-height: 1.6;
-  vertical-align: 1px;
-  white-space: nowrap;
-}
 
 /* 卡片夠寬：三張並排，四列付款方式在三張卡同一列（subgrid；某張多一行撥款＋客人時同列一起加高）。 */
 @container ops-money (min-width: 22rem) {

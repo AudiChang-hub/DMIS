@@ -303,7 +303,7 @@ class MoneyCardFiguresTests(MoneyCardTestBase):
 
 
 class DealerCreditLinkTests(MoneyCardTestBase):
-    """T-279：車行掛帳改連結、移除逐家列；D4-A 標明已含在交車後未結清。T-288：額度移除，清單頁不帶參數也列全部。"""
+    """T-279：車行掛帳改連結、移除逐家列；D4-A 標明已含在交車後未結清（T-301 拿掉）。T-288：額度移除，清單頁不帶參數也列全部。"""
 
     def on_account(self, dealer):
         order = self.make_order(source=dealer, cash_receivable_v2=True)
@@ -321,7 +321,8 @@ class DealerCreditLinkTests(MoneyCardTestBase):
         self.assertFalse({"limit", "over"} & set(money["dealer_credit"][0]))
         url = reverse("operations_dealer_credit") + "?scope=all"
         self.assertContains(response, f'href="{url}"')
-        self.assertContains(response, '車行未付<span class="ops-money__tag">已含在交車後未結清</span><small class="ops-facts__note"><span class="ops-facts__note-count">2 家共 3 張</span></small>')
+        self.assertContains(response, '車行未付<small class="ops-facts__note"><span class="ops-facts__note-count">2 家共 3 張</span></small>')
+        self.assertNotContains(response, "已含在交車後未結清")
         self.assertContains(response, "2 家共 3 張")
         self.assertNotContains(response, f"<li><span>{self.dealer.name}</span>")       # 逐家列已移除
         page = self.client.get(url)

@@ -1,13 +1,14 @@
 """營運總表「錢」車行未付（使用者 2026-11-23）。
 
-「車行掛帳」改名「車行未付」，小字只寫「已含在交車後未結清 · N 家共 M 張」，不再提額度
+「車行掛帳」改名「車行未付」，小字只寫「N 家共 M 張」，不再提額度
 （舊寫法「1 家・1 張，1 家未設額度」看起來像三間）。金額、張數、連結不變。
+T-301（使用者 2026-11-24）：「已含在交車後未結清」小標籤拿掉，頁面上不再出現這句。
 """
 from django.urls import reverse
 
 from sales.tests.test_money_card_t278 import DealerCreditLinkTests, MoneyCardTestBase
 
-NOTE = '車行未付<span class="ops-money__tag">已含在交車後未結清</span>{}'
+NOTE = '<dt>車行未付{}'
 
 
 class DealerUnpaidNoteTests(MoneyCardTestBase):
@@ -16,12 +17,13 @@ class DealerUnpaidNoteTests(MoneyCardTestBase):
     def card(self):
         response, cockpit = self.cockpit()
         html = response.content.decode()
-        start = html.index("車行未付<span")
+        start = html.index("<dt>車行未付")
         return response, cockpit, html[start:html.index("</dd>", start)]
 
     def assert_note(self, counts):
         response, _cockpit, row = self.card()
         self.assertContains(response, NOTE.format(counts))
+        self.assertNotContains(response, "已含在交車後未結清")
         self.assertNotIn("車行掛帳", row)
         self.assertNotIn("額度", row)
         return row
@@ -52,7 +54,8 @@ class DealerUnpaidNoteTests(MoneyCardTestBase):
 
     def test_none(self):
         response, _cockpit, row = self.card()
-        self.assertContains(response, NOTE.format(""))
+        self.assertContains(response, NOTE.format("</dt>"))
+        self.assertNotContains(response, "已含在交車後未結清")
         self.assertIn("目前沒有", row)
 
     def test_list_page_renamed(self):

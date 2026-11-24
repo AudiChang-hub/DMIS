@@ -505,9 +505,10 @@ def draw_order_copy(c, order, copy_label, first_page, total_pages, printed_at, s
     for accessory in order.accessory_lines:
         if accessory.is_credit:
             # 配件金（T-305）：單價印面額、小計印實際折抵，逐列加總才會等於總價。
+            # 訂購單不印「說明」欄，類別印「配件金」，主檔名稱沒寫配件金客人也看得出是折抵。
             note = f"配件金：最多折到配件小計 0 元，{money(accessory.credit_void)} 元作廢" if accessory.credit_void else "配件金：只折配件"
             rows.append([
-                p("配件"), p(safe(accessory.name)), p(safe("、".join(item for item in (note, accessory.note) if item))),
+                p("配件金"), p(safe(accessory.name)), p(safe("、".join(item for item in (note, accessory.note) if item))),
                 p(accessory.quantity, center_style), p(money(accessory.amount), right_style),
                 p(money(accessory.effective_total), right_style),
             ])

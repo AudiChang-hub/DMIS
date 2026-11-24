@@ -342,6 +342,22 @@ class CreditOutputTests(AccessoryCreditBase):
         self.assertEqual(printed_detail_total(self.order) - self.order.vehicle_price - (self.order.plate_insurance_fee or ZERO)
                          - self.order.registration_extra_fee_total - self.order.other_fee_total, ZERO)
 
+    def test_contract_pdf_marks_credit_category_even_without_keyword_in_name(self):
+        # 訂購單不印「說明」欄；主檔名稱沒寫「配件金」時，類別欄要印「配件金」客人才看得出是折抵。
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
+        from sales.services.order_contract_pdf import build_order_contract_pdf
+
+        AccessoryProduct.objects.filter(pk=self.credit.pk).update(name="會員回饋")
+        AccessoryLine.objects.filter(order=self.order, is_credit=True).update(name="會員回饋")
+        order = self.reload()
+        order.print_company_snapshot = {"legal_name": "測試機車行", "tax_id": "12345678", "address": "測試地址", "phone": "02-1234"}
+        text = "".join(page.extract_text() for page in PdfReader(BytesIO(build_order_contract_pdf(order))).pages)
+        self.assertIn("會員回饋", text)
+        self.assertIn("配件金", text)
+
     def test_payment_summary_lists_credit_with_applied_amount(self):
         from sales.services.payment_summary import balance_breakdown
 

@@ -6041,6 +6041,7 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .delivery-accessories__type { padding: 2px var(--space-2); color: var(--muted); font-size: var(--text-xs); border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
 /* 配件金標示（T-305）：主檔清單、訂單明細共用。 */
 .accessory-kind-badge { display: inline-block; margin-inline-start: var(--space-2); padding: 2px var(--space-2); color: var(--blue-ink); font-size: var(--text-xs); border: 1px solid var(--line); border-radius: var(--radius-sm); white-space: nowrap; }
+.inventory-table td span.accessory-kind-badge { display: inline-block; width: fit-content; justify-self: start; margin-inline-start: 0; margin-top: var(--space-1); }
 .accessory-credit-note { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
 .delivery-accessories__type.is-gift { color: var(--green-ink); background: color-mix(in srgb, var(--green) 9%, var(--surface)); border-color: var(--green-border); }
 .delivery-confirm-check {

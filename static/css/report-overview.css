@@ -132,3 +132,54 @@
 .report-chart-switch .report-series-legend > span { display:inline-flex; align-items:center; gap:var(--space-1); }
 .report-series-legend__count { margin-left:var(--space-1); color:var(--muted); font-size:inherit; font-variant-numeric:tabular-nums; }
 .report-month-note { margin:var(--space-2) 0 0; font-size:var(--text-xs); color:var(--muted); line-height:1.55; }
+/* T-311 車行／平台排行＋每月熱度格（report-heat.js）：單色藍階 5 階（--heat-1～5，定義在 app.css 主題區塊），
+   淺格深字、深格白字；桌機一列＝名稱｜台數橫條與占比｜每月格子，容器窄於 640px 時名稱與台數一行、格子排在下一行。 */
+.report-heat-wrap { --heat-0:var(--surface-soft); container-type:inline-size; display:grid; gap:var(--space-3); margin-top:var(--space-2); }
+.report-heat-scroll { min-width:0; overflow-x:auto; }
+.report-heat { display:grid; min-width:0; font-size:var(--text-sm); font-variant-numeric:tabular-nums; }
+.report-heat__row { display:grid; grid-template-columns:minmax(6.5em, 10em) minmax(7.5em, 10em) minmax(0, 1fr); align-items:center; column-gap:var(--space-3); padding:2px 0; }
+.report-heat__months { display:grid; grid-template-columns:repeat(var(--report-heat-months), minmax(1.9rem, 1fr)); gap:2px; }
+.report-heat__head { align-items:end; padding-bottom:var(--space-2); color:var(--muted); font-size:var(--text-xs); }
+.report-heat__head .report-heat__name, .report-heat__head .report-heat__total { font-weight:650; }
+.report-heat__month { display:grid; justify-items:center; line-height:1.25; text-align:center; }
+.report-heat__month b { font-weight:650; color:var(--ink-soft); white-space:nowrap; }
+.report-heat__month b i { font-style:normal; }
+.report-heat__month em { font-style:normal; font-weight:750; color:var(--ink); font-size:var(--text-2xs); }
+.report-heat__month small { min-height:1.2em; font-size:var(--text-2xs); color:var(--muted); }
+.report-heat__name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; color:var(--ink); }
+.report-heat__name[href] { text-decoration:underline; text-decoration-color:var(--line-strong); text-underline-offset:3px; border-radius:var(--radius-xs); }
+.report-heat__name[href]:hover { text-decoration-color:currentColor; }
+.report-heat__name[href]:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.report-heat__name[href].report-row-selected { color:var(--forest); text-decoration-color:currentColor; }
+.report-heat__total { display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; gap:var(--space-2); }
+.report-heat__bar { height:8px; border-radius:var(--radius-xs); background:var(--surface-soft); overflow:hidden; }
+.report-heat__bar b { display:block; height:100%; border-radius:var(--radius-xs); background:var(--chart-s1); }
+.report-heat__total strong { display:inline-flex; align-items:baseline; gap:var(--space-1); justify-content:flex-end; min-width:4.5em; font-weight:750; color:var(--ink); }
+.report-heat__total small { font-size:var(--text-2xs); font-weight:500; color:var(--muted); }
+.report-heat__cell { display:grid; place-items:center; min-height:28px; border-radius:var(--radius-xs); background:var(--heat-0); font-weight:700; font-size:var(--text-xs); }
+.report-heat__cell.h1 { background:var(--heat-1); color:var(--heat-ink-1); }
+.report-heat__cell.h2 { background:var(--heat-2); color:var(--heat-ink-2); }
+.report-heat__cell.h3 { background:var(--heat-3); color:var(--heat-ink-3); }
+.report-heat__cell.h4 { background:var(--heat-4); color:var(--heat-ink-4); }
+.report-heat__cell.h5 { background:var(--heat-5); color:var(--heat-ink-5); }
+.report-heat__cell.is-partial { box-shadow:inset 0 0 0 1px var(--line-strong); }
+.report-heat__row.is-other .report-heat__name { color:var(--muted); }
+.report-heat__row.is-other .report-heat__bar b { background:var(--chart-other); }
+.report-heat__foot { margin-top:var(--space-2); padding-top:var(--space-2); border-top:1px solid var(--line); font-weight:750; }
+.report-heat__sum { text-align:center; font-size:var(--text-xs); color:var(--ink-soft); }
+.report-heat__scale { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-1); margin:0; font-size:var(--text-xs); color:var(--muted); }
+.report-heat__scale i { width:14px; height:10px; border-radius:2px; background:var(--heat-0); }
+.report-heat__scale i:first-of-type { margin-left:var(--space-2); }
+.report-heat__scale i.h1 { background:var(--heat-1); } .report-heat__scale i.h2 { background:var(--heat-2); } .report-heat__scale i.h3 { background:var(--heat-3); }
+.report-heat__scale i.h4 { background:var(--heat-4); } .report-heat__scale i.h5 { background:var(--heat-5); }
+.report-heat__note { margin:0; font-size:var(--text-xs); line-height:1.55; color:var(--muted); }
+@container (max-width: 640px) {
+  .report-heat__row { grid-template-columns:minmax(0, 1fr) auto; row-gap:var(--space-1); padding:var(--space-2) 0; border-top:1px solid var(--line-soft); }
+  .report-heat__row > .report-heat__months { grid-column:1 / -1; grid-template-columns:repeat(var(--report-heat-months), minmax(1rem, 1fr)); gap:2px; }
+  .report-heat__head { border-top:0; }
+  .report-heat__head .report-heat__name, .report-heat__head .report-heat__total { display:none; }
+  .report-heat__total { grid-template-columns:4.5em auto; }
+  .report-heat__cell { min-height:24px; font-size:var(--text-2xs); }
+  .report-heat__month em, .report-heat__month b i, .report-heat__month small { display:none; }
+  .report-heat__month.is-partial b { color:var(--ink); text-decoration:underline dotted; text-underline-offset:3px; }
+}

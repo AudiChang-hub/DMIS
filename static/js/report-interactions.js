@@ -595,7 +595,10 @@ function initReportVisuals(root) {
       const link = row.querySelector('[data-report-drill]'); if(link) link.tabIndex = -1;
     });
     if (layout === 'analysis_overview' && ['stacked','bar'].includes(chart.dataset.chart)) renderReportAnalysis(chart, attach);
-    if (overview && layout !== 'analysis_overview' && chart.dataset.chart === 'stacked') {
+    // T-311：車行／平台（#6 #8 #11 #12）改成排行＋每月熱度格（report-heat.js）；畫不出來（例如不是月份細分）才用原本的堆疊圖。
+    const heat = overview && ['dealer_overview', 'platform_overview'].includes(layout) && chart.dataset.chart === 'stacked'
+      && typeof renderReportHeat === 'function' && renderReportHeat(chart, {currentMonth: overview.dataset.currentMonth || ''});
+    if (!heat && overview && layout !== 'analysis_overview' && chart.dataset.chart === 'stacked') {
       const stacks = chart.querySelector('.report-stacks');
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {

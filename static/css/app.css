@@ -123,6 +123,17 @@
   --chart-other: #8a8f98;
   --chart-other-2: #6c717a;
   --chart-other-3: #4b4f56;
+  /* T-311 報表熱度格單色藍階（5 階，dataviz validator --ordinal 亮暗都 PASS）：淺格深字、深格白字。 */
+  --heat-1: #a3acf9;
+  --heat-2: #7d8af6;
+  --heat-3: #5767f3;
+  --heat-4: #3446f0;
+  --heat-5: #1f2aa6;
+  --heat-ink-1: #11151a;
+  --heat-ink-2: #11151a;
+  --heat-ink-3: #ffffff;
+  --heat-ink-4: #ffffff;
+  --heat-ink-5: #ffffff;
   --select-chevron: var(--ink-soft);
   /* 操作色：--action-text 用於綠色文字與連結，深色主題改為淺色以維持對比。 */
   --action-text: #2f40e3;
@@ -219,6 +230,16 @@ html[data-theme="night-blue"] {
   --chart-other: #6b7380;
   --chart-other-2: #8d95a2;
   --chart-other-3: #b4bac4;
+  --heat-1: #3b48ad;
+  --heat-2: #5262e6;
+  --heat-3: #7581ff;
+  --heat-4: #9ea6ff;
+  --heat-5: #c9cdff;
+  --heat-ink-1: #ffffff;
+  --heat-ink-2: #ffffff;
+  --heat-ink-3: #11151a;
+  --heat-ink-4: #11151a;
+  --heat-ink-5: #11151a;
   --shadow-ink: #000000;
   --ink: #eef1f5;
   --muted: #a3acb8;
@@ -329,6 +350,16 @@ html[data-theme="night-blue"] {
     --chart-other: #6b7380;
     --chart-other-2: #8d95a2;
     --chart-other-3: #b4bac4;
+    --heat-1: #3b48ad;
+    --heat-2: #5262e6;
+    --heat-3: #7581ff;
+    --heat-4: #9ea6ff;
+    --heat-5: #c9cdff;
+    --heat-ink-1: #ffffff;
+    --heat-ink-2: #ffffff;
+    --heat-ink-3: #11151a;
+    --heat-ink-4: #11151a;
+    --heat-ink-5: #11151a;
     --shadow-ink: #000000;
     --ink: #eef1f5;
     --muted: #a3acb8;

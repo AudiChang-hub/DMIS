@@ -108,3 +108,19 @@ class MonthSwitchPageTests(TestCase):
         html = self.page(model_analysis("sex"))
         self.assertNotIn("data-chart-switch", html)
         self.assertNotIn("data-switch-panel", html)
+
+
+class HeatTableAssetsTests(SimpleTestCase):
+    def test_dealer_and_platform_use_heat_table_with_validated_scale(self):
+        heat = (ROOT / "static/js/report-heat.js").read_text(encoding="utf-8")
+        self.assertIn("const REPORT_HEAT_LEVELS = 5;", heat)
+        self.assertIn("其他平台", heat)
+        interactions = (ROOT / "static/js/report-interactions.js").read_text(encoding="utf-8")
+        self.assertIn("['dealer_overview', 'platform_overview'].includes(layout)", interactions)
+        css = (ROOT / "static/css/app.css").read_text(encoding="utf-8")
+        for color in ("#a3acf9", "#7d8af6", "#5767f3", "#3446f0", "#1f2aa6", "#3b48ad", "#5262e6", "#7581ff", "#9ea6ff", "#c9cdff"):
+            self.assertIn(color, css)
+        self.assertEqual(len(re.findall(r"--heat-5: #", css)), 3)  # 亮色、night-blue、跟隨系統深色
+        for page in ("layout.html", "designer_frame.html"):
+            html = (ROOT / "templates/sales/reporting" / page).read_text(encoding="utf-8")
+            self.assertLess(html.index("js/report-heat.js"), html.index("js/report-interactions.js"))

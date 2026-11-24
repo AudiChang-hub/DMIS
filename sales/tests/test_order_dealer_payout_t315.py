@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import (
-    DealerRewardCampaign, DealerRewardCampaignItem, DealerRewardCatalogItem, DealerVolumeBonusRule,
+    OrderAccountProfile, DealerRewardCampaign, DealerRewardCampaignItem, DealerRewardCatalogItem, DealerVolumeBonusRule,
     DealerVolumeBonusTier, OrderOperationsProfile, SalesOrder, SalesSource, VehicleBrand, VehicleColor, VehicleModel,
 )
 from sales.reporting import payouts
@@ -193,40 +193,104 @@ class OrderPayoutCardTests(OrderPayoutBase):
 
 
 class OrderPayoutPermissionTests(OrderPayoutBase):
+    """使用者 2026-11-24：能打開訂單頁的人都能在訂單卡上勾或取消（不需 dealer_payouts）；給付頁權限照舊。"""
+
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
         users = get_user_model().objects
-        cls.viewer = users.create_user("t315-viewer", password="Test-Only-123")
-        cls.operator = users.create_user("t315-operator", password="Test-Only-123")
-        for user, operate in ((cls.viewer, False), (cls.operator, True)):
-            UserAccessState.objects.create(user=user, configured=True)
-            ScreenAccessGrant.objects.create(user=user, screen_key="orders", view=True)
-            ScreenAccessGrant.objects.create(user=user, screen_key="work", view=True, operate=True)
-            ScreenAccessGrant.objects.create(user=user, screen_key="dealer_payouts", view=True, operate=operate)
-        cls.legacy = users.create_user("t315-legacy", password="Test-Only-123")
+        # 只有「訂單」查看權限：沒有訂單作業、沒有給付頁權限。
+        cls.clerk = users.create_user("t315-clerk", password="Test-Only-123", first_name="小明", last_name="王")
+        UserAccessState.objects.create(user=cls.clerk, configured=True)
+        ScreenAccessGrant.objects.create(user=cls.clerk, screen_key="orders", view=True)
+        # 只能看自己建的單（訂單範圍 own）。
+        cls.own_only = users.create_user("t315-own", password="Test-Only-123")
+        UserAccessState.objects.create(user=cls.own_only, configured=True)
+        ScreenAccessGrant.objects.create(user=cls.own_only, screen_key="orders", view=True)
+        OrderAccountProfile.objects.create(user=cls.own_only, order_scope="own")
+        # 有給付頁權限、沒有訂單頁權限。
+        cls.payout_only = users.create_user("t315-payout", password="Test-Only-123")
+        UserAccessState.objects.create(user=cls.payout_only, configured=True)
+        ScreenAccessGrant.objects.create(user=cls.payout_only, screen_key="dealer_payouts", view=True, operate=True)
 
-    def test_without_operate_sees_status_but_checkbox_disabled_and_post_denied(self):
+    def test_anyone_who_can_open_order_can_check_and_history_names_them(self):
         order = self.registered()
-        payouts.set_order_paid(order, [KEY.format(order.pk)], True, "staffb")
-        self.client.force_login(self.viewer)
-        row = row_html(card_html(self.client, order), "傭金")
-        self.assertIn("payout-check__text\">已給付", row)
-        self.assertIn(" disabled", row.split("data-order-payout-toggle", 1)[1].split(">", 1)[0])
-        self.assertNotIn("data-order-payout-panel", row)
-        self.assertEqual(self.update(order, KEY.format(order.pk), "unpaid").status_code, 403)
-        self.assertTrue(DealerPayoutEntry.objects.get().paid)
-        self.client.force_login(self.legacy)
-        self.assertEqual(self.update(order, KEY.format(order.pk), "unpaid").status_code, 403)
-        self.assertTrue(DealerPayoutEntry.objects.get().paid)
-
-    def test_operator_can_check(self):
-        order = self.registered()
-        self.client.force_login(self.operator)
+        self.client.force_login(self.clerk)
         row = row_html(card_html(self.client, order), "傭金")
         self.assertNotIn(" disabled", row.split("data-order-payout-toggle", 1)[1].split(">", 1)[0])
         self.assertEqual(self.update(order, KEY.format(order.pk)).status_code, 302)
-        self.assertTrue(DealerPayoutEntry.objects.get().paid)
+        entry = DealerPayoutEntry.objects.get()
+        self.assertTrue(entry.paid)
+        self.assertEqual(entry.paid_by, "小明 王")
+        self.assertEqual(entry.events.get().actor_name, "小明 王")
+        # 取消也可以；給付頁本身仍要 dealer_payouts 權限。
+        self.assertEqual(self.update(order, KEY.format(order.pk), "unpaid").status_code, 302)
+        self.assertFalse(DealerPayoutEntry.objects.get().paid)
+        self.assertEqual(self.client.get(reverse("dealer_payout_list")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("dealer_payout_update"),
+                                          {"action": "paid", "key": KEY.format(order.pk)}).status_code, 403)
+        self.assertNotIn("在給付頁看這張單", card_html(self.client, order))
+
+    def test_no_order_access_or_out_of_scope_or_anonymous_cannot_write(self):
+        order = self.registered()
+        # 沒有訂單頁權限（只有給付頁權限）：403。
+        self.client.force_login(self.payout_only)
+        self.assertEqual(self.update(order, KEY.format(order.pk)).status_code, 403)
+        # 看不到這張單（訂單範圍只限自己建的）：與所有訂單頁網址相同，回 404、不透露訂單存在。
+        self.client.force_login(self.own_only)
+        self.assertEqual(self.client.get(reverse("order_detail", args=[order.pk])).status_code, 404)
+        self.assertEqual(self.update(order, KEY.format(order.pk)).status_code, 404)
+        # 沒有登入：導向登入頁。
+        self.client.logout()
+        response = self.update(order, KEY.format(order.pk))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])
+        self.assertFalse(DealerPayoutEntry.objects.exists())
+
+
+class OrderPayoutOverviewTests(OrderPayoutBase):
+    """訂單總覽（T-307，快捷鍵 O）在「車行獎勵」區最後列唯讀的給付狀態；「複製全部」跟著帶（這一區本來就列傭金）。"""
+    setUp = OrderPayoutCardTests.setUp
+
+    @staticmethod
+    def rows(overview):
+        section = next(section for section in overview["sections"] if section["key"] == "dealer_reward")
+        return {row["label"]: row for row in section["rows"]}
+
+    def test_commission_and_reward_status_are_listed_read_only(self):
+        from sales.services.order_overview import build_order_overview
+
+        order = self.registered()
+        apply_order_dealer_rewards(order, force=True)
+        reward_key = next(item.source_key for item in payouts.order_items(order) if item.kind == "reward")
+        payouts.set_order_paid(order, [KEY.format(order.pk), reward_key], True, "王小明")
+        today = timezone.localtime().strftime("%m/%d")
+        overview = build_order_overview(SalesOrder.objects.get(pk=order.pk))
+        rows = self.rows(overview)
+        self.assertEqual(rows["傭金給付"]["value"], f"傭金 $2,300 · 已給付（{today} 王小明）")
+        self.assertEqual(rows["活動獎勵給付"]["value"],
+                         f"安全帽（年終衝量）1 頂 · 已給付（{today} 王小明）、安全帽（新車行首月禮）1 頂 · 未給付")
+        self.assertIn(f"傭金給付：傭金 $2,300 · 已給付（{today} 王小明）", overview["plain_text"])
+        self.assertIn("活動獎勵給付：安全帽（年終衝量）", overview["plain_text"])
+        # 既有列不變（T-258）。
+        self.assertEqual(rows["傭金"]["value"], "$2,300（預估）")
+        # 沒有傭金權限：不列傭金給付，實物照列。
+        rows = self.rows(build_order_overview(SalesOrder.objects.get(pk=order.pk), include_finance=False))
+        self.assertNotIn("傭金給付", rows)
+        self.assertIn("已給付", rows["活動獎勵給付"]["value"])
+        # 總覽頁只顯示、不能勾。
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse("order_overview", args=[order.pk])).content.decode()
+        self.assertIn('data-label="傭金給付"', page)
+        self.assertNotIn("data-order-payout-toggle", page)
+
+    def test_unlisted_and_empty_orders(self):
+        from sales.services.order_overview import build_order_overview
+
+        order = self.make_order(order_date=date(2026, 11, 1))
+        rows = self.rows(build_order_overview(SalesOrder.objects.get(pk=order.pk)))
+        self.assertEqual(rows["傭金給付"]["value"], "傭金 $2,300 · 確認領牌後才能登記給付")
+        self.assertEqual((rows["活動獎勵給付"]["value"], rows["活動獎勵給付"]["copy"]), ("—", ""))
 
 
 class OrderPayoutVolumeBonusTests(TestCase):
@@ -274,6 +338,11 @@ class OrderPayoutVolumeBonusTests(TestCase):
         self.assertIn(f"?dealer={self.dealer.pk}&amp;kind=volume_bonus", bonus)
         self.assertIn("傭金＋台數獎金＝$2,000，與「收入與支出」的傭金支出同一筆", card)
         self.assertIn("已給付 0／1", card, "台數獎金不算在可勾的項目裡")
+        from sales.services.order_overview import build_order_overview
+        section = next(section for section in build_order_overview(SalesOrder.objects.get(pk=first.pk))["sections"]
+                       if section["key"] == "dealer_reward")
+        paid_row = next(row for row in section["rows"] if row["label"] == "傭金給付")
+        self.assertEqual(paid_row["value"], "傭金 $1,500 · 未給付；台數獎金 $500 · 待發放（整批發放）")
 
     def test_bonus_key_is_rejected_from_order(self):
         first, second = self.settled()

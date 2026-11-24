@@ -5602,12 +5602,13 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "dealer_rewards": dealer_rewards,
             # 車行獎勵卡第一列的傭金（T-258），與收入與支出同一欄。
             "dealer_commission": dealer_commission,
-            # T-315：卡片逐項列與給付頁同一筆的已給付狀態；勾選權限同給付頁「操作」。
+            # T-315：卡片逐項列與給付頁同一筆的已給付狀態；能打開訂單頁就能勾（使用者 2026-11-24）。
             "order_payouts": (
                 order_payout_card(order, dealer_commission, dealer_rewards)
                 if dealer_commission or dealer_rewards["lines"] else None
             ),
-            "can_operate_payouts": policy_for(request).screen("dealer_payouts", "operate"),
+            "can_operate_payouts": policy_for(request).route(
+                "order_dealer_payout_update", "POST", kwargs={"pk": order.pk}),
             "can_view_payouts": policy_for(request).screen("dealer_payouts", "view"),
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,

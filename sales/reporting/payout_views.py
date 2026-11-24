@@ -185,14 +185,15 @@ def dealer_payout_update(request):
 def order_payout_update(request, pk):
     """訂單頁「車行獎勵」卡逐項勾已給付（T-315，使用者選 A）。
 
-    權限同給付頁的「操作」；寫入走 `payouts.set_order_paid`（只接受這張單的傭金與實物獎勵，台數獎金拒絕），
-    與給付頁是同一筆紀錄。完成後導回訂單領牌步驟，由 inplace-regions.js 原地換入卡片。
+    權限同訂單頁（使用者 2026-11-24：能打開訂單頁的人都能勾；中介層依 `orders` 畫面與訂單範圍把關，
+    看不到這張單回 404，同所有訂單頁網址）；給付頁本身仍需 `dealer_payouts` 權限。歷程記下登記人。
+    寫入走 `payouts.set_order_paid`（只接受這張單的傭金與實物獎勵，台數獎金拒絕），與給付頁是同一筆紀錄。
+    完成後導回訂單領牌步驟，由 inplace-regions.js 原地換入卡片。
     """
     from django.shortcuts import get_object_or_404
 
     from sales.models import SalesOrder
 
-    _require(request, "operate")
     order = get_object_or_404(SalesOrder, pk=pk)
     action = request.POST.get("action", "")
     keys = [key for key in request.POST.getlist("key") if key]

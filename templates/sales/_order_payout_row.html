@@ -25,7 +25,7 @@ dt 開頭直接是名稱（T-258 測試以「<dt>傭金」辨識傭金列）。
     {% elif item %}
     <form method="post" action="{% url 'order_dealer_payout_update' order.pk %}" data-inplace-form{% if item.settled %} data-order-payout-confirm{% endif %}>
       {% csrf_token %}<input type="hidden" name="key" value="{{ item.source_key }}"><input type="hidden" name="action" value="{% if item.settled %}unpaid{% else %}paid{% endif %}">
-      <label class="payout-check"{% if not can_operate_payouts %} title="需要「車行傭金／獎金給付」的操作權限才能勾選"{% endif %}>
+      <label class="payout-check"{% if not can_operate_payouts %} title="沒有權限勾選"{% endif %}>
         <input type="checkbox" id="order-payout-toggle-{{ slug }}" data-order-payout-toggle{% if item.settled %} checked{% endif %}{% if not can_operate_payouts or not item.checkable %} disabled{% endif %} aria-label="{{ row.name }}{% if row.campaign %}（{{ row.campaign }}）{% endif %}：{% if item.prior_settled %}已結清{% elif item.paid %}已給付{% else %}未給付{% endif %}"{% if item.settled and can_operate_payouts %} aria-controls="order-payout-confirm-{{ slug }}"{% endif %}>
         <span class="payout-check__box" aria-hidden="true"></span>
         <span class="payout-check__text">{% if item.prior_settled %}已結清{% elif item.paid %}已給付{% else %}未給付{% endif %}</span>

@@ -115,6 +115,26 @@ def _dealer_reward_section(order, include_finance):
         totals = "、".join(f"{total['name']} {total['quantity']} {total['unit']}" for total in rewards["totals"])
         reward_value = f"{totals}（{state}）"
         campaigns = "、".join(dict.fromkeys(line.campaign_name for line in rewards["lines"]))
+    # T-315：給付狀態（唯讀）與訂單頁「車行獎勵」卡同一份資料（`payouts.order_card`），列在這一區最後，
+    # 不改既有列；沒有傭金權限時只列實物。勾選只在訂單頁第 5 步。
+    payout_value = reward_paid_value = ""
+    if commission or rewards["lines"]:
+        from sales.reporting.payouts import order_card, status_text
+
+        card = order_card(order, commission, rewards)
+        parts = []
+        for row in card["commission_rows"] if include_finance else ():
+            amount = _money(row["amount"])[0]
+            if row.get("batch"):
+                parts.append(f"台數獎金 {amount} · {status_text(row['item'])}（整批發放）")
+            else:
+                parts.append(f"傭金 {amount} · {status_text(row['item']) if row['item'] else row['reason']}")
+        payout_value = "；".join(parts)
+        reward_paid_value = "、".join(
+            f"{row['name']}（{row['campaign']}）{format(row['quantity'].normalize(), 'f')} {row['unit']} · "
+            f"{status_text(row['item']) if row['item'] else row['reason']}"
+            for row in card["reward_rows"]
+        )
     rows = []
     if include_finance:
         rows.append(_row("傭金", commission_value, copy=commission_copy, mono=True))
@@ -125,6 +145,8 @@ def _dealer_reward_section(order, include_finance):
     ])
     if include_finance:
         rows.append(_row("傭金給", commission["recipient"].name if commission and commission["recipient"] else ""))
+        rows.append(_row("傭金給付", payout_value, wide=True))
+    rows.append(_row("活動獎勵給付", reward_paid_value, wide=True))
     return _section("dealer_reward", "車行獎勵", rows)
 
 

@@ -501,6 +501,18 @@ def _not_listed_reason(order, kind):
     return "不列入給付追蹤"
 
 
+def status_text(item):
+    """唯讀的給付狀態文字（T-315 訂單總覽）：已給付（11/24 王小明）／未給付／待發放／匯入前已結清。"""
+    if item.prior_settled:
+        return STATUS_LABELS["prior_settled"]
+    if item.paid:
+        when = timezone.localtime(item.entry.paid_at).strftime("%m/%d") if item.entry.paid_at else ""
+        who = " ".join(part for part in (when, item.entry.paid_by) if part)
+        text = f"已給付（{who}）" if who else "已給付"
+        return f"{text}，給付後金額有變" if item.changed else text
+    return "待發放" if item.kind == DealerPayoutEntry.Kind.VOLUME_BONUS else "未給付"
+
+
 def order_card(order, commission, rewards):
     """訂單頁「車行獎勵」卡逐項列（T-315，使用者選 A）：傭金、台數獎金、每個活動×品項各一列。
 

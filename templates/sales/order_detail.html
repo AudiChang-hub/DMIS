@@ -458,7 +458,7 @@
         <p class="figure-card__meta">{% if operations_profile.incentive_registration_date %}{% if order.is_registration_complete %}依 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 領牌{% else %}依訂單成立日 {{ operations_profile.incentive_registration_date|date:"Y/m/d" }} 預先觸發{% endif %}{% if incentive_applications %}符合的活動{% else %}的車型版本{% endif %} · {% endif %}{% if operations_profile.incentive_locked_at %}{{ operations_profile.incentive_locked_at|date:"Y/m/d H:i" }} 固定，不受後續活動異動影響{% else %}確認領牌後固定{% endif %}</p>
       </section>
       {% endif %}
-      {# 車行獎勵＝傭金＋活動獎勵（T-258）。T-315（使用者選 A）：每列直接勾已給付，與給付頁同一筆紀錄；傭金與已結算台數獎金分兩列（台數獎金整批發放只顯示），實物每個活動×品項一列；勾選權限同給付頁「操作」。 #}
+      {# 車行獎勵＝傭金＋活動獎勵（T-258）。T-315（使用者選 A）：每列直接勾已給付，與給付頁同一筆紀錄；傭金與已結算台數獎金分兩列（台數獎金整批發放只顯示），實物每個活動×品項一列；能打開訂單頁就能勾（給付頁仍需權限）。 #}
       {% if dealer_commission or dealer_rewards.lines %}
       <section class="figure-card order-payouts-card" id="order-dealer-rewards" aria-labelledby="figure-dealer-reward" data-order-dealer-rewards data-inplace-region>
         <header class="figure-card__head">
@@ -484,7 +484,7 @@
         <p class="figure-card__meta">{% if order.registration_completed_at %}領牌時沒有符合的車行獎勵活動。{% else %}給 {{ dealer_rewards.dealer.name }}；訂單成立日 {{ dealer_rewards.registration_date|date:"Y/m/d" }} 沒有符合的車行獎勵活動，確認領牌時依實際領牌日重新判斷。{% endif %}</p>
         {% endif %}
         {% if order_payouts.total or order_payouts.has_bonus %}
-        <p class="order-payouts__sync"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>勾選和「車行傭金／獎金給付」頁是<b>同一筆紀錄</b>，任一邊改，另一邊同步。只影響給付登記，不動傭金、掛帳、淨利與收支。{% if not can_operate_payouts %}需要「車行傭金／獎金給付」的操作權限才能勾選。{% endif %}{% if can_view_payouts and order_payouts.dealer %} <a class="order-payouts__link" href="{% url 'dealer_payout_list' %}?dealer={{ order_payouts.dealer.pk }}{% if order_payouts.start %}&amp;start={{ order_payouts.start|date:'Y-m-d' }}&amp;end={{ order_payouts.end|date:'Y-m-d' }}{% endif %}">在給付頁看這張單</a>{% endif %}</span></p>
+        <p class="order-payouts__sync"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>勾選和「車行傭金／獎金給付」頁是<b>同一筆紀錄</b>，任一邊改，另一邊同步。只影響給付登記，不動傭金、掛帳、淨利與收支。{% if can_view_payouts and order_payouts.dealer %} <a class="order-payouts__link" href="{% url 'dealer_payout_list' %}?dealer={{ order_payouts.dealer.pk }}{% if order_payouts.start %}&amp;start={{ order_payouts.start|date:'Y-m-d' }}&amp;end={{ order_payouts.end|date:'Y-m-d' }}{% endif %}">在給付頁看這張單</a>{% endif %}</span></p>
         {% endif %}
       </section>
       {% endif %}

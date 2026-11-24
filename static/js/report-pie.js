@@ -9,10 +9,11 @@ const REPORT_PIE_MAX = 6;
 const REPORT_PIE_INSIDE = 7; // 扇區百分比 ≥ 7% 才標在環上
 const REPORT_PIE_INK = [17, 21, 26];
 
-function reportPieRank(items, total, {max = REPORT_PIE_MAX} = {}) {
-  // 名次相同時依原報表順序（穩定排序）。
+function reportPieRank(items, total, {max = REPORT_PIE_MAX, fixed = []} = {}) {
+  // 名次相同時依原報表順序（穩定排序）；fixed（例如女、男）固定排最前面，不隨台數換位。
+  const rank = item => { const index = fixed.indexOf(item.label); return index < 0 ? fixed.length : index; };
   const ordered = items.map((item, position) => ({...item, position}))
-    .sort((a, b) => b.value - a.value || a.position - b.position);
+    .sort((a, b) => rank(a) - rank(b) || b.value - a.value || a.position - b.position);
   let shown = ordered, merged = [];
   if (ordered.length > max) { shown = ordered.slice(0, max - 1); merged = ordered.slice(max - 1); }
   const listed = ordered.reduce((sum, item) => sum + item.value, 0);
@@ -68,7 +69,8 @@ function renderReportPie(chart, rows, attach) {
   const items = rows.map(row => ({row, label: row.dataset.pointLabel, value: Math.max(0, Number(row.dataset.pointValue) || 0),
     display: row.dataset.pointDisplay, color: row.dataset.pointColor || 'var(--chart-s1)'})).filter(item => item.value > 0);
   if (!(total > 0) || !items.length) { host.replaceChildren(reportEmptyState(chart)); return; }
-  const ranked = reportPieRank(items, total);
+  // T-311：性別圓餅（#9 #15）女左男右、順序固定（女在前），配色同蝴蝶圖。
+  const ranked = reportPieRank(items, total, {fixed: chart.dataset.dimension === 'sex' ? ['女性', '男性'] : []});
   const slices = [...reportPieDistinct(doc, ranked.shown)];
   if (ranked.other) slices.push({...ranked.other, color: 'var(--chart-other)'});
   const svg = doc.createElementNS(ns, 'svg'); svg.classList.add('report-donut', 'report-pie__plot');

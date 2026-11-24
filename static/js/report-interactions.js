@@ -594,7 +594,12 @@ function initReportVisuals(root) {
       attach(row,row);
       const link = row.querySelector('[data-report-drill]'); if(link) link.tabIndex = -1;
     });
-    if (layout === 'analysis_overview' && ['stacked','bar'].includes(chart.dataset.chart)) renderReportAnalysis(chart, attach);
+    // T-311：人口分析依資料形狀換呈現（蝴蝶圖、熱度矩陣、車色單色長條），其餘照原本的橫條。
+    if (layout === 'analysis_overview' && ['stacked','bar'].includes(chart.dataset.chart)) {
+      const special = typeof renderReportAnalysisView === 'function' && renderReportAnalysisView(chart, attach);
+      if (!special) renderReportAnalysis(chart, attach);
+      if (!special && chart.dataset.chart === 'bar' && chart.dataset.dimension === 'color' && typeof reportEnhanceColorBars === 'function') reportEnhanceColorBars(chart);
+    }
     // T-311：車行／平台（#6 #8 #11 #12）改成排行＋每月熱度格（report-heat.js）；畫不出來（例如不是月份細分）才用原本的堆疊圖。
     const heat = overview && ['dealer_overview', 'platform_overview'].includes(layout) && chart.dataset.chart === 'stacked'
       && typeof renderReportHeat === 'function' && renderReportHeat(chart, {currentMonth: overview.dataset.currentMonth || ''});

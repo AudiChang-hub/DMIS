@@ -175,3 +175,46 @@ class CountExpandTests(TestCase):
         self.assertEqual(_count_money("1500.00"), "1,500")
         self.assertEqual(_count_money("12.50"), "12.50")
         self.assertEqual(_count_money("待補收支資料"), "待補收支資料")
+
+
+class AnalysisViewsTests(SimpleTestCase):
+    def test_car_paint_filter_uses_existing_color_families(self):
+        from sales.templatetags.report_tags import car_paint, car_paint_outline
+        self.assertEqual(car_paint("珍珠白 W1"), "#f4f5f7")
+        self.assertTrue(car_paint_outline(car_paint("珍珠白")))
+        self.assertEqual(car_paint("消光黑"), "#2b2d31")
+        self.assertFalse(car_paint_outline(car_paint("消光黑")))
+        self.assertEqual(car_paint("未知色"), "")
+
+    def test_assets_and_rules(self):
+        views = (ROOT / "static/js/report-analysis-views.js").read_text(encoding="utf-8")
+        self.assertIn("const REPORT_SEX_ORDER = ['女性', '男性'];", views)
+        self.assertIn("chart.dataset.series === 'sex'", views)
+        self.assertIn("chart.dataset.dimension === 'family_color' && chart.dataset.series === 'age_group'", views)
+        pie = (ROOT / "static/js/report-pie.js").read_text(encoding="utf-8")
+        self.assertIn("fixed: chart.dataset.dimension === 'sex' ? ['女性', '男性'] : []", pie)
+        for page in ("layout.html", "designer_frame.html"):
+            html = (ROOT / "templates/sales/reporting" / page).read_text(encoding="utf-8")
+            self.assertLess(html.index("js/report-analysis-views.js"), html.index("js/report-interactions.js"))
+
+
+class AnalysisPageTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        MonthSwitchPageTests.setUpTestData.__func__(cls)
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def test_scope_labels_fold_and_owner_list_collapsed(self):
+        from sales.reporting.source_templates import sex_model_color_analysis
+        report = ReportDefinition.objects.create(draft=sex_model_color_analysis(), published=sex_model_color_analysis(), version=1)
+        html = self.client.get(reverse("report_display", args=[report.pk])).content.decode()
+        self.assertIn('<details class="report-scope-fold"><summary>此圖固定條件</summary>', html)
+        self.assertIn("data-records-fold", html)
+        self.assertIn("車主名單（", html)
+
+    def test_color_bars_carry_car_paint(self):
+        report = ReportDefinition.objects.create(draft=model_analysis("color"), published=model_analysis("color"), version=1)
+        html = self.client.get(reverse("report_display", args=[report.pk])).content.decode()
+        self.assertIn('data-car-paint="#f4f5f7" data-car-paint-outline', html)

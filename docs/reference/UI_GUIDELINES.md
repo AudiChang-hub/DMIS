@@ -27,7 +27,7 @@
 | 類別 | 參數 |
 | --- | --- |
 | 基本色 | `--ink`／`--ink-soft`（文字）、`--muted`、`--surface*`、`--paper`、`--line-soft`／`--line-mid`／`--line`／`--line-strong`（由淺到深的線條）、`--forest`（操作）、`--navy`（框架）、`--gold`（重點）、`--focus-ring` |
-| 狀態色 | `--green`／`--blue`／`--amber`／`--red` 各有 `-soft`（底）、`-border`（淡邊框）、`-border-strong`（強調邊框）、`-ink`（深色文字）；`--amber-strong` 為待處理強調色 |
+| 狀態色 | `--green`／`--blue`／`--amber`／`--red` 各有 `-soft`（底）、`-border`（淡邊框）、`-border-strong`（強調邊框）、`-ink`（深色文字）；`--amber-strong` 為待處理強調色，只用在圓點、邊條等非文字標記（對白底 3.37，不能當文字，文字用 `--amber-ink`）；紅（優先）與黃（注意）並列的等級標記另以形狀區分：紅＝實心點加外圈、黃＝空心圈，長條的黃級加斜紋（T-300） |
 | 色上文字 | `--on-accent`（主色、深藍底上的白字）、`--on-status`（狀態色底上的字，夜間自動轉深） |
 | 識別色 | `--identity-sym-*`、`--identity-suzuki*`、`--identity-yellow*`、`--identity-violet*`（品牌與分線群組標籤）、`--chart-1`、`--chart-s1`～`--chart-s8`／`--chart-other`（報表圖表分類色） |
 | 圓角 | `--radius-xs` 6px、`--radius-sm` 8px、`--radius-md` 12px（按鈕、輸入框）、`--radius-lg` 16px、`--radius` 18px（主卡片）、`--radius-pill`；3px 以下的細線與 `50%` 可直接寫 |

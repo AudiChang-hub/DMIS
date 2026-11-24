@@ -37,7 +37,7 @@
   font-size: var(--text-xs); font-weight: 800; white-space: nowrap;
 }
 .deletion-review-impacts .is-ok { color: var(--green-ink); background: color-mix(in srgb, var(--green) 10%, transparent); border-color: var(--green-border); }
-.deletion-review-impacts .is-warn { color: var(--amber-strong); background: var(--amber-soft); border-color: var(--amber-border); }
+.deletion-review-impacts .is-warn { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
 .deletion-review-impacts .is-danger { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border); }
 .deletion-review-card__actions { display: flex; gap: var(--space-2); }
 .deletion-review-card__actions .button { white-space: nowrap; }

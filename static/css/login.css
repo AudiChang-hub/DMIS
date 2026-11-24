@@ -63,7 +63,7 @@
 .login-password { position: relative; }
 .login-password input { padding-right: 84px; }
 .login-password__toggle { position: absolute; top: 50%; right: var(--space-2); transform: translateY(-50%); }
-.login-caps { margin: 0; color: var(--amber-strong); font-size: var(--text-xs); font-weight: 800; }
+.login-caps { margin: 0; color: var(--amber-ink); font-size: var(--text-xs); font-weight: 800; }
 .login-alert {
   display: grid; padding: var(--space-3) var(--space-4); gap: var(--space-1); color: var(--red-ink);
   background: var(--red-soft); border: 1px solid var(--red-border); border-radius: var(--radius-md); font-weight: 700;

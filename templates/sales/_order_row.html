@@ -1,6 +1,6 @@
 {% load sales_format screen_access order_origin_tags %}
 {% if show_order_details %}<div class="order-row order-row--detailed">{% else %}<a class="order-row" href="{% url 'order_detail' order.pk %}">{% endif %}
-  <span class="status-dot status-{{ order.status }}"></span>
+  <span class="status-dot status-{{ order.status }}">{% if order.status == "cancel_refund_pending" or order.status == "delivered_docs_pending" %}<span class="visually-hidden">（優先）</span>{% endif %}</span>
   <div class="order-main">
     <span class="order-owner-line"><strong>{% if show_order_details %}<a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% else %}{{ order.owner_name }}{% endif %}</strong>{% include "sales/_payment_chip.html" %}{% if show_trade_in %}{% include "sales/_trade_in_chip.html" %}{% endif %}</span>
     <span class="order-number-stack"><small>{{ order.number }}{% if not show_order_details %} · {{ order.vehicle_model.name }}／{{ order.color.label }}{% endif %}</small>{% order_origin_badge order %}</span>

@@ -13,7 +13,7 @@
 .system-status-summary small { margin-top: 3px; color: var(--muted); font-size: var(--text-sm); }
 .system-status-summary--danger { border-left-color: var(--red); }
 .system-status-summary--danger > span { background: var(--red); }
-.system-status-summary--warning { border-left-color: var(--amber); }
+.system-status-summary--warning { border-left-color: var(--amber-strong); }
 .system-status-summary--warning > span { color: var(--amber); background: var(--amber-soft); }
 .system-status-grid { display: grid; margin-bottom: var(--stack-gap); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); }
 .system-status-card {

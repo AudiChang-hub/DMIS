@@ -42,7 +42,7 @@
 
   {# T-294：整列全寬；沒有事時整張收成一行。T-299：有事時分四類（寬版左欄①②、右欄③④，窄版單欄①→④），沒事的類別收成一行。 #}
   <section class="ops-card ops-attention{% if not c.attention %} is-clear{% endif %}" aria-labelledby="ops-attention-title" data-side-nav-section="需要處理">
-    <header class="ops-card__head"><h2 id="ops-attention-title">需要處理</h2>{% if c.attention %}<small>紅色優先，同色依金額與件數排序</small>{% endif %}</header>
+    <header class="ops-card__head"><h2 id="ops-attention-title">需要處理</h2>{% if c.attention %}<small><span class="ops-dot ops-dot--red" aria-hidden="true"></span>紅色優先，同色依金額與件數排序</small>{% endif %}</header>
     {% if c.attention %}
       <div class="ops-attention__groups">{% for column in c.attention_columns %}
         <div class="ops-attention__col">{% for group in column %}
@@ -54,7 +54,7 @@
                 <span class="ops-dot" aria-hidden="true"></span>
                 <span class="ops-todo__text"><strong>{{ item.label }}</strong>{% if item.detail %}<small>{{ item.detail }}</small>{% endif %}</span>
                 <span class="ops-todo__value"><b>{{ item.value }}</b> {{ item.unit }}{% if item.amount %}<small>${{ item.amount|number_with_commas }}</small>{% endif %}</span>
-                <span class="ops-visually-hidden">{% if item.severity == "red" %}（優先）{% endif %}</span>
+                <span class="ops-visually-hidden">{% if item.severity == "red" %}（優先）{% else %}（注意）{% endif %}</span>
               {% if item.url %}<span class="ops-todo__go" aria-hidden="true">→</span></a>{% else %}</div>{% endif %}</li>{% endfor %}
             </ol>
           </div>

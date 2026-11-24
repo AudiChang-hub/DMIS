@@ -23,7 +23,7 @@
   --blue-soft: #e7eff8;
   --amber: #925a00;
   --amber-soft: #fff1d6;
-  --red: #b13a3a;
+  --red: #c8102e;
   --red-soft: #fbe8e7;
   --gold: #c8f135;
   --gold-soft: #eefbc4;
@@ -90,7 +90,7 @@
   --violet-border: #c9b8ec;
   --amber-border: #e8cf8f;
   --amber-border-strong: #dcae4f;
-  --amber-strong: #9a6700;
+  --amber-strong: #c47c00;
   --amber-ink: #6e4700;
   --red-border: #e7bdb8;
   --red-border-strong: #cf8d86;
@@ -192,7 +192,7 @@ html[data-theme="night-blue"] {
   --violet-border: #45366e;
   --amber-border: #5c4a22;
   --amber-border-strong: #9a7a30;
-  --amber-strong: #e0a640;
+  --amber-strong: #f6c12f;
   --amber-ink: #f0cc80;
   --red-border: #6a3432;
   --red-border-strong: #a4544e;
@@ -241,7 +241,7 @@ html[data-theme="night-blue"] {
   --blue-soft: #172c42;
   --amber: #e4b453;
   --amber-soft: #3a2e18;
-  --red: #ef817b;
+  --red: #ff5468;
   --red-soft: #3a2021;
   --gold: #c8f135;
   --gold-soft: #2a3212;
@@ -302,7 +302,7 @@ html[data-theme="night-blue"] {
     --violet-border: #45366e;
     --amber-border: #5c4a22;
     --amber-border-strong: #9a7a30;
-    --amber-strong: #e0a640;
+    --amber-strong: #f6c12f;
     --amber-ink: #f0cc80;
     --red-border: #6a3432;
     --red-border-strong: #a4544e;
@@ -351,7 +351,7 @@ html[data-theme="night-blue"] {
     --blue-soft: #172c42;
     --amber: #e4b453;
     --amber-soft: #3a2e18;
-    --red: #ef817b;
+    --red: #ff5468;
     --red-soft: #3a2021;
     --gold: #c8f135;
     --gold-soft: #2a3212;
@@ -865,7 +865,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
   border-radius: var(--radius-md); box-shadow: var(--shadow);
 }
 .message.success { border-left-color: var(--forest-2); }
-.message.warning { border-left-color: var(--amber); }
+.message.warning { border-left-color: var(--amber-strong); }
 .message.error { border-left-color: var(--red); }
 .message-text { overflow-wrap: anywhere; }
 .message-close {
@@ -922,8 +922,9 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .order-row:last-child { border-bottom: 0; }
 .order-row:hover { background: var(--surface-soft); }
 .status-dot { width: 8px; height: 8px; background: var(--blue); border-radius: 50%; }
-.status-dot.status-contract_pending { background: var(--amber); }
-.status-dot.status-cancel_refund_pending, .status-dot.status-delivered_docs_pending { background: var(--red); }
+/* T-300：注意（待簽約；待接單見下方）＝琥珀色空心圈，優先（取消待退款、已交車待領牌）＝紅色實心點加外圈；形狀不同，色弱也分得出來。 */
+.status-dot.status-contract_pending { box-sizing: border-box; background: transparent; border: 2px solid var(--amber-strong); }
+.status-dot.status-cancel_refund_pending, .status-dot.status-delivered_docs_pending { background: var(--red); outline: 2px solid var(--red); outline-offset: 2px; }
 .order-main strong, .order-main small { display: block; }
 .order-main { min-width: 0; }
 .order-main small { margin-top: 2px; color: var(--muted); font-size: var(--text-sm); }
@@ -1072,7 +1073,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
   font-size: var(--text-sm);
 }
 .draft-status-dot { width: 9px; height: 9px; flex: 0 0 auto; background: var(--line-strong); border-radius: 50%; }
-.draft-status.pending .draft-status-dot { background: var(--amber); }
+.draft-status.pending .draft-status-dot { background: var(--amber-strong); }
 .draft-status.saving .draft-status-dot { background: var(--blue); animation: ocr-spin .8s linear infinite; }
 .draft-status.saved .draft-status-dot { background: var(--forest-2); }
 .draft-status.error { color: var(--red); background: var(--red-soft); border-color: var(--red-border); }
@@ -4167,7 +4168,7 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
   content: ""; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
   background: var(--line); transition: background .2s ease;
 }
-.autosave-status[data-state="saving"]::before { background: var(--amber); animation: autosave-pulse 1s ease-in-out infinite; }
+.autosave-status[data-state="saving"]::before { background: var(--amber-strong); animation: autosave-pulse 1s ease-in-out infinite; }
 .autosave-status[data-state="saved"] { color: var(--green); }
 .autosave-status[data-state="saved"]::before { background: var(--green); }
 .autosave-status[data-state="pending"], .autosave-status[data-state="error"] { color: var(--red); }
@@ -5334,7 +5335,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .release-content .home-release-list { margin: var(--space-2) 0 var(--stack-gap-sm); }
 .release-content li + li { margin-top: var(--space-2); }
 .status-pill.status-intake_pending { background: var(--amber-soft); color: var(--amber-ink); border: 2px solid var(--amber-strong); font-weight: 800; }
-.status-dot.status-intake_pending { background: var(--amber-strong); }
+.status-dot.status-intake_pending { box-sizing: border-box; background: transparent; border: 2px solid var(--amber-strong); }
 .intake-receipt { border-inline-start: 5px solid var(--amber-strong); scroll-margin-top: 110px; }
 .intake-accept-card label { display: inline-flex; align-items: center; gap: var(--space-3); white-space: nowrap; min-height: 44px; font-weight: 700; }
 .intake-accept-card input[type=checkbox] { width: 22px; height: 22px; min-height: 22px; flex: 0 0 22px; }
@@ -6061,7 +6062,7 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   .catalog-prices dd { font-size: min(var(--text-md), 11.5cqi); }
 }
 
-.model-tool-future-date { display: inline-block; margin-top: var(--space-1); padding: var(--space-1) var(--space-2); color: var(--amber-strong); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; }
+.model-tool-future-date { display: inline-block; margin-top: var(--space-1); padding: var(--space-1) var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 800; }
 
 /* ===== 共用側邊把手導覽（_side_nav.html／side-nav.js）：比照機種清單與訂單步驟 ===== */
 .side-nav { --side-nav-width: 260px; --side-nav-top: var(--app-header-height, 72px); }
@@ -6122,7 +6123,7 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .side-nav__label small { display: block; margin-top: 1px; color: var(--muted); font-size: var(--text-2xs); font-weight: 600; }
 .side-nav__link.is-current { color: var(--ink); background: var(--surface); box-shadow: inset 3px 0 0 var(--action-bg); }
 .side-nav__link.is-current .side-nav__dot { background: var(--action-bg); transform: scale(1.25); }
-.side-nav__link.is-attention .side-nav__dot { background: var(--amber); }
+.side-nav__link.is-attention .side-nav__dot { background: var(--amber-strong); }
 [data-side-nav-section] { scroll-margin-top: calc(var(--app-header-height, 72px) + 24px); }
 /* 訂單精靈的步驟放進側邊列時改為直向。 */
 .side-nav .wizard-bar { margin: 0; }

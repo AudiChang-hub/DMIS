@@ -2,7 +2,7 @@
 .workspace-tabs button{background:transparent;color:var(--text,var(--navy));border:0;border-radius:var(--radius-sm);min-height:48px;padding:var(--space-3);font:inherit;font-weight:700;cursor:pointer}
 .workspace-tabs button[aria-selected=true]{background:var(--forest);color:var(--on-accent)}
 .workspace-tabs button:focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
-.workspace-tabs [data-dirty-indicator]{margin-left:var(--space-2);color:var(--amber-strong)}.workspace-tabs button[aria-selected=true] [data-dirty-indicator]{color:var(--amber-soft)}
+.workspace-tabs [data-dirty-indicator]{margin-left:var(--space-2);color:var(--amber-ink)}.workspace-tabs button[aria-selected=true] [data-dirty-indicator]{color:var(--amber-soft)}
 [data-workspace-section][hidden],[data-workspace-panel][hidden]{display:none!important}
 .workspace-message{padding:var(--inset-pad);margin: var(--stack-gap-sm) 0 var(--stack-gap-sm);border:1px solid var(--border,var(--line));border-radius:var(--radius-md);background:var(--surface);color:var(--text,var(--navy));white-space:pre-line}
 .workspace-message.is-error{border-color:var(--red)}

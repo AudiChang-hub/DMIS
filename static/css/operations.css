@@ -513,16 +513,28 @@ html[data-theme="night-blue"] .ops {
   color: var(--forest);
 }
 
+/* 需要處理等級（T-300）：注意＝琥珀色空心圈；優先＝紅色實心點加外圈。形狀不同，色弱也分得出來；兩色對卡片底都 ≥ 3:1。 */
 .ops-dot {
+  box-sizing: border-box;
   width: 10px;
   height: 10px;
+  border: 2px solid var(--amber-strong);
   border-radius: 50%;
-  background: var(--amber-strong);
+  background: transparent;
 }
 
-.ops-todo__item--red .ops-dot {
+.ops-todo__item--red .ops-dot,
+.ops-dot--red {
+  border: 0;
   background: var(--red);
-  box-shadow: 0 0 0 3px var(--red-soft);
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.ops-card__head small .ops-dot {
+  display: inline-block;
+  margin-right: var(--space-2);
+  vertical-align: -1px;
 }
 
 .ops-todo__text strong {
@@ -1428,8 +1440,9 @@ html[data-theme="night-blue"] .ops {
   background: var(--ink-soft);
 }
 
+/* T-300：滯銷（注意）加斜紋、缺貨風險（優先）實心，不靠顏色也分得出兩級。 */
 .ops-cover__bar.is-slow {
-  background: var(--amber-strong);
+  background: repeating-linear-gradient(135deg, var(--amber-strong) 0 3px, transparent 3px 5px);
 }
 
 .ops-cover__bar.is-short {

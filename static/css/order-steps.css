@@ -110,7 +110,7 @@
 .order-step__state.is-done { color: var(--green-ink); background: var(--green-border); }
 .order-step__state.is-current { color: var(--action-on); background: var(--action-bg); }
 .order-step__state.is-todo { color: var(--amber-ink); background: var(--amber-soft); }
-.order-step__header [data-dirty-indicator] { color: var(--amber-strong); }
+.order-step__header [data-dirty-indicator] { color: var(--amber-ink); }
 .order-step__body { display: grid; gap: var(--stack-gap-sm); min-width: 0; padding: var(--card-pad); }
 .order-step__body > .order-tab-panel, .order-step__body > .section-block { margin: 0; }
 /* 步驟本身已是卡片：內層沿用的區塊去掉外框與內距，避免雙層卡片。 */

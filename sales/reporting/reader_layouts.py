@@ -48,3 +48,62 @@ def reader_cards(config, items):
         elif result not in months:
             cards.append(result)
     return cards
+
+
+# T-311 共用基礎：閱讀版型的明細預設只顯示常用欄，其他欄用「顯示其他 N 欄」打開（欄位、排序、CSV 都不變）。
+# 台數統計明細整段預設收合、人口分組名單也收合，所以不在這裡縮欄。
+RECORD_PRIMARY_COLUMNS = {
+    "sales_overview": ("registration_date", "legacy_source_name", "model_number", "legacy_energy", "color", "owner_name", "payment_confirmed"),
+    "electric_overview": ("registration_date", "legacy_source_name", "legacy_sales_source", "model_number", "color", "owner_name"),
+    "gasoline_overview": ("registration_date", "legacy_source_name", "legacy_sales_source", "model_number", "color", "owner_name"),
+    "platform_overview": ("registration_date", "legacy_dealer", "model_number", "color", "owner_name", "payment_confirmed"),
+    "dealer_overview": ("registration_date", "legacy_dealer", "model_number", "color", "owner_name", "payment_confirmed"),
+}
+
+
+def record_extra_columns(config, columns):
+    """回傳要收起來的欄位鍵；版型沒有設定常用欄，或常用欄與實際欄位對不上時不收（照舊全部顯示）。"""
+    primary = RECORD_PRIMARY_COLUMNS.get(config.get("reader_layout"))
+    if not primary or not any(key in primary for key in columns):
+        return set()
+    return {key for key in columns if key not in primary}
+
+
+def reader_meta(items):
+    """頁首摘要（T-311）：月份圖涵蓋的期間與張數；四款車型各一張的人口分析寫「圖表涵蓋 N 款車型」。只讀已查好的結果。"""
+    if not items:
+        return {}
+    page_wide = [result for result in items if not result["card"].get("fixed_filters") and not result["card"].get("vehicle_model")]
+    meta = {}
+    if page_wide:
+        meta["count"] = page_wide[0]["count"]
+        months = sorted(row["label"] for result in page_wide if result.get("date_dimension") and result["card"].get("dimension") == "month"
+                        for row in result["rows"] if str(row.get("label", ""))[:1].isdigit())
+        if months:
+            meta["range"] = f"{months[0]}–{months[-1]}" if months[0] != months[-1] else months[0]
+    else:
+        meta["count"] = sum(result["count"] for result in items)
+        meta["models"] = len(items)
+    return meta
+
+
+def kpi_spark(items, current_month):
+    """KPI「訂單」格下的每月小直條：取第一張整頁範圍的月份圖結果，進行中的月份用淡色。"""
+    from decimal import Decimal, InvalidOperation
+    for result in items:
+        card = result["card"]
+        if card.get("fixed_filters") or card.get("vehicle_model") or card.get("dimension") != "month" or result.get("retained_candidates"):
+            continue
+        rows = sorted((row for row in result["rows"] if str(row.get("label", ""))[:1].isdigit()), key=lambda row: row["label"])
+        values = []
+        for row in rows[-12:]:
+            try:
+                values.append((row["label"], Decimal(str(row["value"]))))
+            except (InvalidOperation, TypeError):
+                return []
+        top = max((value for _label, value in values), default=0)
+        if not values or top <= 0:
+            return []
+        return [{"label": label, "display": f"{value:,.0f}", "height": max(8, round(float(value / top) * 100)),
+                 "partial": label == current_month} for label, value in values]
+    return []

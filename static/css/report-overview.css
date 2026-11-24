@@ -275,3 +275,25 @@
 .report-scope-fold > summary::before { content:"i"; display:inline-grid; place-items:center; width:16px; height:16px; border:1px solid currentColor; border-radius:50%; font-size:var(--text-2xs); font-weight:800; font-style:italic; }
 .report-scope-fold > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:var(--radius-xs); }
 .report-scope-fold > .report-scope-summary { margin-top:var(--space-1); }
+/* T-311 共用基礎（閱讀版型）：頁首一行摘要、說明框收進口徑、卡片右上角「看訂單 →」、連動提示整頁一次、明細常用欄、KPI 小直條。 */
+.report-reader-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:0 var(--space-1); margin:var(--space-1) 0 0; font-size:var(--text-sm); color:var(--muted); font-variant-numeric:tabular-nums; }
+.report-reader-meta b { color:var(--ink); font-weight:700; }
+.report-sales-overview > .report-reader-description .page-help-tip, .report-sales-overview > .report-reader-description .help-page-tip { margin-top:var(--space-3); }
+.report-card-orders { flex:none; align-self:center; margin-left:auto; padding:var(--space-1) var(--space-2); border-radius:var(--radius-xs); font-size:var(--text-sm); font-weight:700; color:var(--action-text); text-decoration:none; white-space:nowrap; }
+.report-card-orders:hover { background:color-mix(in srgb, var(--action-text) 8%, transparent); }
+.report-card-orders:focus-visible { outline:3px solid var(--focus-ring); outline-offset:1px; }
+.report-card-orders + .report-overview-tools { margin-left:var(--space-1); }
+.report-reader-shell .report-reader-main .report-chart > .report-card-foot--overview { display:none; }
+.report-reader-shell .report-reader-main .report-chart:has(> .report-card-foot--overview) { padding-bottom:var(--space-5); }
+.report-overview-hint { display:flex; align-items:center; gap:var(--space-2); margin:0; font-size:var(--text-sm); color:var(--muted); }
+.report-overview-hint::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--action-text); flex:none; }
+.report-record-note--line > summary { font-size:var(--text-sm); color:var(--muted); }
+.report-reader-main:not([data-show-record-extra]) .report-record-panel [data-record-extra] { display:none; }
+.report-record-extra-toggle > span + span, .report-reader-main[data-show-record-extra] .report-record-extra-toggle > span:first-child { display:none; }
+.report-reader-main[data-show-record-extra] .report-record-extra-toggle > span + span { display:inline; }
+.report-kpi__spark { display:flex; align-items:flex-end; gap:2px; height:22px; margin:var(--space-1) 0 0; }
+.report-kpi__spark i { flex:1; max-width:8px; min-height:2px; border-radius:2px 2px 0 0; background:var(--chart-s1); }
+.report-kpi__spark i[data-partial] { background:color-mix(in srgb, var(--chart-s1) 40%, transparent); }
+@media (max-width: 800px) {
+  .report-reader-shell .report-reader-main .report-chart:has(> .report-card-foot--overview) { padding-bottom:var(--space-4); }
+}

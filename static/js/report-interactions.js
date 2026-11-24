@@ -797,7 +797,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
         card: focused.closest('[data-chart-index]').dataset.chartIndex, group: focused.dataset.selectionGroup
       } : null;
       grid.replaceWith(document.importNode(nextGrid, true));
-      for (const selector of [".report-context", "[data-report-selection-tags]", "[data-report-active-filters]", "[data-report-kpis]"]) {
+      for (const selector of [".report-context", "[data-report-selection-tags]", "[data-report-active-filters]", "[data-report-kpis]", "[data-report-meta]"]) {
         const current = reader.querySelector(selector), incoming = next.querySelector(selector);
         if (current && incoming) current.replaceWith(document.importNode(incoming, true));
       }

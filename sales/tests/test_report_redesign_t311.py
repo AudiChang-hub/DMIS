@@ -218,3 +218,35 @@ class AnalysisPageTests(TestCase):
         report = ReportDefinition.objects.create(draft=model_analysis("color"), published=model_analysis("color"), version=1)
         html = self.client.get(reverse("report_display", args=[report.pk])).content.decode()
         self.assertIn('data-car-paint="#f4f5f7" data-car-paint-outline', html)
+
+
+class SharedBaseTests(TestCase):
+    """共用基礎：只在閱讀版型（非 standard）生效；一般自訂報表照舊。"""
+    @classmethod
+    def setUpTestData(cls):
+        MonthSwitchPageTests.setUpTestData.__func__(cls)
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def page(self, config):
+        report = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        return self.client.get(reverse("report_display", args=[report.pk])).content.decode()
+
+    def test_overview_header_card_link_hint_records_and_spark(self):
+        html = self.page(total_vehicle_sales())
+        self.assertRegex(html, r'data-report-meta><b>2026/10</b> · 共 <b>2</b> 張')
+        self.assertIn('class="report-card-orders" data-report-open-detail', html)
+        self.assertIn("report-card-foot--overview", html)
+        self.assertEqual(html.count('class="report-overview-hint"'), 1)
+        self.assertIn("顯示其他 4 欄", html)  # 閱讀版型明細 11 欄（不含實收），只留 7 個常用欄
+        self.assertIn("data-record-extra", html)
+        self.assertIn("report-record-note--line", html)
+        self.assertIn('class="report-kpi__spark"', html)
+
+    def test_standard_report_unchanged(self):
+        from sales.reporting.views import initial_config
+        html = self.page({**initial_config(), "include_records": True})
+        for marker in ("data-report-meta", "report-card-orders", "report-card-foot--overview", "report-overview-hint",
+                       "data-record-extra", "report-kpi__spark", "data-chart-switch"):
+            self.assertNotIn(marker, html)

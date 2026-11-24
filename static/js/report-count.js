@@ -53,3 +53,15 @@ function initReportCountExpand(root) {
     });
   });
 }
+
+/* T-311 共用基礎：閱讀版型的明細預設只顯示常用欄，「顯示其他 N 欄」切換其餘欄位。
+   狀態記在 .report-reader-main（明細原地換新後仍維持），按鈕文字由 CSS 依狀態切換。 */
+if (typeof document !== 'undefined') document.addEventListener('click', event => {
+  const button = event.target.closest('[data-record-extra-toggle]');
+  if (!button) return;
+  const reader = button.closest('.report-reader-main');
+  if (!reader) return;
+  const show = !reader.hasAttribute('data-show-record-extra');
+  reader.toggleAttribute('data-show-record-extra', show);
+  reader.querySelectorAll('[data-record-extra-toggle]').forEach(item => item.setAttribute('aria-pressed', String(show)));
+});

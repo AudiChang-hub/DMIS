@@ -19,6 +19,7 @@ from typing import Any, Callable
 from django.utils import timezone
 
 from sales.models import OrderOperationsProfile, SalesOrder
+from sales.templatetags.sales_format import signed_money
 
 TEXT, DATE, MONEY, NUMBER, BOOL = "text", "date", "money", "number", "bool"
 # 匯出／預覽上限（方案 Q8）。
@@ -127,8 +128,9 @@ def _settled_flag(name):
 
 def _accessory_text(line):
     if line.is_credit:
-        # 配件金（T-305）：面額與實際折抵（最多折到配件小計 0 元）。
-        return f"{line.name}（配件金）{line.amount:,.0f}，實際折抵 {line.effective_total:,.0f}"
+        # 配件金（T-305）：面額與實際折抵（最多折到配件小計 0 元）；負號在金額符號前「−$1,000」（T-313，同 signed_money）。
+        # 這欄回匯只能看、不解析（editable=False），格式改了也不影響回匯。
+        return f"{line.name}（配件金）{signed_money(line.amount)}，實際折抵 {signed_money(line.effective_total)}"
     return f"{line.name}×{line.quantity} {line.amount:,.0f}" if line.quantity != 1 else f"{line.name} {line.amount:,.0f}"
 
 

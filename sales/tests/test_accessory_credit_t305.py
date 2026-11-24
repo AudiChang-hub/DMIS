@@ -378,7 +378,7 @@ class CreditOutputTests(AccessoryCreditBase):
     def test_export_column_marks_credit(self):
         from sales.order_exchange.columns import _accessories
 
-        self.assertIn("配件金 1000（配件金）-1,000，實際折抵 -600", _accessories(self.order))
+        self.assertIn("配件金 1000（配件金）−$1,000，實際折抵 −$600", _accessories(self.order))
 
     def test_delivery_checklist_skips_credit(self):
         self.assertEqual([line.name for line in self.order.delivery_accessory_lines], ["安全帽"])

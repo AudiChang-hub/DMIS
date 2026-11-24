@@ -71,7 +71,7 @@
           </td>
           {% if record.confirmed %}
           <td data-label="實際金額" class="number-cell"><strong>${{ record.received_amount|number_with_commas }}</strong></td>
-          <td data-label="差額" class="number-cell reconciliation-difference{% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %} difference-warning{% endif %}"><span class="mobile-field-label">差額</span>{% if record.reconciliation_receipt_only %}<span class="reconciliation-muted">—</span>{% else %}<strong>{% if record.reconciliation_difference > 0 %}+{% endif %}${{ record.reconciliation_difference|number_with_commas }}</strong>{% endif %}</td>
+          <td data-label="差額" class="number-cell reconciliation-difference{% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %} difference-warning{% endif %}"><span class="mobile-field-label">差額</span>{% if record.reconciliation_receipt_only %}<span class="reconciliation-muted">—</span>{% else %}<strong>{% if record.reconciliation_difference > 0 %}+{% endif %}{{ record.reconciliation_difference|signed_money }}</strong>{% endif %}</td>
           <td data-label="確認日期">{{ record.reconciliation_confirmed_on|date:"Y/m/d"|default:"—" }}</td>
           <td class="inventory-row-action reconciliation-posted">
             <span class="status-pill success">已入帳</span>

@@ -110,7 +110,7 @@ class PayoutReconciliationTests(FinanceLedgerTestBase):
         self.assertEqual(row.received_on, timezone.localdate(), "確認日期自動記為入帳當天")
         response, _ids = self.listed()
         self.assertContains(response, "difference-warning")
-        self.assertContains(response, "$-608")
+        self.assertContains(response, "−$608")
         profile = OrderOperationsProfile.objects.get(order=order)
         self.assertEqual(profile.actual_disbursement, Decimal("76000"))
         self.assertEqual(profile.card_fee_expense, Decimal("0"), "差額不自動記成手續費")
@@ -219,7 +219,7 @@ class PayoutReconciliationTests(FinanceLedgerTestBase):
         event = OrderEvent.objects.get(order=first.order, event_type="reconciliation_updated")
         self.assertIn("與其他 1 張單合併入帳", event.description)
         response, _ids = self.listed()
-        self.assertContains(response, "$-608")
+        self.assertContains(response, "−$608")
 
     def test_batch_blocks_blank_or_zero_installment_amounts_and_names_them(self):
         rows = [self.payout(self.installment_order()) for _ in range(3)]

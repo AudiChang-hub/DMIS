@@ -1,4 +1,4 @@
-{% load site_copy %}{% load static %}
+{% load site_copy %}{% load static %}{% load sales_format %}
 <!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -45,7 +45,7 @@
   <h2>配件與約定</h2>
   <table>
     <tr><th>配件</th><td>
-      {% for line in order.accessory_lines %}{% if line.is_credit %}{{ line.name }}（配件金，面額 {{ line.credit_face }} 元，實際折抵 {{ line.effective_total }} 元）{% else %}{{ line.name }} × {{ line.quantity }}（{{ line.get_line_type_display }}，{{ line.line_total }} 元）{% endif %}{% if not forloop.last %}、{% endif %}{% empty %}無{% endfor %}
+      {% for line in order.accessory_lines %}{% if line.is_credit %}{{ line.name }}（配件金，面額 {{ line.credit_face|signed_money }}，實際折抵 {{ line.effective_total|signed_money }}）{% else %}{{ line.name }} × {{ line.quantity }}（{{ line.get_line_type_display }}，{{ line.line_total }} 元）{% endif %}{% if not forloop.last %}、{% endif %}{% empty %}無{% endfor %}
     </td></tr>
     <tr><th>汰舊／補助</th><td>{% if order.is_trade_in_subsidy %}{{ order.subsidy_type|default:"有申請" }}{% else %}無{% endif %}</td></tr>
     <tr><th>交車方式</th><td>{{ order.get_delivery_method_display|default:"待確認" }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</td></tr>

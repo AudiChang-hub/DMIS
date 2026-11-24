@@ -108,9 +108,9 @@
         <tr>
           <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.is_credit %}<span class="accessory-kind-badge">配件金</span>{% elif item.is_compulsory_insurance %}<span class="accessory-kind-badge">強制險（只能贈送）</span>{% endif %}{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類別">{% for category in item.categories.all %}{{ category.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分類{% endfor %}</td>
-          <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|number_with_commas }}{% else %}${{ item.sale_price|floatformat:0 }}{% endif %}</td>
-          <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
-          <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
+          <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|number_with_commas }}{% else %}{{ item.sale_price|signed_money }}{% endif %}</td>
+          <td data-label="工資">{{ item.labor_fee|signed_money }}</td>
+          <td data-label="參考成本">{% if item.cost is not None %}{{ item.cost|signed_money }}{% else %}未維護{% endif %}</td>
           <td data-label="歷史使用">{{ item.usage_count }} 筆</td>
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-product" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td class="inventory-row-action"><div class="row-action-buttons">

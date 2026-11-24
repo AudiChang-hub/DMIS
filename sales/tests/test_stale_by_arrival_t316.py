@@ -73,6 +73,12 @@ class StaleByArrivalTests(TestCase):
         self.vehicle(89)
         self.assertFalse(self.row()["slow"])
 
+    def test_exactly_90_days_without_sale_since_arrival_is_slow(self):
+        self.vehicle(90)
+        row = self.row()
+        self.assertTrue(row["slow"])
+        self.assertEqual(row["stale_days"], 90)
+
     def test_page_shows_parked_days_and_plain_rule(self):
         self.vehicle(95)
         admin = get_user_model().objects.create_superuser("t316-admin", password="test-only")

@@ -543,3 +543,24 @@ class PlatformDealerHeaderTests(TestCase):
         # 其他閱讀版型不變
         self.assertEqual(self.hint(self.page(electric_vehicle_sales())), "點圖上的長條、扇區或格子，整頁一起篩選；再點一次取消。")
 
+
+class ReaderMetaSeriesMonthTests(SimpleTestCase):
+    """車行頁（#11 #12）月份是系列：頁首補期間（N4）；有月份併進「其他系列」時期間不完整就不寫。"""
+    def item(self, legend, count=5):
+        return {"card": {"chart": "stacked", "dimension": "legacy_dealer", "series": "month"}, "count": count, "rows": [],
+                "date_dimension": False, "series_legend": [{"label": label} for label in legend]}
+
+    def test_dealer_page_range_comes_from_month_series(self):
+        from sales.reporting.reader_layouts import reader_meta
+        self.assertEqual(reader_meta([self.item(["2026/10", "2026/08", "2026/09"])]), {"count": 5, "range": "2026/08–2026/10"})
+        self.assertEqual(reader_meta([self.item(["2026/10"])]), {"count": 5, "range": "2026/10"})
+
+    def test_no_range_when_months_are_merged_into_other(self):
+        from sales.reporting.reader_layouts import reader_meta
+        self.assertEqual(reader_meta([self.item(["2026/10", "2026/09", "其他系列（合併）"])]), {"count": 5})
+
+    def test_month_axis_pages_unchanged(self):
+        from sales.reporting.reader_layouts import reader_meta
+        month = {"card": {"chart": "stacked", "dimension": "month", "series": "legacy_dealer"}, "count": 3, "date_dimension": True,
+                 "rows": [{"label": "2026/09"}, {"label": "2026/11"}], "series_legend": [{"label": "某平台"}]}
+        self.assertEqual(reader_meta([month]), {"count": 3, "range": "2026/09–2026/11"})

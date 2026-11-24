@@ -79,6 +79,15 @@ def reader_meta(items):
         meta["count"] = page_wide[0]["count"]
         months = sorted(row["label"] for result in page_wide if result.get("date_dimension") and result["card"].get("dimension") == "month"
                         for row in result["rows"] if str(row.get("label", ""))[:1].isdigit())
+        if not months:
+            # 車行頁（#11 #12）月份是系列不是主軸；有月份被併進「其他系列」時期間不完整，就不寫。
+            for result in page_wide:
+                if result["card"].get("series") != "month":
+                    continue
+                labels = [str(item.get("label", "")) for item in result.get("series_legend") or []]
+                if "其他系列（合併）" not in labels:
+                    months = sorted(label for label in labels if label[:1].isdigit())
+                break
         if months:
             meta["range"] = f"{months[0]}–{months[-1]}" if months[0] != months[-1] else months[0]
     else:

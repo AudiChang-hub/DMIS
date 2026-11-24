@@ -29,6 +29,64 @@
     root.addEventListener("pointerleave", hide);
     window.addEventListener("scroll", hide, { passive: true });
 
+    // T-303 貨卡庫齡：指到、Tab 聚焦或點一下某段（或圖例），標題右邊寫「區間 N 台・佔 %」，長條與圖例同一項標亮。
+    // 滑鼠移開回到聚焦／點選中的那段；點卡片外面或焦點離開就清掉。讀螢幕軟體念每段自己的 aria-label。
+    root.querySelectorAll("[data-ops-age-bar]").forEach(function (bar) {
+      var card = bar.closest(".ops-card");
+      var readout = card && card.querySelector("[data-ops-age-readout]");
+      var legend = card && card.querySelector("[data-ops-age-legend]");
+      if (!readout || !legend) return;
+      var hint = readout.textContent;
+      var pinned = null;
+      readout.hidden = false;
+
+      function activate(key) {
+        var seg = key ? bar.querySelector('[data-ops-age="' + key + '"]') : null;
+        bar.classList.toggle("has-active", !!seg);
+        legend.classList.toggle("has-active", !!seg);
+        card.querySelectorAll("[data-ops-age]").forEach(function (item) {
+          item.classList.toggle("is-active", !!seg && item.getAttribute("data-ops-age") === key);
+        });
+        readout.textContent = "";
+        if (!seg) {
+          readout.setAttribute("data-empty", "");
+          readout.textContent = hint;
+          return;
+        }
+        readout.removeAttribute("data-empty");
+        var count = document.createElement("b");
+        count.textContent = seg.getAttribute("data-count") + " 台";
+        readout.append(seg.getAttribute("data-label") + "　", count, "・佔 " + seg.getAttribute("data-share") + "%");
+      }
+
+      function keyOf(event) {
+        var item = event.target.closest ? event.target.closest("[data-ops-age]") : null;
+        return item && card.contains(item) ? item.getAttribute("data-ops-age") : null;
+      }
+
+      [bar, legend].forEach(function (area) {
+        area.addEventListener("pointerover", function (event) {
+          var key = keyOf(event);
+          if (key) activate(key);
+        });
+        area.addEventListener("pointerleave", function () { activate(pinned); });
+        area.addEventListener("click", function (event) {
+          var key = keyOf(event);
+          if (key) activate(pinned = key);
+        });
+      });
+      bar.addEventListener("focusin", function (event) {
+        var key = keyOf(event);
+        if (key) activate(pinned = key);
+      });
+      bar.addEventListener("focusout", function (event) {
+        if (!bar.contains(event.relatedTarget)) activate(pinned = null);
+      });
+      document.addEventListener("click", function (event) {
+        if (pinned && !bar.contains(event.target) && !legend.contains(event.target)) activate(pinned = null);
+      });
+    });
+
     root.querySelectorAll("[role=tablist]").forEach(function (list) {
       var tabs = Array.prototype.slice.call(list.querySelectorAll("[data-ops-tab]"));
       function select(tab, focus) {

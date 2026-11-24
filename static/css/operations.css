@@ -1368,6 +1368,87 @@ html[data-theme="night-blue"] .ops {
 .ops-legend__swatch.ops-bar__seg--4 { background: color-mix(in srgb, var(--ink) 80%, var(--line)); }
 .ops-legend__swatch.is-late { background: var(--red); }
 
+/* T-303：貨卡庫齡長條每段可指到、聚焦、點一下；標題右邊寫區間與台數，圖例雙向連動。錢卡的帳齡長條不套用。 */
+.ops-age__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+}
+
+.ops-age__readout {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ops-age__readout[data-empty] {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ops-bar.ops-age {
+  overflow: visible;
+}
+
+.ops-age .ops-bar__seg {
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.ops-age .ops-bar__seg[data-ops-age] {
+  cursor: pointer;
+}
+
+.ops-age .ops-bar__seg:first-child {
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+}
+
+.ops-age .ops-bar__seg:last-child {
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.ops-age .ops-bar__seg:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ops-age.has-active .ops-bar__seg:not(.is-active) {
+  opacity: .3;
+}
+
+.ops-legend--linked li {
+  margin: -2px calc(var(--space-1) * -1);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-xs);
+  transition: background-color var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
+}
+
+.ops-legend--linked li[data-ops-age] {
+  cursor: pointer;
+}
+
+.ops-legend--linked li.is-active {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.ops-legend--linked li.is-alert.is-active {
+  color: var(--red-ink);
+}
+
+.ops-legend--linked.has-active li:not(.is-active) {
+  opacity: .55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ops-age .ops-bar__seg,
+  .ops-legend--linked li {
+    transition: none;
+  }
+}
+
 .ops-mini-list {
   display: grid;
   margin: 0;
@@ -1419,38 +1500,29 @@ html[data-theme="night-blue"] .ops {
   color: var(--amber-ink);
 }
 
+/* T-303：可銷天數不畫色塊，天數＋一行原因；缺貨／滯銷標籤照舊。 */
 .inventory-table td span.ops-cover {
-  display: inline-flex;
+  display: grid;
+  gap: 2px;
+}
+
+.inventory-table td span.ops-cover__main {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  white-space: nowrap;
-}
-
-.inventory-table td span.ops-cover__bar,
-.inventory-table td span.ops-cover__value {
-  display: inline-block;
-}
-
-.ops-cover__bar {
-  display: inline-block;
-  width: calc(min(var(--cover), 180) / 180 * 96px);
-  min-width: 2px;
-  height: 8px;
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-  background: var(--ink-soft);
-}
-
-/* T-300：滯銷（注意）加斜紋、缺貨風險（優先）實心，不靠顏色也分得出兩級。 */
-.ops-cover__bar.is-slow {
-  background: repeating-linear-gradient(135deg, var(--amber-strong) 0 3px, transparent 3px 5px);
-}
-
-.ops-cover__bar.is-short {
-  background: var(--red);
 }
 
 .ops-cover__value {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ops-cover__why {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.4;
 }
 
 /* ── 結構變化 ── */

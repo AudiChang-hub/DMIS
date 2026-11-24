@@ -2,7 +2,7 @@
 
 顏色（方案甲）：改共用 token，--red 亮 #c8102e／暗 #ff5468、--amber-strong 亮 #c47c00／暗 #f6c12f；
 對卡片底都 ≥ 3:1（WCAG 1.4.11）；新琥珀不能當文字，原本拿 --amber-strong 當文字的改用 --amber-ink。
-不靠顏色的提示（方案 A）：優先＝實心點加外圈、注意＝空心圈；庫存可銷天數長條的注意那級加斜紋。
+不靠顏色的提示（方案 A）：優先＝實心點加外圈、注意＝空心圈；庫存可銷天數長條的注意那級加斜紋（T-303 起可銷天數不畫長條）。
 讀螢幕軟體唸「（優先）」／「（注意）」。
 """
 import copy
@@ -190,7 +190,9 @@ class SeverityShapeTests(SimpleTestCase):
         self.assertIn("background: var(--red)", red)
         self.assertIn("outline: 2px solid var(--red)", red)
 
-    def test_slow_cover_bar_is_striped_and_short_is_solid(self):
+    def test_cover_column_has_no_colour_bar_since_t303(self):
+        # T-303（使用者 2026-11-24）：可銷天數不畫色塊，斜紋／實心長條拿掉，兩級改由「缺貨風險」「滯銷」標籤區分。
         css = _css("operations.css")
-        self.assertIn("repeating-linear-gradient(135deg, var(--amber-strong)", self.rule(css, ".ops-cover__bar.is-slow"))
-        self.assertIn("background: var(--red)", self.rule(css, ".ops-cover__bar.is-short"))
+        self.assertNotIn(".ops-cover__bar", css)
+        self.assertIn("background: var(--red-soft)", self.rule(css, ".ops-tag--red"))
+        self.assertIn("background: var(--amber-soft)", self.rule(css, ".ops-tag--amber"))

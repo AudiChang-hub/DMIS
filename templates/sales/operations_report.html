@@ -159,12 +159,13 @@
         <div class="ops-fig"><strong>{{ c.stock.shortage|length }}</strong><span>缺貨風險車型</span></div>
         <div class="ops-fig"><strong>{{ c.stock.slow|length }}</strong><span>滯銷車型</span></div>
       </div>
-      <div class="ops-subhead">庫齡（進車日起）</div>
-      <div class="ops-bar" role="img" aria-label="{% for bucket in c.stock.aging %}{{ bucket.label }} {{ bucket.count }} 台{% if not forloop.last %}，{% endif %}{% endfor %}">
-        {% for bucket in c.stock.aging %}<span class="ops-bar__seg ops-bar__seg--{{ forloop.counter }}{% if bucket.alert and bucket.count %} is-late{% endif %}" style="flex-grow: {{ bucket.count }}"></span>{% endfor %}
+      {# T-303：庫齡每段可指到、Tab 聚焦或點一下，標題右邊寫區間與台數；圖例雙向連動（static/js/operations.js）。 #}
+      <div class="ops-subhead ops-age__head"><span id="ops-age-title">庫齡（進車日起）</span><span class="ops-age__readout" data-ops-age-readout data-empty aria-hidden="true" hidden>指到或點色塊看台數</span></div>
+      <div class="ops-bar ops-age" role="group" aria-labelledby="ops-age-title" data-ops-age-bar>
+        {% for bucket in c.stock.aging %}<span class="ops-bar__seg ops-bar__seg--{{ forloop.counter }}{% if bucket.alert and bucket.count %} is-late{% endif %}" style="flex-grow: {{ bucket.count }}"{% if bucket.count %} role="img" tabindex="0" aria-label="{{ bucket.label }} {{ bucket.count }} 台，佔 {{ bucket.share }}%" data-ops-age="{{ forloop.counter }}" data-label="{{ bucket.label }}" data-count="{{ bucket.count }}" data-share="{{ bucket.share }}"{% else %} aria-hidden="true"{% endif %}></span>{% endfor %}
         {% if not c.stock.on_hand %}<span class="ops-bar__seg ops-bar__seg--empty"></span>{% endif %}
       </div>
-      <ul class="ops-legend">{% for bucket in c.stock.aging %}<li{% if bucket.alert and bucket.count %} class="is-alert"{% endif %}><span class="ops-legend__swatch ops-bar__seg--{{ forloop.counter }}{% if bucket.alert and bucket.count %} is-late{% endif %}" aria-hidden="true"></span>{{ bucket.label }} <b>{{ bucket.count }}</b></li>{% endfor %}</ul>
+      <ul class="ops-legend ops-legend--linked" data-ops-age-legend>{% for bucket in c.stock.aging %}<li class="{% if bucket.alert and bucket.count %}is-alert{% endif %}"{% if bucket.count %} data-ops-age="{{ forloop.counter }}"{% endif %}><span class="ops-legend__swatch ops-bar__seg--{{ forloop.counter }}{% if bucket.alert and bucket.count %} is-late{% endif %}" aria-hidden="true"></span>{{ bucket.label }} <b>{{ bucket.count }}</b></li>{% endfor %}</ul>
       {% if c.stock.models %}
       <div class="inventory-table-wrap" tabindex="0" aria-label="車型可銷天數，可水平捲動"><table class="inventory-table inventory-table--fit ops-cover-table">
         <thead><tr><th>車型</th><th class="is-number">在庫</th><th class="is-number">近 90 天</th><th>可銷天數</th></tr></thead>
@@ -172,12 +173,12 @@
           <th data-label="車型">{% if c.links.inventory_list %}<a href="{{ row.url }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</th>
           <td data-label="在庫" class="is-number">{{ row.on_hand }}</td>
           <td data-label="近 90 天" class="is-number">{{ row.sold }}</td>
-          <td data-label="可銷天數"><span class="ops-cover">{% if row.cover is not None %}<span class="ops-cover__bar{% if row.slow %} is-slow{% elif row.shortage %} is-short{% endif %}" style="--cover: {{ row.cover }}"></span><span class="ops-cover__value">{{ row.cover }} 天</span>{% endif %}{% if row.shortage %}<em class="ops-tag ops-tag--red">缺貨風險</em>{% elif row.slow and row.cover is None %}<em class="ops-tag ops-tag--amber">90 天未售</em>{% elif row.slow %}<em class="ops-tag ops-tag--amber">滯銷</em>{% endif %}</span></td>
+          <td data-label="可銷天數"><span class="ops-cover"><span class="ops-cover__main">{% if row.cover is not None %}<b class="ops-cover__value">{{ row.cover }} 天</b>{% endif %}{% if row.shortage %}<em class="ops-tag ops-tag--red">缺貨風險</em>{% elif row.slow and row.cover is None %}<em class="ops-tag ops-tag--amber">90 天未售</em>{% elif row.slow %}<em class="ops-tag ops-tag--amber">滯銷</em>{% endif %}</span>{% if row.reason %}<small class="ops-cover__why">{{ row.reason }}</small>{% endif %}</span></td>
         </tr>{% endfor %}</tbody>
       </table></div>
       {% if c.stock.model_count > c.stock.models|length %}<p class="ops-hint">另有 {{ c.stock.model_count|add:"-6" }} 款在庫車型，見庫存列表。</p>{% endif %}
       {% endif %}
-      <p class="ops-hint">可銷天數＝在庫台數 ÷ 近 90 天平均每天領牌台數。缺貨：近 90 天賣 3 台以上且不到 14 天；滯銷：超過 90 天或 90 天內沒賣出。</p>
+      <p class="ops-hint">可銷天數：照近 90 天的賣速，現有在庫還能賣幾天。</p>
     </section>
     {% endif %}
     <section class="ops-card ops-energy" aria-labelledby="ops-energy-title" data-side-nav-section="油電領牌">

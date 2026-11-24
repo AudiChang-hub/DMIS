@@ -509,6 +509,20 @@ def _on_hand():
                 .only("status", "received_on", "vehicle_model__name", "vehicle_model__family_id"))
 
 
+def _cover_reason(on_hand, sold):
+    """可銷天數旁的一行原因（T-303）：用月賣台數說明天數怎麼來；沒賣出算不出天數，交給「90 天未售」標籤。"""
+    if not sold:
+        return ""
+    per_month = sold * 30 / VELOCITY_DAYS
+    if per_month < 1:
+        rate = "月賣不到 1 台"
+    elif per_month >= 10:
+        rate = f"月賣約 {round(per_month)} 台"
+    else:
+        rate = f"月賣約 {per_month:.1f}".removesuffix(".0") + " 台"
+    return f"沒有庫存・{rate}" if not on_hand else rate
+
+
 def model_velocity(today, live=None):
     """各車型在庫、近 90 天領牌、可銷天數與缺貨／滯銷判斷；營運總表與「缺貨風險車型」清單共用（T-275）。"""
     live = _on_hand() if live is None else live
@@ -529,7 +543,7 @@ def model_velocity(today, live=None):
             continue
         family = families.get(model_id)
         rows.append({"model_id": model_id, "name": names.get(model_id, "—"), "on_hand": on_hand, "sold": recent, "cover": cover,
-                     "shortage": shortage, "slow": slow,
+                     "reason": _cover_reason(on_hand, recent), "shortage": shortage, "slow": slow,
                      "url": _url("inventory_list", {"vehicle_family": family} if family else {"q": names.get(model_id, "")})})
     rows.sort(key=lambda row: (not row["shortage"], not row["slow"], -row["on_hand"], row["name"]))
     return rows
@@ -541,8 +555,9 @@ def _stock(today):
     ages = [(today - vehicle.received_on).days for vehicle in live if vehicle.received_on]
     age_buckets = []
     for low, high, label in ((0, 29, "未滿 30 天"), (30, 59, "30–59 天"), (60, 89, "60–89 天"), (90, None, "90 天以上")):
-        age_buckets.append({"label": label, "count": sum(1 for age in ages if age >= low and (high is None or age <= high)),
-                            "alert": low >= STOCK_AGE_ALERT_DAYS})
+        count = sum(1 for age in ages if age >= low and (high is None or age <= high))
+        age_buckets.append({"label": label, "count": count, "alert": low >= STOCK_AGE_ALERT_DAYS,
+                            "share": round(count * 100 / len(ages)) if ages else 0})
     rows = model_velocity(today, live)
     cutoff = aged_stock_cutoff(today)
     return {

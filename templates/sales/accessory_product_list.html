@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy static %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/accessory-bulk.css' %}">{% endblock %}
-{% load pagination_tags %}
+{% load pagination_tags sales_format %}
 {% block title %}配件與工資｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -108,7 +108,7 @@
         <tr>
           <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.is_credit %}<span class="accessory-kind-badge">配件金</span>{% endif %}{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類別">{% for category in item.categories.all %}{{ category.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分類{% endfor %}</td>
-          <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|floatformat:0 }}{% else %}${{ item.sale_price|floatformat:0 }}{% endif %}</td>
+          <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|number_with_commas }}{% else %}${{ item.sale_price|floatformat:0 }}{% endif %}</td>
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
           <td data-label="歷史使用">{{ item.usage_count }} 筆</td>

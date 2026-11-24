@@ -50,6 +50,14 @@ def _money(value):
     return f"${number:,.0f}", f"{number:.0f}"
 
 
+def _accessory_money(line, value):
+    """配件明細表的金額欄：配件金列的負數把負號放在金額符號前（−$1,000，T-312），0 不帶負號；一般配件照 `_money`。"""
+    if not line.is_credit or value in (None, ""):
+        return _money(value)[0]
+    number = Decimal(str(value))
+    return ("−" if number < 0 else "") + _money(abs(number))[0]
+
+
 def _row(label, value, *, copy=None, wide=False, mono=False):
     value = _text(value)
     return {
@@ -281,8 +289,8 @@ def build_order_overview(order, *, include_finance=True):
         "columns": ("項目", "類型", "數量", "單價", "工資", "小計", "備註"),
         "numeric": (2, 3, 4, 5),
         "rows": [
-            (line.name, "配件金" if line.is_credit else line.get_line_type_display(), str(line.quantity), _money(line.amount)[0],
-             _money(line.labor_fee)[0], _money(line.effective_total)[0], _credit_note(line) or line.note or EMPTY)
+            (line.name, "配件金" if line.is_credit else line.get_line_type_display(), str(line.quantity), _accessory_money(line, line.amount),
+             _money(line.labor_fee)[0], _accessory_money(line, line.effective_total), _credit_note(line) or line.note or EMPTY)
             for line in accessories
         ],
     })

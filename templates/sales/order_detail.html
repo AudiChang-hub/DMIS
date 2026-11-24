@@ -156,7 +156,7 @@
   <section class="card">
     <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total|number_with_commas }}</span>{% endif %}</div>
     {% for line in order.accessory_lines %}
-      {% if line.is_credit %}<div class="line-item"><span>{{ line.name }}<span class="accessory-kind-badge">配件金</span><small>面額 ${{ line.credit_face|number_with_commas }} · 實際折抵 ${{ line.effective_total|number_with_commas }}{% if line.credit_void %} · 超過配件小計的 ${{ line.credit_void|number_with_commas }} 作廢{% endif %}</small></span><strong>${{ line.effective_total|number_with_commas }}</strong></div>
+      {% if line.is_credit %}<div class="line-item"><span>{{ line.name }}<span class="accessory-kind-badge">配件金</span><small>面額 ${{ line.credit_face|number_with_commas }} · 實際折抵 {{ line.effective_total|signed_money }}{% if line.credit_void %} · 超過配件小計的 ${{ line.credit_void|number_with_commas }} 作廢{% endif %}</small></span><strong>{{ line.effective_total|signed_money }}</strong></div>
       {% else %}<div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount|number_with_commas }} ＋ 工資 ${{ line.labor_fee|number_with_commas }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total|number_with_commas }}</strong></div>{% endif %}
     {% empty %}<p class="muted">無配件</p>{% endfor %}
     {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers_display|default:order.plate_preference_note }}</p></div>{% endif %}

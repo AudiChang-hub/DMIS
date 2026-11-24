@@ -19,6 +19,16 @@ def number_with_commas(value):
 
 
 @register.filter
+def signed_money(value):
+    """含金額符號的千分位金額，負數把負號放在符號前：−$1,000（T-312 配件金折抵）；0 不帶負號。"""
+    try:
+        number = Decimal(str(value or 0))
+    except (InvalidOperation, TypeError, ValueError):
+        return value
+    return f"{'−' if number < 0 else ''}${abs(number):,.0f}"
+
+
+@register.filter
 def registration_rate_label(value, displacement_cc=None):
     """僅對油車費率顯示排氣量級距，不暴露內部 M2～M5 代碼。"""
     return build_registration_rate_label(value, displacement_cc)

@@ -128,7 +128,11 @@ def balance_breakdown(order, summary=None, records=None):
         {"label": "其他費用", "amount": order.other_fee_total or ZERO, "items": fees},
         {"label": "舊車稅", "amount": order.old_vehicle_tax or ZERO, "items": []},
     ]
-    charges = [row for row in charges if row["amount"]]
+    # 配件金把配件小計折到 0 元時，「配件」列仍保留並註明折抵多少，不讓人以為配件沒算（T-312）；只改顯示，金額照舊是 0。
+    credit = order.accessory_credit
+    if credit.credit_face and not charges[1]["amount"]:
+        charges[1]["note"] = f"配件金折抵 ${credit.credit_applied:,.0f}" + (f"，${credit.credit_void:,.0f} 作廢" if credit.credit_void else "")
+    charges = [row for row in charges if row["amount"] or row.get("note")]
     charges_total = sum((row["amount"] for row in charges), ZERO)
     discount = order.approved_discount_amount or ZERO
     total = charges_total - discount

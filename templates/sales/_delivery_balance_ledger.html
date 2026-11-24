@@ -5,8 +5,8 @@
     {% if b.exact %}
     <dl class="ledger">
       {% for row in b.charges %}
-      <div class="ledger__row"><dt>{{ row.label }}{% if row.items|length == 1 %}<span class="ledger__hint">{{ row.items.0.0 }}</span>{% elif row.items %}<span class="ledger__hint">{{ row.items|length }} 項</span>{% endif %}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>
-      {% if row.items|length > 1 %}{% for name, amount in row.items %}<div class="ledger__row is-item"><dt>{{ name }}</dt><dd>${{ amount|number_with_commas }}</dd></div>{% endfor %}{% endif %}
+      <div class="ledger__row"><dt>{{ row.label }}{% if row.note %}<span class="ledger__hint">（{{ row.note }}）</span>{% elif row.items|length == 1 %}<span class="ledger__hint">{{ row.items.0.0 }}</span>{% elif row.items %}<span class="ledger__hint">{{ row.items|length }} 項</span>{% endif %}</dt><dd>${{ row.amount|number_with_commas }}</dd></div>
+      {% if row.items|length > 1 %}{% for name, amount in row.items %}<div class="ledger__row is-item"><dt>{{ name }}</dt><dd>{% if row.note %}{{ amount|signed_money }}{% else %}${{ amount|number_with_commas }}{% endif %}</dd></div>{% endfor %}{% endif %}
       {% endfor %}
       {% if b.discount %}
       <div class="ledger__row is-subtotal"><dt>費用合計</dt><dd>${{ b.charges_total|number_with_commas }}</dd></div>

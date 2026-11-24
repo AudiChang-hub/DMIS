@@ -96,7 +96,7 @@ class ReconciliationTermsTests(MoneyCardTestBase):
         total = html.index("待收合計（")
         formula = html.index("data-outstanding-formula")
         section = html.index('id="ops-recon-title"')
-        credit = html.index("車行未付<span")
+        credit = html.index("<dt>車行未付")
         self.assertLess(total, formula)
         self.assertLess(formula, section)
         self.assertLess(section, html.index("分期待撥款</th>"))

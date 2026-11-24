@@ -111,8 +111,8 @@ function renderReportPie(chart, rows, attach) {
     offset += fraction;
   });
   labels.forEach(([tag, attrs, text]) => { const node = add(tag, attrs, text); node.style.pointerEvents = 'none'; });
-  add('text', {x: centre, y: centre + 10, 'text-anchor': 'middle', class: 'report-donut-total'}, chart.querySelector('.report-score strong')?.textContent.trim() || '');
-  add('text', {x: centre, y: centre + 38, 'text-anchor': 'middle', class: 'report-donut-caption'}, chart.dataset.metricLabel === '訂單台數' ? '張訂單' : chart.dataset.metricLabel || '');
+  add('text', {x: centre, y: centre + 10, 'text-anchor': 'middle', class: 'report-donut-total', 'pointer-events': 'none'}, chart.querySelector('.report-score strong')?.textContent.trim() || '');
+  add('text', {x: centre, y: centre + 38, 'text-anchor': 'middle', class: 'report-donut-caption', 'pointer-events': 'none'}, chart.dataset.metricLabel === '訂單台數' ? '張訂單' : chart.dataset.metricLabel || '');
   svg.setAttribute('viewBox', outside ? '-38 -26 376 352' : '0 0 300 300');
 
   // 圖例：每項一列；連結沿用原本的下鑽連結，點選連動與選取樣式照舊。

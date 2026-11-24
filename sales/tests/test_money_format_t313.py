@@ -4,6 +4,7 @@
 2. 訂單匯出「配件」欄的配件金原本印「-1,000，實際折抵 -600」；這欄回匯時只能看、不解析，新格式原樣匯回不得產生變更或忽略提示。
 3. 配件主檔清單一般配件的售價、工資、參考成本原本用 floatformat:0，沒有千分位（$12345）。
 4. 統一撥款對帳的差額原本印「$-608」。
+5. 交車步驟收款摘要「應收怎麼算」的子項是負數時（其他費用、沒折到 0 的配件金）原本印「$-X」。
 
 其他模組的 TestCase 只 import 模組、借用輔助方法，避免整個測試類別被這個模組再收一次、重跑一遍。
 """
@@ -13,8 +14,9 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.models import AccessoryLine, AccessoryProduct
+from sales.models import AccessoryLine, AccessoryProduct, OtherFeeLine, PaymentRecord, SalesOrder
 from sales.order_exchange import reimport
+from sales.tests import test_accessory_credit_display_t312 as t312
 from sales.tests import test_order_bulk_update_t232 as t232
 from sales.tests import test_order_lifecycle as lifecycle
 from sales.tests import test_payout_reconciliation_t96 as t96
@@ -136,3 +138,54 @@ class ReconciliationDifferenceFormatTests(FinanceLedgerTestBase):
         response, _ids = self.listed()
         self.assertContains(response, "<strong>+$1,000</strong>", html=False)
 
+
+class LedgerItemFormatTests(TestCase):
+    """5. 交車步驟「應收怎麼算」：子項是負數時印 −$X（與 T-312 配件金子項一致）；金額與應收不變。"""
+    setUp = t312.CreditLedgerPageTests.setUp
+    make_order = t312.CreditLedgerPageTests.make_order
+    registered_v2 = t312.CreditLedgerPageTests.registered_v2
+    ledger = t312.CreditLedgerPageTests.ledger
+
+    def exact_order(self, *, fees=(), accessories=(), credit=False):
+        order, _vehicle = self.registered_v2(deposit=Decimal("4800"))
+        for name, amount in fees:
+            OtherFeeLine.objects.create(order=order, name=name, amount=Decimal(amount))
+        for name, amount in accessories:
+            AccessoryLine.objects.create(order=order, name=name, quantity=1, amount=Decimal(amount))
+        if credit:
+            product = AccessoryProduct.objects.create(name="配件金 1000", kind="credit", sale_price=Decimal("-1000"))
+            AccessoryLine.objects.create(order=order, accessory_product=product, name=product.name, amount=Decimal("-1000"), is_credit=True)
+        order = SalesOrder.objects.get(pk=order.pk)
+        balance = order.calculate_balance()
+        SalesOrder.objects.filter(pk=order.pk).update(actual_balance=balance, calculated_balance=balance)
+        PaymentRecord.objects.filter(order=order, system_key="deposit").update(
+            expected_amount=Decimal("4800"), received_amount=Decimal("4800"), confirmed=True)
+        from sales.services.operations_sync import sync_order_operations
+        sync_order_operations(order.pk)
+        return SalesOrder.objects.get(pk=order.pk)
+
+    def test_negative_other_fee_item_puts_minus_before_dollar(self):
+        from sales.services.payment_summary import balance_breakdown
+
+        order = self.exact_order(fees=[("代辦退費", "-500"), ("保險", "1300")])
+        b = balance_breakdown(order)
+        self.assertTrue(b["exact"], b)
+        fees = next(row for row in b["charges"] if row["label"] == "其他費用")
+        self.assertEqual(fees["amount"], Decimal("800"))  # 合計照舊
+        ledger = self.ledger(order)
+        self.assertIn(f"<dt>代辦退費</dt><dd>{MINUS}$500</dd>", ledger)
+        self.assertIn("<dt>保險</dt><dd>$1,300</dd>", ledger)
+        self.assertNotIn("$-500", ledger)
+
+    def test_partial_credit_item_puts_minus_before_dollar(self):
+        from sales.services.payment_summary import balance_breakdown
+
+        order = self.exact_order(accessories=[("後保桿", "1800")], credit=True)  # 1,800 − 1,000 ＝ 800，配件列不加註
+        b = balance_breakdown(order)
+        self.assertTrue(b["exact"], b)
+        row = next(row for row in b["charges"] if row["label"] == "配件")
+        self.assertEqual((row["amount"], row.get("note", "")), (Decimal("800"), ""))
+        ledger = self.ledger(order)
+        self.assertIn(f"<dt>配件金 1000（配件金）</dt><dd>{MINUS}$1,000</dd>", ledger)
+        self.assertIn("<dt>後保桿</dt><dd>$1,800</dd>", ledger)
+        self.assertNotIn("$-1,000", ledger)

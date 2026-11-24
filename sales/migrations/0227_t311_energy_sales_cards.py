@@ -17,7 +17,7 @@
 """
 import copy
 
-from django.db import migrations
+from django.db import migrations, transaction
 from django.utils import timezone
 
 TARGETS = {"electric_overview": ("電動車", "電動車銷售統計", "電車"), "gasoline_overview": ("油車", "油車銷售統計", "油車")}
@@ -81,19 +81,22 @@ def _apply(apps, schema_editor, transform):
     Report = apps.get_model("sales", "ReportDefinition")
     Revision = apps.get_model("sales", "ReportRevision")
     alias = schema_editor.connection.alias
-    for report in Report.objects.using(alias).select_for_update().order_by("pk"):
-        current = report.published
-        changed = transform(current) if current else None
-        if changed is None or changed == current:
-            continue
-        if report.draft == current:
-            report.draft = copy.deepcopy(changed)
-        report.published = changed
-        report.version += 1
-        report.published_at = timezone.now()
-        report.save(using=alias)
-        Revision.objects.using(alias).create(report_id=report.pk, version=report.version, action="publish",
-                                             config=copy.deepcopy(changed))
+    # 自己開交易：select_for_update 在 PostgreSQL 的 autocommit 下會丟 TransactionManagementError；
+    # migrate 時本來就在交易裡（巢狀只是 savepoint），直接呼叫 forwards／backwards 也一樣安全。
+    with transaction.atomic(using=alias):
+        for report in Report.objects.using(alias).select_for_update().order_by("pk"):
+            current = report.published
+            changed = transform(current) if current else None
+            if changed is None or changed == current:
+                continue
+            if report.draft == current:
+                report.draft = copy.deepcopy(changed)
+            report.published = changed
+            report.version += 1
+            report.published_at = timezone.now()
+            report.save(using=alias)
+            Revision.objects.using(alias).create(report_id=report.pk, version=report.version, action="publish",
+                                                 config=copy.deepcopy(changed))
 
 
 def forwards(apps, schema_editor):

@@ -3,8 +3,11 @@
 只改內建原樣的這兩張；自建或改過的報表不動；可重跑；reverse 還原原本三張；設定與 source_templates 一致。
 """
 import copy
+from contextlib import ExitStack
 from importlib import import_module
+from unittest import mock
 
+from django.apps import apps as global_apps
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.loader import MigrationLoader
@@ -126,3 +129,34 @@ class EnergySalesCardMigrationTests(TransactionTestCase):
         self.assertEqual((restored.published, restored.draft, restored.version), (electric, electric, 5))
         self.assertEqual(Report.objects.get(pk=reports["gasoline"].pk).published, gasoline)
         self.assertEqual(Report.objects.get(pk=reports["own"].pk).published, own)
+
+
+@tag("migration")
+class EnergySalesCardMigrationTransactionTests(TransactionTestCase):
+    """PostgreSQL 的 select_for_update 在 autocommit 下會丟 TransactionManagementError；SQLite 不支援，所以測不出來。
+    在 SQLite 上模擬「支援 select_for_update」（CI 的 PostgreSQL 步驟則是真的），確認 forwards／backwards 不論怎麼被呼叫都自己開交易。"""
+
+    def _simulate_select_for_update(self):
+        if connection.features.has_select_for_update:
+            return  # PostgreSQL：直接用真的
+        stack = ExitStack()
+        stack.enter_context(mock.patch.object(connection.features, "has_select_for_update", True))
+        stack.enter_context(mock.patch.object(connection.ops, "for_update_sql", lambda *args, **kwargs: ""))
+        self.addCleanup(stack.close)
+
+    def test_forwards_and_backwards_outside_a_transaction(self):
+        from sales.models import ReportDefinition
+
+        electric = legacy(electric_vehicle_sales())
+        report = ReportDefinition.objects.create(draft=copy.deepcopy(electric), published=copy.deepcopy(electric), version=1)
+        self._simulate_select_for_update()
+        self.assertTrue(connection.get_autocommit())
+        editor = type("Editor", (), {"connection": connection})()
+
+        migration.forwards(global_apps, editor)
+        report.refresh_from_db()
+        self.assertEqual((report.published, report.version), (electric_vehicle_sales(), 2))
+
+        migration.backwards(global_apps, editor)
+        report.refresh_from_db()
+        self.assertEqual((report.published, report.version), (electric, 3))

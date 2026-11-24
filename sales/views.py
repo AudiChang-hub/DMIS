@@ -4059,7 +4059,9 @@ def customer_detail(request, pk):
         .order_by("-order_date", "-id")
     )
     from sales.services.order_origin import with_order_origin
-    page = Paginator(with_order_origin(orders), 100).get_page(request.GET.get("page"))
+    from sales.services.compulsory_gift import with_compulsory_gift_flag
+    # 「牌險少收」要看有沒有贈送強制險（T-309），一起用子查詢取出，不逐張查詢。
+    page = Paginator(with_compulsory_gift_flag(with_order_origin(orders)), 100).get_page(request.GET.get("page"))
     return render(
         request,
         "sales/customer_detail.html",
@@ -4237,6 +4239,8 @@ def _accessory_product_data():
             # 配件金（T-305）：畫面鎖住售價、工資、數量，伺服器也一律改回主檔面額。
             "credit": product.is_credit,
             **({"covers_labor": CREDIT_COVERS_LABOR} if product.is_credit else {}),
+            # 強制險（T-309）：只能贈送；送了牌險費留空時扣掉強制險（畫面試算總價用）。
+            **({"compulsory_insurance": True} if product.is_compulsory_insurance else {}),
         }
         for product in AccessoryProduct.objects.filter(active=True).only(
             "id", "name", "sale_price", "labor_fee", "kind"
@@ -4357,7 +4361,9 @@ def order_list(request):
     orders = sort_orders(orders, sort_tokens or default_tokens)
     # 訂單編號下方的來源標記（手動開單／Excel 匯入／已修改）用子查詢一起取出，不逐張查詢。
     from sales.services.order_origin import with_order_origin
-    orders = with_order_origin(orders)
+    from sales.services.compulsory_gift import with_compulsory_gift_flag
+    # 「牌險少收」要看有沒有贈送強制險（T-309），一起用子查詢取出，不逐張查詢。
+    orders = with_compulsory_gift_flag(with_order_origin(orders))
     try:
         per_page = int(request.GET.get("per_page", ORDER_LIST_DEFAULT_PAGE_SIZE))
     except (TypeError, ValueError):
@@ -4917,6 +4923,10 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     formset.save()
     fee_formset.instance = order
     fee_formset.save()
+    from sales.services.compulsory_gift import formset_gifts_compulsory, refresh_auto_plate_fee
+    if formset_gifts_compulsory(formset) and refresh_auto_plate_fee(order):
+        # 配件用「贈送」選了強制險（T-309）：牌險費留空時扣掉強制險，優惠與應收都用扣掉後的金額。
+        order.save(update_fields=["plate_insurance_fee", "updated_at"])
     if form.pricing_editable:
         # 只有可訂價的人輸入的「其他」配件才加入主檔，避免接待模式的價格成為主檔售價。
         from sales.services.accessory_catalog import custom_accessory_categories, learn_custom_accessories

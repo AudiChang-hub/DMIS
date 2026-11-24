@@ -167,6 +167,11 @@ def save_order_content(order, form, formset, fee_formset, baseline, *, user, pos
     learnable_names = learnable_custom_names(formset)
     formset.save()
     fee_formset.save()
+    plate_fields = []
+    from sales.services.compulsory_gift import formset_gifts_compulsory, refresh_auto_plate_fee
+    if (getattr(form, "compulsory_gifted_before", False) or formset_gifts_compulsory(formset)) and refresh_auto_plate_fee(order):
+        # 這次加或刪了贈送強制險（T-309）：牌險費留空的單依存好的配件重算；沒送過強制險的單不碰。
+        plate_fields = ["plate_insurance_fee"]
     learned_accessories = learn_custom_accessories(order, actor, categories=custom_accessory_categories(formset),
                                                    names=learnable_names)
     order._prefetched_objects_cache = {}
@@ -178,6 +183,7 @@ def save_order_content(order, form, formset, fee_formset, baseline, *, user, pos
     )
     order.save(
         update_fields=[
+            *plate_fields,
             "calculated_balance",
             "actual_balance",
             "revision",

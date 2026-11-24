@@ -105,6 +105,12 @@ def _order_overrides(profile):
     elif plate_fee_waived(order):
         for name in ("registration_tax_income", "compulsory_insurance_income"):
             hints[name] = "牌險費 0：沒有向客人收，支出由店家吸收"
+    else:
+        from sales.services.compulsory_gift import compulsory_insurance_gifted
+        if compulsory_insurance_gifted(order):
+            # 配件贈送強制險（T-309）：強制險支出照列、收入 0。
+            hints["compulsory_insurance_income"] = "贈送強制險：不向客人收，支出由店家吸收"
+            hints["agency_fee_income"] = "牌險費－規費（贈送強制險不扣）；少收為負數"
     return labels, hints
 
 

@@ -71,7 +71,7 @@
               <input type="hidden" name="row" value="{{ item.pk }}">
               <input type="hidden" name="p{{ item.pk }}-version" value="{{ row.version }}">
               <input class="form-control" type="text" name="p{{ item.pk }}-name" value="{{ form.name.value|default_if_none:'' }}" data-original="{{ item.name }}" maxlength="160" required aria-label="{{ item.name }} 的配件名稱"{% if form.name.errors %} aria-invalid="true"{% endif %}>
-              {% if item.is_credit %}<span class="accessory-kind-badge">配件金（售價欄＝可折抵金額）</span>{% endif %}
+              {% if item.is_credit %}<span class="accessory-kind-badge">配件金（售價欄＝可折抵金額）</span>{% elif item.is_compulsory_insurance %}<span class="accessory-kind-badge">強制險（只能贈送，售價 0）</span>{% endif %}
               {% if item.note %}<span class="accessory-bulk-note">{{ item.note }}</span>{% endif %}
               {% if row.bound and form.errors %}<span class="accessory-bulk-errors" role="alert">{% for error in form.non_field_errors %}{{ error }} {% endfor %}{% for field in form %}{% for error in field.errors %}{{ field.label }}：{{ error }} {% endfor %}{% endfor %}</span>{% endif %}
             </td>
@@ -106,7 +106,7 @@
       <tbody>
         {% for row in rows %}{% with item=row.product %}
         <tr>
-          <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.is_credit %}<span class="accessory-kind-badge">配件金</span>{% endif %}{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+          <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.is_credit %}<span class="accessory-kind-badge">配件金</span>{% elif item.is_compulsory_insurance %}<span class="accessory-kind-badge">強制險（只能贈送）</span>{% endif %}{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類別">{% for category in item.categories.all %}{{ category.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分類{% endfor %}</td>
           <td data-label="售價">{% if item.is_credit %}折抵 ${{ item.credit_amount|number_with_commas }}{% else %}${{ item.sale_price|floatformat:0 }}{% endif %}</td>
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>

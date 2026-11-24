@@ -106,7 +106,20 @@
   }
   // 優惠前總價用：有填照填的，留空用試算值（訂金頁合計不含留空的牌險）。
   function plateAmountForTotals() {
-    return actualPlateInsuranceFee.value !== "" ? Number(actualPlateInsuranceFee.value) || 0 : plateEstimate() || 0;
+    if (actualPlateInsuranceFee.value !== "") return Number(actualPlateInsuranceFee.value) || 0;
+    const estimate = plateEstimate() || 0;
+    // 配件贈送強制險（T-309）：牌險費留空時扣掉強制險，與伺服器 services/compulsory_gift.py 同一算法。
+    // 建單才用得到（訂單頁的試算值由伺服器帶入、已扣過）。
+    if (!editingOrderId && compulsoryInsuranceGifted()) {
+      return Math.max(estimate - (Number(byId("id_compulsory_insurance_fee")?.value) || 0), 0);
+    }
+    return estimate;
+  }
+  function compulsoryInsuranceGifted() {
+    return [...document.querySelectorAll("[data-accessory-row]")].some(row => (
+      !row.classList.contains("is-pending-delete")
+      && Boolean(accessoryProductData[row.querySelector('[name$="-accessory_product"]')?.value]?.compulsory_insurance)
+    ));
   }
   const gasCalculator = byId("gas-registration-calculator");
   const nonGasMessage = byId("non-gas-registration-message");
@@ -1331,6 +1344,7 @@
         input.dataset.creditLocked = "1";
       } else if (input.dataset.creditLocked) {
         delete input.dataset.creditLocked;
+        if (input.dataset.compulsoryLocked) return;
         const locked = input.hasAttribute("data-price-locked") && productInput?.value !== "other";
         input.readOnly = locked;
         input.tabIndex = locked ? -1 : 0;
@@ -1338,6 +1352,33 @@
     });
     const lineType = row.querySelector('[name$="-line_type"]');
     lineType.querySelectorAll('option[value="gift"]').forEach(option => option.disabled = credit);
+    // 強制險（T-309）：只能贈送，售價、工資、數量鎖在 0／0／1；換回一般配件時恢復原本的鎖定狀態。
+    const compulsory = Boolean(product?.compulsory_insurance);
+    row.classList.toggle("is-compulsory-insurance", compulsory);
+    ["amount", "labor_fee", "quantity"].forEach(name => {
+      const input = row.querySelector(`[name$="-${name}"]`);
+      if (!input) return;
+      if (compulsory) {
+        input.readOnly = true;
+        input.tabIndex = -1;
+        input.dataset.compulsoryLocked = "1";
+      } else if (input.dataset.compulsoryLocked) {
+        delete input.dataset.compulsoryLocked;
+        if (input.dataset.creditLocked) return;
+        const locked = input.hasAttribute("data-price-locked") && productInput?.value !== "other";
+        input.readOnly = locked;
+        input.tabIndex = locked ? -1 : 0;
+      }
+    });
+    lineType.querySelectorAll('option:not([value="gift"])').forEach(option => option.disabled = compulsory);
+    if (compulsory) {
+      lineType.value = "gift";
+      row.querySelector('[name$="-amount"]').value = 0;
+      row.querySelector('[name$="-labor_fee"]').value = 0;
+      row.querySelector('[name$="-quantity"]').value = 1;
+    }
+    const compulsoryNote = row.querySelector("[data-accessory-compulsory-note]");
+    if (compulsoryNote) compulsoryNote.hidden = !compulsory;
     if (credit) {
       lineType.value = "purchase";
       row.querySelector('[name$="-amount"]').value = product.sale_price;

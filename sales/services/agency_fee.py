@@ -5,6 +5,7 @@
 油車沒有領牌日時規費依訂單日預估（`registration_fee_date`），領牌時依領牌日重算；電動類規費與強制險為固定口徑。
 規費與強制險支出一律由本店付、照試算帶入，分期公司不負擔牌險（UAT p4，使用者 2026-11-06 選 A，取代 10-19「分期公司吸收」）；
 收入看客人付的牌險費：填 0（不向客人收）＝本店自己出，規費與強制險收入 0、牌險手續費 0、不標少收。
+配件贈送強制險（T-309，使用者 2026-11-24）：強制險支出照列、收入 0，牌險手續費＝牌險費－規費支出。
 """
 from decimal import Decimal
 
@@ -127,11 +128,16 @@ def plate_fee_surplus(order, profile=None):
         return ZERO
     if not registration_cost_known(order):
         return None
+    from sales.services.compulsory_gift import compulsory_insurance_gifted
+
     profile = profile or _profile(order)
+    # 送強制險：強制險由本店吸收、不列收入，牌險費只對規費算手續費（T-309）。
+    gifted = compulsory_insurance_gifted(order)
     if profile is not None:
-        cost = _money(profile.registration_tax_expense) + _money(profile.compulsory_insurance_expense)
+        cost = _money(profile.registration_tax_expense) + (
+            ZERO if gifted else _money(profile.compulsory_insurance_expense))
     else:
-        cost = registration_fee_cost(order) + compulsory_insurance_cost(order)
+        cost = registration_fee_cost(order) + (ZERO if gifted else compulsory_insurance_cost(order))
     return _money(order.plate_insurance_fee) - cost
 
 

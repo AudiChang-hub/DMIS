@@ -13,9 +13,14 @@ def plate_fee_variance_q():
     """牌險差異：0 < 牌險費 < 試算合計（T-168，使用者 2026-11-13 選 A）。
 
     填 0（不向客人收）與收得比試算高（照通路價收）都不算。全部訂單 attention=fees 與訂單頁「牌險差異」卡共用。
+    配件贈送強制險時門檻改用「試算合計－強制險」（T-309，使用者 2026-11-24）。
     """
-    return Q(registration_calculated_total__gt=0, plate_insurance_fee__gt=0,
-             plate_insurance_fee__lt=F("registration_calculated_total"))
+    from .compulsory_gift import compulsory_gift_q
+
+    gifted = compulsory_gift_q()
+    below = (Q(~gifted, plate_insurance_fee__lt=F("registration_calculated_total"))
+             | Q(gifted, plate_insurance_fee__lt=F("registration_calculated_total") - F("compulsory_insurance_fee")))
+    return Q(below, registration_calculated_total__gt=0, plate_insurance_fee__gt=0)
 
 
 def new_order_date():

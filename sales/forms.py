@@ -1021,7 +1021,12 @@ class SalesOrderForm(forms.ModelForm):
             data["registration_calculated_total"] = self.cleaned_data["registration_calculated_total"] = Decimal("0")
         if plate_auto:
             # 照系統試算：牌險費＝試算合計（油車沒有領牌日依訂單日預估；電動類依品牌規則）。
-            data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = data["registration_calculated_total"]
+            # 配件用「贈送」選了強制險（T-309）：牌險費＝試算合計－強制險；這次存檔才加刪的贈送在配件存好後再套一次（order_save）。
+            from sales.services.compulsory_gift import auto_plate_fee, compulsory_insurance_gifted
+            self.compulsory_gifted_before = compulsory_insurance_gifted(self.instance)
+            data["plate_insurance_fee"] = self.cleaned_data["plate_insurance_fee"] = auto_plate_fee(
+                data["registration_calculated_total"], data.get("compulsory_insurance_fee"), self.compulsory_gifted_before,
+            )
             if (
                 self.instance.registration_rate_class == "MANUAL"
                 and not plate_field_locked
@@ -2125,12 +2130,20 @@ class AccessoryLineForm(forms.ModelForm):
         custom_name = (data.get("custom_name") or "").strip()
         if product is not None and product.is_credit:
             return self._clean_credit(data, product)
+        if product is not None and product.is_compulsory_insurance:
+            return self._clean_compulsory_insurance(data, product)
+        if not product and self.instance.pk and self.instance.is_compulsory_insurance and custom_name == self.instance.name:
+            # 主檔已斷開連結的贈送強制險歷史列：原樣保留（T-309）。
+            for key in ("amount", "labor_fee", "quantity", "line_type"):
+                data[key] = self.cleaned_data[key] = getattr(self.instance, key)
+            return data
         if not product and self.instance.pk and self.instance.is_credit and custom_name == self.instance.name:
             # 主檔已斷開連結的配件金歷史列：原樣保留面額，不當成自行填寫的負數。
             for key in ("amount", "labor_fee", "quantity", "line_type"):
                 data[key] = self.cleaned_data[key] = getattr(self.instance, key)
             return data
         self.instance.is_credit = False
+        self.instance.is_compulsory_insurance = False
         if self.data.get(self.add_prefix("accessory_product")) == "other" and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
             return data
@@ -2206,6 +2219,28 @@ class AccessoryLineForm(forms.ModelForm):
             data[key] = self.cleaned_data[key] = value
         self.instance.name = product.name
         self.instance.is_credit = True
+        self.instance.is_compulsory_insurance = False
+        return data
+
+    def _clean_compulsory_insurance(self, data, product):
+        """贈送強制險（T-309）：只能用「贈送」選，0 元、數量 1；送了之後牌險費扣掉強制險（services/compulsory_gift.py）。"""
+        line_type = data.get("line_type") or AccessoryLine.LineType.GIFT
+        if line_type != AccessoryLine.LineType.GIFT:
+            self.add_error("line_type", "強制險只能用「贈送」選，不能當一般加購賣。")
+        elif self.purchase_only and "line_type" not in self.errors and not (
+            self.instance.pk and self.instance.is_compulsory_insurance
+            and product.pk == self.original_accessory_product_id
+        ):
+            self.add_error("line_type", "沒有新增或變更贈送配件的權限，請洽 admin。")
+        values = {
+            "amount": Decimal("0"), "labor_fee": Decimal("0"), "quantity": 1,
+            "line_type": AccessoryLine.LineType.GIFT,
+        }
+        for key, value in values.items():
+            data[key] = self.cleaned_data[key] = value
+        self.instance.name = product.name
+        self.instance.is_credit = False
+        self.instance.is_compulsory_insurance = True
         return data
 
 
@@ -2225,6 +2260,14 @@ class BaseAccessoryFormSet(BaseInlineFormSet):
         for index, messages in errors.items():
             for message in messages:
                 credit_forms[index].add_error("accessory_product", message)
+        # 一張單最多送一筆強制險（T-309）。
+        compulsory_forms = [
+            form for form in self.forms
+            if getattr(form, "cleaned_data", None) and not self._should_delete_form(form)
+            and form.instance.is_compulsory_insurance
+        ]
+        for form in compulsory_forms[1:]:
+            form.add_error("accessory_product", "每張訂單最多送 1 筆強制險。")
 
 
 AccessoryFormSet = inlineformset_factory(
@@ -3155,7 +3198,10 @@ class AccessoryProductForm(forms.ModelForm):
         if "kind" in self.fields:
             # 沒送種類（舊畫面、草稿）就沿用原本的種類，新增時是一般配件。
             self.fields["kind"].required = False
-            self.fields["kind"].help_text = "配件金：客人買配件時可折抵的金額，只折配件、最多折到配件小計 0 元，不走折扣核准。"
+            self.fields["kind"].help_text = (
+                "配件金：客人買配件時可折抵的金額，只折配件、最多折到配件小計 0 元，不走折扣核准。"
+                "強制險：只能在訂單用「贈送」選，售價固定 0；送了牌險費會扣掉強制險。"
+            )
         self.fields["sale_price"].help_text = "配件金填可折抵的金額（例 1000），訂單上會帶出 −1,000。"
         # 配件金沒有工資，可以留空；一般配件仍必填（clean 檢查）。
         self.fields["labor_fee"].required = False
@@ -3195,6 +3241,13 @@ class AccessoryProductForm(forms.ModelForm):
                 self.add_error("cost", "配件金沒有成本，請留空。")
             if price is not None and price > 0:
                 data["sale_price"] = -price
+            data["labor_fee"] = Decimal("0")
+        elif kind == AccessoryProduct.Kind.COMPULSORY_INSURANCE:
+            # 強制險（T-309）：只能贈送，售價與工資固定 0；金額看訂單的強制險試算，不在主檔填。
+            if price:
+                self.add_error("sale_price", "強制險只能贈送，售價請填 0。")
+            if labor:
+                self.add_error("labor_fee", "強制險沒有安裝工資，請留 0。")
             data["labor_fee"] = Decimal("0")
         else:
             if labor is None and "labor_fee" not in self.errors:
@@ -4983,7 +5036,9 @@ class RegistrationStageForm(forms.ModelForm):
             calculated_total = result.fixed_and_variable_total
             order.registration_calculated_total = calculated_total
             if order.plate_insurance_auto:
-                order.plate_insurance_fee = calculated_total
+                # 送強制險（T-309）：依領牌日重算後一樣扣掉強制險。
+                from sales.services.compulsory_gift import auto_plate_insurance_fee
+                order.plate_insurance_fee = auto_plate_insurance_fee(order, calculated_total)
             recalculated_balance = order.calculate_balance()
             if (
                 self._previous_actual_balance == self._previous_calculated_balance

@@ -154,14 +154,18 @@ def finance_overview_context(form, profile, order):
     from sales.services.dealer_settlement import dealer_settlement
     from sales.services.finance_ledger import finance_ledger, finance_totals
 
+    from sales.services.compulsory_gift import plate_fee_reference
+
     plate_variance = None
     calculated = order.registration_calculated_total
     if order.pk and SalesOrder.objects.filter(plate_fee_variance_q(), pk=order.pk).exists():
+        # 送強制險時比較的系統金額是試算合計－強制險（T-309）；沒送時就是試算合計。
+        reference = plate_fee_reference(order)
         plate_variance = {
-            'calculated': calculated,
+            'calculated': reference,
             'actual': order.plate_insurance_fee,
-            'difference': order.plate_insurance_fee - calculated,
-            'difference_abs': abs(order.plate_insurance_fee - calculated),
+            'difference': order.plate_insurance_fee - reference,
+            'difference_abs': abs(order.plate_insurance_fee - reference),
             'confirmed': bool(
                 order.registration_fee_variance_confirmed_at
                 and order.registration_fee_variance_confirmed_calculated_total == calculated

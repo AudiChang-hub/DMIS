@@ -1047,6 +1047,9 @@ class AccessoryProduct(TimeStampedModel):
         # 配件金（T-305 方案 A）：客人買配件時可折抵的金額，售價存負數（例 −1,000）、工資 0；
         # 只折配件、最多折到配件小計 0 元，規則見 services/accessory_credit.py。
         CREDIT = "credit", "配件金（折抵）"
+        # 強制險（T-309）：只能在訂單用「贈送」選，售價、工資固定 0；送了之後牌險費扣掉強制險、強制險不列收入，
+        # 規則見 services/compulsory_gift.py。
+        COMPULSORY_INSURANCE = "compulsory_insurance", "強制險（只能贈送）"
 
     name = models.CharField("配件名稱", max_length=160, unique=True)
     kind = models.CharField(
@@ -1087,7 +1090,9 @@ class AccessoryProduct(TimeStampedModel):
             # 一般配件不能是負數；只有配件金是負的售價且沒有工資（T-305：關掉「主檔存負數繞過折扣核准」）。
             models.CheckConstraint(
                 condition=(Q(kind="accessory") & Q(sale_price__gte=0) & Q(labor_fee__gte=0))
-                | (Q(kind="credit") & Q(sale_price__lt=0) & Q(labor_fee=0)),
+                | (Q(kind="credit") & Q(sale_price__lt=0) & Q(labor_fee=0))
+                # 強制險（T-309）：只能贈送，售價與工資固定 0。
+                | (Q(kind="compulsory_insurance") & Q(sale_price=0) & Q(labor_fee=0)),
                 name="accessory_product_kind_amounts",
             ),
         ]
@@ -1095,6 +1100,10 @@ class AccessoryProduct(TimeStampedModel):
     @property
     def is_credit(self):
         return self.kind == self.Kind.CREDIT
+
+    @property
+    def is_compulsory_insurance(self):
+        return self.kind == self.Kind.COMPULSORY_INSURANCE
 
     @property
     def credit_amount(self):
@@ -4240,8 +4249,9 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def delivery_accessory_lines(self):
-        """交車前要對照實車的配件：配件金不是實物，不列（T-305）。"""
-        return [line for line in self.accessories.all() if not line.is_credit] if self.pk else []
+        """交車前要對照實車的配件：配件金、贈送強制險不是實物，不列（T-305、T-309）。"""
+        return [line for line in self.accessories.all()
+                if not line.is_credit and not line.is_compulsory_insurance] if self.pk else []
 
     @property
     def other_fee_total(self):
@@ -5947,6 +5957,8 @@ class AccessoryLine(TimeStampedModel):
     note = models.CharField("備註", max_length=250, blank=True)
     # 配件金快照（T-305）：建立明細時由主檔種類帶入，主檔斷開連結後仍看得出是配件金。
     is_credit = models.BooleanField("配件金", default=False, db_default=False, editable=False)
+    # 贈送強制險快照（T-309）：建立明細時由主檔種類帶入；送了牌險費扣掉強制險、強制險不列收入（services/compulsory_gift.py）。
+    is_compulsory_insurance = models.BooleanField("贈送強制險", default=False, db_default=False, editable=False)
 
     class Meta:
         ordering = ["id"]
@@ -5958,6 +5970,12 @@ class AccessoryLine(TimeStampedModel):
                 condition=(Q(is_credit=False) & Q(amount__gte=0) & Q(labor_fee__gte=0))
                 | (Q(is_credit=True) & Q(amount__lte=0) & Q(labor_fee=0) & Q(quantity=1) & Q(line_type="purchase")),
                 name="accessory_line_credit_amounts",
+            ),
+            # 贈送強制險（T-309）：只能贈送、0 元、數量 1，不是配件金。
+            models.CheckConstraint(
+                condition=Q(is_compulsory_insurance=False)
+                | (Q(is_credit=False) & Q(amount=0) & Q(labor_fee=0) & Q(quantity=1) & Q(line_type="gift")),
+                name="accessory_line_compulsory_insurance_gift",
             ),
         ]
 

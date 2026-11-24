@@ -199,7 +199,12 @@ def sync_order_operations(order_id, *, update_receivables=False):
         _sync_financial_field(profile, "compulsory_insurance_expense", compulsory_insurance_cost(order))
         _sync_financial_field(profile, "plate_selection_expense", default_plate_selection_expense(order))
         _sync_financial_field(profile, "registration_tax_income", Decimal("0") if waived else profile.registration_tax_expense)
-        _sync_financial_field(profile, "compulsory_insurance_income", Decimal("0") if waived else profile.compulsory_insurance_expense)
+        # 配件贈送強制險：強制險收入 0、支出照列（T-309，使用者 2026-11-24）。
+        from .compulsory_gift import compulsory_insurance_gifted
+        _sync_financial_field(
+            profile, "compulsory_insurance_income",
+            Decimal("0") if waived or compulsory_insurance_gifted(order) else profile.compulsory_insurance_expense,
+        )
         _sync_financial_field(profile, "plate_selection_income", order.plate_selection_fee)
         _sync_financial_field(profile, "agency_fee_income", default_agency_fee(order, profile))
         _sync_financial_field(profile, "installment_fee_expense", installment_fee)

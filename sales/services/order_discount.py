@@ -76,8 +76,11 @@ def intake_pre_discount_total(form, formset, fee_formset):
     instance = form.instance
     if instance.vehicle_price is None:
         return None
+    from sales.services.compulsory_gift import intake_plate_fee
+
     total = (
-        _money(instance.vehicle_price) + _money(instance.plate_insurance_fee)
+        # 牌險費留空且配件贈送強制險時扣掉強制險（T-309）；其他情況就是牌險費。
+        _money(instance.vehicle_price) + intake_plate_fee(form, formset)
         + _money(instance.registration_extra_fee_total)
         + _money(instance.effective_installment_fee) + _money(instance.old_vehicle_tax)
     )

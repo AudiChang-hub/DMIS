@@ -125,15 +125,13 @@
       <thead>
         <tr>
           {% if transfer_out_names %}<th scope="col" class="inventory-select-cell"><input class="inventory-select" type="checkbox" aria-label="全選這一頁可調出的車" data-transfer-out-all></th>{% endif %}
-          {% include "sales/_inventory_sort_th.html" with column=sort_headers.received %}
-          <th scope="col">出廠年月</th>
+          {# T-317 B：次要欄位併成第二行（出廠年月→進車日期、品牌→車型／車色、車況→狀態），1280 寬不出現水平捲軸。 #}
+          <th scope="col" aria-sort="{{ sort_headers.received.direction|default:'none' }}">{% include "sales/_inventory_sort_link.html" with column=sort_headers.received %}<small class="inventory-th-sub">／出廠</small></th>
           {% if selected.scope == 'current' %}{% include "sales/_inventory_sort_th.html" with column=sort_headers.priority %}{% endif %}
-          {% include "sales/_inventory_sort_th.html" with column=sort_headers.brand %}
-          <th scope="col" aria-sort="{% if sort_headers.model.direction %}{{ sort_headers.model.direction }}{% elif sort_headers.color.direction %}{{ sort_headers.color.direction }}{% else %}none{% endif %}"><span class="inventory-sort-pair">{% include "sales/_inventory_sort_link.html" with column=sort_headers.model %}<span aria-hidden="true">／</span>{% include "sales/_inventory_sort_link.html" with column=sort_headers.color %}</span></th>
+          <th scope="col" aria-sort="{% if sort_headers.model.direction %}{{ sort_headers.model.direction }}{% elif sort_headers.color.direction %}{{ sort_headers.color.direction }}{% elif sort_headers.brand.direction %}{{ sort_headers.brand.direction }}{% else %}none{% endif %}"><span class="inventory-sort-pair">{% include "sales/_inventory_sort_link.html" with column=sort_headers.model %}<span aria-hidden="true">／</span>{% include "sales/_inventory_sort_link.html" with column=sort_headers.color %}</span><small class="inventory-th-sub"><span aria-hidden="true">／</span>{% include "sales/_inventory_sort_link.html" with column=sort_headers.brand %}</small></th>
           {% include "sales/_inventory_sort_th.html" with column=sort_headers.identifier %}
-          {% include "sales/_inventory_sort_th.html" with column=sort_headers.status %}
+          <th scope="col" aria-sort="{{ sort_headers.status.direction|default:'none' }}">{% include "sales/_inventory_sort_link.html" with column=sort_headers.status %}<small class="inventory-th-sub">／車況</small></th>
           {% if selected.scope == 'sold' %}<th scope="col">去向</th>{% else %}{% include "sales/_inventory_sort_th.html" with column=sort_headers.location %}{% endif %}
-          <th scope="col">車況</th>
           <th scope="col"><span class="visually-hidden">操作</span></th>
         </tr>
       </thead>
@@ -141,8 +139,7 @@
         {% for vehicle in vehicles %}
         <tr{% if vehicle.status == 'condition_issue' %} class="inventory-row--condition-issue"{% endif %}>
           {% if transfer_out_names %}<td class="inventory-select-cell">{% if vehicle.status == 'reserved' %}<input class="inventory-select" type="checkbox" disabled aria-label="{{ vehicle.identifier }} 已配給訂單，不能調出" title="已配給訂單，不能調出">{% else %}<input class="inventory-select" type="checkbox" value="{{ vehicle.pk }}" aria-label="選 {{ vehicle.identifier }} 調出" data-transfer-out-check data-model="{{ vehicle.vehicle_model.name }}" data-color="{{ vehicle.color.label }}" data-identifier="{{ vehicle.identifier }}">{% endif %}</td>{% endif %}
-          <td data-label="進車日期">{{ vehicle.received_on }}</td>
-          <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
+          <td data-label="進車日期／出廠" class="inventory-received-cell">{{ vehicle.received_on|date:"Y/m/d" }}<small class="inventory-cell-sub">出廠 {{ vehicle.manufactured_year_month|default:"未填寫" }}</small></td>
           {% if selected.scope == 'current' %}
           <td data-label="優先配車" class="inventory-priority-cell">
             {% with locked=vehicle.allocation_priority_auto manual=vehicle.allocation_priority_override %}
@@ -160,10 +157,12 @@
             {% endwith %}
           </td>
           {% endif %}
-          <td data-label="品牌">{{ vehicle.vehicle_model.brand|default:"—" }}</td>
-          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.label }}</span></td>
+          <td data-label="車型／品牌・車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span class="inventory-model-sub">{% if vehicle.vehicle_model.brand %}{{ vehicle.vehicle_model.brand }} · {% endif %}<span>{{ vehicle.color.label }}</span></span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="車行調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
-          <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>{% if vehicle.pk in deletion_review_ids %}<small class="inventory-review-flag" title="刪單時已領牌，等 admin 判斷是否改回現有庫存">刪單待確認</small>{% endif %}</td>
+          <td data-label="狀態／車況" class="inventory-status-cell">
+            {% if vehicle.status == 'condition_issue' %}<span class="status-pill status-condition_issue">車況異常</span><small class="inventory-status-hold">暫停配車</small>{% else %}<span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span>{% endif %}{% if vehicle.pk in deletion_review_ids %}<small class="inventory-review-flag" title="刪單時已領牌，等 admin 判斷是否改回現有庫存">刪單待確認</small>{% endif %}
+            {% if vehicle.status != 'condition_issue' and vehicle.condition_note %}<span class="inventory-condition has-note">有備註</span>{% endif %}{% if vehicle.condition_note %}<small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>{% endif %}
+          </td>
           {% if selected.scope == 'sold' %}
           <td data-label="去向" class="inventory-disposition-cell">
             {% if vehicle.disposition %}<span class="inventory-disposition inventory-disposition--{{ vehicle.disposition }}">{{ vehicle.get_disposition_display }}</span>{% if vehicle.disposition_target_label %}<strong>{{ vehicle.disposition_target_label }}</strong>{% endif %}{% if vehicle.disposition_on %}<small>{{ vehicle.disposition_on|date:"Y/m/d" }}</small>{% endif %}
@@ -173,17 +172,10 @@
           {% else %}
           <td data-label="實際位置"{% if location_options %} class="inventory-location-cell"{% endif %}>{% if location_options %}<div class="inventory-location" data-inventory-location data-url="{% url 'inventory_location' vehicle.pk %}" data-identifier="{{ vehicle.identifier }}"><select id="inventory-location-{{ vehicle.pk }}" class="inventory-location__select" name="location" aria-label="實際位置 {{ vehicle.identifier }}（選了就存）" data-location-current="{{ vehicle.location_value }}"><option value="{{ vehicle.location_value }}" selected>{{ vehicle.location_option_label }}</option></select><p class="inventory-location__status" role="status" data-location-status hidden></p></div>{% else %}<strong>{{ vehicle.actual_location_label }}</strong>{% endif %}{% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}</td>
           {% endif %}
-          <td data-label="車況">
-            {% if vehicle.status == 'condition_issue' %}
-              <span class="inventory-condition has-issue">車況異常</span>{% if vehicle.condition_note %}<small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>{% endif %}
-            {% elif vehicle.condition_note %}
-              <span class="inventory-condition has-note">有備註</span><small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>
-            {% else %}<span class="inventory-condition is-normal">正常</span>{% endif %}
-          </td>
           <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}{% if can_restore_stock %}<a class="button secondary small" href="{% url 'inventory_restore' vehicle.pk %}">改回庫存</a>{% endif %}{% if transfer_out_names %}{% if vehicle.status == 'reserved' %}<button class="button ghost small inventory-transfer-out-button" type="button" disabled title="已配給訂單，不能調出">已配車</button>{% else %}<button class="button secondary small inventory-transfer-out-button" type="button" data-transfer-out-one="{{ vehicle.pk }}" aria-label="調出 {{ vehicle.identifier }}">調出</button>{% endif %}{% endif %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if selected.scope == 'current' %}{% if transfer_out_names %}11{% else %}10{% endif %}{% else %}9{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
+        <tr><td colspan="{% if selected.scope == 'current' %}{% if transfer_out_names %}8{% else %}7{% endif %}{% else %}6{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

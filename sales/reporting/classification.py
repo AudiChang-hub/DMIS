@@ -9,7 +9,8 @@ from contextvars import ContextVar
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Case, CharField, Count, F, Min, Value, When
+from django.db.models import Case, CharField, Count, F, Min, Q, Value, When
+from django.db.models.lookups import IsNull
 from django.utils import timezone
 
 from .models import ReportClassification, ReportClassificationRevision
@@ -103,21 +104,29 @@ class ClassificationSnapshotMiddleware:
             _request_snapshot.reset(token)
 
 
-def classification_expression(snapshot=None, *, identifiers=False):
+def classification_expression(snapshot=None, *, identifiers=False, master_name_fallback=False):
+    """master_name_fallback（T-321，限 SalesOrder 查詢）：型號取自車型主檔的新單，型號比不到任何規則時，
+    再用主檔車型名稱比一次（規則多以車型名稱撰寫，如 EZZY；主檔型號是原廠代碼 GE3GS）。
+    只在原本會落到「其他」時才生效；匯入單沿用匯入型號文字，不改用主檔名稱。"""
     snapshot = snapshot if snapshot is not None else published_snapshot()[0]
     categories = {c['id']:c for c in snapshot['categories']}
     rules = sorted(snapshot['rules'], key=lambda r:(r['match'] != 'exact', -len(r['text']), r['id']))
-    cases = []
+    lookups = []
     for r in rules:
         category = categories[r['category']]
         if not r['enabled'] or not category['enabled']:
             continue
         if r['match'] == 'exact':
-            lookup = {'report_source_model':r['text']}
+            lookup = ('', r['text'])
         else:
             suffix = {'prefix':'', 'numeric':'[0-9]', 'series':'([0-9]|-[A-Z0-9])'}[r['match']]
-            lookup = {'report_source_model__regex':'^' + re.escape(r['text']) + suffix}
-        cases.append(When(**lookup, then=Value(category['id'] if identifiers else category['name'])))
+            lookup = ('__regex', '^' + re.escape(r['text']) + suffix)
+        lookups.append((lookup, Value(category['id'] if identifiers else category['name'])))
+    cases = [When(**{'report_source_model' + suffix:text}, then=value) for (suffix, text), value in lookups]
+    if master_name_fallback:
+        from .source_compatibility import imported_text
+        from_master = Q(IsNull(imported_text('model_number'), True))
+        cases += [When(from_master & Q(**{'vehicle_model__name' + suffix:text}), then=value) for (suffix, text), value in lookups]
     return Case(*cases, default=Value(FALLBACK if identifiers else categories[FALLBACK]['name']), output_field=CharField())
 
 
@@ -128,7 +137,7 @@ def inventory():
 
 
 def unclassified(snapshot, search=''):
-    query = inventory().annotate(classification_id=classification_expression(snapshot, identifiers=True)).filter(classification_id=FALLBACK)
+    query = inventory().annotate(classification_id=classification_expression(snapshot, identifiers=True, master_name_fallback=True)).filter(classification_id=FALLBACK)
     if search:
         query = query.filter(report_source_model__icontains=search)
     return query.values('report_source_model').annotate(count=Count('pk'), master=Min('vehicle_model__name')).order_by('-count','report_source_model')
@@ -136,7 +145,8 @@ def unclassified(snapshot, search=''):
 
 def impact(before, after):
     validate_snapshot(after)
-    query = inventory().annotate(before=classification_expression(before), after=classification_expression(after))
+    query = inventory().annotate(before=classification_expression(before, master_name_fallback=True),
+                                after=classification_expression(after, master_name_fallback=True))
     rows = query.exclude(before=F('after')).values('report_source_model','before','after').annotate(count=Count('pk')).order_by('report_source_model','before','after')
     # 每型號彙總；不讀取客戶資料。摘要涵蓋全部型號，畫面最多列 200 列。
     digest = hashlib.sha256(); result = []; total = 0; groups = 0

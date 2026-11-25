@@ -51,7 +51,7 @@ def source_model_query(queryset):
 
 def motor_type_expression():
     from .classification import classification_expression
-    return classification_expression()
+    return classification_expression(master_name_fallback=True)
 
 
 SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行")

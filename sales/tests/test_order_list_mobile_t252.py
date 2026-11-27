@@ -71,7 +71,8 @@ class OrderListMobileLayoutTests(SimpleTestCase):
 
     def test_chips_and_sheet_behaviour(self):
         js = (STATIC / "js/order-list-filters.js").read_text(encoding="utf-8")
-        self.assertIn('const NAMES = ["date_from", "date_to", "energy_type", "payment_status", "registered", "status"];', js)
+        # T-323：車行／平台（src）也列進小標籤與面板的還原／清除（需 PM 同意的測試修改，見 T-323 回報）。
+        self.assertIn('const NAMES = ["src", "date_from", "date_to", "energy_type", "payment_status", "registered", "status"];', js)
         self.assertIn('count.textContent = names.length ? `（${names.length}）` : "";', js)
         self.assertIn('clear.textContent = "全部清除";', js)
         # 沒按套用就關閉，欄位回到原值；面板開著時改狀態不立刻送出。

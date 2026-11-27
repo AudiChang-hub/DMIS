@@ -26,6 +26,22 @@
   <header class="order-filter-sheet__head"><h2 id="order-filter-sheet-title">篩選</h2><button type="button" class="order-filter-sheet__close" data-order-filter-close aria-label="關閉篩選">×</button></header>
   {# T-233（使用者 2026-11-18）：篩選只留日期起訖（固定依實際領牌日期）、能源別、收款確認、領牌，直接顯示不摺疊。 #}
   {# 日期依據、收款風險、作業提醒、成交範圍不在畫面上，但營運總表等連結帶來的網址參數照舊有效，以隱藏欄位帶著走。 #}
+  {# T-323（使用者 2026-11-27）：車行／平台多選（order-source-filter.js）。只比對訂單來源，也就是列表「車行／平台」欄顯示的那一家；勾選只改這一欄的顯示，按「套用」才查。 #}
+  <div class="order-filter-source" data-order-source-filter>
+    <span class="order-filter-source__label" id="order-source-label">{{ source_filter.label }}</span>
+    <input type="hidden" name="{{ source_filter.param }}" value="{{ source_filter.value }}" data-order-source-value data-filter-label="{{ source_filter.label }}" data-filter-text="{{ source_filter.summary }}">
+    <div class="order-source-field">
+      <button type="button" class="order-source-button" data-order-source-button aria-haspopup="listbox" aria-expanded="false" aria-controls="order-source-pop" aria-labelledby="order-source-label order-source-summary"><span class="order-source-button__text{% if not source_filter.summary %} is-empty{% endif %}" id="order-source-summary" data-order-source-summary data-empty="全部">{{ source_filter.summary|default:"全部" }}</span><span class="ui-chevron" aria-hidden="true"></span></button>
+      <button type="button" class="order-source-reset" data-order-source-reset aria-label="清除{{ source_filter.label }}的選擇"{% if not source_filter.value %} hidden{% endif %}><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="order-source-pop" id="order-source-pop" data-order-source-pop hidden>
+      <input type="text" class="order-source-pop__input" data-order-source-input role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="order-source-listbox" aria-label="打字找車行或平台" placeholder="打字找車行或平台" autocomplete="off" spellcheck="false" enterkeyhint="done">
+      <div class="order-source-pop__list" id="order-source-listbox" role="listbox" aria-multiselectable="true" aria-label="{{ source_filter.label }}" tabindex="-1" data-order-source-list></div>
+      <p class="order-source-pop__status" role="status" aria-live="polite" data-order-source-status></p>
+      <div class="order-source-pop__foot"><button type="button" class="order-source-pop__clear" data-order-source-clear>清除已選</button><button type="button" class="button ghost small" data-order-source-done>完成</button></div>
+    </div>
+    {{ source_filter.groups|json_script:"order-source-options" }}
+  </div>
   <label class="order-filter-date">日期起<input type="date" name="date_from" value="{{ request.GET.date_from }}"></label>
   <label class="order-filter-date">日期迄<input type="date" name="date_to" value="{{ request.GET.date_to }}"></label>
   <label class="order-filter-choice">能源別<select name="energy_type"><option value="">全部</option>{% for value,label in energy_types %}<option value="{{ value }}"{% if request.GET.energy_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
@@ -49,7 +65,7 @@
   <div class="order-filter-sheet__actions"><button type="button" class="button ghost" data-order-filter-clear>清除</button><button type="submit" class="button primary" data-order-filter-apply>套用</button></div>
   </dialog>
 </form>
-<div class="order-drilldown{% if has_analysis_filters and not hidden_filters and not request.GET.include_cancelled and not request.GET.drafts %} order-drilldown--chips{% endif %}">{% if has_analysis_filters %}<strong>已套用篩選條件{% if hidden_filters %}：{% for key, value, label in hidden_filters %}{{ label }}{% if not forloop.last %}、{% endif %}{% endfor %}{% endif %}</strong><a class="button ghost small" href="{% url 'order_list' %}">清除所有篩選</a>{% endif %}{% if_access 'order_create' %}<a class="order-drilldown__drafts" href="{% url 'order_list' %}?drafts=1#drafts">未完成草稿</a>{% endif_access %}</div>
+<div class="order-drilldown{% if has_analysis_filters and not hidden_filters and not request.GET.include_cancelled and not request.GET.drafts %} order-drilldown--chips{% endif %}">{% if has_analysis_filters %}<strong>已套用篩選條件{% if hidden_filters or source_filter.summary %}：{% for key, value, label in hidden_filters %}{{ label }}{% if not forloop.last or source_filter.summary %}、{% endif %}{% endfor %}{% if source_filter.summary %}{{ source_filter.label }}「{{ source_filter.summary }}」{% endif %}{% endif %}</strong>{% if source_filter.summary %}<a class="button ghost small" href="{% querystring src=None page=None %}" title="{{ source_filter.names }}">清除{{ source_filter.label }}</a>{% endif %}<a class="button ghost small" href="{% url 'order_list' %}">清除所有篩選</a>{% endif %}{% if_access 'order_create' %}<a class="order-drilldown__drafts" href="{% url 'order_list' %}?drafts=1#drafts">未完成草稿</a>{% endif_access %}</div>
 {% if draft_count %}<aside class="order-draft-summary"><div><strong>未完成草稿 · {{ draft_count }} 筆</strong><p class="muted">尚未送出的下單資料，與已成立訂單分開列出。</p></div><a class="button ghost" href="{% url 'order_list' %}?status=draft#drafts">查看草稿</a></aside>{% endif %}
 {% if show_drafts %}<section class="section-block" id="drafts"><div class="section-title"><h2>未完成草稿</h2><span>{{ drafts.paginator.count }} 筆</span></div>{% for draft in drafts %}<article class="draft-row"><span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span><time>{{ draft.updated_at|date:"Y/m/d H:i" }}</time>{% if draft.is_reception_draft %}{% if draft.owner_account_id == user.pk %}<a class="button ghost" href="{% url 'order_start' %}?draft={{ draft.pk }}">接續填單</a>{% else %}<small class="draft-row__note">由草稿建立人接續填寫</small>{% endif %}{% else %}{% if_access 'order_create' %}<a class="button ghost" href="{% url 'order_create' %}?draft={{ draft.pk }}">接續填單</a>{% endif_access %}{% endif %}</article>{% empty %}<div class="empty-state small"><p>目前沒有符合搜尋條件的草稿。</p></div>{% endfor %}{% pagination drafts page_param='draft_page' aria_label="草稿分頁" %}</section>{% endif %}
 {# 頁籤切換只換這一區（static/js/order-tabs.js），不整頁重新載入、不跳回頁首。 #}
@@ -155,4 +171,4 @@
   <p class="visually-hidden" role="status" aria-live="polite" data-overview-status></p>
 </dialog>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/order-list-filters.js' %}" defer></script><script src="{% static 'js/order-sorting.js' %}" defer></script><script src="{% static 'js/order-tabs.js' %}" defer></script><script src="{% static 'js/order-overview.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/order-source-filter.js' %}" defer></script><script src="{% static 'js/order-list-filters.js' %}" defer></script><script src="{% static 'js/order-sorting.js' %}" defer></script><script src="{% static 'js/order-tabs.js' %}" defer></script><script src="{% static 'js/order-overview.js' %}" defer></script>{% endblock %}

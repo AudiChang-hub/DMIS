@@ -6,7 +6,7 @@ from django.utils.dateparse import parse_date
 from sales.models import SalesOrder, VehicleModel, registration_confirmed_q
 from .sales_metrics import CANCELLED_STATUSES, PAYMENT_CATEGORIES, filter_payment_risk, payment_category_q
 
-FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts", "pay", "txn")
+FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts", "pay", "txn", "src")
 
 # 營運總表下鑽用的交易類型範圍（T-320）：代交車、中獎車不計業績，主數字只算其他交易類型（performance），
 # 副標各自連到這兩類；張數要和卡片相同。網址參數 txn，沒帶時不影響。
@@ -75,6 +75,9 @@ def filter_order_analysis(rows, params, *, business_default=False):
         rows = rows.exclude(status__in=["allocation_pending", "cancel_refund_pending", "delivered_docs_pending", "completed", "cancelled", "exception_closed"])
     elif status:
         rows = rows.filter(status=status)
+    # 車行／平台（T-323）：只比對訂單來源；沒選時不加條件。
+    from .order_source_filter import PARAM as SOURCE_PARAM, filter_by_source
+    rows = filter_by_source(rows, params.get(SOURCE_PARAM))
     rows = filter_payment_risk(rows, params.get("risk", ""))
     if params.get("txn") in TRANSACTION_SCOPES:
         rows = rows.filter(TRANSACTION_SCOPES[params["txn"]][1])
@@ -150,7 +153,9 @@ HIDDEN_FILTERS = {
 
 
 def analysis_filter_context(params):
-    selected = [(key, params[key]) for key in FILTER_KEYS if params.get(key)]
+    from .order_source_filter import PARAM as SOURCE_PARAM, parse_tokens
+    selected = [(key, params[key]) for key in FILTER_KEYS if params.get(key)
+                and (key != SOURCE_PARAM or parse_tokens(params[key]))]
     hidden = [(key, params[key], f"{name}「{values[params[key]]}」")
               for key, (name, values) in HIDDEN_FILTERS.items() if params.get(key) in values]
     return {"analysis_filters": selected, "has_analysis_filters": bool(selected), "hidden_filters": hidden,

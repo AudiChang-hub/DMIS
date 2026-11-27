@@ -179,3 +179,98 @@
   max-width: none; padding: 0; overflow: visible; color: inherit; background: var(--amber-soft);
   border-radius: var(--radius-xs); text-overflow: clip; white-space: normal;
 }
+/* T-323（使用者 2026-11-27）：全部訂單「車行／平台」多選（order-source-filter.js）。外觀比照庫存「實際位置」選擇器：一顆按鈕，點開在下方出現可打字的清單；
+   手機版在篩選面板裡直接展開在按鈕下方。電腦版篩選列多一格：寬桌面一列九格；1280px 以下搜尋不再跨兩格，車行／平台接在搜尋後面。 */
+@media (min-width: 1280.02px) {
+  .order-filter-bar { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.35fr) repeat(2, minmax(0, 1.1fr)) repeat(3, minmax(0, 1fr)) minmax(0, 1.1fr) auto; }
+}
+@media (min-width: 860.02px) and (max-width: 1280px) {
+  .order-filter-bar .order-filter-search { grid-column: auto; }
+}
+.order-filter-source { position: relative; display: flex; min-width: 0; flex-direction: column; gap: var(--space-2); }
+.order-filter-source__label { font-size: var(--text-sm-plus); font-weight: 800; }
+/* 元件尺寸：全站間距量表（--space-*）沒有這兩個值，在這裡命名。清除鈕 28px；箭頭 .ui-chevron 是 9px 方框加 2px 邊框轉 45°，看起來約 13px 寬。 */
+.order-source-field { --order-source-reset-size: 28px; --order-source-chevron-width: 13px; position: relative; display: flex; min-width: 0; }
+.order-source-button {
+  display: flex; width: 100%; min-width: 0; min-height: 48px; padding: 0 var(--space-4); align-items: center; justify-content: space-between; gap: var(--space-2);
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+  font: inherit; font-weight: 700; text-align: left; cursor: pointer;
+  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.order-source-button .ui-chevron { flex: none; margin-top: calc(-1 * var(--space-1)); color: var(--select-chevron); }
+.order-source-button__text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.order-source-button__text.is-empty { color: var(--muted); font-weight: 500; }
+/* 有選時右邊多一顆清除鈕，放在箭頭左邊；文字讓出這段空間，箭頭位置不變。 */
+.order-source-field:has(.order-source-reset:not([hidden])) .order-source-button__text { margin-right: calc(var(--order-source-reset-size) + var(--space-2)); }
+.order-source-button:hover { border-color: color-mix(in srgb, var(--action-bg) 45%, var(--line)); }
+.order-source-button:focus-visible, .order-source-button[aria-expanded="true"] {
+  border-color: var(--action-bg); outline: 0; box-shadow: 0 0 0 4px color-mix(in srgb, var(--action-bg) 18%, transparent);
+}
+.order-source-button[aria-expanded="true"] .ui-chevron { margin-top: var(--space-1); transform: rotate(225deg); }
+.order-source-reset {
+  position: absolute; top: 50%; right: calc(var(--space-4) + var(--order-source-chevron-width) + var(--space-2)); display: inline-grid;
+  width: var(--order-source-reset-size); height: var(--order-source-reset-size); place-items: center;
+  color: var(--ink-soft); background: var(--surface-soft); border: 0; border-radius: 50%; font: inherit; font-size: var(--text-sm); line-height: 1;
+  transform: translateY(-50%); cursor: pointer;
+}
+.order-source-reset[hidden] { display: none; }
+.order-source-reset:hover { color: var(--ink); background: var(--line-soft); }
+.order-source-reset:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.order-source-pop {
+  position: absolute; z-index: 40; top: calc(100% + var(--space-2)); left: 0; display: grid; width: min(360px, calc(100vw - 2 * var(--space-4)));
+  box-sizing: border-box; padding: var(--space-3); gap: var(--space-2);
+  background: var(--surface-raised); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-ink) 18%, transparent);
+  animation: order-source-pop var(--dur-2) var(--ease-out);
+}
+.order-source-pop[hidden] { display: none; }
+@keyframes order-source-pop { from { opacity: 0; transform: translateY(-4px); } }
+.order-filter-bar .order-source-pop__input { min-height: 44px; padding: var(--space-2) var(--space-3); }
+.order-source-pop__input:focus-visible { border-color: var(--action-bg); outline: 0; box-shadow: 0 0 0 4px color-mix(in srgb, var(--action-bg) 18%, transparent); }
+.order-source-pop__list {
+  display: grid; max-height: 300px; margin: 0; padding: var(--space-1); gap: var(--space-1); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+}
+.order-source-pop__list:empty { display: none; }
+/* 2px：同一組選項之間的細縫，量表最小的 --space-1 是 4px，沒有對應 token（全站同類用法也是 2px）。 */
+.order-source-group { display: grid; gap: 2px; }
+.order-source-group + .order-source-group { padding-top: var(--space-1); border-top: 1px solid var(--line-soft); }
+.order-source-group__title { padding: var(--space-2) var(--space-3) var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 900; }
+.order-source-option {
+  display: flex; min-height: 44px; padding: 0 var(--space-3); align-items: center; gap: var(--space-3);
+  border-radius: var(--radius-sm); font-weight: 700; cursor: pointer; transition: background-color var(--dur-2) var(--ease-out);
+}
+.order-source-option__box {
+  position: relative; flex: 0 0 auto; width: 18px; height: 18px; background: var(--surface); border: 2px solid var(--line-strong); border-radius: var(--radius-xs);
+  transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.order-source-option[aria-selected="true"] .order-source-option__box { background: var(--action-bg); border-color: var(--action-bg); }
+.order-source-option[aria-selected="true"] .order-source-option__box::after {
+  content: ""; position: absolute; top: 1px; left: 4px; width: 5px; height: 9px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.order-source-option__label { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.order-source-option__label mark { padding: 0 1px; color: inherit; background: var(--amber-soft); border-radius: 3px; }
+.order-source-option__tag { flex: 0 0 auto; color: var(--muted); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; }
+.order-source-option--all { font-weight: 900; }
+.order-source-option:hover { background: var(--surface-soft); }
+.order-source-option.is-active { color: var(--action-text); background: var(--mint); }
+.order-source-pop__status { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+.order-source-pop__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.order-source-pop__clear {
+  min-height: 36px; padding: 0 var(--space-1); color: var(--action-text); background: none; border: 0; border-radius: var(--radius-xs);
+  font: inherit; font-size: var(--text-sm); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.order-source-pop__clear:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+/* 沒有 JS 時選擇器用不了：只保留網址帶進來的條件（隱藏欄位），按鈕與清單不出現。 */
+.order-filter-source:not(.is-ready) .order-source-field { display: none; }
+@media (max-width: 860px) {
+  .order-filter-sheet .order-filter-source { grid-column: 1 / -1; }
+  .order-filter-bar .order-source-button { min-height: var(--control-h); }
+  .order-filter-sheet .order-source-pop { position: static; width: auto; padding: var(--space-2); box-shadow: none; }
+  .order-filter-sheet .order-source-pop__list { max-height: min(300px, 42dvh); }
+  .order-filter-bar .order-source-pop__input { font-size: max(var(--text-base), 16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-source-pop { animation: none; }
+  .order-source-button, .order-source-option, .order-source-option__box { transition: none; }
+}

@@ -10,7 +10,7 @@ from sales.models import PaymentRecord, SalesOrder
 # 從全部訂單頁帶過來、會影響範圍的參數；其餘（分頁、每頁筆數）一律不帶。
 SCOPE_KEYS = (
     "q", "status", "tab", "sort", "risk", "date_basis", "date_from", "date_to", "energy_type",
-    "payment_status", "registered", "attention", "business_only", "include_cancelled", "txn",
+    "payment_status", "registered", "attention", "business_only", "include_cancelled", "txn", "src",
 )
 
 
@@ -41,7 +41,8 @@ def export_queryset(request, params):
     tab = params.get("tab")
     # 「全部」只在匯出頁與舊匯出網址明確指定（舊匯出不分頁籤）；全部訂單頁的頁籤沒有這個值。
     if tab != "all" and tab not in tab_rules.TAB_KEYS:
-        filtered = query or params.get("status") or any(params.get(key) for key in ORDER_LIST_FILTER_KEYS)
+        from sales.services.order_source_filter import has_source_filter
+        filtered = query or params.get("status") or any(params.get(key) for key in ORDER_LIST_FILTER_KEYS) or has_source_filter(params)
         tab = "all" if filtered else "open"
     if tab != "all":
         orders = orders.filter(tab_rules.tab_filter(tab))
@@ -73,6 +74,11 @@ def scope_labels(params, tab):
         extra = {"deletion_pending": "刪除確認中", "urgent": "需要優先處理", "in_progress": "進行中",
                  "registration_pending": "待領牌（含調車）"}
         labels.append(("狀態", extra.get(status) or dict(SalesOrder.Status.choices).get(status, status)))
+    if params.get("src"):
+        from sales.services.order_source_filter import LABEL, source_filter_context
+        names = source_filter_context(params["src"])["names"]
+        if names:
+            labels.append((LABEL, names))
     if params.get("date_from") or params.get("date_to"):
         basis = {"order": "訂單版本日期", "established": "訂單成立日期", "delivery": "交車日期"}.get(
             params.get("date_basis"), "實際領牌日期")

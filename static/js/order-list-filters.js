@@ -40,13 +40,16 @@
   if (!form || !sheet || !opener || typeof sheet.showModal !== "function") return;
   const count = opener.querySelector("[data-order-filter-count]");
   const chips = form.querySelector("[data-order-filter-chips]");
-  const NAMES = ["date_from", "date_to", "energy_type", "payment_status", "registered", "status"];
+  const NAMES = ["src", "date_from", "date_to", "energy_type", "payment_status", "registered", "status"];
   const field = (name) => sheet.querySelector(`[name="${name}"]`);
   const labelOf = (input) => {
+    // 車行／平台（T-323）是隱藏欄位，名稱與已套用的顯示文字由模板寫在 data 屬性上。
+    if (input.dataset.filterLabel) return input.dataset.filterLabel;
     const label = input.closest("label");
     return [...(label?.childNodes || [])].filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent.trim()).join("") || input.name;
   };
   const valueText = (input) => {
+    if (input.dataset.filterText !== undefined) return input.dataset.filterText;
     if (input.tagName === "SELECT") return input.selectedOptions[0]?.text.trim() || "";
     return input.value.replaceAll("-", "/");
   };
@@ -86,11 +89,14 @@
     }
   };
   const submit = () => (form.requestSubmit ? form.requestSubmit() : form.submit());
+  // 直接改了欄位值之後，通知車行／平台選擇器重新對齊顯示（order-source-filter.js）。
+  const synced = () => form.dispatchEvent(new CustomEvent("order-filter:sync"));
   chips.addEventListener("click", (event) => {
     const target = event.target.closest("[data-clear-filter]");
     if (!target) return;
     const names = target.dataset.clearFilter === "*" ? active() : [target.dataset.clearFilter];
     names.forEach((name) => { const input = field(name); if (input) input.value = ""; });
+    synced();
     submit();
   });
 
@@ -101,10 +107,11 @@
     sheet.showModal();
     document.documentElement.classList.add("has-order-filter-open");
     opener.setAttribute("aria-expanded", "true");
-    sheet.querySelector("input:not([type=hidden]), select")?.focus();
+    sheet.querySelector("[data-order-source-button], input:not([type=hidden]), select")?.focus();
   };
   const dismiss = () => {
     if (snapshot) NAMES.forEach((name) => { const input = field(name); if (input) input.value = snapshot[name]; });
+    synced();
     if (sheet.open) sheet.close();
     opener.focus({ preventScroll: true });
   };
@@ -119,7 +126,8 @@
   sheet.addEventListener("click", (event) => { if (event.target === sheet) dismiss(); });
   sheet.querySelector("[data-order-filter-clear]")?.addEventListener("click", () => {
     NAMES.forEach((name) => { const input = field(name); if (input) input.value = ""; });
-    sheet.querySelector("input:not([type=hidden]), select")?.focus();
+    synced();
+    sheet.querySelector("[data-order-source-button], input:not([type=hidden]), select")?.focus();
   });
   form.addEventListener("submit", () => { snapshot = null; if (sheet.open) sheet.close(); });
   // 面板開著時，「狀態」改了不要立刻送出（電腦版的下拉仍是選了就查），等按「套用」。

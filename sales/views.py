@@ -4337,13 +4337,15 @@ def order_list(request):
         orders = orders.filter(build_order_search_query(query, profit_unlocked=profit_visible)).distinct()
     from sales.services.order_filters import filter_order_analysis, analysis_filter_context
     orders = filter_order_analysis(orders, request.GET)
+    from sales.services.order_source_filter import has_source_filter, source_filter_context
     # 三個頁籤：進行中（預設）／已交車／已結案，筆數依目前搜尋與篩選計算（services/order_tabs.py）。
     # 有搜尋、狀態或營運條件（例如從營運總表點進來的明細）且沒指定頁籤時列出全部符合的訂單，數字才對得上。
     from sales.services import order_tabs as tab_rules
     orders = tab_rules.with_subsidy_progress(orders)
     order_tab = request.GET.get("tab")
     if order_tab not in tab_rules.TAB_KEYS:
-        filtered = query or request.GET.get("status") or any(request.GET.get(key) for key in ORDER_LIST_FILTER_KEYS)
+        filtered = (query or request.GET.get("status") or any(request.GET.get(key) for key in ORDER_LIST_FILTER_KEYS)
+                    or has_source_filter(request.GET))
         order_tab = "all" if filtered else "open"
     order_tabs = []
     for key, label, hint in tab_rules.TABS:
@@ -4402,6 +4404,7 @@ def order_list(request):
             "per_page": per_page,
             "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
             **analysis_filter_context(request.GET),
+            "source_filter": source_filter_context(request.GET.get("src")),
             "drafts": Paginator(draft_rows, 25).get_page(request.GET.get("draft_page")) if show_drafts else [],
             "draft_count": draft_rows.count(), "show_drafts": show_drafts,
             "order_tabs": order_tabs, "order_tab": order_tab,

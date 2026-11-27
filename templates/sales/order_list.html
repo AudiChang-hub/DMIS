@@ -48,7 +48,7 @@
   <label class="order-filter-choice">收款確認<select name="payment_status"><option value="">全部</option><option value="confirmed"{% if request.GET.payment_status == 'confirmed' %} selected{% endif %}>已確認</option><option value="pending"{% if request.GET.payment_status == 'pending' %} selected{% endif %}>待確認</option></select></label>
   <label class="order-filter-choice">領牌<select name="registered"><option value="">全部</option><option value="no"{% if request.GET.registered == 'no' %} selected{% endif %}>未領牌</option><option value="yes"{% if request.GET.registered == 'yes' %} selected{% endif %}>已領牌</option></select></label>
   <label class="order-filter-status">狀態
-    <select name="status" onchange="this.form.submit()">
+    <select name="status">
       <option value="">全部狀態</option>
       <option value="deletion_pending" {% if request.GET.status == 'deletion_pending' %}selected{% endif %}>刪除確認中</option>
       <option value="urgent" {% if request.GET.status == "urgent" %}selected{% endif %}>需要優先處理</option>
@@ -60,7 +60,7 @@
     </select>
   </label>
   {% for key, value, label in hidden_filters %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
-  <button class="button primary order-filter-submit" type="submit">搜尋</button>
+  <button class="button primary order-filter-submit" type="submit">套用</button>
   <p class="muted order-filter-note">{% site_text 'order_list.f73efc30a7cd' %}</p>
   <div class="order-filter-sheet__actions"><button type="button" class="button ghost" data-order-filter-clear>清除</button><button type="submit" class="button primary" data-order-filter-apply>套用</button></div>
   </dialog>

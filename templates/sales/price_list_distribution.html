@@ -53,7 +53,7 @@
     <div class="inventory-filter"><label for="distribution-district">行政區</label><select id="distribution-district" name="district" {% if not selected_city %}disabled{% endif %} data-filter-default="">
       <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
     </select></div>
-    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}&amp;owner={{ selected_owner }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
+    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}&amp;owner={{ selected_owner }}">清除條件</a><button class="button primary" type="submit">套用</button></div>
   </div>
 </form>
 

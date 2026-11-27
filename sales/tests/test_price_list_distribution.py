@@ -145,7 +145,7 @@ class PriceListDistributionTests(TestCase):
         self.assertContains(response, 'class="master-filters price-distribution-filters"')
         self.assertContains(response, 'class="inventory-filter master-search"')
         self.assertContains(response, "清除條件")
-        self.assertContains(response, "套用篩選")
+        self.assertContains(response, '<button class="button primary" type="submit">套用</button>')  # T-324：列表頁篩選按鈕統一叫「套用」
 
     def test_address_renders_once_and_links_to_google_maps_driving_directions(self):
         dealer = self.create_dealer(

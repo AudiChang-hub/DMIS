@@ -32,6 +32,7 @@
   </div>{% elif selected.status %}<input type="hidden" name="status" value="{{ selected.status }}">{% endif %}
   <div class="inventory-filter-actions">
     <a class="button ghost" href="{% url 'incentive_rule_list' %}?tab={{ selected.tab }}">清除</a>
+    <button class="button primary" type="submit">套用</button>
   </div>
 </form>
 

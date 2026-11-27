@@ -64,7 +64,7 @@
     <div class="inventory-filter"><label for="assignment-district">行政區</label><select id="assignment-district" name="district"{% if not selected_city %} disabled{% endif %}>
       <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}"{% if selected_district == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
     </select></div>
-    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution_assignments' distribution.pk %}">清除條件</a><button class="button primary" type="submit">顯示車行</button></div>
+    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution_assignments' distribution.pk %}">清除條件</a><button class="button primary" type="submit">套用</button></div>
   </form>
 </section>
 

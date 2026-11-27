@@ -1,14 +1,13 @@
 (() => {
-  // 原廠獎勵活動（T-161）：清單篩選自動套用、掃描既有訂單視窗、表單項目列、通路暫停提示與指定車行。
+  // 原廠獎勵活動（T-161）：清單篩選、掃描既有訂單視窗、表單項目列、通路暫停提示與指定車行。
 
-  // 篩選選了就自動套用（比照 T-142）：條件寫回網址，空值不寫。
+  // 篩選按「套用」才查（T-324：列表頁一律按套用，不再打字或選了就查）；只換結果區，條件寫回網址，空值不寫。
   const paramsFrom = (form) => new URLSearchParams([...new FormData(form)].filter(([, value]) => String(value).trim() !== ''));
 
   function initFilters() {
     const form = document.querySelector('[data-campaign-filters]');
     const results = document.querySelector('[data-campaign-results]');
     if (!form || !results) return;
-    let timer = null;
     let pending = null;
     async function load() {
       const url = new URL(location.pathname, location.href);
@@ -28,10 +27,7 @@
         if (pending === controller) results.removeAttribute('aria-busy');
       }
     }
-    const schedule = (wait) => { clearTimeout(timer); timer = setTimeout(load, wait); };
-    form.addEventListener('input', (event) => { if (event.target.type === 'search') schedule(350); });
-    form.addEventListener('change', (event) => { if (event.target.tagName === 'SELECT') schedule(0); });
-    form.addEventListener('submit', (event) => { event.preventDefault(); schedule(0); });
+    form.addEventListener('submit', (event) => { event.preventDefault(); load(); });
   }
 
   // 掃描既有訂單：讀取（GET 只讀）後在視窗中逐張勾選，送出才寫入。

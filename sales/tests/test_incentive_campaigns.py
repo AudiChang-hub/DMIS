@@ -467,7 +467,7 @@ class IncentiveCampaignApplyTests(CampaignFixtureMixin, TestCase):
         self.assertIn("status=current", tabs["inactive"]["url"])
         self.assertIn("tab=inactive", tabs["inactive"]["url"])
         self.assertNotIn("page=", tabs["inactive"]["url"], "切換頁籤回到第一頁")
-        self.assertContains(response, 'aria-label="原廠獎勵活動狀態"', msg_prefix="自動套用篩選時頁籤筆數一起更新")
+        self.assertContains(response, 'aria-label="原廠獎勵活動狀態"', msg_prefix="按「套用」只換結果區時頁籤筆數一起更新")
         inactive = self.client.get(url, {"q": "fun", "kind": "bonus", "status": "current", "tab": "inactive"})
         self.assertContains(inactive, "Fun 停用加碼")
         self.assertContains(inactive, '<input type="hidden" name="status" value="current">',

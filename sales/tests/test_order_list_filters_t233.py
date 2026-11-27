@@ -42,7 +42,7 @@ class OrderListFilterT233Tests(TestCase):
         for removed in ("date_basis", "risk", "attention", "business_only"):
             self.assertNotIn(f'name="{removed}"', form)
         self.assertIn("日期起訖依實際領牌日期", form)
-        self.assertRegex(form, r'order-filter-submit" type="submit">搜尋</button>\s*<p class="muted order-filter-note">')
+        self.assertRegex(form, r'order-filter-submit" type="submit">套用</button>\s*<p class="muted order-filter-note">')
 
     def test_removed_filters_still_work_from_links_and_survive_resubmit(self):
         cases = {

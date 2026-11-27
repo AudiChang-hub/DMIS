@@ -4,7 +4,7 @@
 <section class="section-block copy-manage">
 <h2>尋找要修改的文字</h2>
 <p>先選上方頁籤（依文字實際所在的頁面分類），或直接輸入你在畫面看到的文字。多個關鍵字可用空白分隔，例如「列印 牌險」。</p>
-<form method="get" class="filter-bar"><input type="hidden" name="area" value="{{ area }}"><label>搜尋文字<input type="search" name="q" value="{{ request.GET.q }}" placeholder="例如：牌險、領牌、強制險"></label><label><input type="checkbox" name="customized" value="1"{% if request.GET.customized == '1' %} checked{% endif %}>只看已自訂</label><button class="button primary">搜尋</button><a class="button ghost" href="{% url 'site_copy_manage' %}">清除</a><a class="button ghost" href="?key=print.contract.plate_description&amp;area=print">訂購單・牌險說明</a></form>
+<form method="get" class="filter-bar"><input type="hidden" name="area" value="{{ area }}"><label>搜尋文字<input type="search" name="q" value="{{ request.GET.q }}" placeholder="例如：牌險、領牌、強制險"></label><label><input type="checkbox" name="customized" value="1"{% if request.GET.customized == '1' %} checked{% endif %}>只看已自訂</label><button class="button primary">套用</button><a class="button ghost" href="{% url 'site_copy_manage' %}">清除</a><a class="button ghost" href="?key=print.contract.plate_description&amp;area=print">訂購單・牌險說明</a></form>
 <nav class="copy-tabs" aria-label="說明文字分類">{% for tab in tabs %}<a class="copy-tab{% if tab.active %} is-active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}><span>{{ tab.label }}</span><b>{{ tab.count }}</b></a>{% endfor %}</nav>
 {% if area_pages %}<nav class="copy-page-chips" aria-label="這個分類的頁面">{% for item in area_pages %}<a href="#copy-page-{{ forloop.counter }}">{{ item.page }}<small>{{ item.count }}</small></a>{% endfor %}</nav>{% endif %}
 <p class="muted">共 {{ page_obj.paginator.count }} 個說明項目</p>

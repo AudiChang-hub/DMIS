@@ -38,7 +38,9 @@ from sales.reporting.engine import (
 )
 from sales.reporting.forms import FilterForm
 from sales.reporting.records import record_context
-from sales.reporting.source_compatibility import SOURCE_CLASSIFICATIONS, sales_source_expression, sales_source_query
+from sales.reporting.source_compatibility import (
+    SOURCE_CLASSIFICATIONS, STORE_STAFF_NAMES, sales_source_expression, sales_source_query,
+)
 from sales.reporting.views import initial_config
 from sales.services import operations_cockpit
 from sales.services.dashboard_metrics import build_dashboard_metrics
@@ -68,7 +70,7 @@ class Base(TestCase):
         cls.admin = get_user_model().objects.create_superuser("admin", "t320@example.invalid", "Test-Only-123")
         cls.dealer = SalesSource.objects.create(name="甲車行", source_type="dealer")
         cls.platform = SalesSource.objects.create(name="示範平台", source_type="platform")
-        cls.staff = SalesSource.objects.create(name="文傑", source_type="store", staff_commission=800)
+        cls.staff = SalesSource.objects.create(name=STORE_STAFF_NAMES[0], source_type="store", staff_commission=800)
         cls.proxy_source = SalesSource.objects.create(name="代交車", source_type="store")
         cls.model = VehicleModel.objects.create(brand="SUZUKI", name="代交測試車", energy_type="gas", base_dealer_commission=2000)
         cls.color = VehicleColor.objects.create(vehicle_model=cls.model, name="白")

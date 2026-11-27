@@ -115,7 +115,10 @@ def _order_overrides(profile):
 
 
 def _block(groups, profile, form, manual, overrides=({}, {})):
+    from sales.forms import NON_PERFORMANCE_LEDGER_FIELDS, NON_PERFORMANCE_LEDGER_HELP, non_performance_ledger
+
     labels, hints = overrides
+    not_applicable = NON_PERFORMANCE_LEDGER_FIELDS if non_performance_ledger(profile) else ()
     rows_total = ZERO
     built = []
     for title, hint, names in groups:
@@ -124,6 +127,9 @@ def _block(groups, profile, form, manual, overrides=({}, {})):
             if name not in form.fields:
                 continue
             tag, tag_label = _source_tag(profile, form, name, manual)
+            if name in not_applicable:
+                # 代交車、中獎車（T-320）：固定 0，金額欄改顯示「不適用」，不給輸入框也不加來源標籤。
+                tag, tag_label = "", ""
             # 金額一律整數；即時小計由 data-ledger-input 取值。
             form.fields[name].widget.attrs.update({
                 "data-ledger-input": "", "placeholder": "0", "inputmode": "numeric", "step": "1",
@@ -132,7 +138,8 @@ def _block(groups, profile, form, manual, overrides=({}, {})):
                 "name": name,
                 "field": form[name],
                 "label": labels.get(name) or LABELS.get(name) or form.fields[name].label,
-                "hint": hints.get(name, HINTS.get(name, "")),
+                "hint": NON_PERFORMANCE_LEDGER_HELP if name in not_applicable else hints.get(name, HINTS.get(name, "")),
+                "not_applicable": name in not_applicable,
                 "tag": tag,
                 "tag_label": tag_label,
                 "amount": _amount(profile, name),

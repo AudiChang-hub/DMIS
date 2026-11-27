@@ -178,6 +178,33 @@
     });
   }
 
+  // T-320「怎麼算」：一次只開一張；點卡片外面或按 Esc 收起來（Esc 後焦點回到按鈕）。沒有 JS 時仍可點開、再點一次收起。
+  function initHow() {
+    var items = Array.prototype.slice.call(document.querySelectorAll("[data-ops-how]"));
+    if (!items.length) return;
+    function closeAll(except) {
+      items.forEach(function (item) {
+        if (item !== except && item.open) item.open = false;
+      });
+    }
+    items.forEach(function (item) {
+      item.addEventListener("toggle", function () {
+        if (item.open) closeAll(item);
+      });
+      item.addEventListener("keydown", function (event) {
+        if (event.key !== "Escape" || !item.open) return;
+        item.open = false;
+        var summary = item.querySelector("summary");
+        if (summary) summary.focus();
+      });
+    });
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest || !event.target.closest("[data-ops-how]")) closeAll(null);
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initHow);
+  else initHow();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();

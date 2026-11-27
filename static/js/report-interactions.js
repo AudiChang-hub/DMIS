@@ -10,17 +10,20 @@ function reportPointText(data, metric) {
    同一分類在每一頁固定同色（依固定清單順序），不依排名或篩選後的名次換色；「其他」類固定中性灰。 */
 const REPORT_SERIES_COLORS = Array.from({length:8}, (_, index) => `var(--chart-s${index + 1})`);
 const REPORT_OTHER_COLOR = 'var(--chart-other)';
-const REPORT_FIXED_SLOTS = {'車行':0,'馭盛':1,'網路平台':2,'店內員工':3,'展場':4,
+const REPORT_FIXED_SLOTS = {'車行':0,'馭盛':1,'網路平台':2,'店內員工':3,'展場':4,'代交車':6,
   '白牌電車':0,'速克達':1,'綠牌電車':2,'擋車':3,'微型電車':4};
+/* 不在 8 色調色盤內的固定色（T-320，與 engine.py FIXED_COLOR_VARS 一致）：中獎車。 */
+const REPORT_FIXED_COLORS = {'中獎車':'var(--chart-prize)'};
 const REPORT_NEUTRAL_LABELS = new Set(['公司或其他','其他','其他系列（合併）','生日未填','生日異常','未填寫或格式錯誤']);
 function reportSlotColor(index) { return REPORT_SERIES_COLORS[((index % 8) + 8) % 8]; }
 function reportOverviewColor(label, fallback) {
   if (REPORT_NEUTRAL_LABELS.has(label)) return REPORT_OTHER_COLOR;
+  if (label in REPORT_FIXED_COLORS) return REPORT_FIXED_COLORS[label];
   return label in REPORT_FIXED_SLOTS ? reportSlotColor(REPORT_FIXED_SLOTS[label]) : fallback;
 }
 function reportElectricColor(label, fallback) {
   const models = ['EV060L','EV062','EV076S','EV076','EV076SZV','EV070V','EV062FL','EZ1','EZZY','SHINE','TSV57','JEGO','GogoroVIVAMIX','Gogoro2D','VIVABASIC','Ur2','BOBE','S2ABS','M02','M01'];
-  if (label in REPORT_FIXED_SLOTS || REPORT_NEUTRAL_LABELS.has(label)) return reportOverviewColor(label, fallback);
+  if (label in REPORT_FIXED_SLOTS || label in REPORT_FIXED_COLORS || REPORT_NEUTRAL_LABELS.has(label)) return reportOverviewColor(label, fallback);
   const index = models.indexOf(label);
   return index >= 0 ? reportSlotColor(index) : fallback;
 }

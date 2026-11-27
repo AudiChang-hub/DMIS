@@ -366,7 +366,20 @@
 
   // 網路平台訂單車款由平台收：不選付款方式、車價為 0（使用者 2026-10-15）。
   const isPlatformOrder = () => sourceType?.value === "platform";
-  let sourceWasPlatform = isPlatformOrder();
+  // 代交車、中獎車（T-320）：只能本店單、付款固定現金、車價 0（車價收入與車輛成本固定 0，不計業績）。
+  const transactionType = byId("id_transaction_type");
+  const isNonPerformance = () => ["proxy_delivery", "prize"].includes(transactionType?.value);
+  const noVehiclePrice = () => isPlatformOrder() || isNonPerformance();
+  let sourceWasPlatform = noVehiclePrice();
+  function lockStoreSource() {
+    if (!sourceType) return;
+    const locked = isNonPerformance();
+    [...sourceType.options].forEach(option => { option.disabled = locked && option.value !== "store"; });
+    if (locked && sourceType.value !== "store") {
+      sourceType.value = "store";
+      sourceType.dispatchEvent(new Event("change", {bubbles: true}));
+    }
+  }
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
@@ -427,7 +440,7 @@
   async function loadVehiclePrice({force = false} = {}) {
     vehiclePriceRequestController?.abort();
     currentPriceRecommendation = null;
-    if (isPlatformOrder()) {
+    if (noVehiclePrice()) {
       if (vehiclePrice.value !== "0") {
         vehiclePrice.value = "0";
         vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
@@ -626,13 +639,14 @@
     if (addressField && addressTarget && addressField.parentElement !== addressTarget) {
       addressTarget.appendChild(addressField);
     }
-    const platform = isPlatformOrder();
+    const platform = noVehiclePrice();
     if (platform && paymentType.value !== "cash") {
       paymentType.value = "cash";
       installmentInputs.forEach(input => { input.value = ""; });
     }
     showConditional("not-platform", !platform);
-    showConditional("platform-payment", platform);
+    showConditional("platform-payment", isPlatformOrder());
+    showConditional("non-performance", isNonPerformance());
     showConditional("installment", !platform && paymentType.value === "installment");
     const installmentRequired = !platform && paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
@@ -688,7 +702,7 @@
     function write({notify = true} = {}) {
       store.value = JSON.stringify(rows.map(row => ({method: row.method, amount: amountOf(row)})));
       installmentPicker.syncCustomMonthly();
-      if (isPlatformOrder()) return;
+      if (noVehiclePrice()) return;
       const amounts = rows.map(amountOf);
       const total = amounts.includes(null) ? null : amounts.reduce((sum, value) => sum + value, 0);
       totalOutput.textContent = total === null ? "—" : formatMoney(total);
@@ -778,6 +792,14 @@
         }
         write();
       },
+      resetToCash() {
+        // 代交車、中獎車（T-320）：付款固定一筆現金、金額 0（後端同樣強制）。
+        const hadInstallment = rows.some(row => row.method === "installment");
+        rows = [{method: "cash", amount: "0"}];
+        if (hadInstallment) installmentInputs.forEach(input => { input.value = ""; });
+        render();
+        write();
+      },
     };
   })();
   // 計價基準（隱藏欄位）由付款明細推導；移除最後一筆分期前已在明細端確認過是否清除分期資料。
@@ -793,10 +815,22 @@
     .forEach(el => el.addEventListener("change", refresh));
   sourceType?.addEventListener("change", () => {
     // 切入或切出網路平台時重新帶車價；店內／車行之間切換不覆蓋人工調整的車價。
-    if (sourceWasPlatform && !isPlatformOrder() && vehiclePrice.value === "0") vehiclePrice.value = "";
-    if (isPlatformOrder() !== sourceWasPlatform) loadVehiclePrice({force: true});
-    sourceWasPlatform = isPlatformOrder();
+    if (sourceWasPlatform && !noVehiclePrice() && vehiclePrice.value === "0") vehiclePrice.value = "";
+    if (noVehiclePrice() !== sourceWasPlatform) loadVehiclePrice({force: true});
+    sourceWasPlatform = noVehiclePrice();
   });
+  // 切到代交車、中獎車：鎖定本店、改現金、車價 0；切回一般交易類型時重新帶車價（T-320）。
+  transactionType?.addEventListener("change", () => {
+    lockStoreSource();
+    if (isNonPerformance()) {
+      paymentSplits.resetToCash?.();
+    }
+    refresh();
+    if (sourceWasPlatform && !noVehiclePrice() && vehiclePrice.value === "0") vehiclePrice.value = "";
+    if (noVehiclePrice() !== sourceWasPlatform) loadVehiclePrice({force: true});
+    sourceWasPlatform = noVehiclePrice();
+  });
+  lockStoreSource();
   if (!vehicleEnergyType.value && vehicleModel.value) {
     vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
   }

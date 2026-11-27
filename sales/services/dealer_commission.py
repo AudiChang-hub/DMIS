@@ -184,8 +184,11 @@ def store_staff_commission(order):
     """本店人員傭金：本店訂單、來源為本店人員且未指定歸屬車行時，帶入該人員設定的傭金。
 
     指定給其他車行的本店單沿用既有規則：台數與台數獎金歸該車行，不新增基礎傭金，
-    也不再付本店人員傭金。
+    也不再付本店人員傭金。系統建立的代交車、中獎車不計業績，不發本店人員傭金（T-320）；
+    Excel 匯入單的傭金不變。
     """
+    if order.zero_vehicle_finance:
+        return Decimal("0")
     if order.source_type != SalesOrder.SourceType.STORE or not order.source_id or order.commission_recipient_id:
         return Decimal("0")
     source = order.source
@@ -196,7 +199,9 @@ def store_staff_commission(order):
 
 def apply_order_dealer_commission(order, *, lock=False):
     profile, created = OrderOperationsProfile.objects.get_or_create(order=order)
-    if profile.dealer_commission_locked_at:
+    # 領牌後才改成代交車、中獎車（T-320）：已鎖定的本店人員傭金也要歸零，所以這種情況不走鎖定的捷徑。
+    drop_locked_staff_commission = order.zero_vehicle_finance and profile.dealer_commission_base
+    if profile.dealer_commission_locked_at and not drop_locked_staff_commission:
         return _apply_bonus_expense(order)
     before = _commission_state(profile)
     if order.source_type != SalesOrder.SourceType.DEALER or not order.source_id:

@@ -368,6 +368,13 @@ def apply_old_owner_different(form):
         form.instance.old_owner_same_as_owner = not form.cleaned_data.get("old_owner_different")
 
 
+NON_PERFORMANCE_SOURCE_ERROR = "代交車、中獎車只能是本店訂單。"
+NON_PERFORMANCE_PAYMENT_ERROR = "代交車、中獎車的付款方式只能選現金。"
+NON_PERFORMANCE_RECIPIENT_ERROR = "代交車、中獎車不能指定台數與傭金歸屬車行。"
+NON_PERFORMANCE_KEEP_RECIPIENT_ERROR = (
+    "這張單已指定台數與傭金歸屬車行，請先在頁首「變更車行」取消指定，才能改成代交車或中獎車。")
+
+
 class SalesOrderForm(forms.ModelForm):
     old_owner_different = old_owner_different_field()
     assign_commission_to_other = forms.BooleanField(
@@ -649,6 +656,9 @@ class SalesOrderForm(forms.ModelForm):
         # 相容功能上線前建立的草稿與舊版表單送出；新畫面仍會顯示選項。
         self.fields["transaction_type"].required = False
         self.fields["transaction_type"].initial = SalesOrder.TransactionType.REGULAR_NEW
+        # 交易類型結案前可改（T-320）；結案後鎖定，免得事後把單移進或移出業績。
+        if self.instance.pk and self.instance.is_closed:
+            self.fields["transaction_type"].disabled = True
 
     def _clean_payment_splits(self, data, is_platform):
         """整理付款方式明細：[{method, amount}]，金額空白＝待帶入售價（只允許單筆）。"""
@@ -738,6 +748,12 @@ class SalesOrderForm(forms.ModelForm):
         source = data.get("source")
         if source and source.source_type != source_type:
             self.add_error("source", "來源名稱與選擇的訂單來源不一致。")
+        # 代交車、中獎車（T-320）：只能本店單、付款只能現金、不能指定台數與傭金歸屬車行；車價固定 0（下方）。
+        # Excel 匯入單是已結清的歷史（正式站 3 張匯入的中獎車），只改報表歸類，不回頭套用這些限制。
+        non_performance = (data.get("transaction_type") in SalesOrder.NON_PERFORMANCE_TRANSACTION_TYPES
+                           and not (self.instance.pk and hasattr(self.instance, "legacy_snapshot")))
+        if non_performance and source_type and source_type != SalesOrder.SourceType.STORE:
+            self.add_error("source_type", NON_PERFORMANCE_SOURCE_ERROR)
         # 舊版表單／草稿未帶新開關時，保留已存歸屬；明確關閉才清除。
         enabled = data.get("assign_commission_to_other")
         if self.is_bound and self.data.get("commission_recipient_nojs") == "1":
@@ -753,6 +769,12 @@ class SalesOrderForm(forms.ModelForm):
             self.add_error("commission_recipient", "請選擇這台的台數與傭金歸屬車行。")
         elif source and data["commission_recipient"].pk == source.pk:
             data["commission_recipient"] = None
+        if non_performance and data.get("commission_recipient"):
+            if self.is_bound and "assign_commission_to_other" not in self.data and self.instance.pk:
+                # 訂單頁的歸屬在頁首另一張表單：錯誤掛在看得到的交易類型欄。
+                self.add_error("transaction_type", NON_PERFORMANCE_KEEP_RECIPIENT_ERROR)
+            else:
+                self.add_error("commission_recipient", NON_PERFORMANCE_RECIPIENT_ERROR)
 
         model = data.get("vehicle_model")
         selected_energy_type = data.get("vehicle_energy_type")
@@ -779,6 +801,10 @@ class SalesOrderForm(forms.ModelForm):
             self.cleaned_data["payment_type"] = SalesOrder.PaymentType.CASH
             self.errors.pop("payment_type", None)
         payment_splits = self._clean_payment_splits(data, is_platform)
+        if non_performance and not is_platform:
+            if any(row["method"] != SalesOrder.PaymentSplitMethod.CASH for row in payment_splits):
+                self.add_error("payment_splits", NON_PERFORMANCE_PAYMENT_ERROR)
+            payment_splits = [{"method": SalesOrder.PaymentSplitMethod.CASH, "amount": 0}]
         if payment_splits:
             payment_type = SalesOrder.payment_type_for_splits(payment_splits)
             data["payment_type"] = self.cleaned_data["payment_type"] = payment_type
@@ -842,7 +868,7 @@ class SalesOrderForm(forms.ModelForm):
                 data.get("payment_type"),
             )
         submitted_price = data.get("vehicle_price")
-        if is_platform:
+        if is_platform or non_performance:
             submitted_price = recommended_price = Decimal("0")
             data["vehicle_price"] = self.cleaned_data["vehicle_price"] = Decimal("0")
             self.errors.pop("vehicle_price", None)
@@ -3416,6 +3442,16 @@ VehicleColorMasterFormSet = inlineformset_factory(
 )
 
 
+NON_PERFORMANCE_LEDGER_FIELDS = ("actual_disbursement", "vehicle_cost")
+NON_PERFORMANCE_LEDGER_HELP = "代交車、中獎車沒有車價收入與車輛成本，固定為 0。"
+
+
+def non_performance_ledger(profile):
+    """收支的車價收入、車輛成本是否標「不適用」（T-320）：代交車、中獎車且不是 Excel 匯入單。"""
+    order = getattr(profile, "order", None) if profile.order_id else None
+    return bool(order and order.zero_vehicle_finance)
+
+
 class OrderOperationsForm(forms.ModelForm):
     confirm_legacy_finance = forms.BooleanField(
         label="我已核對本單收支，採目前金額計入淨利", required=False,
@@ -3558,11 +3594,15 @@ class OrderOperationsForm(forms.ModelForm):
             synced_fields.discard("vehicle_cost")
         if self.instance.payment_disbursement_snapshot:
             synced_fields.add("actual_disbursement")
+        # 代交車、中獎車（T-320）：車價收入、車輛成本固定 0，收支畫面標「不適用」、不能修改（匯入單照舊）。
+        not_applicable = NON_PERFORMANCE_LEDGER_FIELDS if non_performance_ledger(self.instance) else ()
+        synced_fields.update(not_applicable)
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
             if name in synced_fields:
                 field.disabled = True
-                field.help_text = self.SYNCED_FIELD_HELP.get(name, "由訂單或收款紀錄自動同步。")
+                field.help_text = (NON_PERFORMANCE_LEDGER_HELP if name in not_applicable
+                                   else self.SYNCED_FIELD_HELP.get(name, "由訂單或收款紀錄自動同步。"))
             if isinstance(field, forms.DecimalField):
                 field.required = False
                 if name in {

@@ -1,0 +1,1 @@
+{% comment %}營運總表副標（T-320）：代交車、中獎車不計業績，寫在卡片內；有連結時點進全部訂單的同一批單。{% endcomment %}{{ aside.lead }}{% for item in aside.items %}{% if item.url %}<a href="{{ item.url }}">{{ item.text }}</a>{% else %}<b>{{ item.text }}</b>{% endif %}{% if not forloop.last %}・{% endif %}{% endfor %}{{ aside.tail }}

@@ -182,6 +182,13 @@
 .ledger-row.is-changed .ledger-row__input input { border-color: var(--amber-border-strong); background: color-mix(in srgb, var(--amber-soft) 45%, var(--surface)); }
 .ledger-row.has-error .ledger-row__input input { border-color: var(--red); }
 .ledger-row__errors { grid-column: 1 / -1; }
+/* 代交車、中獎車（T-320）：車價收入、車輛成本固定 0，金額欄顯示「不適用」。 */
+.ledger-row__label--na { cursor: default; }
+.ledger-row__na {
+  grid-area: input; display: flex; align-items: center; justify-content: flex-end; min-height: 40px; margin: 0;
+  padding: 0 var(--space-3); color: var(--muted); background: var(--surface-soft); border: 1px dashed var(--line);
+  border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 700;
+}
 .ledger-tag {
   grid-area: tag; display: inline-flex; align-items: center; justify-self: end; padding: 2px var(--space-2); white-space: nowrap;
   color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-pill);

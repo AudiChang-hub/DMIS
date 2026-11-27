@@ -172,6 +172,10 @@
       <div class="span-2 info-banner" data-conditional="platform-payment" hidden>
         網路平台訂單：車款由平台收，不選付款方式也不帶售價；客人只付牌險費、選號費、配件與其他加收項目。車輛成本照常帶入，平台撥款請到收入與支出的「實際撥款」記錄。
       </div>
+      {# 代交車、中獎車（T-320）：付款固定現金、沒有車價，付款明細收起來，只留這段說明。 #}
+      <div class="span-2 info-banner" data-conditional="non-performance" hidden>
+        代交車、中獎車：只能是本店訂單，付款固定現金、沒有車價（車價收入與車輛成本都是 0），不計業績。客人只付牌險費、選號費、配件與其他加收項目；進車、配車、簽署與補助照一般流程。
+      </div>
       {% comment %}付款方式可多筆（使用者 2026-10-16）：預設一筆現金帶現金價；計價基準與車價由明細推導，存在隱藏欄位。{% endcomment %}
       <div class="span-2 payment-splits" id="payment-splits" data-conditional="not-platform" {% if form.vehicle_price.field.disabled %} data-price-locked{% endif %}>
         <div class="field payment-splits__head">

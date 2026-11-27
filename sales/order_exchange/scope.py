@@ -10,7 +10,7 @@ from sales.models import PaymentRecord, SalesOrder
 # 從全部訂單頁帶過來、會影響範圍的參數；其餘（分頁、每頁筆數）一律不帶。
 SCOPE_KEYS = (
     "q", "status", "tab", "sort", "risk", "date_basis", "date_from", "date_to", "energy_type",
-    "payment_status", "registered", "attention", "business_only", "include_cancelled",
+    "payment_status", "registered", "attention", "business_only", "include_cancelled", "txn",
 )
 
 
@@ -61,6 +61,7 @@ def export_queryset(request, params):
 def scope_labels(params, tab):
     """把範圍寫成人看得懂的條件（畫面與匯出紀錄共用）。"""
     from sales.services import order_tabs as tab_rules
+    from sales.services.order_filters import TRANSACTION_SCOPES
 
     labels = []
     if params.get("q"):
@@ -83,6 +84,7 @@ def scope_labels(params, tab):
         "registered": ("領牌", {"yes": "已領牌", "no": "未領牌"}),
         "attention": ("作業提醒", {"dealer": "車行到期提醒", "fees": "牌險金額差異待確認"}),
         "business_only": ("成交範圍", {"1": "排除取消／退款", "0": "包含取消／退款"}),
+        "txn": ("交易類型", {key: label for key, (label, _q) in TRANSACTION_SCOPES.items()}),
     }
     for key, (label, mapping) in named.items():
         value = params.get(key)

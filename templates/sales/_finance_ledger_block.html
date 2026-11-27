@@ -21,9 +21,9 @@
     <div class="ledger-rows">
     {% for row in group.rows %}
       <div class="ledger-row{% if row.field.errors %} has-error{% endif %}" data-ledger-row{% if row.tag %} data-ledger-source="{{ row.tag }}"{% endif %} data-field-container>
-        <label class="ledger-row__label" for="{{ row.field.id_for_label }}"><span>{{ row.label }}</span>{% if row.hint %}<small>{{ row.hint }}</small>{% endif %}</label>
+        {% if row.not_applicable %}<p class="ledger-row__label ledger-row__label--na"><span>{{ row.label }}</span>{% if row.hint %}<small>{{ row.hint }}</small>{% endif %}</p>{% else %}<label class="ledger-row__label" for="{{ row.field.id_for_label }}"><span>{{ row.label }}</span>{% if row.hint %}<small>{{ row.hint }}</small>{% endif %}</label>{% endif %}
         {% if row.tag %}<span class="ledger-tag ledger-tag--{{ row.tag }}" data-ledger-tag>{{ row.tag_label }}</span>{% endif %}
-        <div class="ledger-row__input"><span class="ledger-row__currency" aria-hidden="true">$</span>{{ row.field }}</div>
+        {% if row.not_applicable %}<p class="ledger-row__na" data-ledger-na="{{ row.name }}">不適用</p>{% else %}<div class="ledger-row__input"><span class="ledger-row__currency" aria-hidden="true">$</span>{{ row.field }}</div>{% endif %}
         {% if row.field.errors %}<span class="ledger-row__errors" id="{{ row.field.id_for_label }}_errors">{% for error in row.field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
       </div>
     {% endfor %}

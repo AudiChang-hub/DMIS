@@ -81,6 +81,7 @@
         <span class="ops-track__age">{% if stage.oldest is not None %}最久 {{ stage.oldest }} 天{% else %}—{% endif %}</span>
         {% if stage.stuck %}<span class="ops-track__stuck">{{ stage.stuck }} 張超過 {{ stage.limit }} 天</span>{% endif %}
         {% if c.links.order_list %}</a>{% endif %}
+        {% if stage.aside %}<span class="ops-track__aside" data-ops-aside="flow-{{ stage.key }}">含 {% for kind in stage.aside %}{% if kind.url %}<a href="{{ kind.url }}">{{ kind.text }}</a>{% else %}<b>{{ kind.text }}</b>{% endif %}{% if not forloop.last %}・{% endif %}{% endfor %}</span>{% endif %}
       </li>{% endfor %}
     </ol>
     <dl class="ops-facts">
@@ -187,6 +188,7 @@
       {% if c.stock.model_count > c.stock.models|length %}<p class="ops-hint">另有 {{ c.stock.model_count|add:"-6" }} 款在庫車型，見庫存列表。</p>{% endif %}
       {% endif %}
       <p class="ops-hint">庫齡＝實際已放幾天；預估可銷天數＝照近 90 天賣速推估還能賣幾天。車放了 90 天以上，從進車到現在這個車型都沒賣出＝滯銷。</p>
+      {% if c.stock.velocity_excluded %}<p class="ops-hint" data-ops-aside="stock">近 90 天另有代交車、中獎車 {{ c.stock.velocity_excluded }} 台，不算進賣速、缺貨與滯銷的判斷；在庫照實際台數。</p>{% endif %}
     </section>
     {% endif %}
     <section class="ops-card ops-energy" aria-labelledby="ops-energy-title" data-side-nav-section="油電領牌">
@@ -195,19 +197,20 @@
         <div class="ops-energy__group">
           <h3 class="ops-energy__label"><span class="ops-legend__swatch ops-series-{{ forloop.counter }}" aria-hidden="true"></span>{{ row.label }}{% if row.key == "electric" %}<small>含輕型、微型</small>{% endif %}</h3>
           <div class="ops-energy__figs">
-            <div class="ops-fig"><strong>{% if row.registered_url and c.links.order_list %}<a href="{{ row.registered_url }}" aria-label="{{ row.label }}已領牌 {{ row.registered }} 台，查看訂單">{{ row.registered|number_with_commas }}</a>{% else %}{{ row.registered|number_with_commas }}{% endif %}</strong><span>已領牌</span></div>
-            {% if c.energy.show_pending %}<div class="ops-fig"><strong>{{ row.pending|number_with_commas }}</strong><span>未領牌</span>
+            <div class="ops-fig"><strong>{% if row.registered_url and c.links.order_list %}<a href="{{ row.registered_url }}" aria-label="{{ row.label }}已領牌 {{ row.registered }} 台，查看訂單">{{ row.registered|number_with_commas }}</a>{% else %}{{ row.registered|number_with_commas }}{% endif %}</strong><span>已領牌</span>{% if row.registered_aside %}<span class="ops-energy__aside" data-ops-aside="energy-registered-{{ row.key }}">另有 {% for kind in row.registered_aside %}{% if kind.url %}<a href="{{ kind.url }}">{{ kind.text }}</a>{% else %}<b>{{ kind.text }}</b>{% endif %}{% if not forloop.last %}・{% endif %}{% endfor %}（不計業績）</span>{% endif %}</div>
+            {% if c.energy.show_pending %}<div class="ops-fig"><strong>{{ row.pending|number_with_commas }}</strong><span>未領牌</span>{% if row.pending_aside %}<span class="ops-energy__aside" data-ops-aside="energy-pending-{{ row.key }}">含 {% for kind in row.pending_aside %}<b>{{ kind.text }}</b>{% if not forloop.last %}・{% endif %}{% endfor %}</span>{% endif %}
               <span class="ops-energy__stages">{% for stage in row.stages %}{% if stage.url and c.links.order_list %}<a href="{{ stage.url }}" aria-label="{{ row.label }}{{ stage.label }} {{ stage.count }} 張，查看訂單">{{ stage.label }} {{ stage.count }}</a>{% else %}<span>{{ stage.label }} {{ stage.count }}</span>{% endif %}{% endfor %}</span></div>{% endif %}
           </div>
         </div>{% endfor %}
       </div>
-      <p class="ops-hint">已領牌與領牌台數同口徑，油＋電＝{{ c.energy.registered|number_with_commas }} 台{% if c.energy.show_pending %}；未領牌＝待配車＋待領牌，不隨期間切換，不含草稿、取消與例外結案{% endif %}。</p>
+      <p class="ops-hint">已領牌與領牌台數同口徑（不含代交車、中獎車），油＋電＝{{ c.energy.registered|number_with_commas }} 台{% if c.energy.show_pending %}；未領牌＝待配車＋待領牌，不隨期間切換，不含草稿、取消與例外結案{% endif %}。</p>
     </section>
   </div>
 
   <div class="ops-row">
     <section class="ops-card" aria-labelledby="ops-mix-title" data-side-nav-section="結構變化">
       <header class="ops-card__head"><h2 id="ops-mix-title">結構變化</h2>{% if c.links.report_center %}<a href="{% url 'report_center' %}">報表中心 →</a>{% endif %}</header>
+      {% if c.non_performance_aside %}<p class="ops-aside__text ops-aside__text--card" data-ops-aside="mix">{% include "sales/_ops_aside.html" with aside=c.non_performance_aside %}</p>{% endif %}
       <div class="ops-seg" role="tablist" aria-label="結構類別">{% for key, mix in c.mix.items %}<button type="button" class="button secondary small" role="tab" id="ops-mix-tab-{{ key }}" aria-controls="ops-mix-{{ key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}" data-ops-tab="{{ key }}">{{ mix.label }}</button>{% endfor %}</div>
       {% for key, mix in c.mix.items %}
       <div class="ops-mix" id="ops-mix-{{ key }}" role="tabpanel" aria-labelledby="ops-mix-tab-{{ key }}" data-ops-panel="{{ key }}"{% if not forloop.first %} hidden{% endif %}>
@@ -226,7 +229,7 @@
         <thead><tr><th>車型</th><th class="is-number">本期</th><th class="is-number">去年同期</th><th class="is-number">差</th></tr></thead>
         <tbody>{% for row in c.movers %}<tr><th data-label="車型">{{ row.name }}</th><td data-label="本期" class="is-number">{{ row.current }}</td><td data-label="去年同期" class="is-number">{{ row.last_year }}</td><td data-label="差" class="is-number ops-delta{% if row.delta > 0 %} is-up{% elif row.delta < 0 %} is-down{% endif %}">{{ row.delta_text }}</td></tr>{% endfor %}</tbody>
       </table></div>
-      <p class="ops-hint">列出本期或去年同期任一期賣得最多的 5 款，並排比較兩期台數；完整排行在報表中心。</p>
+      <p class="ops-hint">列出本期或去年同期任一期賣得最多的 5 款，並排比較兩期台數；不含代交車、中獎車。完整排行在報表中心。</p>
       {% else %}
       <p class="ops-empty">本期與去年同期都沒有成交。</p>
       {% endif %}

@@ -40,14 +40,14 @@ from sales.services.dashboard_metrics import (
     _sales_snapshot,
     build_dashboard_metrics,
 )
-from sales.services.order_filters import new_orders_between
+from sales.services.order_filters import new_orders_between, performance_orders
 from sales.services.order_next_actions import STALE_ALLOCATION_DAYS
 from sales.services.business_days import DEALER_BALANCE_DAYS
 from sales.services.sales_metrics import (CANCELLED_STATUSES, DELIVERED_STATUSES, PAYMENT_CATEGORIES, money_bucket,
                                           payment_category, payout_due)
 
 ZERO = Decimal("0")
-CACHE_VERSION = 2       # T-284 拆列多了撥款／客人兩部分
+CACHE_VERSION = 3       # T-320 主數字不含代交車、中獎車，多了副標與「怎麼算」
 CACHE_SECONDS = 600
 
 # ── 顯示門檻（使用者 2026-11-13 選定；文字說明只寫在 BUSINESS_RULES「營運總表顯示門檻」）──
@@ -88,6 +88,10 @@ DEALER_DUE_RULE = f"交車後第 {DEALER_BALANCE_DAYS} 個工作天起尾款未�
 # 油電領牌（T-263）：未領牌＝訂單流程的待配車＋待領牌兩站。
 ENERGY_REGISTRATION = (("gas", "油車"), ("electric", "電車"))
 PENDING_REGISTRATION = ("allocation_pending", "allocated")
+# 代交車、中獎車不計業績（T-320，使用者 2026-11-25 選 A：副標寫在卡片內）：業績類主數字只算其他交易類型，
+# 這兩類寫在副標（0 時不顯示）；庫存、配車、交車、款項類照實際作業計入。口徑見 BUSINESS_RULES「代交車、中獎車」。
+NON_PERFORMANCE_KINDS = (("proxy_delivery", "代交車"), ("prize", "中獎車"))
+NON_PERFORMANCE_TYPES = tuple(key for key, _label in NON_PERFORMANCE_KINDS)
 
 
 def _url(name, params=None, *args):
@@ -154,10 +158,92 @@ def _compare(current, previous, last_year):
 
 def _new_orders(start, end):
     # 補登單算到領牌那個月（T-271）；和全部訂單 date_basis=new_order 共用 new_orders_between。
-    return new_orders_between(SalesOrder.objects.all(), start, end).count()
+    # 代交車、中獎車不計業績（T-320），和全部訂單 txn=performance 同一條件。
+    return performance_orders(new_orders_between(SalesOrder.objects.all(), start, end)).count()
 
 
-def _pulse(windows, source):
+def _kinds(counts, unit, params=None):
+    """代交車、中獎車各幾張，只列有的；params 是全部訂單的篩選（再加 txn＝該類），張數和連結點進去相同。"""
+    return [{"key": key, "label": label, "count": counts[key], "text": f"{label} {counts[key]:,} {unit}",
+             "url": _url("order_list", {**params, "txn": key}) if params else ""}
+            for key, label in NON_PERFORMANCE_KINDS if counts[key]]
+
+
+def _signed_money(value):
+    return f"{'−' if value < 0 else '+' if value > 0 else ''}${abs(value):,.0f}"
+
+
+def _how(rule, included, excluded, detail, links):
+    """「怎麼算」的內容：怎麼算、含哪些、不含哪些、和明細怎麼對；links 連到全部訂單同一批單。"""
+    return {"rows": [("怎麼算", rule), ("含", included), ("不含", excluded), ("明細", detail)],
+            "links": [link for link in links if link["url"]]}
+
+
+def _new_orders_by_kind(start, end):
+    """本期新成立訂單：計入業績的張數，以及代交車、中獎車各幾張（同一次查詢，和 _new_orders 同口徑）。"""
+    counts = Counter(new_orders_between(SalesOrder.objects.all(), start, end).values_list("transaction_type", flat=True))
+    aside = Counter({kind: counts[kind] for kind in NON_PERFORMANCE_TYPES})
+    return sum(counts.values()) - sum(aside.values()), aside
+
+
+def _pulse_asides(windows, current, new_orders, new_aside, non_performance):
+    """四張業績卡的副標與「怎麼算」（T-320）。副標只在本期有代交車、中獎車時才有（None＝不顯示）。"""
+    start, end = windows["current"]
+    registered = {"date_from": start.isoformat(), "date_to": end.isoformat(), "business_only": "1"}
+    established = {"date_basis": "new_order", **registered}
+    aside_orders = _orders_between(non_performance, start, end)
+    kinds = _kinds(Counter(order.transaction_type for order in aside_orders), "台", registered)
+    aside_count = sum(kind["count"] for kind in kinds)
+    main_link = {"label": f"看這 {current['count']:,} 台", "url": _url("order_list", {**registered, "txn": "performance"})}
+    kind_links = [{"label": f"看{kind['text']}", "url": kind["url"]} for kind in kinds]
+    excluded = "代交車、中獎車（不計業績）" + ("，另列在副標" if kinds else "；本期沒有")
+    count_detail = f"計入 {current['count']:,} 台"
+    if kinds:
+        count_detail += "".join(f"＋{kind['text']}" for kind in kinds) + f"＝本期領牌 {current['count'] + aside_count:,} 張"
+    ready = [order.operations for order in aside_orders
+             if getattr(order, "operations", None) and order.operations.profit_is_ready]
+    aside_profit = sum((profile.net_profit for profile in ready), ZERO)
+    profit_detail = f"計入 {current['profit_ready']:,} 筆 {_signed_money(current['profit_total'])}"
+    if kinds:
+        profit_detail += f"；另計 {len(ready):,} 筆 {_signed_money(aside_profit)}"
+    new_kinds = _kinds(new_aside, "張", established)
+    new_detail = f"計入 {new_orders:,} 張"
+    if new_kinds:
+        new_detail += ("".join(f"＋{kind['text']}" for kind in new_kinds)
+                       + f"＝本期成立 {new_orders + sum(kind['count'] for kind in new_kinds):,} 張")
+    return {
+        "count": {
+            "aside": {"lead": "另有 ", "items": kinds, "tail": "（不計業績）"} if kinds else None,
+            "how": _how("本期已確認領牌的訂單台數（依領牌日），排除取消／退款；比較與走勢同口徑",
+                        "代交車、中獎車以外的訂單（本店、車行、網路平台）", excluded, count_detail,
+                        [main_link, *kind_links]),
+        },
+        "sales": {
+            "aside": {"lead": "不含代交車、中獎車（這兩種沒有車價）", "items": [], "tail": ""} if kinds else None,
+            "how": _how("本期領牌訂單的車價合計；無車價的匯入單用 Excel 收款價",
+                        f"計入業績的 {current['count']:,} 台", "代交車、中獎車：沒有車價，不算成交額",
+                        f"{current['count']:,} 張，合計 ${current['sales_total']:,.0f}", [main_link]),
+        },
+        "profit": {
+            "aside": {"lead": "代交車／中獎車 牌險配件損益 ", "items": [{"text": _signed_money(aside_profit), "url": ""}],
+                      "tail": "（另計）"} if kinds else None,
+            "how": _how("計入業績的訂單淨利合計（各項收入－支出，含車價收入與車輛成本）；成本或核對沒補齊的單先不計入",
+                        f"{current['profit_ready']:,}／{current['count']:,} 筆可計入",
+                        "代交車、中獎車：沒有車價收入與車輛成本，只有牌險、配件的損益" + ("，另列在副標" if kinds else "；本期沒有"),
+                        profit_detail, [main_link, *kind_links]),
+        },
+        "new_orders": {
+            "aside": {"lead": "另有 ", "items": new_kinds, "tail": "（不計業績）"} if new_kinds else None,
+            "how": _how("本期成立的訂單張數（依成立日，補登單依領牌日），排除取消／退款",
+                        "代交車、中獎車以外的訂單", "代交車、中獎車（不計業績）" + ("，另列在副標" if new_kinds else "；本期沒有"),
+                        new_detail,
+                        [{"label": f"看這 {new_orders:,} 張", "url": _url("order_list", {**established, "txn": "performance"})},
+                         *[{"label": f"看{kind['text']}", "url": kind["url"]} for kind in new_kinds]]),
+        },
+    }
+
+
+def _pulse(windows, source, non_performance=()):
     current = _sales_snapshot(*windows["current"], source)
     previous = _sales_snapshot(*windows["previous"], source) if windows["previous"] else None
     last_year = _sales_snapshot(*windows["last_year"], source)
@@ -168,16 +254,19 @@ def _pulse(windows, source):
     profit = _compare(current["profit_total"], pick(previous, "profit_total"), last_year["profit_total"])
     profit.update({"ready": current["profit_ready"], "count": current["count"], "pending": current["profit_pending"],
                    "average": current["average_profit"]})
+    new_orders, new_aside = _new_orders_by_kind(*windows["current"])
+    asides = _pulse_asides(windows, current, new_orders, new_aside, non_performance)
     return {
-        "count": _compare(current["count"], pick(previous, "count"), last_year["count"]),
-        "sales": _compare(current["sales_total"], pick(previous, "sales_total"), last_year["sales_total"]),
-        "profit": profit,
+        "count": _compare(current["count"], pick(previous, "count"), last_year["count"]) | asides["count"],
+        "sales": _compare(current["sales_total"], pick(previous, "sales_total"), last_year["sales_total"]) | asides["sales"],
+        "profit": profit | asides["profit"],
         "new_orders": _compare(
-            _new_orders(*windows["current"]),
+            new_orders,
             _new_orders(*windows["previous"]) if windows["previous"] else None,
             _new_orders(*windows["last_year"])) | {"url": _url("order_list", {
                 "date_basis": "new_order", "date_from": windows["current"][0].isoformat(),
-                "date_to": windows["current"][1].isoformat(), "business_only": "1"})},
+                "date_to": windows["current"][1].isoformat(), "business_only": "1", "txn": "performance"})}
+            | asides["new_orders"],
         "received": current["actual_received"],
     }
 
@@ -236,6 +325,14 @@ def _orders_between(source, start, end):
             and not order.is_cancelled_sale]
 
 
+def _non_performance_aside(windows, non_performance):
+    """結構變化、車型貢獻的副標（T-320）：本期有幾台代交車、中獎車沒算在裡面；沒有回 None。"""
+    start, end = windows["current"]
+    kinds = _kinds(Counter(order.transaction_type for order in _orders_between(non_performance, start, end)), "台",
+                   {"date_from": start.isoformat(), "date_to": end.isoformat(), "business_only": "1"})
+    return {"lead": "本期不含 ", "items": kinds, "tail": "（不計業績）"} if kinds else None
+
+
 def _mix(windows, source, trend_start, today):
     groups = (("本期", windows["current"]), ("去年同期", windows["last_year"]), ("近 12 個月", (trend_start, today)))
     rows = {key: [] for key in ("source", "energy", "payment")}
@@ -264,7 +361,7 @@ def _energy_key(order):
     return "gas" if order.vehicle_model.energy_type == VehicleModel.EnergyType.GAS else "electric"
 
 
-def _energy_registration(windows, source, active):
+def _energy_registration(windows, source, active, non_performance=()):
     """油電領牌（T-263，使用者 2026-11-21 選 A）：口徑只寫在 BUSINESS_RULES「營運總表顯示門檻」。
 
     已領牌＝本期領牌台數依能源拆開（油＋電＝領牌台數）；未領牌＝目前在手的待配車＋待領牌，不隨期間切換。
@@ -272,17 +369,27 @@ def _energy_registration(windows, source, active):
     start, end = windows["current"]
     registered = Counter(_energy_key(order) for order in _orders_between(source, start, end))
     pending = Counter((_energy_key(order), order.status) for order in active if order.status in PENDING_REGISTRATION)
+    # 代交車、中獎車（T-320）：已領牌是業績，不算、寫在副標「另有」；未領牌是手上的作業，照算、副標寫「含」幾張。
+    aside_registered = Counter((_energy_key(order), order.transaction_type)
+                               for order in _orders_between(non_performance, start, end))
+    aside_pending = Counter((_energy_key(order), order.transaction_type) for order in active
+                            if order.status in PENDING_REGISTRATION and order.is_non_performance)
     rows = []
     for key, label in ENERGY_REGISTRATION:
         stages = [{"key": status, "label": STAGE_LABELS[status], "count": pending[(key, status)],
                    # 全部訂單的能源別篩選一次只能選一種，電車（含輕型、微型）沒有現成篩選，不給連結。
                    "url": _url("order_list", {"status": STAGE_FILTERS[status], "energy_type": key})
                    if key == "gas" else ""} for status in PENDING_REGISTRATION]
+        registered_params = {"energy_type": key, "date_from": start.isoformat(), "date_to": end.isoformat(),
+                             "business_only": "1"}
         rows.append({"key": key, "label": label, "registered": registered[key],
-                     "registered_url": _url("order_list", {
-                         "energy_type": key, "date_from": start.isoformat(), "date_to": end.isoformat(),
-                         "business_only": "1"}) if key == "gas" else "",
-                     "pending": sum(stage["count"] for stage in stages), "stages": stages})
+                     "registered_url": _url("order_list", {**registered_params, "txn": "performance"})
+                     if key == "gas" else "",
+                     "registered_aside": _kinds(Counter({kind: aside_registered[(key, kind)] for kind in NON_PERFORMANCE_TYPES}),
+                                                "台", registered_params if key == "gas" else None),
+                     "pending": sum(stage["count"] for stage in stages), "stages": stages,
+                     "pending_aside": _kinds(Counter({kind: aside_pending[(key, kind)] for kind in NON_PERFORMANCE_TYPES}),
+                                             "張")})
     return {"rows": rows, "registered": sum(row["registered"] for row in rows),
             "pending": sum(row["pending"] for row in rows)}
 
@@ -448,7 +555,7 @@ def _active_orders():
     """訂單流程四站的在手訂單；「油電領牌」的未領牌共用這一次查詢（T-263），所以一併帶車型能源別。"""
     return list(SalesOrder.objects.filter(status__in=list(STAGE_LIMITS)).select_related("vehicle_model").only(
         "status", "established_on", "allocated_at", "registration_completed_at", "registration_date", "delivered_at",
-        "vehicle_model__energy_type"))
+        "transaction_type", "vehicle_model__energy_type"))
 
 
 def stage_age(order, today):
@@ -475,9 +582,11 @@ def stuck_order_ids(today=None):
 def _flow(metrics, today, active=None):
     active = _active_orders() if active is None else active
     ages = {key: [] for key in STAGE_LIMITS}
-    counts, stuck_counts = Counter(), Counter()
+    counts, stuck_counts, aside = Counter(), Counter(), Counter()
     for order in active:
         counts[order.status] += 1
+        if order.is_non_performance:
+            aside[(order.status, order.transaction_type)] += 1
         age = stage_age(order, today)
         if age is not None:
             ages[order.status].append(age)
@@ -488,7 +597,10 @@ def _flow(metrics, today, active=None):
         oldest = max(ages[key]) if ages[key] else None
         stages.append({"key": key, "label": STAGE_LABELS[key], "count": counts[key], "oldest": oldest,
                        "limit": limit, "stuck": stuck_counts[key],
-                       "url": _url("order_list", {"status": STAGE_FILTERS[key]})})
+                       "url": _url("order_list", {"status": STAGE_FILTERS[key]}),
+                       # 代交車、中獎車照實際作業算在各站（T-320），副標寫其中有幾張。
+                       "aside": _kinds(Counter({kind: aside[(key, kind)] for kind in NON_PERFORMANCE_TYPES}), "張",
+                                       {"status": STAGE_FILTERS[key]})})
     return {
         "stages": stages,
         "stuck": sum(stage["stuck"] for stage in stages),
@@ -526,11 +638,19 @@ def _cover_reason(on_hand, sold):
 
 def model_velocity(today, live=None):
     """各車型在庫、近 90 天領牌、可銷天數與缺貨／滯銷判斷；營運總表與「缺貨風險車型」清單共用（T-275）。"""
+    return _model_velocity(today, live)[0]
+
+
+def _model_velocity(today, live=None):
+    """回傳 (各車型列, 近 90 天領牌但不算賣速的代交車、中獎車台數)。"""
     live = _on_hand() if live is None else live
     since = today - timedelta(days=VELOCITY_DAYS)
-    sold = Counter(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
-                   .filter(registration_confirmed_q(), registration_date__gt=since, registration_date__lte=today)
-                   .values_list("vehicle_model_id", flat=True))
+    # 賣出速度、缺貨、滯銷不算代交車、中獎車（T-320，不計業績）；在庫台數照實際庫存，配車照扣。
+    recent = list(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
+                  .filter(registration_confirmed_q(), registration_date__gt=since, registration_date__lte=today)
+                  .values_list("vehicle_model_id", "transaction_type"))
+    sold = Counter(model_id for model_id, kind in recent if kind not in NON_PERFORMANCE_TYPES)
+    excluded = sum(1 for _model_id, kind in recent if kind in NON_PERFORMANCE_TYPES)
     stock = Counter(vehicle.vehicle_model_id for vehicle in live)
     # T-316 滯銷：最早進車那台已放 ≥ 90 天，且從那天起這個車型都沒領牌（使用者 2026-11-24 定義）。
     first_in = {}
@@ -542,7 +662,7 @@ def model_velocity(today, live=None):
               if (today - day).days >= SLOW_PARKED_DAYS}
     sold_since = set()
     if parked:
-        for model_id, day in (SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES)
+        for model_id, day in (performance_orders(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES))
                               .filter(registration_confirmed_q(), vehicle_model_id__in=parked,
                                       registration_date__gte=min(first_in[pk] for pk in parked),
                                       registration_date__lte=today)
@@ -565,14 +685,14 @@ def model_velocity(today, live=None):
                      "stale_days": parked[model_id] if slow else None,
                      "url": _url("inventory_list", {"vehicle_family": family} if family else {"q": names.get(model_id, "")})})
     rows.sort(key=lambda row: (not row["shortage"], not row["slow"], -row["on_hand"], row["name"]))
-    return rows
+    return rows, excluded
 
 
 def _stock(today):
     live = _on_hand()
     status_counts = Counter(vehicle.status for vehicle in live)
     ages = [(today - vehicle.received_on).days for vehicle in live if vehicle.received_on]
-    rows = model_velocity(today, live)
+    rows, velocity_excluded = _model_velocity(today, live)
     shown = rows[:6]
     in_table = {row["model_id"] for row in shown}
     hits = {row["model_id"]: [] for row in shown}
@@ -615,6 +735,8 @@ def _stock(today):
         "model_count": len(rows),
         "shortage": [row["name"] for row in rows if row["shortage"]],
         "slow": [row["name"] for row in rows if row["slow"]],
+        # 近 90 天領牌的代交車、中獎車：不算賣速（T-320），有的時候在卡片下方寫一行。
+        "velocity_excluded": velocity_excluded,
     }
 
 
@@ -667,6 +789,8 @@ def build(period, today):
     windows = _windows(period, today)
     source = {order.pk: order for row in metrics["trend"] + metrics["trend_last_year"] for order in row["orders"]}
     source = list(source.values())
+    # 代交車、中獎車不計業績（T-320）：source 已不含這兩類，另外拿來寫各卡的副標。
+    non_performance = metrics["non_performance_orders"]
     trend_start = date.fromisoformat(metrics["trend"][0]["start"])
     active = _active_orders()
 
@@ -677,15 +801,16 @@ def build(period, today):
         "generated_at": timezone.localtime(),
         "period": period,
         "windows": windows,
-        "pulse": _pulse(windows, source),
+        "pulse": _pulse(windows, source, non_performance),
         "trend": _trend(metrics),
         "mix": _mix(windows, source, trend_start, today),
+        "non_performance_aside": _non_performance_aside(windows, non_performance),
         "movers": _movers(windows, source),
         "money": _money(metrics, today),
         "reconciliation": _reconciliation(_reconciliation_queryset(_Request())),
         "payouts": _payouts(),
         "flow": _flow(metrics, today, active),
-        "energy": _energy_registration(windows, source, active),
+        "energy": _energy_registration(windows, source, active, non_performance),
         "stock": _stock(today),
         "fee_variances": metrics["registration_fee_variances"].count(),
         "volume_bonus": _volume_bonus(today),
@@ -970,6 +1095,10 @@ def _outstanding_by_payment(split, reconciliation, flags):
     return rows
 
 
+def _without_links(aside):
+    return {**aside, "items": [{**item, "url": ""} for item in aside["items"]]} if aside else aside
+
+
 def for_viewer(data, flags):
     """依權限組成畫面用的內容；沒有權限的區塊不放進 context，HTML 也就不會出現。"""
     pulse = dict(data["pulse"])
@@ -987,6 +1116,7 @@ def for_viewer(data, flags):
     view = {
         "generated_at": data["generated_at"], "period": data["period"], "periods": PERIODS,
         "windows": data["windows"], "pulse": pulse, "trend": trend, "mix": data["mix"], "movers": data["movers"],
+        "non_performance_aside": data["non_performance_aside"],
         "attention": attention, "attention_clear": clear,
         "attention_groups": attention_groups, "attention_columns": _attention_columns(attention_groups),
         "links": flags["links"], "flags": flags,
@@ -1032,5 +1162,16 @@ def for_viewer(data, flags):
             pulse[key] = {**pulse[key], "chips": _chips(pulse[key], unit, has_previous)}
     if not flags["links"]["order_list"]:
         pulse["new_orders"].pop("url", None)
+        # 沒有全部訂單權限：副標與「怎麼算」只留文字，不給連結（T-320）。
+        for key in ("count", "sales", "profit", "new_orders"):
+            if key in pulse:
+                pulse[key] = {**pulse[key], "aside": _without_links(pulse[key]["aside"]),
+                              "how": {**pulse[key]["how"], "links": []}}
+        view["non_performance_aside"] = _without_links(view["non_performance_aside"])
+        energy["rows"] = [{**row, "registered_aside": [{**kind, "url": ""} for kind in row["registered_aside"]]}
+                          for row in energy["rows"]]
+        if "flow" in view:
+            view["flow"] = {**view["flow"], "stages": [{**stage, "aside": [{**kind, "url": ""} for kind in stage["aside"]]}
+                                                       for stage in view["flow"]["stages"]]}
     view["headline"] = _headline(view, has_previous, len(attention))
     return view

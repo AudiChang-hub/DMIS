@@ -57,6 +57,7 @@ def _percent_change(current, previous):
 
 
 def _sales_snapshot(start, end, source=None):
+    """業績快照：代交車、中獎車不計業績（T-320），不在這裡；傳入的 source 由呼叫端先排除。"""
     orders = list(
         # 只算按過「確認完成」的領牌日；確認前填的是預計日（T-172 A′）。
         SalesOrder.objects.filter(
@@ -65,6 +66,7 @@ def _sales_snapshot(start, end, source=None):
             registration_date__lte=end,
         )
         .exclude(status__in=CANCELLED_STATUSES)
+        .exclude(transaction_type__in=SalesOrder.NON_PERFORMANCE_TRANSACTION_TYPES)
         .select_related("operations", "legacy_snapshot")
         .prefetch_related("payment_records")
     ) if source is None else [order for order in source if start <= order.registration_date <= end]
@@ -94,9 +96,12 @@ def build_dashboard_metrics(today=None):
     # 結果和原本逐項查詢相同（test_operations_cockpit 有對照）。
     open_orders = list(SalesOrder.objects.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot')
                        .prefetch_related('payment_records'))
-    source = [order for order in open_orders
-              if order.confirmed_registration_date and last_year_starts[0] <= order.registration_date <= today]
-    prefetch_related_objects(source, 'operations', 'vehicle_model')
+    registered = [order for order in open_orders
+                  if order.confirmed_registration_date and last_year_starts[0] <= order.registration_date <= today]
+    prefetch_related_objects(registered, 'operations', 'vehicle_model')
+    # 代交車、中獎車不計業績（T-320）：成交彙總、走勢只算其他交易類型；這兩類另外交給營運總表寫在副標。
+    source = [order for order in registered if not order.is_non_performance]
+    non_performance = [order for order in registered if order.is_non_performance]
     summaries = {order.pk: payment_summary(order) for order in open_orders}
     current = _sales_snapshot(month_start, today, source)
     previous = _sales_snapshot(previous_start, comparison_end, source)
@@ -183,7 +188,10 @@ def build_dashboard_metrics(today=None):
         # 平台撥款預估（T-278 B1-A，只有待撥款的平台單）；「錢」用 money_summary 的同一個值。
         'platform_due': {order.pk: money[order.pk]['platform_due'] for order in outstanding
                          if money[order.pk]['platform_due'] is not None},
-        'new_orders': all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES).count(),
+        'new_orders': (all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES)
+                       .exclude(transaction_type__in=SalesOrder.NON_PERFORMANCE_TRANSACTION_TYPES).count()),
+        # 24 個月內已領牌的代交車、中獎車（已預載收支與車型）；不在 trend／performance 裡。
+        'non_performance_orders': non_performance,
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",
             "start": month_start,

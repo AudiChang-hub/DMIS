@@ -30,6 +30,7 @@ docs/context/CURRENT_STATE.md、docs/context/BUSINESS_RULES.md、docs/context/HA
 
 ## Rollback 注意事項
 
+- T-320 代交車（2.42.0）：退回 2.41.1 前，先執行這個指令：`python manage.py convert_proxy_delivery_orders --revert`（先看 dry-run 清單，再加 `--apply`），把交易類型「代交車」的單改回一般新車；2.41.1 不認得代交車，那些單存檔會失敗。系統建立的單車輛成本設成人工調整的 0（2.41.1 不會依車型帶成本），車價收入不動，匯入單收支不動；dry-run 標「退版後可能產生人員傭金」的單要另外核對。
 - T-96 統一撥款對帳（2026-10-22）：
   - 回到上一版：部署上一版，反向 migration 0196 只刪除未入帳、金額 0 的平台撥款列。14760B 重算後的預計撥款 28,800 保留，不還原。
   - 已入帳的平台單：如果平台撥款已在對帳頁入帳過才 rollback，舊版不認得平台撥款列（`system_key=platform_disbursement`）。之後該訂單只要再同步一次收款，收支的「實際車價收入」就會還原成入帳前的人工值。

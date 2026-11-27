@@ -120,6 +120,8 @@
   --chart-s6: #7b5cd6;
   --chart-s7: #2b8cb5;
   --chart-s8: #a0612f;
+  /* 中獎車的固定色（T-320）：8 色裡剩下的紫、棕和車行藍、馭盛橘太接近，另給一色。 */
+  --chart-prize: #4f5a12;
   --chart-other: #8a8f98;
   --chart-other-2: #6c717a;
   --chart-other-3: #4b4f56;
@@ -227,6 +229,7 @@ html[data-theme="night-blue"] {
   --chart-s6: #8c6fe6;
   --chart-s7: #2793b8;
   --chart-s8: #b0703a;
+  --chart-prize: #c8d94a;
   --chart-other: #6b7380;
   --chart-other-2: #8d95a2;
   --chart-other-3: #b4bac4;
@@ -347,6 +350,7 @@ html[data-theme="night-blue"] {
     --chart-s6: #8c6fe6;
     --chart-s7: #2793b8;
     --chart-s8: #b0703a;
+    --chart-prize: #c8d94a;
     --chart-other: #6b7380;
     --chart-other-2: #8d95a2;
     --chart-other-3: #b4bac4;

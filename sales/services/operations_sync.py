@@ -163,7 +163,15 @@ def sync_order_operations(order_id, *, update_receivables=False):
         return profile
     profile_before = {field.attname: field.value_from_object(profile) for field in profile._meta.concrete_fields}
     profile.dealer_name = order.source.name if order.source_id else ""
-    if (
+    if order.zero_vehicle_finance:
+        # 代交車、中獎車（T-320）：車價收入、車輛成本固定 0，不依車型帶成本；人工覆寫與領牌後鎖定都不保留
+        # （收支畫面標「不適用」）。改回一般交易類型：未領牌的單依車型重帶預估成本；已領牌的單成本留 0、列「淨利待補」，要人工補。
+        profile.actual_disbursement = Decimal("0")
+        profile.vehicle_cost = Decimal("0")
+        profile.vehicle_cost_rule = None
+        profile.vehicle_cost_registration_date = None
+        profile.vehicle_cost_manual = False
+    elif (
         order.source_type != order.SourceType.PLATFORM
         and order.payment_type == order.PaymentType.CASH
         and "actual_disbursement" not in (profile.manual_financial_fields or [])
@@ -331,6 +339,10 @@ def sync_order_operations(order_id, *, update_receivables=False):
         from .settlement_cost import apply_estimated_settlement_cost
         # 建立訂單即帶入已設定的車行／本店人員傭金與預估車輛成本；人工覆寫與領牌後鎖定由服務本身保護。
         apply_estimated_settlement_cost(order)
+        profile = apply_order_dealer_commission(order)
+    elif order.zero_vehicle_finance and profile.dealer_commission_base:
+        # 領牌後才改成代交車、中獎車（T-320）：已帶入的本店人員傭金歸零（不計業績、不發傭金）。
+        from .dealer_commission import apply_order_dealer_commission
         profile = apply_order_dealer_commission(order)
     return profile
 

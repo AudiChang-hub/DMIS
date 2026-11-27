@@ -54,7 +54,8 @@ def motor_type_expression():
     return classification_expression(master_name_fallback=True)
 
 
-SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行")
+# 代交車、中獎車（T-320）排最後：新增的類別不改既有五類在篩選與圖例的順序；歸類時則最優先（sales_source_expression）。
+SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行", "代交車", "中獎車")
 SOURCE_ENERGIES = ("電車", "油車")
 ELECTRIC_MODELS = ("BOBE", "VIVAMIX", "VIVABASIC", "TSV57", "SHINE", "S2ABS", "Pulse",
                    "JEGO", "EZ1", "EZZY", "VIVAXLSF", "Ur2", "M01", "M02")
@@ -100,6 +101,7 @@ def sales_source_query(queryset):
 
 # 報表銷售來源分類（T-183，見 BUSINESS_RULES「報表銷售來源分類」）：先看訂單來源類型，
 # 本店單再依原車行文字細分；名單外的本店單歸「馭盛」，不再落到「車行」。
+# 代交車、中獎車（T-320）：依訂單交易類型，比其他五類都優先（含匯入的中獎車舊單）；這兩類不計業績。
 STORE_STAFF_NAMES = ("文傑", "峻生")
 STORE_EXHIBITION_NAMES = ("展場",)
 SOURCE_TYPE_CLASSIFICATIONS = {"store": ("馭盛", "店內員工", "展場"), "dealer": ("車行",), "platform": ("網路平台",)}
@@ -107,6 +109,8 @@ SOURCE_TYPE_CLASSIFICATIONS = {"store": ("馭盛", "店內員工", "展場"), "d
 
 def sales_source_expression():
     return Case(
+        When(transaction_type="proxy_delivery", then=Value("代交車")),
+        When(transaction_type="prize", then=Value("中獎車")),
         When(source_type="platform", then=Value("網路平台")),
         When(source_type="dealer", then=Value("車行")),
         When(report_source_name__in=STORE_STAFF_NAMES, then=Value("店內員工")),
@@ -116,7 +120,8 @@ def sales_source_expression():
 
 
 def source_type_to_classifications(source_types):
-    """舊網址的來源類型換算成銷售來源；分類是來源類型的細分，換算結果與原條件相同。"""
+    """舊網址的來源類型換算成銷售來源（五類是來源類型的細分）。
+    代交車、中獎車（T-320）依交易類型另成一類，不在換算內：舊網址的結果不含這兩類的單。"""
     return [label for key in source_types for label in SOURCE_TYPE_CLASSIFICATIONS.get(key, ())]
 
 

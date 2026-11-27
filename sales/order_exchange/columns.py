@@ -275,6 +275,8 @@ LEGACY_EXPORT = (
 
 # ---- 舊匯出沒有的欄位（預設不勾） ----
 EXTRA = (
+    # 交易類型（T-320）：看得出哪幾張是代交車、中獎車（不計業績）。只能看，要改請到訂單頁（有本店、現金等限制）。
+    Column("transaction_type", "交易類型", "order", _display("transaction_type")),
     Column("status", "訂單狀態", "order", _display("status")),
     Column("registration_date", "領牌日", "order", _attr("registration_date"), DATE),
     Column("registration_state", "領牌日狀態", "order", _registration_state),
@@ -326,6 +328,8 @@ NEVER_EXPORTED = frozenset({
 assert not NEVER_EXPORTED & set(COLUMN_BY_KEY), "車控／電池密碼不能匯出"
 # 預設勾選＝舊「匯出營運資料（目前篩選）」那組欄位（Q9）；沒有授權的群組自動略過。
 DEFAULT_COLUMNS = tuple(column.key for column in LEGACY_EXPORT)
+# 預設另外帶出交易類型（T-320，排在舊匯出 92 欄之後）：營運明細要看得出代交車、中獎車。
+DEFAULT_EXTRA_COLUMNS = ("transaction_type",)
 
 
 def permissions_for(request):
@@ -377,7 +381,7 @@ def group_rows(granted, selected):
 
 
 def default_selection(granted):
-    return [key for key in DEFAULT_COLUMNS if column_allowed(COLUMN_BY_KEY[key], granted)]
+    return [key for key in DEFAULT_COLUMNS + DEFAULT_EXTRA_COLUMNS if column_allowed(COLUMN_BY_KEY[key], granted)]
 
 
 def resolve(keys, granted):

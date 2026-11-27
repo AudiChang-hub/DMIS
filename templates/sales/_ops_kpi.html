@@ -2,6 +2,17 @@
 <article class="ops-card ops-kpi">
   <header class="ops-kpi__head"><h3>{{ label }}</h3>{% if profit %}<span class="ops-tag ops-tag--amber" title="成本補齊前數字會變動">暫估</span>{% endif %}</header>
   <p class="ops-kpi__value">{% if prefix %}<small>{{ prefix }}</small>{% endif %}{% if value_url %}<a class="ops-kpi__link" href="{{ value_url }}" aria-label="{{ label }} {{ big }}{{ suffix }}，查看訂單"><span data-ops-count>{{ big }}</span></a>{% else %}<span data-ops-count>{{ big }}</span>{% endif %}{% if suffix %}<small>{{ suffix }}</small>{% endif %}</p>
+  {# T-320：代交車、中獎車不計業績，寫在副標（沒有就不顯示）；「怎麼算」說明含哪些、不含哪些，並連到同一批訂單。 #}
+  {% if metric.how %}<div class="ops-aside" data-ops-aside="{{ key }}">
+    {% if metric.aside %}<p class="ops-aside__text">{% include "sales/_ops_aside.html" with aside=metric.aside %}</p>{% endif %}
+    <details class="ops-how" data-ops-how>
+      <summary aria-label="{{ label }}怎麼算">怎麼算</summary>
+      <div class="ops-how__body">
+        <dl>{% for term, text in metric.how.rows %}<div><dt>{{ term }}</dt><dd>{{ text }}</dd></div>{% endfor %}</dl>
+        {% if metric.how.links %}<p class="ops-how__links">{% for link in metric.how.links %}<a href="{{ link.url }}">{{ link.label }} →</a>{% endfor %}</p>{% endif %}
+      </div>
+    </details>
+  </div>{% endif %}
   <ul class="ops-chips">{% for chip in metric.chips %}<li class="ops-chip ops-chip--{{ chip.tone }}"><span>{{ chip.label }} {{ chip.base }}</span>{% if chip.change %}<b>{{ chip.change }}</b>{% endif %}</li>{% endfor %}</ul>
   {% if series %}{% with spark=series.spark %}
   <figure class="ops-spark" data-ops-spark>

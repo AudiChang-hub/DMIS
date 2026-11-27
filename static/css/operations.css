@@ -1974,3 +1974,177 @@ html[data-theme="night-blue"] .ops {
     grid-template-columns: 72px minmax(0, 1fr);
   }
 }
+
+/* ── 代交車、中獎車的副標與「怎麼算」（T-320，使用者 2026-11-25 選 A：副標寫在卡片內）──
+   只用本段自己的 class。副標沒有內容時整行不出現；「怎麼算」的說明浮在卡片上，不推動下方的比較與走勢。 */
+.ops-kpi {
+  position: relative;
+}
+
+.ops-aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ops-aside__text {
+  flex: 1 1 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+}
+
+.ops-aside__text--card {
+  flex: none;
+}
+
+.ops-aside__text b,
+.ops-aside__text a,
+.ops-track__aside b,
+.ops-track__aside a,
+.ops-energy__aside b,
+.ops-energy__aside a {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-aside__text a,
+.ops-track__aside a,
+.ops-energy__aside a {
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.ops-aside__text a:hover,
+.ops-track__aside a:hover,
+.ops-energy__aside a:hover {
+  color: var(--forest);
+  text-decoration-color: currentColor;
+}
+
+.ops-aside__text a:focus-visible,
+.ops-track__aside a:focus-visible,
+.ops-energy__aside a:focus-visible,
+.ops-how__links a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.ops-track__aside,
+.ops-energy .ops-fig .ops-energy__aside {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.ops-how > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--forest);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+
+.ops-how > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 全站 summary 右側箭頭（app.css）在這裡不用。 */
+.ops-how > summary::after {
+  content: none;
+  display: none;
+}
+
+.ops-how > summary:hover,
+.ops-how[open] > summary {
+  border-color: color-mix(in srgb, var(--forest) 40%, var(--line));
+  background: color-mix(in srgb, var(--forest) 8%, var(--surface));
+}
+
+.ops-how > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.ops-how__body {
+  position: absolute;
+  z-index: 5;
+  right: var(--card-pad);
+  left: var(--card-pad);
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+
+.ops-how__body dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.ops-how__body dl > div {
+  display: grid;
+  grid-template-columns: 3.5em minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.ops-how__body dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.ops-how__body dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-how__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+.ops-how__links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--forest);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ops-how__links a:hover {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ops-how[open] > .ops-how__body {
+    animation: ops-money-reveal var(--dur-2) var(--ease-out);
+  }
+}

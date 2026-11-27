@@ -1,7 +1,7 @@
 """報表頁 KPI 摘要列（T-182）：只用已查好的圖卡結果組出，不另查資料庫、不改任何口徑或公式。"""
 from decimal import Decimal, InvalidOperation
 
-from .engine import FIXED_COLOR_SLOTS, NEUTRAL_LABELS, PALETTE, OTHER_COLOR
+from .engine import NEUTRAL_LABELS, OTHER_COLOR, fixed_color
 
 DATE_PEAK_LABELS = {"month": "單月最高", "year": "單年最高", "day": "單日最高"}
 MAX_TILES = 4
@@ -27,9 +27,7 @@ def _unit(result):
 def _swatch(label):
     if label in NEUTRAL_LABELS:
         return OTHER_COLOR
-    if label in FIXED_COLOR_SLOTS:
-        return PALETTE[FIXED_COLOR_SLOTS[label]]
-    return ""
+    return fixed_color(label)
 
 
 def _page_wide(result):

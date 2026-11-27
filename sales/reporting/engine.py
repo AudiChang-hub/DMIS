@@ -58,14 +58,20 @@ CHARTS = {"bar": "長條圖", "line": "折線圖", "donut": "圓環占比圖", "
 CHARTS["stacked"] = "堆疊長條圖"
 DATE_DIMENSIONS = ("year", "month", "day")
 NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "custom": "自訂報表"}
-AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
+# 平均訂單車價不算代交車、中獎車（T-320）：這兩類沒有車價，算進去會拉低平均；台數、車價合計照列。
+AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"),
+              "average_price": Avg("vehicle_price", filter=~Q(transaction_type__in=SalesOrder.NON_PERFORMANCE_TRANSACTION_TYPES))}
 EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled", "exception_closed"]
 MAX_GROUPS = 200
 # T-182：圖表色引用 app.css 的 --chart-s1～s8／--chart-other（淺深色自動切換）；同一分類在每頁固定同色，與 report-interactions.js 的對應一致。
 PALETTE = [f"var(--chart-s{index})" for index in range(1, 9)]
 OTHER_COLOR = "var(--chart-other)"
-FIXED_COLOR_SLOTS = {"車行": 0, "馭盛": 1, "網路平台": 2, "店內員工": 3, "展場": 4,
+FIXED_COLOR_SLOTS = {"車行": 0, "馭盛": 1, "網路平台": 2, "店內員工": 3, "展場": 4, "代交車": 6,
                      "白牌電車": 0, "速克達": 1, "綠牌電車": 2, "擋車": 3, "微型電車": 4, "男性": 0, "女性": 1}
+# 不在 8 色調色盤內的固定色（T-320）。色差用 CIEDE2000 比過：代交車用第 7 色（藍綠），和既有五類最小色差 20
+# （既有五類彼此最小 22）；第 6 色紫和「車行」藍只有 8–11、第 8 色棕和「馭盛」橘只有 12–15，都會撞色，
+# 所以中獎車另用 --chart-prize（淺色橄欖、深色萊姆，和其他類別最小色差 28–29）。
+FIXED_COLOR_VARS = {"中獎車": "var(--chart-prize)"}
 NEUTRAL_LABELS = {"公司或其他", "其他", "生日未填", "生日異常", "未填寫或格式錯誤"}
 
 
@@ -80,9 +86,16 @@ def dimension_color(dimension, raw, index):
     if dimension in ("legacy_sales_source", "legacy_motor_type", "sex", "legacy_sex", "age_group"):
         if raw in NEUTRAL_LABELS:
             return OTHER_COLOR
-        if raw in FIXED_COLOR_SLOTS:
-            return PALETTE[FIXED_COLOR_SLOTS[raw]]
+        if fixed_color(raw):
+            return fixed_color(raw)
     return PALETTE[index % len(PALETTE)]
+
+
+def fixed_color(label):
+    """分類的固定色（每頁同色）；沒有固定色回空字串。"""
+    if label in FIXED_COLOR_VARS:
+        return FIXED_COLOR_VARS[label]
+    return PALETTE[FIXED_COLOR_SLOTS[label]] if label in FIXED_COLOR_SLOTS else ""
 
 
 SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type", "payment_type": "payment_type",

@@ -3,10 +3,25 @@ from django.core.exceptions import SuspiciousOperation
 from django.db.models import Case, DateField, F, Q, When
 from django.utils.dateparse import parse_date
 
-from sales.models import VehicleModel, registration_confirmed_q
+from sales.models import SalesOrder, VehicleModel, registration_confirmed_q
 from .sales_metrics import CANCELLED_STATUSES, PAYMENT_CATEGORIES, filter_payment_risk, payment_category_q
 
-FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts", "pay")
+FILTER_KEYS = ("risk", "date_basis", "date_from", "date_to", "energy_type", "payment_status", "registered", "business_only", "include_cancelled", "attention", "drafts", "pay", "txn")
+
+# 營運總表下鑽用的交易類型範圍（T-320）：代交車、中獎車不計業績，主數字只算其他交易類型（performance），
+# 副標各自連到這兩類；張數要和卡片相同。網址參數 txn，沒帶時不影響。
+NON_PERFORMANCE = tuple(SalesOrder.NON_PERFORMANCE_TRANSACTION_TYPES)
+TRANSACTION_SCOPES = {
+    "performance": ("計入業績的訂單（不含代交車、中獎車）", ~Q(transaction_type__in=NON_PERFORMANCE)),
+    "non_performance": ("代交車、中獎車（不計業績）", Q(transaction_type__in=NON_PERFORMANCE)),
+    "proxy_delivery": ("代交車", Q(transaction_type=SalesOrder.TransactionType.PROXY_DELIVERY)),
+    "prize": ("中獎車", Q(transaction_type=SalesOrder.TransactionType.PRIZE)),
+}
+
+
+def performance_orders(rows):
+    """計入業績的訂單：排除代交車、中獎車（T-320）。營運總表主數字、銷售速度共用。"""
+    return rows.exclude(transaction_type__in=NON_PERFORMANCE)
 
 
 def plate_fee_variance_q():
@@ -61,6 +76,8 @@ def filter_order_analysis(rows, params, *, business_default=False):
     elif status:
         rows = rows.filter(status=status)
     rows = filter_payment_risk(rows, params.get("risk", ""))
+    if params.get("txn") in TRANSACTION_SCOPES:
+        rows = rows.filter(TRANSACTION_SCOPES[params["txn"]][1])
     if params.get("pay") in dict(PAYMENT_CATEGORIES):
         # 營運總表款項依付款方式拆列（T-275 第 9 項）：沒帶 pay 時不影響。
         rows = rows.filter(payment_category_q(params["pay"]))
@@ -128,6 +145,7 @@ HIDDEN_FILTERS = {
     "pay": ("付款方式", dict(PAYMENT_CATEGORIES)),
     "attention": ("作業提醒", {"dealer": "車行尾款到期", "fees": "牌險金額差異待確認", "stuck": "流程卡關"}),
     "business_only": ("成交範圍", {"1": "排除取消／退款"}),
+    "txn": ("交易類型", {key: label for key, (label, _q) in TRANSACTION_SCOPES.items()}),
 }
 
 

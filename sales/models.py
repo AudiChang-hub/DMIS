@@ -3536,8 +3536,13 @@ class SalesOrder(TimeStampedModel):
         REGISTERED = "registered", "領牌車"
         TEST_RIDE = "test_ride", "試乘車"
         PRIZE = "prize", "中獎車"
+        PROXY_DELIVERY = "proxy_delivery", "代交車"
         USED = "used", "中古車交易"
         OTHER = "other", "其他"
+
+    # 不計業績的交易類型（T-320，使用者 2026-11-25 定案）：代交車、中獎車只能本店現金單，
+    # 車價收入與車輛成本固定 0，不算業績、銷售速度、平均車價與本店人員傭金；庫存、配車、簽署、補助照舊。
+    NON_PERFORMANCE_TRANSACTION_TYPES = (TransactionType.PROXY_DELIVERY, TransactionType.PRIZE)
 
     class SourceType(models.TextChoices):
         STORE = "store", "本店"
@@ -3707,7 +3712,7 @@ class SalesOrder(TimeStampedModel):
         choices=TransactionType.choices,
         default=TransactionType.REGULAR_NEW,
         db_index=True,
-        help_text="用來區分一般新車、領牌車、試乘車、中獎車或中古車交易。",
+        help_text="用來區分一般新車、領牌車、試乘車、中獎車、代交車或中古車交易；代交車、中獎車不計業績。",
     )
     registration_date = models.DateField("實際領牌日期", blank=True, null=True)
     registration_county = models.CharField(
@@ -4103,6 +4108,18 @@ class SalesOrder(TimeStampedModel):
     def needs_customer_signatures(self):
         """只有本店來源的訂單需要客人簽車輛訂購單與個資同意書；車行、網路平台略過這一步（使用者 2026-10-13）。"""
         return self.source_type == self.SourceType.STORE
+
+    @property
+    def is_non_performance(self):
+        """代交車、中獎車（T-320）：不計業績（營運總表主數字、銷售速度、平均車價都不算）。
+        收支與本店人員傭金只對系統建立的單生效，看 zero_vehicle_finance。"""
+        return self.transaction_type in self.NON_PERFORMANCE_TRANSACTION_TYPES
+
+    @property
+    def zero_vehicle_finance(self):
+        """車價收入、車輛成本固定 0，且只能本店現金單（T-320）：代交車、中獎車。
+        Excel 匯入單是已結清的歷史，只改報表歸類與業績口徑，收支與欄位限制都不回頭套用。"""
+        return self.is_non_performance and not hasattr(self, "legacy_snapshot")
 
     @property
     def is_used_transaction(self):
@@ -4808,6 +4825,8 @@ class SalesOrder(TimeStampedModel):
             return "原銷售車行資料不完整，請先確認訂單來源。"
         if self.status == self.Status.CANCELLED:
             return "已取消的訂單不能調整台數與傭金歸屬。"
+        if self.is_non_performance and not self.commission_recipient_id:
+            return "代交車、中獎車不能指定台數與傭金歸屬車行。"
         if self.dealer_volume_bonus_allocations.exists():
             return "已結算台數獎金，歸屬已鎖定；不能直接更換收款車行。"
         return ""
@@ -4823,7 +4842,20 @@ class SalesOrder(TimeStampedModel):
         previous = type(self).objects.filter(pk=self.pk).values(
             "source_type", "source_id", "commission_recipient_id",
             "vehicle_model_id", "registration_date", "registration_completed_at", "status",
+            "transaction_type",
         ).first() if self.pk else None
+        # 代交車、中獎車（T-320）：只能本店現金單、不能指定歸屬車行；結案後不能改交易類型。表單有同樣的檢查。
+        # Excel 匯入單是已結清的歷史，不回頭檢查。
+        if self.zero_vehicle_finance:
+            if self.source_type != self.SourceType.STORE:
+                errors["source_type"] = "代交車、中獎車只能是本店訂單。"
+            if self.payment_type != self.PaymentType.CASH or any(
+                    row.get("method") != self.PaymentSplitMethod.CASH for row in self.payment_splits or ()):
+                errors["payment_type"] = "代交車、中獎車的付款方式只能選現金。"
+            if self.commission_recipient_id:
+                errors["commission_recipient"] = "代交車、中獎車不能指定台數與傭金歸屬車行。"
+        if previous and previous["transaction_type"] != self.transaction_type and self.is_closed:
+            errors["transaction_type"] = "已結案的訂單不能改交易類型。"
         if self.commission_recipient_id:
             if (self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}
                     or self.commission_recipient.source_type != SalesSource.SourceType.DEALER):
@@ -5366,7 +5398,10 @@ class OrderOperationsProfile(TimeStampedModel):
 
     @property
     def profit_is_ready(self):
-        return bool(self.vehicle_cost) and self.legacy_finance_reconciliation.get("status", "matched") not in ("missing", "mismatch", "invalid", "preserved_changes")
+        # 系統建立的代交車、中獎車（T-320）沒有車輛成本，成本 0 也算可計入，不列「淨利待補」。
+        # Excel 匯入單的收支不變：成本 0 的匯入中獎車照舊列「淨利待補」。
+        cost_ready = bool(self.vehicle_cost) or self.order.zero_vehicle_finance
+        return cost_ready and self.legacy_finance_reconciliation.get("status", "matched") not in ("missing", "mismatch", "invalid", "preserved_changes")
 
     @property
     def total_received(self):

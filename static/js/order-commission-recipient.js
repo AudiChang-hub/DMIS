@@ -9,9 +9,12 @@
   const panel = root.querySelector('[data-credit-panel]');
   const summary = root.querySelector('[data-credit-summary]');
   const isEnabled = () => /^(true|1|on)$/i.test(enabled.value);
+  // 代交車、中獎車（T-320）不能指定歸屬車行：切到這兩種就收起並清掉已選的車行。
+  const transactionType = document.getElementById('id_transaction_type');
+  const nonPerformance = () => ['proxy_delivery', 'prize'].includes(transactionType?.value);
   const sync = () => {
     const isDealer = sourceType.value === 'dealer';
-    const eligible = isDealer || sourceType.value === 'store';
+    const eligible = !nonPerformance() && (isDealer || sourceType.value === 'store');
     root.hidden = !eligible;
     if (!select) return; // 已結算：只顯示固定歸屬。
     const expanded = eligible && isEnabled();
@@ -42,6 +45,15 @@
   });
   sourceType.addEventListener('change', () => {
     if (!['dealer', 'store'].includes(sourceType.value) && select) {
+      enabled.value = 'False';
+      select.value = '';
+      select.dispatchEvent(new Event('change', {bubbles: true}));
+      enabled.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+    sync();
+  });
+  transactionType?.addEventListener('change', () => {
+    if (nonPerformance() && select && isEnabled()) {
       enabled.value = 'False';
       select.value = '';
       select.dispatchEvent(new Event('change', {bubbles: true}));

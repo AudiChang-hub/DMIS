@@ -272,6 +272,7 @@ jobs:
           sales.tests.test_discount_internal_note_t257
           sales.tests.test_accessory_credit_t305
           sales.tests.test_t309_compulsory_gift
+          sales.tests.test_proxy_delivery_t320
           sales.tests.test_catalog_accounts sales.tests.test_catalog_selection sales.tests.test_profit_privacy_ux
           sales.tests.test_catalog_color_list sales.tests.test_catalog_management sales.tests.test_order_deletion
           sales.tests.test_legacy_import.LegacyImportTests.test_deleted_import_is_not_recreated_by_stale_row_commit

@@ -1,0 +1,10 @@
+{% load screen_access %}{# T-322 車行／平台頁熱度格：點格子從側邊看那一格的訂單（views.heat_cell_orders）。筆數寫在 data-cell-count，面板標題用它；車行／平台與月份已在標題，這裡不重複。 #}
+<div class="report-cell-orders" data-cell-orders data-cell-count="{{ page_obj.paginator.count }}">
+<ul class="report-cell-orders__list" aria-label="共 {{ page_obj.paginator.count }} 張訂單">
+{% for row in rows %}<li class="report-cell-orders__item">
+<span class="report-cell-orders__who"><b>{{ row.owner_name }}</b><span>{{ row.model_number }} · {{ row.color }}</span></span>
+<span class="report-cell-orders__meta"><span class="report-cell-orders__date"><span class="visually-hidden">領牌日期 </span>{{ row.registration_date }}</span><span class="report-cell-orders__paid{% if row.payment_confirmed != '已收款' %} is-pending{% endif %}">{{ row.payment_confirmed }}</span></span>
+{% if_access 'order_detail' row.pk %}<a class="report-cell-orders__go" href="{% url 'order_detail' row.pk %}" aria-label="看 {{ row.owner_name }} 的訂單">看訂單</a>{% endif_access %}
+</li>{% empty %}<li class="report-cell-orders__empty">這一格目前沒有符合的訂單，資料可能已經更新；重新整理報表可以同步。</li>{% endfor %}</ul>
+{% if page_obj.has_next %}<p class="report-cell-orders__more">只列最近 {{ rows|length }} 張，共 {{ page_obj.paginator.count }} 張。<a href="{{ full_url }}">看全部 →</a></p>{% endif %}
+</div>

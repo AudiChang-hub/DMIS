@@ -553,6 +553,8 @@ def detail(request, pk, index):
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     if request.GET.get("inline") == "1" and request.GET.get("view") == "count" and report.published.get("reader_layout") == "count_overview":
         return count_orders(request, report, card, queryset)
+    if request.GET.get("inline") == "1" and request.GET.get("view") == "cell" and report.published.get("reader_layout") in HEAT_CELL_LAYOUTS:
+        return heat_cell_orders(request, report, card, queryset)
     page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient", "operations").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
     from sales.services.order_origin import attach_order_origin
     page.object_list = attach_order_origin(page.object_list)
@@ -600,6 +602,29 @@ def count_orders(request, report, card, queryset):
     query.pop("page", None)
     return render(request, "sales/reporting/_count_orders.html", {"report": report, "card": card, "page_obj": page, "rows": rows,
                   "query": query.urlencode()})
+
+
+# T-322 車行／平台頁的熱度格點格子、從側邊看那一格的訂單：同一個 report_detail、同一個 group
+# （堆疊圖每一段原本的 c:[主分類, 細分]），只多 view=cell，回傳精簡清單。
+# 筆數就是 drill_query 的筆數（和格子上的數字同一個查詢條件）；欄位沿用明細的 record_cells，不另算。
+# 車行／平台名稱與月份已寫在面板標題，清單不重複列。
+HEAT_CELL_LAYOUTS = ("dealer_overview", "platform_overview")
+HEAT_CELL_COLUMNS = ["registration_date", "owner_name", "model_number", "color", "payment_confirmed"]
+
+
+def heat_cell_orders(request, report, card, queryset):
+    from django.db.models import F
+    ordering = F(report.published.get("date_basis", "registration_date")).desc(nulls_first=True)
+    queryset = queryset.select_related(
+        "source", "vehicle_model", "color", "allocated_vehicle", "legacy_snapshot__import_row", "operations",
+    ).order_by(ordering, "-pk")
+    page = Paginator(queryset, 50).get_page(1)
+    rows = [{"pk": order.pk, **{cell["key"]: cell["value"] for cell in record_cells(order, HEAT_CELL_COLUMNS)}} for order in page]
+    query = request.GET.copy()
+    for key in ("inline", "view", "page"):
+        query.pop(key, None)
+    return render(request, "sales/reporting/_heat_cell_orders.html", {"report": report, "card": card, "page_obj": page, "rows": rows,
+                  "full_url": request.path + "?" + query.urlencode()})
 
 
 def csv_safe(value):

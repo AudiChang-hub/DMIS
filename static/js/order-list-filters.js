@@ -130,8 +130,6 @@
     sheet.querySelector("[data-order-source-button], input:not([type=hidden]), select")?.focus();
   });
   form.addEventListener("submit", () => { snapshot = null; if (sheet.open) sheet.close(); });
-  // 面板開著時，「狀態」改了不要立刻送出（電腦版的下拉仍是選了就查），等按「套用」。
-  sheet.addEventListener("change", (event) => { if (sheet.open) event.stopPropagation(); }, true);
   mobile.addEventListener("change", () => { if (!mobile.matches && sheet.open) dismiss(); });
   renderChips();
 })();

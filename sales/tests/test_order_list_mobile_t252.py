@@ -77,7 +77,8 @@ class OrderListMobileLayoutTests(SimpleTestCase):
         self.assertIn('clear.textContent = "全部清除";', js)
         # 沒按套用就關閉，欄位回到原值；面板開著時改狀態不立刻送出。
         self.assertIn("if (snapshot) NAMES.forEach", js)
-        self.assertIn('sheet.addEventListener("change", (event) => { if (sheet.open) event.stopPropagation(); }, true);', js)
+        self.assertNotIn("onchange", re.search(r'<select name="status"[^>]*>', TEMPLATE.read_text(encoding="utf-8")).group(0))  # T-324：狀態按套用才查（PM 核准）
+        self.assertNotIn("event.stopPropagation(); }, true);", js)  # T-324：沒有自動送出，不必再攔 change
         self.assertIn('sheet.addEventListener("cancel"', js)
 
 

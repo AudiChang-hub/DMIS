@@ -46,6 +46,7 @@
     if (!button) return;
     const label = labelOf(select);
     button.querySelector("[data-location-label]").textContent = label;
+    button.title = label; // 名稱太長時按鈕上會截斷，滑鼠移上去看得到全名
     button.setAttribute("aria-label", `實際位置 ${wrapFor(select).dataset.identifier}：${label}（點開可改，選了就存）`);
   };
 

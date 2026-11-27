@@ -12,6 +12,8 @@
 .inventory-sort-pair { display: inline-flex; align-items: center; gap: var(--space-1); }
 .inventory-table--stock :is(.inventory-received-cell, .status-pill, .inventory-condition) { white-space: nowrap; }
 /* T-317 B：次要欄位併成第二行（出廠年月→進車日期、品牌→車型／車色、車況→狀態），11 欄併成 8 欄。 */
+/* 本檔 T-317 的三處 2px（.inventory-th-sub、.inventory-cell-sub 的 margin-top，.inventory-location-picker__group 的 gap）：
+   同一格裡主行和第二行、選項和選項之間的最小間距，比 --space-1（4px）還小；間距 token 沒有 2px，所以直接寫數值。 */
 .inventory-table--stock .inventory-th-sub { display: block; margin-top: 2px; font-size: inherit; font-weight: inherit; }
 .inventory-table--stock .inventory-received-cell { font-variant-numeric: tabular-nums; }
 /* 車色保留自己的 span（和進車紀錄等頁一致），和品牌排在同一行。 */
@@ -74,7 +76,7 @@
 .inventory-location-hint a { color: var(--action-text); font-weight: 800; text-underline-offset: 3px; }
 .inventory-location-hint a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
 .inventory-location-cell { min-width: 176px; }
-.inventory-location { display: grid; gap: var(--space-1); justify-items: start; max-width: 220px; }
+.inventory-location { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); justify-items: start; max-width: 220px; }
 .inventory-table select.inventory-location__select {
   width: 100%; min-height: 36px; padding-block: var(--space-1); font-size: var(--text-sm); font-weight: 800;
 }
@@ -86,6 +88,8 @@
   color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
   font: inherit; font-size: var(--text-sm); font-weight: 800; text-align: left; cursor: pointer;
   transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+  /* 名稱再長也不把欄位或手機卡片撐寬：按鈕跟著格子縮，文字截斷加「…」（完整名稱在 title）。 */
+  min-width: 0; max-width: 100%; box-sizing: border-box;
 }
 .inventory-table .inventory-location__label { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inventory-location__button::after {
@@ -154,6 +158,13 @@
 .inventory-select:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .inventory-table[data-transfer-out-table] tbody tr.is-transfer-selected > td { background: color-mix(in srgb, var(--mint) 70%, var(--surface)); }
 .inventory-row-action .inventory-transfer-out-button { margin-right: var(--space-2); }
+/* T-317：「查零件」在庫存列表改成圖示鈕（寬度＝按鈕高度），SUZUKI 車那幾列的操作欄才不會把表格撐出 1280 寬。
+   名稱由 aria-label／title 提供；其他頁的「查零件」仍是文字按鈕。 */
+.inventory-row-action .parts-lookup--icon { width: 36px; padding: 0; vertical-align: middle; }
+.inventory-row-action .parts-lookup--icon svg { display: block; flex: none; }
+/* 按下後共用程式（ui-navigation.js）會把內容換成「已複製 …」4 秒再換回圖示；圖示鈕寬度不變，這段時間改顯示 ✓。 */
+.inventory-row-action .parts-lookup--icon:not(:has(svg)) { overflow: hidden; font-size: 0; }
+.inventory-row-action .parts-lookup--icon:not(:has(svg))::before { content: "✓"; font-size: var(--text-base); font-weight: 900; }
 .inventory-row-action .inventory-transfer-out-button:disabled { color: var(--muted); cursor: not-allowed; opacity: 1; }
 /* 底部選取列出現時留出它的高度：按鈕 44px＋上下 --space-2，加上它離底部的 --space-5，再多留 --space-2 不貼著最後一列。 */
 .inventory-list-panel.has-transfer-out-bar {

@@ -9,11 +9,12 @@ import re
 from datetime import date
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.template import Context, Template
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
-from sales.models import SalesSource, Store, VehicleColor, VehicleInventory, VehicleModel
+from sales.models import SalesSource, Store, VehicleBrand, VehicleColor, VehicleInventory, VehicleModel
 
 
 class InventoryListT317Tests(TestCase):
@@ -117,6 +118,38 @@ class InventoryListT317Tests(TestCase):
         self.assertIn('title="已配給訂單，不能調出">已配車</button>', html)
         self.assertIn(f'href="{reverse("inventory_edit", args=[self.car.pk])}">查看／編輯</a>', html)
         self.assertNotIn("inventory-action-icon", html)
+
+    def test_suzuki_parts_lookup_is_an_icon_button_on_this_list_only(self):
+        """SUZUKI 車的「查零件」在庫存列表是圖示鈕（名稱在 aria-label／title），操作欄才不會把 1280 寬撐出捲軸。"""
+        VehicleBrand.objects.update_or_create(name="SUZUKI", defaults={"aliases": "台鈴"})
+        suzuki = VehicleModel.objects.create(
+            brand="SUZUKI", name="SUI 125", model_number="T317S",
+            energy_type=VehicleModel.EnergyType.GAS, displacement_cc=125,
+        )
+        VehicleInventory.objects.create(
+            vehicle_model=suzuki, color=VehicleColor.objects.create(vehicle_model=suzuki, name="白"),
+            engine_number="F4A1-317001", ownership_store=self.store, location_store=self.store,
+        )
+        html = self.page()
+        links = re.findall(r'<a class="[^"]*parts-lookup[^"]*".*?</a>', html, re.S)
+        self.assertEqual(len(links), 1, "只有 SUZUKI 那一台有查零件")
+        link = links[0]
+        self.assertIn('class="button secondary small parts-lookup parts-lookup--icon"', link)
+        self.assertIn('data-parts-lookup="F4A1-317001"', link)
+        self.assertIn('target="_blank" rel="noopener"', link)
+        self.assertIn('aria-label="查零件 F4A1-317001（複製號碼並另開台鈴官方零件圖冊）"', link)
+        self.assertIn('title="查零件：複製 F4A1-317001 並另開台鈴官方零件圖冊，貼到搜尋列即可查詢"', link)
+        self.assertIn('<svg aria-hidden="true" focusable="false"', link)
+        self.assertEqual(re.sub(r"<[^>]+>", "", link).strip(), "", "圖示鈕沒有文字")
+        # 其他頁（訂單的配車資訊）沒帶 icon，仍是原本的文字按鈕。
+        request = RequestFactory().get("/")
+        request.user = self.root
+        text = Template("{% load suzuki_parts %}{% suzuki_parts_lookup model number %}").render(
+            Context({"request": request, "model": suzuki, "number": "F4A1-317001"}))
+        self.assertIn('<a class="button secondary small parts-lookup" href=', text)
+        self.assertIn('查零件 <span aria-hidden="true">↗</span></a>', text)
+        self.assertNotIn("parts-lookup--icon", text)
+        self.assertNotIn("<svg", text)
 
     def test_location_keeps_native_select_for_no_js_and_loads_picker(self):
         html = self.page()

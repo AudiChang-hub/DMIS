@@ -173,3 +173,9 @@
 @media (max-width: 600px) {
   .order-drilldown > strong { flex: 1 1 100%; }
 }
+/* T-319：搜尋提示只標關鍵字。前後文和關鍵字排在同一段，底色只留在關鍵字上（蓋過 app.css 整段標色的 .search-match mark）。 */
+.search-match__text { min-width: 0; padding: 3px var(--space-2); color: var(--ink); overflow-wrap: anywhere; }
+.search-match .search-match__text mark {
+  max-width: none; padding: 0; overflow: visible; color: inherit; background: var(--amber-soft);
+  border-radius: var(--radius-xs); text-overflow: clip; white-space: normal;
+}

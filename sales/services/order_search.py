@@ -362,6 +362,91 @@ def build_order_match_summary(order, query, *, profit_unlocked=True, search_term
     return matches
 
 
+# ---- T-319：結果列「符合欄位」提示只列短摘要（搜尋範圍與結果筆數不變，只改顯示）----
+# 全部訂單每一列已經看得到的欄位：符合時不另列（車主姓名、訂單編號、車牌、兩個日期、車型、引擎／車身號碼、車色、車行）。
+# 備註在列上只顯示前幾個字，符合處可能看不到，所以照樣列出摘要。
+ROW_VISIBLE_LABELS = frozenset({
+    "車主姓名／公司名稱", "訂單編號", "最終車牌號碼", "訂單成立日期", "實際領牌日期",
+    "車型", "引擎號碼", "車身號碼", "車色", "來源名稱",
+})
+# 系統稽核資料：只供日後核對，不出現在結果列。
+AUDIT_LABEL_MARKERS = ("內容指紋", "SHA-256")
+AUDIT_SEGMENT_PREFIXES = ("IP：", "裝置：", "內容指紋：", "檔案 SHA-256：")
+MATCH_HINT_LIMIT = 2
+SNIPPET_BEFORE = 8
+SNIPPET_AFTER = 12
+_NORMALISE_DROPPED = frozenset(" -/／")
+
+
+def _strip_audit_segments(text):
+    """電子簽署紀錄的 IP、裝置字串、內容指紋、檔案 SHA-256 一段段拿掉，只留給人看的說明。"""
+    segments = str(text or "").split("；")
+    kept = [segment for segment in segments if not segment.strip().startswith(AUDIT_SEGMENT_PREFIXES)]
+    return "；".join(kept)
+
+
+def _locate_term(text, prepared_terms):
+    """回傳 text 中第一個符合的 (start, end)，比對規則與 _contains 相同（不分大小寫、忽略空白與連字號）。"""
+    for drop in (frozenset(), _NORMALISE_DROPPED):
+        folded, positions = [], []
+        for index, char in enumerate(text):
+            if char in drop:
+                continue
+            for folded_char in char.casefold():
+                folded.append(folded_char)
+                positions.append(index)
+        haystack = "".join(folded)
+        for raw_query, normalised_query in prepared_terms:
+            needle = normalised_query if drop else raw_query
+            if not needle:
+                continue
+            found = haystack.find(needle)
+            if found >= 0:
+                return positions[found], positions[found + len(needle) - 1] + 1
+    return None
+
+
+def _snippet(label, text, prepared_terms):
+    span = _locate_term(text, prepared_terms)
+    if span is None:  # 品牌別名等間接符合：值本身沒有關鍵字，整段截短後標色
+        limit = SNIPPET_BEFORE + SNIPPET_AFTER
+        hit = text if len(text) <= limit else text[:limit] + "…"
+        return {"label": label, "before": "", "hit": hit, "after": ""}
+    start, end = span
+    before_start = max(0, start - SNIPPET_BEFORE)
+    after_end = min(len(text), end + SNIPPET_AFTER)
+    before = ("…" if before_start else "") + text[before_start:start]
+    after = text[end:after_end] + ("…" if after_end < len(text) else "")
+    # 結果列只標 hit（關鍵字），before／after 是前後文，不標色。
+    return {"label": label, "before": before, "hit": text[start:end], "after": after}
+
+
+def condense_order_matches(order, matches, search_terms):
+    """把 build_order_match_summary 的完整符合清單整理成結果列要顯示的提示。
+
+    回傳 (最多 MATCH_HINT_LIMIT 項的摘要, 其餘符合的欄位數)。該列已顯示的欄位、與姓名／編號／車牌同值的欄位、
+    系統稽核資料都不列；同一欄位只列一次；每項只留符合處前後一小段。
+    """
+    prepared = [(str(term or "").strip().casefold(), _normalise(term)) for term in search_terms]
+    visible_values = {
+        _normalise(value) for value in (order.owner_name, order.number, order.final_plate_number) if value
+    }
+    shown, extra_labels, seen = [], set(), set()
+    for item in matches:
+        label = item["label"]
+        if label in seen or label in ROW_VISIBLE_LABELS or any(marker in label for marker in AUDIT_LABEL_MARKERS):
+            continue
+        text = " ".join(_strip_audit_segments(item["value"]).split())
+        if not text or not _contains_any(text, prepared) or _normalise(text) in visible_values:
+            continue
+        seen.add(label)
+        if len(shown) < MATCH_HINT_LIMIT:
+            shown.append(_snippet(label, text, prepared))
+        else:
+            extra_labels.add(label)
+    return shown, len(extra_labels)
+
+
 def _index_item(items, label, value, sensitive=False, *, private=False, search_only=False):
     if isinstance(value, models.fields.files.FieldFile):
         value = PurePath(value.name).name if value else ""

@@ -246,6 +246,7 @@ from .services.order_change_display import build_order_change_cards
 from .services.order_next_actions import build_order_next_actions
 from .services.order_search import (
     build_order_match_summary,
+    condense_order_matches,
     order_match_terms,
     build_order_search_query,
 )
@@ -4377,8 +4378,12 @@ def order_list(request):
     if query:
         search_terms = order_match_terms(query)  # 整頁共用，不逐列查品牌別名（T-281）
         for order in page.object_list:
-            order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible,
-                                                             search_terms=search_terms)
+            # T-319：只列短摘要（最多 2 項、不列該列已顯示的欄位與系統稽核資料），其餘只算數量。
+            order.search_matches, order.search_match_more = condense_order_matches(
+                order,
+                build_order_match_summary(order, query, profit_unlocked=profit_visible, search_terms=search_terms),
+                search_terms,
+            )
     query_params = request.GET.copy()
     query_params.pop("page", None)
     draft_rows = scoped_drafts(request.user)

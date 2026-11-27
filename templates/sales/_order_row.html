@@ -17,10 +17,10 @@
     {% endif %}
     {% if order.search_matches %}
     <span class="search-match-list" aria-label="符合搜尋的欄位"{% if profit_unlocked %} data-profit-value{% endif %}>
-      {% for match in order.search_matches|slice:":6" %}
-      <span class="search-match"><b>{{ match.label }}</b><mark>{{ match.value }}</mark></span>
+      {% for match in order.search_matches %}
+      <span class="search-match"><b>{{ match.label }}</b><span class="search-match__text">{{ match.before }}<mark>{{ match.hit }}</mark>{{ match.after }}</span></span>
       {% endfor %}
-      {% if order.search_matches|length > 6 %}<span class="search-match-more">另 {{ order.search_matches|length|add:"-6" }} 個欄位符合</span>{% endif %}
+      {% if order.search_match_more %}<span class="search-match-more">另 {{ order.search_match_more }} 個欄位符合</span>{% endif %}
     </span>
     {% endif %}
   </div>

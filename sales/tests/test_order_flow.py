@@ -2615,7 +2615,9 @@ class OrderFlowTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, order.owner_name)
                 self.assertContains(response, label)
-                self.assertContains(response, value)
+                # T-319：只有關鍵字包在 <mark> 裡，完整的值被標籤切開；拿掉標籤後畫面文字仍是完整的值。
+                self.assertIn(value, response.content.decode().replace("<mark>", "").replace("</mark>", ""))
+                self.assertContains(response, f"<mark>{query}</mark>")
 
     def test_dashboard_parent_brand_search_finds_child_brand_order(self):
         self.model.brand = "eMOVING"

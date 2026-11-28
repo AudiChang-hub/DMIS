@@ -852,6 +852,10 @@
           const summary = document.getElementById('workspace-finance-summary');
           if (summary) summary.outerHTML = payload.summary_html;
         }
+        if (payload.finance_registration_html) {
+          // 領牌試算卡（T-333）：改強制險期間後，年期與強制險金額跟著換新。
+          document.querySelectorAll('[data-finance-registration]').forEach(card => { card.outerHTML = payload.finance_registration_html; });
+        }
         if (payload.subsidy_summary_html) {
           const agencies = document.getElementById('subsidy-agency-summary');
           if (agencies) agencies.outerHTML = payload.subsidy_summary_html;

@@ -4203,15 +4203,21 @@ def _claim_edit_lock(instance, request, timeout):
 
 
 def _vehicle_rate_data():
+    from sales.services.registration_fee import insurance_period_options
+
+    models = list(VehicleModel.objects.filter(active=True).only(
+        "id", "brand", "energy_type", "displacement_cc", "electric_registration_class"
+    ))
+    # 強制險期間可選的年期（T-333）：前端依車型限制選項，只有一種時直接顯示、不能改。
+    periods = insurance_period_options(models, timezone.localdate())
     return {
         str(model.pk): {
             "energy_type": model.energy_type,
             "displacement_cc": model.displacement_cc,
             "electric_registration_class": model.electric_registration_class,
+            "insurance_periods": periods.get(model.pk, []),
         }
-        for model in VehicleModel.objects.filter(active=True).only(
-            "id", "energy_type", "displacement_cc", "electric_registration_class"
-        )
+        for model in models
     }
 
 

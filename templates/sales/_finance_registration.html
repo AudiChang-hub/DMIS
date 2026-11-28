@@ -1,7 +1,7 @@
 {% load sales_format screen_access %}
 {# 收入與支出 ⑥ 領牌試算（使用者 2026-11-09 p7 重排）：內容與計算照舊，只從「成交金額與尾款試算」拆出。 #}
 {% if order.registration_calculated_total %}
-<section class="card finance-registration"{% if order_workspace %} data-workspace-section="finance"{% endif %} aria-label="領牌試算">
+<section class="card finance-registration" data-finance-registration{% if order_workspace %} data-workspace-section="finance"{% endif %} aria-label="領牌試算">
   <dl class="money-list">
       <div class="registration-breakdown">
         <div class="registration-breakdown__header">
@@ -36,4 +36,7 @@
       </div>
   </dl>
 </section>
+{% else %}
+{# 還沒有試算時留一個隱藏的位置，訂單頁改了強制險期間等計費條件後，自動儲存可原地換成試算卡（T-333）。 #}
+<section class="card finance-registration" data-finance-registration hidden aria-label="領牌試算"></section>
 {% endif %}

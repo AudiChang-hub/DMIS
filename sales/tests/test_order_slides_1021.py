@@ -37,9 +37,10 @@ class OrderPageRegistrationCardTests(TestCase):
                      "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"):
             self.assertIn(f'name="{name}"', hidden.split("<div hidden>", 1)[1])
             self.assertNotIn(f'name="{name}"', visible)
-        self.assertIn('name="compulsory_insurance_period"', hidden.split("<div hidden>", 1)[1])
-        self.assertNotIn('name="compulsory_insurance_period"', visible)
-        self.assertNotIn("強制險期間", visible)
+        # 強制險期間 11-28 起看得到、可改（T-333，取代 10-21 隱藏的決定）。
+        self.assertNotIn('name="compulsory_insurance_period"', hidden.split("<div hidden>", 1)[1])
+        self.assertIn('name="compulsory_insurance_period"', visible)
+        self.assertIn("強制險期間", visible)
         for name in ("registration_calculated_total", "plate_insurance_fee"):
             self.assertIn(f'name="{name}"', visible)
         self.assertRegex(visible, r'name="registration_calculated_total"[^>]*readonly')

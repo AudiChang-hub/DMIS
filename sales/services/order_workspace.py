@@ -375,6 +375,8 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
         # 收入與支出最上面的 ①成交與車行結算（使用者 2026-11-09 p7 從總覽拆出），一樣原地換新。
         'settlement_html': render_to_string('sales/_workspace_finance_settlement.html', {**context, 'order': order}, request=request) if profile else '',
+        # 收入與支出的「領牌試算」卡：訂單頁改了強制險期間（T-333）等計費條件，試算明細與年期原地換新。
+        'finance_registration_html': render_to_string('sales/_finance_registration.html', {'order': order, 'order_workspace': True, 'hide_variance_action': True}, request=request) if profile else '',
         'receipt_status_html': render_to_string('sales/_receipt_status.html', {'order': order, 'receipt_status': receipt_status(order, summary)}, request=request) if profile else '',
         'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
         # 匯入單第一次存檔後，訂單編號下方的來源標記即時改為「Excel 匯入已修改」（services/order_origin.py）。

@@ -241,6 +241,51 @@ def registration_period_for(vehicle_model, on_date, period_years):
     return periods.pop() if len(periods) == 1 else period_years
 
 
+GAS_INSURANCE_PERIODS = [1, 2]
+
+
+def insurance_period_options(vehicle_models, on_date):
+    """建單與訂單頁「強制險期間」可選的年期（T-333）：{車型 pk: [年期…]}；空清單＝不限制（照舊三種都可選）。
+
+    油車公式只有一、兩年；微電車固定三年；電動類取該品牌當日啟用的固定規則有的年期，
+    與 registration_period_for 用同一組規則（只有一種年期時就固定那一種）。一次查完，不逐車型查詢。
+    """
+    electric = {
+        model.pk: model for model in vehicle_models
+        if model.energy_type in (VehicleModel.EnergyType.ELECTRIC, VehicleModel.EnergyType.LIGHT_ELECTRIC)
+    }
+    rule_periods = {}
+    if electric and on_date:
+        rules = (
+            BrandRegistrationFeeRule.objects.filter(
+                active=True, calculation_type__in=FIXED_CALCULATION_TYPES, effective_from__lte=on_date,
+                energy_type__in=(VehicleModel.EnergyType.ELECTRIC, VehicleModel.EnergyType.LIGHT_ELECTRIC),
+            )
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=on_date))
+            .values_list("brand", "energy_type", "electric_registration_class", "insurance_period_years")
+        )
+        for brand, energy_type, electric_class, period in rules:
+            rule_periods.setdefault((brand.casefold(), energy_type, electric_class), set()).add(period)
+    options = {}
+    for model in vehicle_models:
+        if model.energy_type == VehicleModel.EnergyType.GAS:
+            options[model.pk] = GAS_INSURANCE_PERIODS
+        elif model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+            options[model.pk] = [3]
+        elif model.pk in electric:
+            # 輕型電動車相容以「電動車＋輕型級別」建立的規則（brand_registration_rule_candidates）。
+            energy_types = [model.energy_type]
+            if model.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
+                energy_types.append(VehicleModel.EnergyType.ELECTRIC)
+            periods = set()
+            for energy_type in energy_types:
+                periods |= rule_periods.get(((model.brand or "").casefold(), energy_type, model.electric_registration_class), set())
+            options[model.pk] = sorted(periods)
+        else:
+            options[model.pk] = []
+    return options
+
+
 def registration_fee_date(vehicle_model, registration_date, reference_date, period_years):
     """試算用日期；None 表示先不試算。電動類固定牌險不隨日期變動，有規則就先依訂單日帶入（使用者 2026-10-15）；
     油車沒有領牌日時先依訂單日預估，領牌時依領牌日重算（使用者 2026-10-19）。"""

@@ -222,22 +222,23 @@
     <div class="conditional-panel plate-fee-only">
       <div hidden>
         <p id="registration-rate-summary"></p>
-        {% include "sales/_field.html" with field=form.compulsory_insurance_period %}
         {% include "sales/_registration_fee_details.html" %}
         {% include "sales/_field.html" with field=form.registration_calculated_total %}
       </div>
-      <div class="form-grid" id="gas-registration-calculator">{% include "sales/_field.html" with field=form.plate_insurance_fee %}</div>
+      {# 強制險期間建單時要能選（T-333，使用者 2026-11-28，取代 10-21 隱藏的決定）。 #}
+      <div class="form-grid" id="gas-registration-calculator">{% include "sales/_compulsory_insurance_period_field.html" with field=form.compulsory_insurance_period %}{% include "sales/_field.html" with field=form.plate_insurance_fee %}</div>
       <div id="non-gas-registration-message" class="note-box" hidden>選擇動力類型與車型後顯示牌險欄位。</div>
     </div>
     {% else %}
     {% comment %}訂單頁店內財務（使用者 2026-10-21 T-38 選 B）：只有一層、直接展開，只顯示系統試算牌險合計與牌險費。
-    自行調整、調整原因、明細與強制險期間都不顯示；明細與期間留在隱藏區給前端試算（油車一律一年、微電車依規則三年），
-    既有訂單的期間照原值送出，試算合計不變。要算兩年請直接改牌險費。{% endcomment %}
+    自行調整、調整原因與明細都不顯示；明細留在隱藏區給前端試算。強制險期間 11-28 起顯示可改（T-333），
+    選項依車型（油車一、兩年；微電車固定三年；電動類依品牌固定規則），既有訂單照原值帶入，試算合計不變。{% endcomment %}
     <details class="card registration-fee-card" open {% if intake_mode %}hidden{% endif %}><summary>領牌規費與強制險</summary>
       <p class="registration-fee-card__basis" id="registration-rate-summary">{% site_text 'order_form.22518dd5a27d' %}</p>
       <div id="gas-registration-calculator">
-        <div hidden>{% include "sales/_field.html" with field=form.compulsory_insurance_period %}{% include "sales/_registration_fee_details.html" %}</div>
+        <div hidden>{% include "sales/_registration_fee_details.html" %}</div>
         <div class="form-grid registration-fee-card__fields">
+          {% include "sales/_compulsory_insurance_period_field.html" with field=form.compulsory_insurance_period %}
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>

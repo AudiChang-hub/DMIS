@@ -1,0 +1,9 @@
+{% comment %}強制險期間（T-333，使用者 2026-11-28）：建單與訂單頁都看得到、跟牌險放在一起。
+選項由前端依車型限制（views._vehicle_rate_data 的 insurance_periods）；只有一種年期（微電車三年、電動類品牌只設一種）時
+下拉隱藏、改顯示唯讀文字，下拉仍隨表單送出原值。{% endcomment %}
+<div class="field {% if field.errors %}has-error{% endif %}" data-field-container data-insurance-period-field>
+  <label for="{{ field.id_for_label }}" data-insurance-period-label>{{ field.label }}</label>
+  {{ field }}
+  <input type="text" id="{{ field.id_for_label }}_fixed" class="insurance-period-fixed" value="" readonly hidden>
+  {% if field.errors %}<span id="{{ field.id_for_label }}_errors">{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
+</div>

@@ -1,6 +1,7 @@
 {% load static site_copy sales_format %}
 
 <script src="{% static 'js/order-installment-picker.js' %}"></script>
+<script src="{% static 'js/order-insurance-period.js' %}"></script>
 <script src="{% static 'js/id-crop-editor.js' %}"></script>
 <script src="{% static 'js/order-commission-recipient.js' %}" defer></script>
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
@@ -531,6 +532,15 @@
 
   function calculateRegistrationFee() {
     // 牌險明細一律由系統試算、只顯示試算合計（使用者 2026-10-21 T-38）。
+    // 三年強制險只給電動類固定規則；油車公式只有一、兩年；微電車一定保三年（使用者 2026-10-15）。
+    // 強制險期間看得到、可改（T-333）：電動類只列品牌固定規則有的年期，只有一種時顯示唯讀文字（order-insurance-period.js）。
+    // 放在完成後修正的判斷之前：已交車的單載入時也要套用選項與唯讀顯示。
+    window.DmisInsurancePeriod.apply(insurancePeriod, {
+      energyType: vehicleEnergyType.value, periods: vehicleRateData[vehicleModel.value]?.insurance_periods,
+      basis: `${vehicleEnergyType.value}:${vehicleModel.value}`, keepExisting: Boolean(editingOrderId),
+      fixedInput: byId("id_compulsory_insurance_period_fixed"),
+      label: document.querySelector("[data-insurance-period-label]"),
+    });
     if (completedRegistrationBasis !== null && completedRegistrationBasis === JSON.stringify(completedRegistrationInputs.map(input => input.value))) {
       const followedCalculation = actualPlateInsuranceFee.value === calculatedRegistrationTotal.value;
       completedFeeFields.forEach((id, index) => { byId(id).value = completedFeeValues[index]; });
@@ -548,14 +558,6 @@
     nonGasMessage.hidden = isSupported;
     // 牌險費可留空＝照系統試算（使用者 2026-10-19）。
     actualPlateInsuranceFee.required = false;
-    // 三年強制險只給電動類固定規則；油車公式只有一、兩年；微電車一定保三年（使用者 2026-10-15）。
-    [...insurancePeriod.options].forEach(option => {
-      const blocked = (isGas && option.value === "3") || (isMicroElectric && option.value !== "3");
-      option.disabled = blocked;
-      option.hidden = blocked;
-    });
-    if (isGas && insurancePeriod.value === "3") insurancePeriod.value = "1";
-    if (isMicroElectric) insurancePeriod.value = "3";
 
     if (isMicroElectric) {
       rateSummary.textContent = "微電車強制險固定三年；品牌有固定牌險規則時儲存後帶入，沒有規則請依單據填寫實際牌險";

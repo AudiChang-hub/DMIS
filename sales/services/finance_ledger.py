@@ -21,7 +21,8 @@ EXPENSE_GROUPS = (
     ("車輛成本", "", ("vehicle_cost",)),
     ("領牌相關", "監理站規費、強制險與選號", ("registration_tax_expense", "compulsory_insurance_expense", "plate_selection_expense")),
     ("傭金", "", ("dealer_commission_expense",)),
-    ("手續費", "", ("card_fee_expense", "installment_fee_expense", "plate_insurance_fee_expense")),
+    # T-341：順序跟收入側一致（牌險 → 分期 → 刷卡）。
+    ("手續費", "", ("plate_insurance_fee_expense", "installment_fee_expense", "card_fee_expense")),
     ("贈品、運費與中古車", "", ("gift_expense", "shipping_expense", "used_vehicle_expense")),
     ("歷史匯入欄位", "舊資料合併欄位，新訂單通常為 0", (
         "legacy_card_fee_expense", "gift_shipping_expense", "friendly_dealer_bonus_expense",

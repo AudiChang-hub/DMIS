@@ -403,6 +403,18 @@ class FinanceStepPageTests(FinanceLedgerTestBase):
         totals = finance_totals(profile)
         self.assertEqual(totals["net"], profile.net_profit)
 
+    def test_fee_groups_share_the_same_order_on_both_sides(self):
+        """T-341：支出側「手續費」順序跟收入側一致：牌險 → 分期 → 刷卡。"""
+        _page, finance = self.finance_panel(self.make_order())
+        income = finance.split('data-ledger-block="income"', 1)[1].split('data-ledger-block="expense"', 1)[0]
+        expense = finance.split('data-ledger-block="expense"', 1)[1].split('finance-ledger__legend', 1)[0]
+        income_order = ("agency_fee_income", "installment_fee_income", "card_fee_income")
+        expense_order = ("plate_insurance_fee_expense", "installment_fee_expense", "card_fee_expense")
+        income_positions = [income.index(f'name="operations-{name}"') for name in income_order]
+        expense_positions = [expense.index(f'name="operations-{name}"') for name in expense_order]
+        self.assertEqual(income_positions, sorted(income_positions))
+        self.assertEqual(expense_positions, sorted(expense_positions))
+
     def test_step_renders_income_and_expense_blocks_with_same_post_names(self):
         order = self.make_order()
         _page, finance = self.finance_panel(order)

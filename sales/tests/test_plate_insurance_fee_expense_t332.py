@@ -119,10 +119,11 @@ class PlateInsuranceFeeExpenseTests(FinanceLedgerTestBase):
 
     def test_field_sits_with_card_and_installment_fee_expenses(self):
         group = next(names for title, _hint, names in EXPENSE_GROUPS if title == "手續費")
-        self.assertEqual(group, ("card_fee_expense", "installment_fee_expense", FIELD))
+        # T-341 起手續費組改成跟收入側同順序（牌險 → 分期 → 刷卡），牌險手續費支出排第一，仍跟刷卡、分期同一組。
+        self.assertEqual(group, (FIELD, "installment_fee_expense", "card_fee_expense"))
         expense = self.expense_block(self.make_order())
         self.assertEqual(expense.count(f'name="operations-{FIELD}"'), 1)
-        self.assertLess(expense.index('name="operations-installment_fee_expense"'), expense.index(f'name="operations-{FIELD}"'))
+        self.assertLess(expense.index(f'name="operations-{FIELD}"'), expense.index('name="operations-installment_fee_expense"'))
         self.assertIn("牌險手續費支出", expense)
         self.assertIn("自行填寫，系統不自動算", expense)
 

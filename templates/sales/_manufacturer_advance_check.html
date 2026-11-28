@@ -1,0 +1,8 @@
+{% comment %}原廠代墊／代轉的一個勾選（T-334）：訂單頁、追蹤頁、營運總表側邊明細共用。勾了就存，記日期與經手人；
+沒有「收入與支出」修改權限的人看得到狀態但不能勾。readonly＝這裡只顯示（追蹤頁的「原廠已撥」要用「登記原廠撥款」）。{% endcomment %}
+{% if flag == "reimbursed" %}{% firstof "原廠已撥" as label %}{% else %}{% firstof "已交給對象" as label %}{% endif %}
+<label{% if readonly and editable and flag == "reimbursed" and not checked %} title="勾選這一列，按「登記原廠撥款」標成已撥"{% endif %} class="advance-check{% if checked %} is-checked{% endif %}{% if readonly or not editable %} is-readonly{% endif %}" data-advance-check="{{ flag }}">
+  <input type="checkbox" data-advance-toggle="{{ flag }}" data-url="{% url 'manufacturer_advance_toggle' item.pk %}"{% if checked %} checked{% endif %}{% if readonly or not editable %} disabled{% endif %} aria-describedby="advance-meta-{{ scope|default:'o' }}-{{ item.pk }}-{{ flag }}">
+  <span class="advance-check__label">{{ label }}</span>
+  <small class="advance-check__meta" id="advance-meta-{{ scope|default:'o' }}-{{ item.pk }}-{{ flag }}" data-advance-meta="{{ flag }}">{{ meta }}</small>
+</label>

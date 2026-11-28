@@ -6538,3 +6538,7 @@ class OrderBulkUpdate(TimeStampedModel):
 
     def __str__(self):
         return f"{self.file_name or '回匯'}（{self.get_status_display()}）"
+
+
+# T-334：原廠代墊／代轉另放一個檔，這裡匯入讓 Django 認得（不影響本檔其他模型）。
+from .manufacturer_advance_models import ManufacturerAdvance, ManufacturerAdvancePayout  # noqa: E402,F401

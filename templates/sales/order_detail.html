@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
 {% load order_origin_tags id_crop_tags back_source_tags %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}"><link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}"><link rel="stylesheet" href="{% static 'css/signing.css' %}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}"><link rel="stylesheet" href="{% static 'css/dealer-payouts.css' %}"><link rel="stylesheet" href="{% static 'css/signing.css' %}"><link rel="stylesheet" href="{% static 'css/order-overview.css' %}">{% if workspace_finance %}<link rel="stylesheet" href="{% static 'css/manufacturer-advance.css' %}">{% endif %}{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -1109,6 +1109,7 @@
 <script src="{% static 'js/order-overview.js' %}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% elif inline_order_form %}{% include "sales/_order_form_scripts.html" with editing_order=order %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
+{% if workspace_finance %}<script src="{% static 'js/manufacturer-advance.js' %}" defer></script>{% endif %}
 <script src="{% static 'js/subsidy-items.js' %}" defer></script>
 <script src="{% static 'js/other-subsidy-upload.js' %}" defer></script>
 <script src="{% static 'js/document-upload-progress.js' %}" defer></script>

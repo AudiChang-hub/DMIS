@@ -20,6 +20,7 @@ from . import vehicle_model_tool_views
 from . import campaign_views
 from . import gift_views
 from . import attention_views
+from . import manufacturer_advance_views
 from . import print_company_views
 from . import form_print_views
 from . import order_overview_views
@@ -348,6 +349,13 @@ urlpatterns = [
     path("orders/", views.order_list, name="order_list"),
     path("operations/", views.operations_report, name="operations_report"),
     path("operations/dealer-credit/", attention_views.operations_dealer_credit, name="operations_dealer_credit"),
+    # T-334 原廠代墊／代轉：追蹤頁（含營運總表側邊明細、卡片片段）、勾選、刪除、登記撥款；訂單頁新增在 orders/<pk>/ 底下。
+    path("operations/manufacturer-advances/", manufacturer_advance_views.manufacturer_advance_list, name="manufacturer_advance_list"),
+    path("operations/manufacturer-advances/<int:pk>/toggle/", manufacturer_advance_views.manufacturer_advance_toggle, name="manufacturer_advance_toggle"),
+    path("operations/manufacturer-advances/<int:pk>/void/", manufacturer_advance_views.manufacturer_advance_void, name="manufacturer_advance_void"),
+    path("operations/manufacturer-advances/payouts/", manufacturer_advance_views.manufacturer_advance_payout, name="manufacturer_advance_payout"),
+    path("operations/manufacturer-advances/payouts/<int:pk>/void/", manufacturer_advance_views.manufacturer_advance_payout_void, name="manufacturer_advance_payout_void"),
+    path("orders/<int:pk>/manufacturer-advances/", manufacturer_advance_views.manufacturer_advance_create, name="manufacturer_advance_create"),
     path(
         "operations/reconciliation/",
         views.reconciliation_list,

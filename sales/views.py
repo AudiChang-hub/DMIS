@@ -4437,7 +4437,12 @@ def operations_report(request):
     # T-167 駕駛艙：指標與門檻在 services/operations_cockpit.py；這裡只依權限組 context。
     data = operations_cockpit.load(request.GET.get("period", "month"), refresh=request.GET.get("refresh") == "1")
     flags = operations_cockpit.viewer_flags(policy, profit_is_unlocked(request))
-    return render(request, "sales/operations_report.html", {"cockpit": operations_cockpit.for_viewer(data, flags)})
+    context = {"cockpit": operations_cockpit.for_viewer(data, flags)}
+    # T-334 原廠代墊／代轉卡：每次即時算「目前未結」，不進駕駛艙快取、不跟期間走；權限比照訂單「收入與支出」。
+    if policy.route("manufacturer_advance_list"):
+        from sales.services import manufacturer_advance
+        context.update(advance_summary=manufacturer_advance.summary(request.user), list_url=reverse("manufacturer_advance_list"))
+    return render(request, "sales/operations_report.html", context)
 
 
 def _reconciliation_queryset(request):

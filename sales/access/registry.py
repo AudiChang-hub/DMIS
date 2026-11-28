@@ -106,6 +106,9 @@ register("work", "order_id_copy", "export")  # T-208：單張訂單的身分證�
 register("operations", "operations_report")
 register("operations", "operations_dealer_credit")  # T-275：營運總表「車行未付」明細（T-288 起不分額度），同財務彙總權限
 register("operations", "operations_report_export", "export")
+# T-334 原廠代墊／代轉：權限比照訂單頁「收入與支出」（訂單內部財務編輯）：查看看得到追蹤頁與營運總表卡片，操作才能新增、勾選、登記撥款。
+register("order_finance", "manufacturer_advance_list")
+register("order_finance", "manufacturer_advance_create manufacturer_advance_toggle manufacturer_advance_void manufacturer_advance_payout manufacturer_advance_payout_void", "operate")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
 # 車行傭金／獎金給付（T-150）：查看列表、勾選與備註屬操作、CSV 屬匯出。
 register("dealer_payouts", "dealer_payout_list")

@@ -1,0 +1,37 @@
+{% load sales_format %}{% comment %}營運總表「原廠代墊／代轉」卡（T-334）：一律是「目前未結」，不跟上方的統計期間切換。
+點兩半任一邊從側邊滑出明細（比照報表熱度格），內容和追蹤頁一樣；沒有 JavaScript 時直接連到追蹤頁。
+總表目錄（側邊導覽）的區段順序有既有測試固定，這張卡先不列進目錄。{% endcomment %}
+{% with s=advance_summary %}
+<section class="ops-card advance-ops" id="ops-advance" data-advance-ops-card data-card-url="{{ list_url }}?fragment=card" data-panel-url="{{ list_url }}?fragment=panel" aria-labelledby="ops-advance-title">
+  <header class="ops-card__head">
+    <h2 id="ops-advance-title">原廠代墊／代轉</h2>
+    <small class="advance-ops__scope">目前未結・不跟期間切換</small>
+    <a href="{{ list_url }}">追蹤頁 →</a>
+  </header>
+  {% if s.empty %}
+  <p class="ops-empty advance-ops__none"><span class="ops-attention__ok" aria-hidden="true">✓</span>目前沒有未結的原廠代墊／代轉。</p>
+  {% else %}
+  <div class="advance-ops__grid">
+    <a class="advance-ops__half{% if s.reimburse.alert %} is-alert{% endif %}" href="{{ list_url }}?tab=reimburse" data-advance-open="reimburse" aria-label="等原廠撥款 {{ s.reimburse.count }} 筆，金額 ${{ s.reimburse.amount|number_with_commas }}{% if s.reimburse.alert %}，最久 {{ s.reimburse.oldest }} 天{% endif %}，看明細">
+      <span class="advance-ops__label"><strong>等原廠撥款</strong>{% if s.reimburse.alert %}<em class="advance-ops__alert"><span class="ops-dot" aria-hidden="true"></span>最久 {{ s.reimburse.oldest }} 天</em>{% endif %}</span>
+      {% if s.reimburse.count %}
+      <span class="advance-ops__total"><b>{{ s.reimburse.count }}</b> 筆<span class="advance-ops__money">${{ s.reimburse.amount|number_with_commas }}</span></span>
+      <span class="advance-ops__rows">{% for row in s.reimburse.rows %}<span class="advance-ops__row"><span>{{ row.manufacturer }}</span><span>{{ row.count }} 筆</span><span>{% if row.amount or not row.gift_quantity %}${{ row.amount|number_with_commas }}{% endif %}{% if row.gift_quantity %}<small>{% if row.amount %}＋{% endif %}贈品 {{ row.gift_quantity }} 件</small>{% endif %}</span></span>{% endfor %}</span>
+      {% else %}<span class="advance-ops__clear">都撥了</span>{% endif %}
+      <span class="advance-ops__go" aria-hidden="true">看明細 →</span>
+    </a>
+    <a class="advance-ops__half{% if s.handover.alert %} is-alert{% endif %}" href="{{ list_url }}?tab=handover" data-advance-open="handover" aria-label="等交給對象：現金 {{ s.handover.cash_count }} 筆 ${{ s.handover.cash_amount|number_with_commas }}，贈品 {{ s.handover.gift_quantity }} 件{% if s.handover.alert %}，最久 {{ s.handover.oldest }} 天{% endif %}，看明細">
+      <span class="advance-ops__label"><strong>等交給對象</strong>{% if s.handover.alert %}<em class="advance-ops__alert"><span class="ops-dot" aria-hidden="true"></span>最久 {{ s.handover.oldest }} 天</em>{% endif %}</span>
+      {% if s.handover.count %}
+      <span class="advance-ops__rows">
+        <span class="advance-ops__row"><span>現金</span><span>{{ s.handover.cash_count }} 筆</span><span>${{ s.handover.cash_amount|number_with_commas }}</span></span>
+        <span class="advance-ops__row"><span>贈品</span><span>{{ s.handover.gift_count }} 筆</span><span>{{ s.handover.gift_quantity }} 件</span></span>
+      </span>
+      {% else %}<span class="advance-ops__clear">都交了</span>{% endif %}
+      <span class="advance-ops__go" aria-hidden="true">看明細 →</span>
+    </a>
+  </div>
+  {% endif %}
+  <p class="ops-hint">超過 {{ s.alert_days }} 天還沒結會標「最久 N 天」：等原廠撥款從實際領牌日算（還沒領牌從建立日算），等交給對象從建立日算。不算淨利、不動客戶應收。</p>
+</section>
+{% endwith %}

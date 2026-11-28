@@ -1,0 +1,78 @@
+{% comment %}訂單頁「收入與支出」下方的「原廠代墊／代轉」（T-334）。原廠活動的錢或贈品左手進、右手出：
+不算進收支合計與淨利、不動客戶應收、不擋交車。沒有項目時只有一列「＋ 新增」；沒有修改權限又沒有項目時整塊不出現。
+新增、勾選、刪除都由 static/js/manufacturer-advance.js 送出，存好換入伺服器版本。{% endcomment %}
+{% if advance_items or advance_editable %}
+<section class="advance-block{% if not advance_items %} is-empty{% endif %}" id="manufacturer-advances" data-advance-block data-advance-scope="order" data-csrf="{{ csrf_token }}" aria-labelledby="advance-block-title">
+  <header class="advance-block__head">
+    <div class="advance-block__title">
+      <h2 id="advance-block-title">原廠代墊／代轉</h2>
+      {% if advance_items %}<small>原廠活動的獎金或贈品，先給出去等原廠補，或原廠先撥再轉交。不算進收支合計與淨利，也不動客戶應收。</small>{% endif %}
+    </div>
+    {% if advance_editable %}<button type="button" class="button ghost small" data-advance-add aria-expanded="false" aria-controls="advance-form-{{ order.pk }}">＋ 新增</button>{% endif %}
+  </header>
+  <p class="advance-status" data-advance-status role="status" aria-live="polite" hidden></p>
+  {% if advance_items %}
+  <ul class="advance-list" aria-label="原廠代墊／代轉項目">
+    {% for item in advance_items %}
+    <li class="advance-item{% if item.settled %} is-settled{% endif %}" data-advance-item="{{ item.pk }}">
+      <div class="advance-item__what">
+        <strong class="advance-item__campaign">{{ item.campaign_name }}</strong>
+        <span class="advance-item__meta"><span>{{ item.manufacturer }}</span><span>給{{ item.get_recipient_display }}</span><b>{{ item.content_label }}</b></span>
+      </div>
+      <div class="advance-item__checks">
+        {% include "sales/_manufacturer_advance_check.html" with flag="reimbursed" checked=item.reimbursed meta=item.reimbursed_label editable=advance_editable %}
+        {% include "sales/_manufacturer_advance_check.html" with flag="handed_over" checked=item.handed_over meta=item.handed_over_label editable=advance_editable %}
+      </div>
+      {% if advance_editable %}<button type="button" class="button ghost small advance-item__void" data-advance-void data-url="{% url 'manufacturer_advance_void' item.pk %}" aria-label="刪除「{{ item.campaign_name }}」"{% if item.reimbursed or item.handed_over %} hidden{% endif %}>刪除</button>{% endif %}
+      <p class="advance-status advance-item__status" data-advance-row-status role="status" aria-live="polite" hidden></p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if advance_editable %}
+  <form class="advance-form" id="advance-form-{{ order.pk }}" method="post" action="{% url 'manufacturer_advance_create' order.pk %}" data-advance-form hidden novalidate>
+    {% csrf_token %}<input type="hidden" name="next" value="{% url 'order_detail' order.pk %}?tab=finance">
+    <div class="advance-form__grid">
+      <div class="field" data-advance-field="manufacturer">
+        <label for="advance-manufacturer-{{ order.pk }}">原廠</label>
+        <input id="advance-manufacturer-{{ order.pk }}" name="manufacturer" type="text" maxlength="80" value="{{ advance_default_manufacturer }}" list="advance-manufacturers-{{ order.pk }}" autocomplete="off" required>
+        <datalist id="advance-manufacturers-{{ order.pk }}">{% for name in advance_manufacturers %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+      </div>
+      <div class="field" data-advance-field="campaign_name">
+        <label for="advance-campaign-{{ order.pk }}">活動名稱</label>
+        <input id="advance-campaign-{{ order.pk }}" name="campaign_name" type="text" maxlength="120" list="advance-campaigns-{{ order.pk }}" autocomplete="off" placeholder="例如：年終加碼現金回饋" required>
+        <datalist id="advance-campaigns-{{ order.pk }}">{% for name in advance_campaigns %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+        <small class="help-text">打過的活動名稱會列在這裡，可以直接點選。</small>
+      </div>
+      <fieldset class="advance-seg" data-advance-field="recipient">
+        <legend>對象</legend>
+        <label><input type="radio" name="recipient" value="{{ advance_recipients.CUSTOMER }}" checked><span>客人{% if order.owner_name %}<small>{{ order.owner_name }}</small>{% endif %}</span></label>
+        {% if advance_dealer_available %}<label><input type="radio" name="recipient" value="{{ advance_recipients.DEALER }}"><span>車行<small>{{ order.source.name }}</small></span></label>{% endif %}
+      </fieldset>
+      <fieldset class="advance-seg" data-advance-field="kind">
+        <legend>內容</legend>
+        <label><input type="radio" name="kind" value="{{ advance_kinds.CASH }}" checked data-advance-kind><span>金額</span></label>
+        <label><input type="radio" name="kind" value="{{ advance_kinds.GIFT }}" data-advance-kind><span>贈品</span></label>
+      </fieldset>
+      <div class="field" data-advance-field="amount" data-advance-kind-panel="{{ advance_kinds.CASH }}">
+        <label for="advance-amount-{{ order.pk }}">金額</label>
+        <div class="advance-money"><span aria-hidden="true">$</span><input id="advance-amount-{{ order.pk }}" name="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0"></div>
+      </div>
+      <div class="field" data-advance-field="gift_name" data-advance-kind-panel="{{ advance_kinds.GIFT }}" hidden>
+        <label for="advance-gift-{{ order.pk }}">贈品名稱</label>
+        <input id="advance-gift-{{ order.pk }}" name="gift_name" type="text" maxlength="120" placeholder="例如：安全帽">
+      </div>
+      <div class="field advance-form__qty" data-advance-field="gift_quantity" data-advance-kind-panel="{{ advance_kinds.GIFT }}" hidden>
+        <label for="advance-qty-{{ order.pk }}">數量</label>
+        <input id="advance-qty-{{ order.pk }}" name="gift_quantity" type="number" inputmode="numeric" min="1" step="1" value="1">
+      </div>
+    </div>
+    <p class="advance-form__note">不算進收支合計與淨利，也不動客戶應收。</p>
+    <div class="form-actions advance-form__actions">
+      <button type="button" class="button ghost small" data-advance-cancel>取消</button>
+      <button type="submit" class="button primary small">新增</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}

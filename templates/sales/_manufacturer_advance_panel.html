@@ -1,0 +1,118 @@
+{% load sales_format %}{% comment %}原廠代墊／代轉的頁籤、篩選、列表與登記撥款（T-334）：追蹤頁整頁與營運總表側邊明細共用同一份。
+側邊明細（in_drawer）改成卡片排列（面板窄），內容、勾選與登記撥款都跟追蹤頁一樣；頁籤與「套用」在面板內換內容，不換頁。
+「原廠已撥」只能多選幾列按「登記原廠撥款」；「已交給對象」在列上直接勾，勾了就存，可以復原。{% endcomment %}
+{% firstof in_drawer|yesno:"d,p" as scope %}
+<div class="advance-panel{% if in_drawer %} advance-panel--drawer{% endif %}" data-advance-panel data-csrf="{{ csrf_token }}" data-advance-scope="{% if in_drawer %}drawer{% else %}page{% endif %}" data-tab="{{ tab }}" data-list-url="{{ list_url }}" data-payout-url="{% url 'manufacturer_advance_payout' %}" data-payout-void-url="{% url 'manufacturer_advance_payout_void' 0 %}">
+  <nav class="inventory-scope-tabs advance-tabs" aria-label="原廠代墊／代轉的狀態">{% for item in tabs %}
+    <a class="inventory-scope-tab{% if item.active %} is-active{% endif %}" href="{{ item.url }}" data-advance-tab="{{ item.key }}"{% if item.active %} aria-current="page"{% endif %}>
+      <span><strong>{{ item.label }}</strong></span>
+      <b data-advance-tab-count>{{ item.count }}</b>
+    </a>{% endfor %}
+  </nav>
+  <form method="get" action="{{ list_url }}" class="master-filters advance-filters" data-advance-filter>
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div class="inventory-filter">
+      <label for="advance-filter-{{ scope }}">原廠</label>
+      <select id="advance-filter-{{ scope }}" name="manufacturer">
+        <option value="">全部原廠</option>
+        {% for name in manufacturer_options %}<option value="{{ name }}"{% if name == manufacturer %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="inventory-filter-actions">
+      {% if manufacturer %}<a class="button ghost" href="{{ list_url }}?tab={{ tab }}" data-advance-clear>清除</a>{% endif %}
+      <button class="button primary" type="submit">套用</button>
+    </div>
+  </form>
+  <p class="advance-status advance-panel__status" data-advance-status role="status" aria-live="polite" hidden></p>
+  {% if rows %}
+  <p class="advance-panel__summary"><strong>{{ tab_label }}・共 {{ rows|length }} 筆</strong>{% if manufacturer %}<span>{{ manufacturer }}</span>{% endif %}{% if tab == "reimburse" %}<small>從實際領牌日算，還沒領牌從建立日算</small>{% else %}<small>從建立日算</small>{% endif %}</p>
+  {% if in_drawer %}
+  <ul class="advance-cards" aria-label="{{ tab_label }}">
+    {% for item in rows %}
+    <li class="advance-row advance-cards__item{% if item.is_overdue %} is-overdue{% endif %}" data-advance-item="{{ item.pk }}" data-advance-amount="{% if item.is_cash %}{{ item.amount|stringformat:'.0f' }}{% else %}0{% endif %}" data-advance-gift="{% if item.is_cash %}0{% else %}{{ item.gift_quantity }}{% endif %}" data-advance-manufacturer="{{ item.manufacturer }}">
+      {% if tab == "reimburse" and advance_editable %}<label class="advance-pick"><input type="checkbox" data-advance-pick aria-label="選取 {{ item.order.number }}「{{ item.campaign_name }}」"></label>{% endif %}
+      <div class="advance-cards__body">
+        <p class="advance-cards__top"><a href="{% url 'order_detail' item.order.pk %}?tab=finance">{{ item.order.number }}</a><span>{{ item.recipient_text }}</span><span class="advance-wait{% if item.is_overdue %} is-overdue{% endif %}">等 {{ item.waiting_days }} 天</span></p>
+        <p class="advance-cards__what"><strong>{{ item.campaign_name }}</strong><b>{{ item.content_label }}</b></p>
+        <p class="advance-cards__sub"><span>{{ item.manufacturer }}</span><span>{{ item.order.vehicle_model.name|default:"—" }}</span><span>{% if item.order.registration_date %}領牌 {{ item.order.registration_date|date:"Y/m/d" }}{% else %}還沒領牌{% endif %}</span></p>
+        <div class="advance-item__checks">
+          {% include "sales/_manufacturer_advance_check.html" with flag="reimbursed" checked=item.reimbursed meta=item.reimbursed_label editable=advance_editable readonly=True %}
+          {% include "sales/_manufacturer_advance_check.html" with flag="handed_over" checked=item.handed_over meta=item.handed_over_label editable=advance_editable %}
+        </div>
+        <p class="advance-status advance-item__status" data-advance-row-status role="status" aria-live="polite" hidden></p>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="{{ tab_label }}，可左右捲動查看完整欄位">
+    <table class="inventory-table inventory-table--fit advance-table">
+      <thead><tr>
+        {% if tab == "reimburse" and advance_editable %}<th scope="col" class="advance-table__pick"><label class="advance-pick"><input type="checkbox" data-advance-pick-all aria-label="全選這頁"></label></th>{% endif %}
+        <th scope="col">訂單號</th><th scope="col">對象</th><th scope="col">車型</th><th scope="col">實際領牌日</th><th scope="col">活動</th><th scope="col" class="is-number">內容</th><th scope="col">原廠已撥</th><th scope="col">已交給對象</th>
+      </tr></thead>
+      <tbody>
+        {% for item in rows %}
+        <tr class="advance-row{% if item.is_overdue %} is-overdue{% endif %}" data-advance-item="{{ item.pk }}" data-advance-amount="{% if item.is_cash %}{{ item.amount|stringformat:'.0f' }}{% else %}0{% endif %}" data-advance-gift="{% if item.is_cash %}0{% else %}{{ item.gift_quantity }}{% endif %}" data-advance-manufacturer="{{ item.manufacturer }}">
+          {% if tab == "reimburse" and advance_editable %}<td class="advance-table__pick"><label class="advance-pick"><input type="checkbox" data-advance-pick aria-label="選取 {{ item.order.number }}「{{ item.campaign_name }}」"></label></td>{% endif %}
+          <th scope="row" data-label="訂單號"><a href="{% url 'order_detail' item.order.pk %}?tab=finance">{{ item.order.number }}</a><small class="advance-wait{% if item.is_overdue %} is-overdue{% endif %}">等 {{ item.waiting_days }} 天</small></th>
+          <td data-label="對象">{{ item.recipient_text }}</td>
+          <td data-label="車型">{{ item.order.vehicle_model.name|default:"—" }}</td>
+          <td data-label="實際領牌日">{{ item.order.registration_date|date:"Y/m/d"|default:"還沒領牌" }}</td>
+          <td data-label="活動"><span class="advance-table__campaign">{{ item.campaign_name }}<small>{{ item.manufacturer }}</small></span></td>
+          <td data-label="內容" class="is-number">{{ item.content_label }}</td>
+          <td data-label="原廠已撥">{% include "sales/_manufacturer_advance_check.html" with flag="reimbursed" checked=item.reimbursed meta=item.reimbursed_label editable=advance_editable readonly=True %}</td>
+          <td data-label="已交給對象">{% include "sales/_manufacturer_advance_check.html" with flag="handed_over" checked=item.handed_over meta=item.handed_over_label editable=advance_editable %}<p class="advance-status advance-item__status" data-advance-row-status role="status" aria-live="polite" hidden></p></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state small advance-empty">
+    <h3>{% if tab == "reimburse" %}沒有等原廠撥款的項目{% else %}沒有等交給對象的項目{% endif %}{% if manufacturer %}（{{ manufacturer }}）{% endif %}</h3>
+    <p>{% if tab == "reimburse" %}在訂單頁「收入與支出」下方新增原廠代墊／代轉後，還沒勾「原廠已撥」的會列在這裡。{% else %}還沒勾「已交給對象」的會列在這裡。{% endif %}</p>
+  </div>
+  {% endif %}
+  {% if tab == "reimburse" and advance_editable and rows %}
+  <div class="advance-batch" data-advance-batch hidden>
+    <p class="advance-batch__sum"><span>已選 <strong data-advance-batch-count>0</strong> 筆</span><span>合計 <strong data-advance-batch-total>$0</strong></span><small data-advance-batch-gifts hidden></small></p>
+    <p class="advance-batch__warn" data-advance-batch-warn hidden></p>
+    <div class="advance-batch__actions">
+      <button type="button" class="button ghost small" data-advance-batch-clear>清除</button>
+      <button type="button" class="button primary small" data-advance-batch-open>登記原廠撥款</button>
+    </div>
+  </div>
+  <dialog class="advance-dialog" data-advance-dialog aria-labelledby="advance-dialog-title-{{ scope }}">
+    <form class="advance-dialog__form" data-advance-payout-form novalidate>
+      <header class="advance-dialog__head">
+        <h2 id="advance-dialog-title-{{ scope }}">登記原廠撥款</h2>
+        <p data-advance-dialog-scope></p>
+      </header>
+      <div class="advance-dialog__fields">
+        <div class="field">
+          <label for="advance-paid-on-{{ scope }}">撥款日</label>
+          <input id="advance-paid-on-{{ scope }}" type="date" name="paid_on" value="{{ today|date:'Y-m-d' }}" required>
+        </div>
+        <div class="field">
+          <label for="advance-paid-amount-{{ scope }}">實撥金額</label>
+          <div class="advance-money"><span aria-hidden="true">$</span><input id="advance-paid-amount-{{ scope }}" type="number" name="amount" inputmode="numeric" min="0" step="1" required data-advance-paid-amount></div>
+        </div>
+      </div>
+      <dl class="advance-dialog__figures" aria-live="polite">
+        <div><dt>勾選合計</dt><dd data-advance-payout-selected>$0</dd></div>
+        <div><dt>實撥</dt><dd data-advance-payout-actual>—</dd></div>
+        <div><dt>差額</dt><dd data-advance-payout-diff>—</dd></div>
+      </dl>
+      <p class="advance-dialog__note">差額只顯示，不算進任何收支。經手人記成目前登入的你。</p>
+      <p class="advance-dialog__error field-error" data-advance-dialog-error role="alert" hidden></p>
+      <div class="form-actions advance-dialog__actions">
+        <button type="button" class="button ghost" data-advance-dialog-cancel>取消</button>
+        <button type="submit" class="button primary" data-advance-dialog-submit>確認登記</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
+  {% if in_drawer %}<p class="advance-panel__all"><a class="button ghost small" href="{{ list_url }}?tab={{ tab }}{% if manufacturer %}&amp;manufacturer={{ manufacturer|urlencode }}{% endif %}">查看全部</a></p>{% endif %}
+</div>

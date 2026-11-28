@@ -18,6 +18,7 @@ SOURCE_LABELS = {
     "dashboard": "首頁",
     "operations_report": "營運總表",
     "operations_dealer_credit": "車行未付",
+    "manufacturer_advance_list": "原廠代墊／代轉",
     "inventory_shortage": "缺貨風險車型",
     "reconciliation_list": "統一撥款對帳",
     "report_center": "報表中心",

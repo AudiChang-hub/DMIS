@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}原廠代墊／代轉｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/manufacturer-advance.css' %}"><script src="{% static 'js/manufacturer-advance.js' %}" defer></script>{% endblock %}
+{% block content %}
+{% url 'operations_report' as report_url %}
+{% include "sales/_page_back.html" with fallback_url=report_url label="營運總表" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">營運總表・追蹤</p>
+    <h1>原廠代墊／代轉</h1>
+    <p class="muted">原廠活動的獎金或贈品：先給客人或車行、等原廠補給我們，或原廠先撥、我們再轉交。這些錢只是經手，不算淨利、不動客戶應收、不擋交車。{% if not advance_editable %}你可以查看，但沒有勾選的權限（比照訂單「收入與支出」）。{% endif %}</p>
+  </div>
+</section>
+<section class="section-block advance-page" aria-label="原廠代墊／代轉列表">
+  {% include "sales/_manufacturer_advance_panel.html" %}
+</section>
+{% endblock %}

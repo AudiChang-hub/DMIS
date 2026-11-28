@@ -1,4 +1,4 @@
-{% load static sales_format site_copy screen_access %}
+{% load static sales_format site_copy screen_access manufacturer_advance_tags %}
 <div class="finance-step" data-finance-step>
 <div {% if order_workspace %}data-workspace-section="finance"{% endif %} class="finance-step__intro">
 {% if not order_workspace %}
@@ -136,6 +136,8 @@
   {% endif %}
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
+{# T-334：收入與支出下方的「原廠代墊／代轉」，不算進收支合計與淨利；自己存，不跟著上面的自動儲存。 #}
+{% if order_workspace %}{% manufacturer_advance_block order %}{% endif %}
 {% comment %}沖銷與退款整區拿掉，收款明細可直接刪除（使用者 2026-10-21 T-47）；取消訂單的退款在「取消與結案」。{% endcomment %}
 {% comment %}「成交金額與尾款試算」與「尾款計算」那一列和訂車、訂金、收入欄重複，已拿掉（使用者 2026-11-09 p7）；
 領牌試算與尾款改在收款下方的 ④、⑥。{% endcomment %}

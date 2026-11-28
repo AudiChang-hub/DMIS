@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load static sales_format screen_access %}
 {% block title %}營運總表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}"><script src="{% static 'js/operations.js' %}" defer></script>{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}"><script src="{% static 'js/operations.js' %}" defer></script>{% if advance_summary %}<link rel="stylesheet" href="{% static 'css/manufacturer-advance.css' %}"><script src="{% static 'js/manufacturer-advance.js' %}" defer></script>{% endif %}{% endblock %}
 {% block content %}
 {% comment %}T-167 營運總表駕駛艙：公司現在好不好、為什麼、哪裡要處理。指標與門檻在 services/operations_cockpit.py；
 細看一律連到全部訂單、庫存、對帳或報表中心，總表本身不放明細表。{% endcomment %}
@@ -149,6 +149,9 @@
     </dl>{% endif %}
     </div>
   </section>
+
+  {# T-334：原廠代墊／代轉，一律目前未結（不跟期間）；點卡片從側邊滑出明細。 #}
+  {% if advance_summary %}{% include "sales/_manufacturer_advance_card.html" %}{% endif %}
 
   {# T-294：貨約佔 2 份、油電領牌約佔 1 份並排；只有其中一張時佔滿整列。 #}
   <div class="ops-row ops-row--stock">

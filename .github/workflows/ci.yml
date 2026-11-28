@@ -286,6 +286,7 @@ jobs:
           sales.tests.test_transfer_signoff sales.tests.test_inventory_restore sales.tests.test_order_return
           sales.tests.test_inventory_location_t308
           sales.tests.test_manufacturer_advance_t334
+          sales.tests.test_manufacturer_advance_t337
           sales.tests.test_transaction_type_only
           sales.tests.test_receipt_list sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient
           sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods

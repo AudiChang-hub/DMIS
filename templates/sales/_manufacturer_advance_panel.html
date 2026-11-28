@@ -25,7 +25,7 @@
   </form>
   <p class="advance-status advance-panel__status" data-advance-status role="status" aria-live="polite" hidden></p>
   {% if rows %}
-  <p class="advance-panel__summary"><strong>{{ tab_label }}・共 {{ rows|length }} 筆</strong>{% if manufacturer %}<span>{{ manufacturer }}</span>{% endif %}{% if tab == "reimburse" %}<small>從實際領牌日算，還沒領牌從建立日算</small>{% else %}<small>從建立日算</small>{% endif %}</p>
+  <p class="advance-panel__summary" data-advance-summary><strong>{{ tab_label }}・共 <span data-advance-summary-count>{{ rows|length }}</span> 筆</strong>{% if manufacturer %}<span>{{ manufacturer }}</span>{% endif %}{% if tab == "reimburse" %}<small>從實際領牌日算，還沒領牌從建立日算</small>{% else %}<small>從建立日算</small>{% endif %}</p>
   {% if in_drawer %}
   <ul class="advance-cards" aria-label="{{ tab_label }}">
     {% for item in rows %}
@@ -69,6 +69,11 @@
     </table>
   </div>
   {% endif %}
+  {# T-337：登記原廠撥款後已撥的列立即移出待撥清單；全部移走時顯示空狀態（復原會放回來）。 #}
+  {% if tab == "reimburse" and advance_editable %}<div class="empty-state small advance-empty" data-advance-empty hidden>
+    <h3>沒有等原廠撥款的項目{% if manufacturer %}（{{ manufacturer }}）{% endif %}</h3>
+    <p>這頁勾選的項目，原廠都已撥款。</p>
+  </div>{% endif %}
   {% else %}
   <div class="empty-state small advance-empty">
     <h3>{% if tab == "reimburse" %}沒有等原廠撥款的項目{% else %}沒有等交給對象的項目{% endif %}{% if manufacturer %}（{{ manufacturer }}）{% endif %}</h3>

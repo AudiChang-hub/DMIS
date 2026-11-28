@@ -109,6 +109,10 @@ register("operations", "operations_report_export", "export")
 # T-334 原廠代墊／代轉：權限比照訂單頁「收入與支出」（訂單內部財務編輯）：查看看得到追蹤頁與營運總表卡片，操作才能新增、勾選、登記撥款。
 register("order_finance", "manufacturer_advance_list")
 register("order_finance", "manufacturer_advance_create manufacturer_advance_toggle manufacturer_advance_void manufacturer_advance_payout manufacturer_advance_payout_void", "operate")
+# T-337 第二版：單張訂單「不適用」同訂單財務操作；活動設定比照原廠獎勵活動（incentives：查看看清單、操作才能新增修改）。
+register("order_finance", "manufacturer_advance_exclude", "operate")
+register("incentives", "manufacturer_advance_campaign_list")
+register("incentives", "manufacturer_advance_campaign_create manufacturer_advance_campaign_edit manufacturer_advance_campaign_delete", "operate")
 register("reconciliation", "reconciliation_list reconciliation_update reconciliation_batch reconciliation_unconfirm")
 # 車行傭金／獎金給付（T-150）：查看列表、勾選與備註屬操作、CSV 屬匯出。
 register("dealer_payouts", "dealer_payout_list")

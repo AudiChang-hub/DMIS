@@ -16,8 +16,9 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
-from sales.models import ManufacturerAdvancePayout, SalesOrder
+from sales.models import ManufacturerAdvanceCampaign, ManufacturerAdvancePayout, SalesOrder
 from sales.services import manufacturer_advance as advances
+from sales.services import manufacturer_advance_campaign as advance_campaigns
 from sales.services.order_intake import can_edit_finance, scoped_orders
 
 
@@ -61,6 +62,10 @@ def block_context(request, order):
         "advance_campaigns": advances.campaign_suggestions(),
         "advance_recipients": ManufacturerAdvance.Recipient,
         "advance_kinds": ManufacturerAdvance.Kind,
+        # T-337：還沒確認領牌的單依訂單日期「預計適用」的活動，與標了「不適用」的活動。
+        "advance_projected": advance_campaigns.projected_campaigns(order),
+        "advance_projected_on": order.order_date,
+        "advance_exclusions": advance_campaigns.exclusions(order),
     }
 
 
@@ -158,11 +163,43 @@ def manufacturer_advance_toggle(request, pk):
                   fallback)
 
 
+def _exclude_reply(request, order, campaign, restore):
+    fallback = reverse("order_detail", args=[order.pk]) + "?tab=finance"
+    try:
+        if restore:
+            item = advance_campaigns.clear_not_applicable(order, campaign, request.user)
+        else:
+            item = advance_campaigns.mark_not_applicable(order, campaign, request.user)
+    except advances.Conflict as conflict:
+        return _reply(request, 409, _conflict_payload(request, conflict), fallback)
+    order = SalesOrder.objects.select_related("vehicle_model", "source").get(pk=order.pk)
+    message = (f"已復原「{campaign.name}」，依活動條件重新比對" if restore
+               else f"已把「{campaign.name}」標為不適用，之後不會再自動掛上")
+    payload = {"ok": True, "message": message, "html": render_block(request, order)}
+    if item is not None:
+        item.refresh_from_db()
+        payload["items"] = [advances.item_state(item)]
+    return _reply(request, 200, payload, fallback)
+
+
+@login_required
+@require_POST
+def manufacturer_advance_exclude(request, pk, campaign_pk):
+    """T-337 單張訂單標「不適用」某個活動（restore=1 復原）。訂單範圍走 ORDER_PK_ROUTES。"""
+    order = get_object_or_404(SalesOrder.objects.select_related("vehicle_model", "source"), pk=pk)
+    campaign = get_object_or_404(ManufacturerAdvanceCampaign, pk=campaign_pk)
+    return _exclude_reply(request, order, campaign, request.POST.get("restore") == "1")
+
+
 @login_required
 @require_POST
 def manufacturer_advance_void(request, pk):
     item = _visible_item(request, pk)
     restore = request.POST.get("restore") == "1"
+    if item.campaign_id:
+        # 依活動自動掛上的項目不實體作廢，改成標「不適用」，才不會再被自動掛回去（T-337）。
+        order = SalesOrder.objects.select_related("vehicle_model", "source").get(pk=item.order_id)
+        return _exclude_reply(request, order, item.campaign, restore)
     fallback = reverse("order_detail", args=[item.order_id]) + "?tab=finance"
     try:
         item = advances.void_item(item.pk, request.user, restore=restore)

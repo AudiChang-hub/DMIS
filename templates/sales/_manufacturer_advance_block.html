@@ -1,12 +1,12 @@
 {% comment %}訂單頁「收入與支出」下方的「原廠代墊／代轉」（T-334）。原廠活動的錢或贈品左手進、右手出：
 不算進收支合計與淨利、不動客戶應收、不擋交車。沒有項目時只有一列「＋ 新增」；沒有修改權限又沒有項目時整塊不出現。
 新增、勾選、刪除都由 static/js/manufacturer-advance.js 送出，存好換入伺服器版本。{% endcomment %}
-{% if advance_items or advance_editable %}
-<section class="advance-block{% if not advance_items %} is-empty{% endif %}" id="manufacturer-advances" data-advance-block data-advance-scope="order" data-csrf="{{ csrf_token }}" aria-labelledby="advance-block-title">
+{% if advance_items or advance_editable or advance_projected or advance_exclusions %}
+<section class="advance-block{% if not advance_items and not advance_projected and not advance_exclusions %} is-empty{% endif %}" id="manufacturer-advances" data-advance-block data-advance-scope="order" data-csrf="{{ csrf_token }}" aria-labelledby="advance-block-title">
   <header class="advance-block__head">
     <div class="advance-block__title">
       <h2 id="advance-block-title">原廠代墊／代轉</h2>
-      {% if advance_items %}<small>原廠活動的獎金或贈品，先給出去等原廠補，或原廠先撥再轉交。不算進收支合計與淨利，也不動客戶應收。</small>{% endif %}
+      {% if advance_items or advance_projected %}<small>原廠活動的獎金或贈品，先給出去等原廠補，或原廠先撥再轉交。不算進收支合計與淨利，也不動客戶應收。</small>{% endif %}
     </div>
     {% if advance_editable %}<button type="button" class="button ghost small" data-advance-add aria-expanded="false" aria-controls="advance-form-{{ order.pk }}">＋ 新增</button>{% endif %}
   </header>
@@ -17,17 +17,34 @@
     <li class="advance-item{% if item.settled %} is-settled{% endif %}" data-advance-item="{{ item.pk }}">
       <div class="advance-item__what">
         <strong class="advance-item__campaign">{{ item.campaign_name }}</strong>
-        <span class="advance-item__meta"><span>{{ item.manufacturer }}</span><span>給{{ item.get_recipient_display }}</span><b>{{ item.content_label }}</b></span>
+        <span class="advance-item__meta"><span>{{ item.manufacturer }}</span><span>給{{ item.get_recipient_display }}</span><b>{{ item.content_label }}</b>{% if item.campaign_id %}<span class="advance-tag">依活動自動掛上</span>{% endif %}</span>
       </div>
       <div class="advance-item__checks">
         {% include "sales/_manufacturer_advance_check.html" with flag="reimbursed" checked=item.reimbursed meta=item.reimbursed_label editable=advance_editable %}
         {% include "sales/_manufacturer_advance_check.html" with flag="handed_over" checked=item.handed_over meta=item.handed_over_label editable=advance_editable %}
       </div>
-      {% if advance_editable %}<button type="button" class="button ghost small advance-item__void" data-advance-void data-url="{% url 'manufacturer_advance_void' item.pk %}" aria-label="刪除「{{ item.campaign_name }}」"{% if item.reimbursed or item.handed_over %} hidden{% endif %}>刪除</button>{% endif %}
+      {% if advance_editable %}{% if item.campaign_id %}<button type="button" class="button ghost small advance-item__void" data-advance-void data-url="{% url 'manufacturer_advance_exclude' order.pk item.campaign_id %}" aria-label="「{{ item.campaign_name }}」這張單不適用"{% if item.reimbursed or item.handed_over %} hidden{% endif %}>不適用</button>{% else %}<button type="button" class="button ghost small advance-item__void" data-advance-void data-url="{% url 'manufacturer_advance_void' item.pk %}" aria-label="刪除「{{ item.campaign_name }}」"{% if item.reimbursed or item.handed_over %} hidden{% endif %}>刪除</button>{% endif %}{% endif %}
       <p class="advance-status advance-item__status" data-advance-row-status role="status" aria-live="polite" hidden></p>
     </li>
     {% endfor %}
   </ul>
+  {% endif %}
+  {% if advance_projected %}{# T-337：還沒確認領牌，依訂單日期預計適用的活動；確認實際領牌後才依實際領牌日掛上，只顯示、不建項目。 #}
+  <ul class="advance-list advance-list--projected" aria-label="預計適用的代墊／代轉活動">
+    {% for campaign in advance_projected %}
+    <li class="advance-item is-projected" data-advance-projected="{{ campaign.pk }}">
+      <div class="advance-item__what">
+        <strong class="advance-item__campaign">{{ campaign.name }}</strong>
+        <span class="advance-item__meta"><span>{{ campaign.manufacturer }}</span><span>給{{ campaign.get_recipient_display }}</span><b>{{ campaign.content_label }}</b><span class="advance-tag is-projected">預計適用</span></span>
+      </div>
+      <p class="advance-item__note">依訂單日期 {{ advance_projected_on|date:"Y/m/d" }} 預計適用；確認實際領牌後依實際領牌日掛上。</p>
+      {% if advance_editable %}<button type="button" class="button ghost small advance-item__void" data-advance-void data-url="{% url 'manufacturer_advance_exclude' order.pk campaign.pk %}" aria-label="「{{ campaign.name }}」這張單不適用">不適用</button>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if advance_exclusions %}
+  <p class="advance-excluded"><span>不適用：</span>{% for exclusion in advance_exclusions %}<span class="advance-excluded__item">{{ exclusion.campaign.name }}{% if advance_editable %}<button type="button" class="advance-excluded__restore" data-advance-void data-advance-restore="1" data-url="{% url 'manufacturer_advance_exclude' order.pk exclusion.campaign_id %}" aria-label="復原「{{ exclusion.campaign.name }}」適用">復原</button>{% endif %}</span>{% endfor %}</p>
   {% endif %}
   {% if advance_editable %}
   <form class="advance-form" id="advance-form-{{ order.pk }}" method="post" action="{% url 'manufacturer_advance_create' order.pk %}" data-advance-form hidden novalidate>

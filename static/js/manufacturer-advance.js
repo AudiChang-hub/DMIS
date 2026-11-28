@@ -280,7 +280,8 @@
     const voidButton = event.target.closest?.("[data-advance-void]");
     if (voidButton && !voidButton.disabled) {
       voidButton.disabled = true;
-      voidItem(voidButton.closest("[data-advance-block]"), voidButton.dataset.url, {origin: voidButton})
+      voidItem(voidButton.closest("[data-advance-block]"), voidButton.dataset.url,
+        {origin: voidButton, restore: voidButton.dataset.advanceRestore === "1"})
         .finally(() => { voidButton.disabled = false; });
     }
   });
@@ -431,6 +432,22 @@
     figures(dialog, dialog.picks || []);
   });
 
+  /** 登記原廠撥款後，已撥的列立即從「等原廠撥款」清單移走（T-337）；復原時放回來。筆數與空狀態跟著更新。 */
+  function setPaidRowsHidden(ids, hidden) {
+    document.querySelectorAll('[data-advance-panel][data-tab="reimburse"]').forEach((panel) => {
+      ids.forEach((id) => panel.querySelectorAll(`[data-advance-item="${id}"]`).forEach((row) => { row.hidden = hidden; }));
+      const rows = [...panel.querySelectorAll("[data-advance-item]")];
+      const visible = rows.filter((row) => !row.hidden).length;
+      const count = panel.querySelector("[data-advance-summary-count]");
+      if (count) count.textContent = String(visible);
+      const empty = visible === 0 && rows.length > 0;
+      panel.querySelector("[data-advance-empty]")?.toggleAttribute("hidden", !empty);
+      panel.querySelector("[data-advance-summary]")?.toggleAttribute("hidden", empty);
+      panel.querySelectorAll(".inventory-table-wrap, .advance-cards").forEach((list) => list.toggleAttribute("hidden", empty));
+      refreshBatch(panel);
+    });
+  }
+
   document.addEventListener("submit", async (event) => {
     const form = event.target.closest?.("[data-advance-payout-form]");
     if (!form) return;
@@ -461,12 +478,15 @@
       return;
     }
     closeDialog(dialog);
+    const paidIds = (payload.items || []).map((item) => String(item.id));
+    setPaidRowsHidden(paidIds, true);
     const status = panel.querySelector("[data-advance-status]");
     const voidUrl = panel.dataset.payoutVoidUrl.replace("/0/", `/${payload.payout}/`);
     showStatus(status, payload.message, {undo: async () => {
       showStatus(status, "復原中…", {tone: "saving"});
       const result = await post(voidUrl, {}, panel);
       (result.payload.items || []).forEach(applyState);
+      if (result.ok) setPaidRowsHidden(paidIds, false);
       showStatus(status, result.payload.message, {tone: result.ok ? "" : "error"});
     }});
   }, true);

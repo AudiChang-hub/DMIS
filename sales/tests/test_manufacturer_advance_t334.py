@@ -75,8 +75,9 @@ class ModelAndMigrationTests(TestCase):
         self.assertLessEqual(kinds, {"CreateModel", "AddIndex", "AddConstraint"})
 
     def test_reserved_origin_fields_for_auto_attach(self):
-        """第二版「依活動自動掛上」：origin 先只有手動，origin_key 非空時同一張單不能重複。"""
-        self.assertEqual([value for value, _ in ManufacturerAdvance.Origin.choices], ["manual"])
+        """第二版「依活動自動掛上」：origin_key 非空時同一張單不能重複。
+        T-337 改：第二版加上 campaign（依活動自動掛上），原本只斷言有 manual，現在斷言 manual 仍在、多了 campaign。"""
+        self.assertEqual([value for value, _ in ManufacturerAdvance.Origin.choices], ["manual", "campaign"])
         names = {constraint.name for constraint in ManufacturerAdvance._meta.constraints}
         self.assertIn("manufacturer_advance_unique_origin_key", names)
 

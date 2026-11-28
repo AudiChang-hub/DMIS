@@ -297,3 +297,37 @@
   .advance-drawer-scrim, .advance-drawer__skeleton span { animation: none; }
   .advance-ops__half:active { transform: none; }
 }
+
+/* ── T-337 第二版：依活動自動掛上、預計適用、不適用、活動設定 ── */
+.advance-tag {
+  display: inline-flex; align-items: center; padding: 0 var(--space-2); min-height: 22px;
+  border: 1px solid var(--blue-border); border-radius: var(--radius-sm); background: var(--blue-soft);
+  color: var(--blue-ink); font-size: var(--text-xs); font-weight: 700; line-height: 1.4;
+}
+.advance-tag.is-projected { border-color: var(--amber-border); background: var(--amber-soft); color: var(--amber-ink); }
+.advance-list--projected { border-top-style: dashed; }
+.advance-item.is-projected { grid-template-columns: minmax(0, 1fr) auto; }
+.advance-item.is-projected .advance-item__note { grid-column: 1; margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.6; }
+.advance-item.is-projected .advance-item__void { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.advance-excluded {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0;
+  padding-top: var(--space-3); border-top: 1px dashed var(--line-soft); color: var(--muted); font-size: var(--text-sm);
+}
+.advance-excluded__item { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ink-soft); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.advance-excluded__restore {
+  min-height: 32px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent;
+  color: var(--action-text); font: inherit; font-size: var(--text-sm); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.advance-excluded__restore:hover { background: var(--surface-tint); }
+.advance-excluded__restore:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.advance-hero-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.advance-campaign-form__content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); align-items: start; }
+.advance-campaign-form__amount, .advance-campaign-form__gift { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4) var(--space-5); }
+.advance-campaign-form__amount .field { max-width: 20rem; }
+.advance-campaign-form__models { grid-column: 1 / -1; }
+
+@media (max-width: 700px) {
+  .advance-campaign-form__content, .advance-campaign-form__amount, .advance-campaign-form__gift { grid-template-columns: minmax(0, 1fr); }
+  .advance-item.is-projected .advance-item__void { grid-row: 1; align-self: start; }
+  .advance-item.is-projected .advance-item__note { grid-column: 1 / -1; }
+}

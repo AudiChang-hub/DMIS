@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% load static screen_access %}
+{% comment %}代墊／代轉活動設定（T-337）：比照「原廠獎勵與補助」清單，欄位精簡。篩選按「套用」才查。{% endcomment %}
+{% block title %}代墊／代轉活動｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/campaigns.css' %}"><link rel="stylesheet" href="{% static 'css/manufacturer-advance.css' %}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'manufacturer_advance_list' as tracking_url %}
+{% include "sales/_page_back.html" with fallback_url=tracking_url label="原廠代墊／代轉" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">依實際領牌日自動掛單</p>
+    <h1>代墊／代轉活動</h1>
+    <p class="muted">符合原廠、車型與期間的訂單，確認實際領牌後自動掛上一筆原廠代墊／代轉；還沒領牌的單先依訂單日期在訂單頁顯示「預計適用」。單張訂單可以標「不適用」，之後不會再掛回去。這些錢只是經手，不算淨利、不動客戶應收與傭金、不擋交車。</p>
+  </div>
+  {% if_access 'manufacturer_advance_campaign_create' %}<a class="button primary" href="{% url 'manufacturer_advance_campaign_create' %}">＋ 新增活動</a>{% endif_access %}
+</section>
+
+<form method="get" class="master-filters campaign-filters" role="search" aria-label="篩選代墊／代轉活動">
+  <div class="inventory-filter master-search">
+    <label for="advance-campaign-q">活動或車型</label>
+    <input id="advance-campaign-q" type="search" name="q" value="{{ selected.q }}" placeholder="輸入活動名稱、贈品或車名" autocomplete="off">
+  </div>
+  <div class="inventory-filter">
+    <label for="advance-campaign-manufacturer">原廠</label>
+    <select id="advance-campaign-manufacturer" name="manufacturer"><option value="">全部</option>{% for name in manufacturer_options %}<option value="{{ name }}"{% if selected.manufacturer == name %} selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+  </div>
+  <input type="hidden" name="tab" value="{{ selected.tab }}">
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'manufacturer_advance_campaign_list' %}?tab={{ selected.tab }}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+
+<div class="campaign-results">
+{% include "sales/_status_tabs.html" with tabs=status_tabs aria_label="代墊／代轉活動狀態" active_label="啟用中活動" inactive_label="已停用活動" %}
+<section class="inventory-list-panel" data-status-tab="{{ selected.tab }}" data-status-tab-labels="啟用中活動,已停用活動">
+<div class="inventory-list-summary"><strong>共 {{ campaigns|length }} 個活動</strong>{% if selected.q %}<span>符合「{{ selected.q }}」</span>{% endif %}{% if selected.manufacturer %}<span>{{ selected.manufacturer }}</span>{% endif %}</div>
+<div class="inventory-table-wrap">
+  <table class="inventory-table campaign-table advance-campaign-table">
+    <thead><tr><th>活動</th><th>適用車型</th><th>對象</th><th>內容</th><th>期間</th><th></th></tr></thead>
+    <tbody>
+      {% for campaign in campaigns %}
+      <tr>
+        <td data-label="活動"><strong>{{ campaign.name }}</strong><span>{{ campaign.manufacturer }}{% if campaign.attached_count %} · 已掛 {{ campaign.attached_count }} 張訂單{% endif %}</span></td>
+        <td data-label="適用車型">{{ campaign.models_text }}</td>
+        <td data-label="對象">{{ campaign.get_recipient_display }}</td>
+        <td data-label="內容"><strong class="campaign-item-chip">{{ campaign.content_label }}</strong></td>
+        <td data-label="期間"><strong>{{ campaign.effective_from|date:"Y/m/d" }}</strong><span>至 {{ campaign.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
+        <td class="inventory-row-action">{% if_access 'manufacturer_advance_campaign_edit' %}<a class="button ghost small" href="{% url 'manufacturer_advance_campaign_edit' campaign.pk %}">編輯</a>{% endif_access %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6"><div class="empty-state"><strong>沒有符合的活動</strong><p>{% if selected.q or selected.manufacturer %}換個關鍵字或原廠再按「套用」。{% elif selected.tab == 'inactive' %}目前沒有停用的活動。{% else %}建立活動後，符合條件的訂單確認領牌時會自動掛上代墊／代轉。{% endif %}</p></div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</section>
+</div>
+{% endblock %}

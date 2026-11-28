@@ -6541,4 +6541,6 @@ class OrderBulkUpdate(TimeStampedModel):
 
 
 # T-334：原廠代墊／代轉另放一個檔，這裡匯入讓 Django 認得（不影響本檔其他模型）。
-from .manufacturer_advance_models import ManufacturerAdvance, ManufacturerAdvancePayout  # noqa: E402,F401
+from .manufacturer_advance_models import (  # noqa: E402,F401
+    ManufacturerAdvance, ManufacturerAdvanceCampaign, ManufacturerAdvanceExclusion, ManufacturerAdvancePayout,
+)

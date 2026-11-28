@@ -21,6 +21,7 @@ from . import campaign_views
 from . import gift_views
 from . import attention_views
 from . import manufacturer_advance_views
+from . import manufacturer_advance_campaign_views
 from . import print_company_views
 from . import form_print_views
 from . import order_overview_views
@@ -356,6 +357,12 @@ urlpatterns = [
     path("operations/manufacturer-advances/payouts/", manufacturer_advance_views.manufacturer_advance_payout, name="manufacturer_advance_payout"),
     path("operations/manufacturer-advances/payouts/<int:pk>/void/", manufacturer_advance_views.manufacturer_advance_payout_void, name="manufacturer_advance_payout_void"),
     path("orders/<int:pk>/manufacturer-advances/", manufacturer_advance_views.manufacturer_advance_create, name="manufacturer_advance_create"),
+    # T-337 原廠代墊／代轉第二版：單張訂單「不適用」與活動設定。
+    path("orders/<int:pk>/manufacturer-advances/campaigns/<int:campaign_pk>/not-applicable/", manufacturer_advance_views.manufacturer_advance_exclude, name="manufacturer_advance_exclude"),
+    path("data/manufacturer-advance-campaigns/", manufacturer_advance_campaign_views.campaign_list, name="manufacturer_advance_campaign_list"),
+    path("data/manufacturer-advance-campaigns/new/", manufacturer_advance_campaign_views.campaign_create, name="manufacturer_advance_campaign_create"),
+    path("data/manufacturer-advance-campaigns/<int:pk>/edit/", manufacturer_advance_campaign_views.campaign_edit, name="manufacturer_advance_campaign_edit"),
+    path("data/manufacturer-advance-campaigns/<int:pk>/delete/", manufacturer_advance_campaign_views.campaign_delete, name="manufacturer_advance_campaign_delete"),
     path(
         "operations/reconciliation/",
         views.reconciliation_list,

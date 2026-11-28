@@ -148,16 +148,19 @@ def campaign_suggestions(limit=30):
     return [row["campaign_name"] for row in rows]
 
 
-def manufacturer_suggestions():
-    names = list(VehicleBrand.objects.filter(active=True).order_by("display_order", "name").values_list("name", flat=True))
-    for name in ManufacturerAdvance.objects.values_list("manufacturer", flat=True).distinct():
-        if name and name not in names:
-            names.append(name)
-    return names
-
-
 def default_manufacturer(order):
-    return (order.vehicle_model.brand if order.vehicle_model_id else "") or ""
+    """訂單車型的品牌；品牌清單有同名（不分大小寫）就用清單的寫法，下拉才會選到。"""
+    brand = ((order.vehicle_model.brand if order.vehicle_model_id else "") or "").strip()
+    if not brand:
+        return ""
+    return VehicleBrand.objects.filter(active=True, name__iexact=brand).values_list("name", flat=True).first() or brand
+
+
+def manufacturer_choices(order):
+    """原廠下拉（T-347）：和車型主檔、活動設定同一份品牌清單；訂單車型的品牌不在清單裡也列出來。"""
+    from sales.forms import _brand_choices
+
+    return _brand_choices(default_manufacturer(order))[1:]
 
 
 def dealer_available(order):
@@ -204,12 +207,9 @@ class ManufacturerAdvanceForm(forms.ModelForm):
         self.fields["gift_quantity"].required = False
         if not dealer_available(order):
             self.fields["recipient"].choices = [(ManufacturerAdvance.Recipient.CUSTOMER, "客人")]
-
-    def clean_manufacturer(self):
-        value = (self.cleaned_data.get("manufacturer") or "").strip()
-        if not value:
-            raise ValidationError("請填原廠。")
-        return value
+        self.fields["manufacturer"] = forms.ChoiceField(
+            label="原廠", choices=manufacturer_choices(order),
+            error_messages={"required": "請選原廠。", "invalid_choice": "請從清單選原廠。"})
 
     def clean_campaign_name(self):
         value = " ".join((self.cleaned_data.get("campaign_name") or "").split())

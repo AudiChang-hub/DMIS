@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.models import (ManufacturerAdvance, ManufacturerAdvancePayout, OrderEvent, OrderOperationsProfile, SalesOrder,
-                          SalesSource, VehicleColor, VehicleModel)
+                          SalesSource, VehicleBrand, VehicleColor, VehicleModel)
 from sales.services import manufacturer_advance as advances
 from sales.services.finance_ledger import finance_totals
 from sales.services.payment_summary import payment_summary
@@ -28,6 +28,9 @@ class AdvanceTestBase(TestCase):
         User = get_user_model()
         cls.admin = User.objects.create_superuser("admin", password="Test-Only-123", first_name="測試主管")
         cls.dealer = SalesSource.objects.create(name="虛構車行乙", source_type="dealer")
+        # T-347 改：原廠改成品牌下拉、只收品牌清單裡的值，測試資料要先有這兩個品牌（原本自由輸入不需要）。
+        for name in ("SUZUKI", "SYM"):
+            VehicleBrand.objects.get_or_create(name=name)
         cls.model = VehicleModel.objects.create(brand="SUZUKI", name="虛構車型甲", energy_type="gas", base_dealer_commission=2000)
         cls.other_model = VehicleModel.objects.create(brand="SYM", name="虛構車型丙", energy_type="gas")
         cls.color = VehicleColor.objects.create(vehicle_model=cls.model, name="白")
@@ -122,7 +125,8 @@ class CreateValidationTests(AdvanceTestBase):
     def test_defaults_and_suggestions(self):
         order = self.make_order()
         page = self.client.get(reverse("order_detail", args=[order.pk]) + "?tab=finance").content.decode()
-        self.assertIn('name="manufacturer" type="text" maxlength="80" value="SUZUKI"', page)  # 預設訂單的品牌
+        # T-347 改：原廠從文字框改成品牌下拉，原本斷言文字框的 value，改成斷言下拉預選訂單車型的品牌。
+        self.assertIn('<option value="SUZUKI" selected>', page)  # 預設訂單的品牌
         self.add(order, campaign_name="虛構春季加碼")
         other = self.make_order()
         page = self.client.get(reverse("order_detail", args=[other.pk]) + "?tab=finance").content.decode()

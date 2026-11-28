@@ -58,7 +58,7 @@ def block_context(request, order):
         "advance_editable": can_edit_finance(request.user),
         "advance_dealer_available": advances.dealer_available(order),
         "advance_default_manufacturer": advances.default_manufacturer(order),
-        "advance_manufacturers": advances.manufacturer_suggestions(),
+        "advance_manufacturers": advances.manufacturer_choices(order),
         "advance_campaigns": advances.campaign_suggestions(),
         "advance_recipients": ManufacturerAdvance.Recipient,
         "advance_kinds": ManufacturerAdvance.Kind,

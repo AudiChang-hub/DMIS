@@ -52,8 +52,10 @@
     <div class="advance-form__grid">
       <div class="field" data-advance-field="manufacturer">
         <label for="advance-manufacturer-{{ order.pk }}">原廠</label>
-        <input id="advance-manufacturer-{{ order.pk }}" name="manufacturer" type="text" maxlength="80" value="{{ advance_default_manufacturer }}" list="advance-manufacturers-{{ order.pk }}" autocomplete="off" required>
-        <datalist id="advance-manufacturers-{{ order.pk }}">{% for name in advance_manufacturers %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+        <select id="advance-manufacturer-{{ order.pk }}" name="manufacturer" required>
+          <option value=""{% if not advance_default_manufacturer %} selected{% endif %}>請選擇品牌</option>
+          {% for value, label in advance_manufacturers %}<option value="{{ value }}"{% if value == advance_default_manufacturer %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
       </div>
       <div class="field" data-advance-field="campaign_name">
         <label for="advance-campaign-{{ order.pk }}">活動名稱</label>

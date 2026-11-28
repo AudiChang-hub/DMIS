@@ -349,7 +349,7 @@ ARTICLES = (
         ),
         routes=("order_list", "customer_list", "customer_detail"), replaces=("search-orders", "order-sorting"), access=("order_list",),
         open_route="order_list", open_label="打開全部訂單",
-        depends=("sales/order_list.html",), verified="2.42.2",
+        depends=("sales/order_list.html",), verified="2.43.0",
     ),
     Article(
         slug="sign", title="讓客人簽訂購單", group="daily",

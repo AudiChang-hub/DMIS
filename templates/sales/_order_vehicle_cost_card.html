@@ -1,0 +1,19 @@
+{% load sales_format %}{# 領牌步驟的「車輛結算成本」卡（T-99）。自動儲存後由 vehicle_cost_card_html 原地換新（T-331）；沒有成本可顯示時留不佔版面的空位，之後出現也有地方換入。 #}
+{% if operations_profile.vehicle_cost_rule_id or vehicle_cost_is_manual %}
+<section class="figure-card" aria-labelledby="figure-vehicle-cost" data-vehicle-cost-card>
+  <header class="figure-card__head">
+    <h3 id="figure-vehicle-cost">車輛結算成本</h3>
+    {% if vehicle_cost_is_manual and not operations_profile.vehicle_cost_rule_id %}<span class="ledger-tag ledger-tag--manual">人工輸入</span>{% elif operations_profile.vehicle_cost_locked_at %}<span class="ledger-tag ledger-tag--locked">已確認</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}
+  </header>
+  <dl class="figure-list">
+    <div class="figure-list__row"><dt>結算成本</dt><dd>${{ operations_profile.vehicle_cost|number_with_commas }}</dd></div>
+  </dl>
+  {% if operations_profile.vehicle_cost_rule_id %}
+  <p class="figure-card__meta">{% if order.is_registration_complete %}依領牌日{% elif order.registration_date %}依預計領牌日試算{% else %}尚未領牌，依訂單日{% endif %} {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
+  {% elif settlement_cost_rule_missing %}
+  <p class="figure-card__meta">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</p>
+  {% else %}
+  <p class="figure-card__meta">已有適用的成本規則；這筆是人工輸入，不依規則覆蓋。</p>
+  {% endif %}
+</section>
+{% else %}<template data-vehicle-cost-card></template>{% endif %}

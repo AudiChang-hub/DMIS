@@ -88,3 +88,17 @@ def apply_estimated_settlement_cost(order):
     if not resolve_settlement_cost(order.vehicle_model_id, order.order_date):
         return profile
     return apply_order_settlement_cost(order)
+
+
+def vehicle_cost_card_context(order, profile):
+    """領牌步驟「車輛結算成本」卡的判斷（訂單頁與自動儲存回應共用，T-331）。
+
+    與「確認領牌完成」同一判斷：人工輸入的成本不會連結規則，不能因此誤報找不到規則。"""
+    return {
+        "vehicle_cost_is_manual": bool(profile) and (
+            profile.vehicle_cost_manual or "vehicle_cost" in (profile.manual_financial_fields or [])
+        ),
+        "settlement_cost_rule_missing": bool(order.registration_date) and not resolve_settlement_cost(
+            order.vehicle_model_id, order.registration_date
+        ),
+    }

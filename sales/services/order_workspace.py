@@ -10,6 +10,7 @@ from sales.services.order_filters import plate_fee_variance_q
 from sales.services.order_intake import can_edit_finance
 from sales.services.order_origin import current_order_origin
 from sales.services.payment_summary import payment_summary
+from sales.services.settlement_cost import vehicle_cost_card_context
 
 
 def is_workspace_save(request):
@@ -312,6 +313,14 @@ def balance_hint(request, *, reload=False):
     return "請在交車表單一併登記尾款；已收過的款項請有財務權限的人員到「收入與支出」確認。"
 
 
+def _vehicle_cost_card_html(request, order):
+    """與訂單頁同一份 partial；用剛存好的收支資料重畫。"""
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    return render_to_string('sales/_order_vehicle_cost_card.html', {
+        'order': order, 'operations_profile': profile, **vehicle_cost_card_context(order, profile),
+    }, request=request)
+
+
 def saved(request, order, *, form=None, formsets=(), extra=None):
     """只回傳已保存資料；維持欄位 index，讓新增的明細可再次編輯。"""
     order.refresh_from_db()
@@ -373,5 +382,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
                         for origin in (current_order_origin(order),) for variant in ('compact', 'detail')},
         # 頁首便條（T-175）：訂單頁改了備註，頁首跟著換新（order-hero-note.js）。
         'hero_note_html': render_to_string('sales/_order_hero_note.html', {'order': order}),
+        # 領牌步驟的「車輛結算成本」卡（T-331）：收支改了成本，存好就換新金額、標籤與說明，不必重新整理。
+        'vehicle_cost_card_html': _vehicle_cost_card_html(request, order),
         **(extra or {}),
     })

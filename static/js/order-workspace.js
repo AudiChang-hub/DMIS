@@ -46,7 +46,13 @@
   const FORM_ERROR = '.errorlist, small.field-error, [aria-invalid="true"]';
   const shownError = nodes => [...nodes].find(node => !node.hidden
     && (node.getAttribute?.('aria-invalid') === 'true' || (node.textContent || '').trim() !== '')) || null;
-  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues, failureKind, listFields, offlineText, shownError};
+  // 領牌步驟的「車輛結算成本」卡（T-331）：收支改了成本、自動儲存成功後換成伺服器重畫的新版（金額、標籤、說明）；
+  // 回應沒有這份 HTML（儲存失敗）就維持原值。卡片裡沒有可聚焦的元素，換入不影響焦點。
+  const swapVehicleCostCard = (scope, html) => {
+    if (html == null) return;
+    scope.querySelectorAll('[data-vehicle-cost-card]').forEach(node => { node.outerHTML = html; });
+  };
+  if (typeof module !== 'undefined') module.exports = {canonical, decision, snapshot, rowPlan, identity, remoteValues, failureKind, listFields, offlineText, shownError, swapVehicleCostCard};
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
@@ -860,6 +866,7 @@
           const completion = root.querySelector('[data-registration-completion]');
           if (completion) completion.outerHTML = payload.registration_html;
         }
+        swapVehicleCostCard(root, payload.vehicle_cost_card_html);
         const base = capture(form);
         typedFrom.forEach((old, name) => base.set(name, sent.get(old)));
         // 「本次更新說明」只跟著這一次儲存，存好就清空，下一次自動儲存不重複帶入。

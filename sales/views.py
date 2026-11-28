@@ -269,6 +269,7 @@ from .services.price_version import (
 from .services.settlement_cost import (
     apply_order_settlement_cost,
     resolve_settlement_cost,
+    vehicle_cost_card_context,
 )
 from .services.dealer_reward_campaign import order_dealer_rewards
 from .services.dealer_commission import order_commission_display
@@ -5495,14 +5496,10 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             if (options := [slot for slot in group["slots"] if slot.open and slot.accepts(attachment.name)])
         ]
     operations_profile = getattr(order, "operations", None)
-    # 與「確認領牌完成」同一判斷：人工輸入的成本不會連結規則，不能因此誤報找不到規則。
-    vehicle_cost_is_manual = bool(operations_profile) and (
-        operations_profile.vehicle_cost_manual
-        or "vehicle_cost" in (operations_profile.manual_financial_fields or [])
-    )
-    settlement_cost_rule_missing = bool(order.registration_date) and not resolve_settlement_cost(
-        order.vehicle_model_id, order.registration_date
-    )
+    # 與「確認領牌完成」同一判斷；自動儲存回應的成本卡用同一份（T-331）。
+    cost_card = vehicle_cost_card_context(order, operations_profile)
+    vehicle_cost_is_manual = cost_card["vehicle_cost_is_manual"]
+    settlement_cost_rule_missing = cost_card["settlement_cost_rule_missing"]
     balance_payment = next(
         (
             payment

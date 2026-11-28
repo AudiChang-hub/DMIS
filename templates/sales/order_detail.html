@@ -425,24 +425,7 @@
     </form>
     {# 領牌帶入的金額（T-99）：與收支頁同一組標籤與等寬數字；一項一列、金額靠右，0 元淡化。 #}
     <div class="registration-figures" aria-label="領牌帶入的成本、獎勵與撥款">
-      {% if operations_profile.vehicle_cost_rule_id or vehicle_cost_is_manual %}
-      <section class="figure-card" aria-labelledby="figure-vehicle-cost">
-        <header class="figure-card__head">
-          <h3 id="figure-vehicle-cost">車輛結算成本</h3>
-          {% if vehicle_cost_is_manual and not operations_profile.vehicle_cost_rule_id %}<span class="ledger-tag ledger-tag--manual">人工輸入</span>{% elif operations_profile.vehicle_cost_locked_at %}<span class="ledger-tag ledger-tag--locked">已確認</span>{% else %}<span class="ledger-tag ledger-tag--estimate">預估</span>{% endif %}
-        </header>
-        <dl class="figure-list">
-          <div class="figure-list__row"><dt>結算成本</dt><dd>${{ operations_profile.vehicle_cost|number_with_commas }}</dd></div>
-        </dl>
-        {% if operations_profile.vehicle_cost_rule_id %}
-        <p class="figure-card__meta">{% if order.is_registration_complete %}依領牌日{% elif order.registration_date %}依預計領牌日試算{% else %}尚未領牌，依訂單日{% endif %} {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
-        {% elif settlement_cost_rule_missing %}
-        <p class="figure-card__meta">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</p>
-        {% else %}
-        <p class="figure-card__meta">已有適用的成本規則；這筆是人工輸入，不依規則覆蓋。</p>
-        {% endif %}
-      </section>
-      {% endif %}
+      {% include "sales/_order_vehicle_cost_card.html" %}
       {% if incentive_applications or operations_profile.incentive_rule_id %}
       <section class="figure-card" aria-labelledby="figure-incentive">
         <header class="figure-card__head">

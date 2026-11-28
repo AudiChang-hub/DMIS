@@ -8,6 +8,12 @@
 .form-print__query { flex: 1 1 280px; }
 .form-print__query input { width: 100%; }
 
+/* T-342：night-blue 下全站 ghost 按鈕的邊框（--line）對底色只有約 1.4:1，按鈕輪廓看不出來；本頁的欄位對照、清除搜尋、套用改用較亮的中性邊框（≥ 3:1），hover 再加亮。 */
+html[data-theme="night-blue"] .form-print__fields-link,
+html[data-theme="night-blue"] .form-print__search .button.ghost { border-color: var(--neutral-solid); }
+html[data-theme="night-blue"] .form-print__fields-link:hover,
+html[data-theme="night-blue"] .form-print__search .button.ghost:hover { border-color: var(--muted); }
+
 /* 紙張縮圖：信封 21:17、A4 1:1.414，三條細線代表內容。 */
 .paper {
   position: relative; display: inline-grid; flex: none; width: 22px; height: 18px; padding: 3px; align-content: start; gap: 2px;

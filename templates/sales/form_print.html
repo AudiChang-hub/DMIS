@@ -6,7 +6,7 @@
 {% url 'order_list' as orders_url %}{% include "sales/_page_back.html" with fallback_url=orders_url label="返回全部訂單" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">文件輸出</p><h1>套表列印</h1><p class="muted">勾選訂單和各自要印的套表：信封下載成 Word 檔、用 Word 列印，聲明書與簽收單產生 A4 PDF。換頁或重新搜尋都會保留已勾選的項目。</p>{% help_page_tip %}</div>
-  <div class="hero-actions"><a class="button ghost" href="#form-print-fields">欄位對照</a></div>
+  <div class="hero-actions"><a class="button ghost form-print__fields-link" href="#form-print-fields">欄位對照</a></div>
 </section>
 
 <div class="form-print" data-form-print>

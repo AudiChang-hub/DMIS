@@ -85,6 +85,7 @@ from .services.registration_fee import (
     calculate_vehicle_registration_fee,
     compulsory_insurance,
     has_registration_rate_basis,
+    normalized_insurance_period,
     registration_fee_date,
     registration_period_for,
 )
@@ -940,10 +941,16 @@ class SalesOrderForm(forms.ModelForm):
             self.instance.pk and self.instance.is_delivered and model
             and model.pk == self._initial_vehicle_model_id
             and all(data.get(name) == getattr(self.instance, name) for name in (
-                "registration_date", "compulsory_insurance_period", "plate_selection_fee", "lien_registration_fee",
+                "registration_date", "plate_selection_fee", "lien_registration_fee",
             ))
+            # 微電車一律三年（T-339）：舊單存的一年與畫面送回的三年視為同一期間，保留完成時的牌險、強制險金額。
+            and normalized_insurance_period(model, insurance_period)
+            == normalized_insurance_period(model, self.instance.compulsory_insurance_period)
         )
         if preserve_completed_registration:
+            insurance_period = normalized_insurance_period(model, insurance_period)
+            data["compulsory_insurance_period"] = insurance_period
+            self.cleaned_data["compulsory_insurance_period"] = insurance_period
             for name in (
                 "registration_plate_fee", "registration_license_fee", "registration_inspection_fee",
                 "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee", "registration_calculated_total",

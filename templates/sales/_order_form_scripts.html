@@ -140,8 +140,10 @@
   const draftId = byId("draft-id");
   const editingOrderId = byId("editing-order-id").value;
   const completedRegistrationInputs = [vehicleModel, registrationDate, insurancePeriod, plateSelectionFee, lienRegistrationFee];
+  // 微電車一律三年（T-339）：舊單存的一年載入時會顯示三年，比對「計費條件有沒有改」時視同三年，保留完成時的牌險。
   const completedRegistrationBasis = orderForm.dataset.completedCorrection
-    ? JSON.stringify(completedRegistrationInputs.map(input => input.value)) : null;
+    ? JSON.stringify(completedRegistrationInputs.map(input => (
+      input === insurancePeriod && vehicleEnergyType.value === "micro_electric" ? "3" : input.value))) : null;
   const completedFeeFields = ["id_registration_plate_fee", "id_registration_license_fee", "id_registration_inspection_fee",
     "id_road_maintenance_fee", "id_license_tax_fee", "id_compulsory_insurance_fee", "id_registration_calculated_total"];
   const completedFeeValues = completedFeeFields.map(id => byId(id).value);
@@ -540,6 +542,7 @@
       basis: `${vehicleEnergyType.value}:${vehicleModel.value}`, keepExisting: Boolean(editingOrderId),
       fixedInput: byId("id_compulsory_insurance_period_fixed"),
       label: document.querySelector("[data-insurance-period-label]"),
+      note: document.querySelector("[data-insurance-period-note]"), completed: completedRegistrationBasis !== null,
     });
     if (completedRegistrationBasis !== null && completedRegistrationBasis === JSON.stringify(completedRegistrationInputs.map(input => input.value))) {
       const followedCalculation = actualPlateInsuranceFee.value === calculatedRegistrationTotal.value;

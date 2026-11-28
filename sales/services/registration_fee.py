@@ -241,6 +241,16 @@ def registration_period_for(vehicle_model, on_date, period_years):
     return periods.pop() if len(periods) == 1 else period_years
 
 
+def normalized_insurance_period(vehicle_model, period_years):
+    """判斷「強制險期間有沒有改」用（T-339，使用者 2026-11-28）：微電車一律三年，舊單存的一年視同三年。
+
+    已交車／匯入的微電車舊單存檔時改存三年，但牌險、強制險保留完成時的金額，不重算；不改其他車種。
+    """
+    if vehicle_model and vehicle_model.energy_type == VehicleModel.EnergyType.MICRO_ELECTRIC:
+        return 3
+    return period_years
+
+
 GAS_INSURANCE_PERIODS = [1, 2]
 
 

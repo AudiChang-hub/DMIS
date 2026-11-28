@@ -265,6 +265,9 @@ def save_operations(order, profile, form, payment_formset, baseline, *, user, re
         profile.manual_financial_fields = sorted(protected_fields)
         if "vehicle_cost" in form.fields and form.cleaned_data.get("vehicle_cost") != financial_before.get("vehicle_cost"):
             profile.vehicle_cost_manual = True
+            # 改了成本就不再是依規則計算（T-338）：清掉規則連結，各處顯示「人工輸入」；要回規則用收支「改回依規則計算」。
+            profile.vehicle_cost_rule = None
+            profile.vehicle_cost_registration_date = None
         vehicle_secret = form.cleaned_data.get("vehicle_control_password")
         battery_secret = form.cleaned_data.get("battery_password")
         if vehicle_secret:

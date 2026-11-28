@@ -45,7 +45,7 @@ def order_scope_label(user):
 CUSTOMER_DOCUMENT_ROUTES = {"contract_print", "privacy_consent_print", "order_documents_print"}
 ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
     "order_detail", "order_overview", "order_edit", "order_operations", "order_edit_presence", "historical_delivery_complete", "order_return",
-    "order_secret_reveal", "order_payout_reveal", "order_dealer_payout_update", "order_commission_attribution_update", "order_discount_request", "order_discount_decide", "order_discount_note",
+    "order_secret_reveal", "order_payout_reveal", "order_dealer_payout_update", "order_commission_attribution_update", "order_discount_request", "order_discount_decide", "order_discount_note", "order_vehicle_cost_reset",
     "contract_upload", "privacy_consent_upload", "tax_consent_upload", "order_sign", "order_sign_done", "allocate_vehicle", "reallocate_vehicle", "unallocate_vehicle",
     "registration_save", "registration_document_upload", "registration_document_delete", "registration_document_rename", "registration_complete",
     "delivery_complete", "delivery_payment_update", "deposit_payment_update", "cancellation_request", "cancellation_withdraw", "refund_complete",

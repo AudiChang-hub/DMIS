@@ -90,6 +90,16 @@
     event.detail.names.forEach(name => { if (baseline.has(name)) baseline.set(name, toAmount(form.elements.namedItem(name)?.value)); });
     refresh();
   });
+  // 「改回依規則計算」存好（T-338）：成本欄已由伺服器現值換新，來源標籤改回系統帶入；按鈕被換掉，焦點移回成本欄。
+  document.getElementById('vehicle-cost-reset-form')?.addEventListener('workspace-saved', () => {
+    const input = ledger.querySelector('[name="operations-vehicle_cost"]');
+    const row = input?.closest('[data-ledger-row]');
+    const tag = row?.querySelector('[data-ledger-tag]');
+    if (row) row.dataset.ledgerSource = 'system';
+    if (tag) { tag.textContent = '系統帶入'; tag.className = 'ledger-tag ledger-tag--system'; }
+    if (input && document.activeElement === document.body) input.focus({preventScroll: true});
+    refresh();
+  });
   document.addEventListener('inplace:updated', refresh);
   refresh();
 })();

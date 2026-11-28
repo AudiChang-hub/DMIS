@@ -5628,6 +5628,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "can_view_payouts": policy_for(request).screen("dealer_payouts", "view"),
             "vehicle_cost_is_manual": vehicle_cost_is_manual,
             "settlement_cost_rule_missing": settlement_cost_rule_missing,
+            "vehicle_cost_reset_rule": cost_card["vehicle_cost_reset_rule"],
             "active_tab": active_tab,
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
@@ -5861,6 +5862,17 @@ def order_discount_note(request, pk):
     if not order_workspace.is_workspace_save(request):
         return redirect("order_detail", pk=pk)
     return order_workspace.save_discount_note(request, order, DiscountNoteForm(request.POST))
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def order_vehicle_cost_reset(request, pk):
+    """T-338：收支「改回依規則計算」，只接受訂單頁的自動儲存。"""
+    order = get_object_or_404(SalesOrder.objects.select_for_update(of=("self",)), pk=pk)
+    if not order_workspace.is_workspace_save(request):
+        return redirect("order_detail", pk=pk)
+    return order_workspace.reset_vehicle_cost(request, order)
 
 
 @login_required

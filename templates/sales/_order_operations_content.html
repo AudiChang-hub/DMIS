@@ -70,6 +70,8 @@
 </div>
 </div>
 
+{# 收支車輛成本列「改回依規則計算」按鈕送出的表單（T-338）；不能包在收支表單裡，按鈕用 form 屬性指過來。 #}
+{% if order_workspace %}<form id="vehicle-cost-reset-form" hidden data-workspace-save="vehicle_cost_reset" data-autosave-off method="post" action="{% url 'order_vehicle_cost_reset' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}"><input type="hidden" name="operations-financial_revision" value="{{ form.financial_revision.value|default:'' }}"></form>{% endif %}
 <form method="post" action="{% url 'order_operations' order.pk %}" enctype="multipart/form-data" class="operations-form finance-form" {% if order_workspace %}data-workspace-save="operations"{% endif %}>
 {% if order_workspace %}<fieldset class="workspace-readonly" {% if not workspace_finance_editable %}disabled{% endif %}>{% endif %}
   {% csrf_token %}{{ payment_formset.management_form }}{{ form.financial_revision }}

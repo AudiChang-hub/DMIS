@@ -1,0 +1,2 @@
+{% load sales_format %}{# 收支車輛成本列的「改回依規則計算」（T-338）。按鈕送出頁面上的 vehicle-cost-reset-form；自動儲存後由 vehicle_cost_reset_html 原地換新，不提供時留不佔版面的空位。 #}
+{% if vehicle_cost_reset_rule %}<p class="ledger-row__reset" data-vehicle-cost-reset><small>成本規則 ${{ vehicle_cost_reset_rule.amount|number_with_commas }}（{% if order.is_registration_complete %}依領牌日{% elif order.registration_date %}依預計領牌日{% else %}尚未領牌，依訂單日{% endif %}）</small><button class="button ghost small" type="submit" form="vehicle-cost-reset-form">改回依規則計算</button></p>{% else %}<template data-vehicle-cost-reset></template>{% endif %}

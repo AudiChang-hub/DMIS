@@ -25,6 +25,7 @@
         {% if row.tag %}<span class="ledger-tag ledger-tag--{{ row.tag }}" data-ledger-tag>{{ row.tag_label }}</span>{% endif %}
         {% if row.not_applicable %}<p class="ledger-row__na" data-ledger-na="{{ row.name }}">不適用</p>{% else %}<div class="ledger-row__input"><span class="ledger-row__currency" aria-hidden="true">$</span>{{ row.field }}</div>{% endif %}
         {% if row.field.errors %}<span class="ledger-row__errors" id="{{ row.field.id_for_label }}_errors">{% for error in row.field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
+        {% if row.name == 'vehicle_cost' and order_workspace %}{% include "sales/_finance_vehicle_cost_reset.html" %}{% endif %}
       </div>
     {% endfor %}
     </div>

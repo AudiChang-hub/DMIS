@@ -414,6 +414,7 @@ urlpatterns = [
     path("orders/<int:pk>/operations/discount/request/", views.order_discount_request, name="order_discount_request"),
     path("orders/<int:pk>/operations/discount/decide/", views.order_discount_decide, name="order_discount_decide"),
     path("orders/<int:pk>/operations/discount/note/", views.order_discount_note, name="order_discount_note"),
+    path("orders/<int:pk>/operations/vehicle-cost/reset/", views.order_vehicle_cost_reset, name="order_vehicle_cost_reset"),
     path(
         "orders/<int:pk>/operations/reveal-payout-account/",
         views.order_payout_reveal,

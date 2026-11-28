@@ -10,7 +10,7 @@ from sales.services.order_filters import plate_fee_variance_q
 from sales.services.order_intake import can_edit_finance
 from sales.services.order_origin import current_order_origin
 from sales.services.payment_summary import payment_summary
-from sales.services.settlement_cost import vehicle_cost_card_context
+from sales.services.settlement_cost import reset_vehicle_cost_to_rule, vehicle_cost_card_context
 
 
 def is_workspace_save(request):
@@ -321,6 +321,35 @@ def _vehicle_cost_card_html(request, order):
     }, request=request)
 
 
+def _vehicle_cost_extras_html(request, order):
+    """T-338：成本卡下方的黃色提示、收支「改回依規則計算」，與訂單頁同一份 partial、同一組判斷。"""
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    context = {'order': order, 'operations_profile': profile, **vehicle_cost_card_context(order, profile)}
+    return {
+        'vehicle_cost_warning_html': render_to_string('sales/_order_vehicle_cost_warning.html', context, request=request),
+        'vehicle_cost_reset_html': render_to_string('sales/_finance_vehicle_cost_reset.html', context, request=request),
+    }
+
+
+def reset_vehicle_cost(request, order):
+    """T-338：收支「改回依規則計算」。權限與收支編輯相同；版本號過期就擋下，不覆寫別人剛存的收支。"""
+    from django.core.exceptions import PermissionDenied
+    from sales.models import OrderChange
+    if not (can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST')):
+        raise PermissionDenied
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if (str(order.revision) != request.POST.get('_order_revision') or profile is None
+            or request.POST.get('operations-financial_revision') != profile.updated_at.isoformat()):
+        return save_error('收支剛被更新，請重新載入後再改回依規則計算。', status=409)
+    before = reset_vehicle_cost_to_rule(order, request.user.get_username())
+    if before is None:
+        return save_error('這筆車輛成本目前沒有可套用的成本規則，無法改回依規則計算。')
+    profile.refresh_from_db()
+    OrderChange.objects.create(order=order, actor_name=request.user.get_username(), reason='車輛成本改回依規則計算',
+                               changes={'vehicle_cost': {'before': str(before), 'after': str(profile.vehicle_cost)}})
+    return saved(request, order, extra={'message': f'已改回依規則計算，車輛成本 ${profile.vehicle_cost:,.0f}。'})
+
+
 def saved(request, order, *, form=None, formsets=(), extra=None):
     """只回傳已保存資料；維持欄位 index，讓新增的明細可再次編輯。"""
     order.refresh_from_db()
@@ -386,5 +415,7 @@ def saved(request, order, *, form=None, formsets=(), extra=None):
         'hero_note_html': render_to_string('sales/_order_hero_note.html', {'order': order}),
         # 領牌步驟的「車輛結算成本」卡（T-331）：收支改了成本，存好就換新金額、標籤與說明，不必重新整理。
         'vehicle_cost_card_html': _vehicle_cost_card_html(request, order),
+        # 黃色提示與「改回依規則計算」（T-338）：同一機制原地換新。
+        **_vehicle_cost_extras_html(request, order),
         **(extra or {}),
     })

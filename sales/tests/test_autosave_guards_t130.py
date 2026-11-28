@@ -135,7 +135,8 @@ class LockConfirmRegistrationTests(TestCase):
 
     def test_missing_cost_rule_warning_follows_registration_date_not_county(self):
         # 使用者 2026-11-07 選 A：填了領牌日就檢查成本規則；以前要有縣市才出現，新單沒有縣市所以從不出現。
-        warning = '<div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>'
+        # T-338：同一個提示多了自動儲存換新用的 data-vehicle-cost-warning，文字與顯示條件不變。
+        warning = '<div class="message warning" data-vehicle-cost-warning>目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>'
         page = self.client.get(order_step_url(self.order.pk, "registration")).content.decode()
         self.assertNotIn(warning, page, "成本規則適用（2026/10/29）時不警告")
         self.client.post(reverse("registration_save", args=[self.order.pk]),

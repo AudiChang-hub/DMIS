@@ -1,0 +1,4 @@
+{# 領牌步驟「找不到成本規則」的黃色提示（T-130）。自動儲存後由 vehicle_cost_warning_html 原地換新（T-338，與成本卡同一機制）；不顯示時留不佔版面的空位。 #}
+{% if settlement_cost_rule_missing and not operations_profile.vehicle_cost_rule_id and not vehicle_cost_is_manual %}
+<div class="message warning" data-vehicle-cost-warning>目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>
+{% else %}<template data-vehicle-cost-warning></template>{% endif %}

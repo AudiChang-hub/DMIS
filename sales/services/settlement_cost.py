@@ -101,4 +101,35 @@ def vehicle_cost_card_context(order, profile):
         "settlement_cost_rule_missing": bool(order.registration_date) and not resolve_settlement_cost(
             order.vehicle_model_id, order.registration_date
         ),
+        "vehicle_cost_reset_rule": vehicle_cost_reset_rule(order, profile),
     }
+
+
+def vehicle_cost_reset_rule(order, profile):
+    """收支「改回依規則計算」（T-338）要套用的成本規則；不提供時回 None。
+
+    只給人工輸入的成本，且領牌日（未填用訂單日，與 apply_order_settlement_cost 同一基準）有適用規則；
+    代交車、中獎車固定 0，Excel 匯入單是已結算的歷史，都不提供。"""
+    if not profile or order.zero_vehicle_finance or hasattr(order, "legacy_snapshot"):
+        return None
+    if not (profile.vehicle_cost_manual or "vehicle_cost" in (profile.manual_financial_fields or [])):
+        return None
+    return resolve_settlement_cost(order.vehicle_model_id, order.registration_date or order.order_date)
+
+
+def reset_vehicle_cost_to_rule(order, actor_name):
+    """T-338：清掉人工輸入的車輛成本，重新套用成本規則；已確認領牌的單和確認時一樣固定。
+
+    只動車輛成本與它的來源欄位；淨利、應收、傭金、交車都由既有計算跟著現值算。回傳改前金額，不適用時回 None。"""
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if vehicle_cost_reset_rule(order, profile) is None:
+        return None
+    before = profile.vehicle_cost
+    profile.manual_financial_fields = sorted(set(profile.manual_financial_fields or []) - {"vehicle_cost"})
+    profile.vehicle_cost_manual = False
+    profile.vehicle_cost_locked_at = None
+    profile.vehicle_cost_locked_by = ""
+    profile.save(update_fields=["manual_financial_fields", "vehicle_cost_manual", "vehicle_cost_locked_at",
+                                "vehicle_cost_locked_by", "updated_at"])
+    apply_order_settlement_cost(order, actor_name, lock=order.is_registration_complete)
+    return before

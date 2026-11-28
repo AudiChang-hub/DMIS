@@ -238,7 +238,7 @@
       <div id="gas-registration-calculator">
         <div hidden>{% include "sales/_registration_fee_details.html" %}</div>
         <div class="form-grid registration-fee-card__fields">
-          {% include "sales/_compulsory_insurance_period_field.html" with field=form.compulsory_insurance_period %}
+          {% include "sales/_compulsory_insurance_period_field.html" with field=form.compulsory_insurance_period with_note=True %}
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>

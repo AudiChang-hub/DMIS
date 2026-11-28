@@ -1,11 +1,11 @@
 {% comment %}強制險期間（T-333，使用者 2026-11-28）：建單與訂單頁都看得到、跟牌險放在一起。
 選項由前端依車型限制（views._vehicle_rate_data 的 insurance_periods）；只有一種年期（微電車三年、電動類品牌只設一種）時
 下拉隱藏、改顯示唯讀文字，下拉仍隨表單送出原值。
-既有訂單存的年期與畫面不同（微電車舊單存一年）或不在規則內時，下方說明原值與存檔後的結果（T-339）。{% endcomment %}
+既有訂單存的年期與畫面不同（微電車舊單存一年）或不在規則內時，下方說明原值與存檔後的結果（T-339；只有訂單頁傳 with_note，建單不輸出）。{% endcomment %}
 <div class="field {% if field.errors %}has-error{% endif %}" data-field-container data-insurance-period-field>
   <label for="{{ field.id_for_label }}" data-insurance-period-label>{{ field.label }}</label>
   {{ field }}
   <input type="text" id="{{ field.id_for_label }}_fixed" class="insurance-period-fixed" value="" readonly hidden>
-  <small class="help-text" id="{{ field.id_for_label }}_note" data-insurance-period-note hidden></small>
+  {% if with_note %}<small class="help-text" id="{{ field.id_for_label }}_note" data-insurance-period-note hidden></small>{% endif %}
   {% if field.errors %}<span id="{{ field.id_for_label }}_errors">{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
 </div>

@@ -290,7 +290,9 @@ def dealer_rules(page, base, out, assets, facts):
     page.goto(f"{base}/data/dealer-volume-bonuses/", wait_until="networkidle")
     expect(page, "示範十月台數獎金")
     add = mark(page, "main :is(a,button):has-text('＋ 新增規則')", "bonus-add")
-    shot(page, out / "01-list.jpg", [{"sel": ".dealer-reward-tabs", "n": 1}, {"sel": add, "n": 2}], margin=30, max_height=800)
+    # T-340：頁首固定列會蓋住捲動後的頁面標題，改成不捲動、從頁首截到分頁列下方。
+    tabs_bottom = page.evaluate("()=>document.querySelector('.dealer-reward-tabs').getBoundingClientRect().bottom")
+    viewport(page, out / "01-list.jpg", [{"sel": ".dealer-reward-tabs", "n": 1}, {"sel": add, "n": 2}], height=int(tabs_bottom) + 40)
     wide(page, 1400)
     page.goto(f"{base}/data/dealer-volume-bonuses/new/", wait_until="networkidle")
     page.fill("input[name=name]", "示範十月台數獎金（範例）")

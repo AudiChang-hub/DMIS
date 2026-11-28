@@ -39,7 +39,7 @@ BASICS = (
             "電腦版叫「我的密碼／登出系統」，手機版叫「變更密碼／登出」，是同一個功能。",
         ),
         related=("home", "security"), routes=("password_change_required",),
-        replaces=("quick-start",), depends=("base.html", "registration/login.html"), verified="2.15.0",
+        replaces=("quick-start",), depends=("base.html", "registration/login.html"), verified="2.45.1",
     ),
     Article(
         slug="home", title="首頁、常用功能與公告", group="basics",
@@ -70,7 +70,7 @@ BASICS = (
         rules=("公告依「置頂 → 開始時間新到舊」排列，每頁 10 則。",),
         related=("first-use", "drafts"), routes=("dashboard", "home_favorites", "announcement_detail", "release_history"),
         replaces=("dashboard", "home-favorites", "mobile-shortcuts", "news", "personal", "command-center-update"),
-        depends=("sales/dashboard.html", "sales/home_favorites.html", "base.html"), verified="2.15.0",
+        depends=("sales/dashboard.html", "sales/home_favorites.html", "base.html"), verified="2.45.1",
     ),
     Article(
         slug="security", title="個資與帳號安全", group="basics",
@@ -94,7 +94,7 @@ BASICS = (
         ),
         rules=("系統只在畫面上顯示做事需要的個資；匯出與列印都依帳號權限。",),
         related=("first-use", "accounts"), replaces=("security",),
-        depends=("registration/login.html", "registration/password_change_required.html"), verified="2.15.0",
+        depends=("registration/login.html", "registration/password_change_required.html"), verified="2.45.1",
     ),
     Article(
         slug="troubleshooting", title="畫面出現看不懂的訊息", group="basics",
@@ -142,6 +142,6 @@ BASICS = (
             Faq("優先配車是超過幾個月？", "預設出廠超過 3 個月，admin 可以在配車規則調整。"),
         ),
         related=("order-finance", "dealer-payouts"), replaces=("glossary",),
-        depends=("sales/order_list.html",), verified="2.15.0",
+        depends=("sales/order_list.html",), verified="2.45.1",
     ),
 )

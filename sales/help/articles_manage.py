@@ -38,7 +38,7 @@ SOMETIMES = (
         related=("order-finance", "operations"), routes=("reconciliation_list", "reconciliation_batch"),
         replaces=("reconciliation", "reconciliation-entry"), access=("reconciliation_list",),
         open_route="reconciliation_list", open_label="打開撥款對帳",
-        depends=("sales/reconciliation_list.html",), verified="2.15.0",
+        depends=("sales/reconciliation_list.html",), verified="2.45.1",
     ),
     Article(
         slug="inventory", title="進車、調車與現有台數", group="sometimes",
@@ -56,7 +56,7 @@ SOMETIMES = (
                  Figure("inventory/01-quick-entry.jpg", "快速進車的三列", "① 一列一台　② 車輛來源　③ 建立全部車輛")),
             Step("按 [[建立全部車輛]]。任何一列有錯，整批都不會建立，照紅字改好再按一次。",
                  "出現「已完成快速進車，共建立 3 台車輛。」"),
-            Step("回到清單用搜尋、品牌、機種、車色、實際位置找車；**優先配車** 可直接在列表切換。",
+            Step("回到清單用搜尋、品牌、機種、車色、實際位置找車，選好按 [[套用]]；**優先配車** 可直接在列表切換。",
                  "DEMOE00053 出廠超過 3 個月，優先配車自動打開、不能關。",
                  Figure("inventory/02-list.jpg", "車輛庫存清單", "④ 篩選　⑤ 優先配車")),
             Step("車換地方放：在清單那台車的 **實際位置** 直接選本店門市或車行，選了就存；選錯按 [[復原]]。只改車放在哪裡，車仍是本店庫存、照常可以配車。",
@@ -78,7 +78,7 @@ SOMETIMES = (
         rules=("出廠年月不可晚於本月；同一批不能有重複的號碼。", "超過幾個月自動優先配車，可在配車規則調整（預設 3 個月）。"),
         related=("allocate",), routes=("inventory_list", "inventory_quick_create", "inventory_stock_count", "transfer_signoff_create", "inventory_transfer_out", "inventory_create", "inventory_edit", "inventory_allocation_priority", "inventory_location"),
         replaces=("inventory",), access=("inventory_list",), open_route="inventory_list", open_label="打開車輛庫存",
-        depends=("sales/inventory_list.html", "sales/inventory_quick_form.html", "sales/stock_count.html"), verified="2.21.2",
+        depends=("sales/inventory_list.html", "sales/inventory_quick_form.html", "sales/stock_count.html"), verified="2.45.1",
     ),
     Article(
         slug="order-deletion", title="刪除訂單與還原", group="sometimes",
@@ -106,7 +106,7 @@ SOMETIMES = (
         rules=("只有 admin 能確認刪除；有配車、領牌、收款或台數獎金時要多勾一次影響確認。", "刪除時連動配車或獎金的訂單，只能由 admin 還原。"),
         related=("cancel",), routes=("order_delete", "order_deletion_queue", "order_recycle_bin", "order_restore"),
         replaces=("order-deletion", "order-recycle-bin"), access=("order_recycle_bin",),
-        depends=("sales/order_deletion_confirm.html",), verified="2.15.0",
+        depends=("sales/order_deletion_confirm.html",), verified="2.45.1",
     ),
     Article(
         slug="order-pricing", title="下單改價、贈品與自訂分期", group="sometimes",
@@ -166,7 +166,7 @@ SOMETIMES = (
         related=("sales-sources",), routes=("price_list_distribution", "price_list_distribution_assignments", "gift_distribution", "gift_distribution_detail", "sales_source_holiday_gift_manage"),
         replaces=("price-list-distribution", "gift-distribution"), access=("price_list_distribution",),
         depends=("sales/price_list_distribution.html", "sales/price_list_distribution_assignments.html", "sales/gift_distribution.html"),
-        verified="2.15.0",
+        verified="2.45.1",
     ),
 )
 
@@ -201,7 +201,7 @@ MANAGE = (
         related=("create-order", "order-pricing"),
         routes=("accessory_product_list", "accessory_product_create", "accessory_product_edit", "accessory_category_list"),
         access=("accessory_product_list",), depends=("sales/accessory_product_list.html", "sales/accessory_product_form.html"),
-        verified="2.19.0",
+        verified="2.45.1",
     ),
     Article(
         slug="vehicle-models", title="機種、售價與年式", group="manage",
@@ -240,7 +240,7 @@ MANAGE = (
         replaces=("vehicle-colors", "vehicle-model-tools", "master-data"), access=("vehicle_model_list",),
         open_route="vehicle_model_list", open_label="打開機種與售價",
         depends=("sales/_vehicle_model_workspace.html", "sales/vehicle_model_price_versions.html", "sales/vehicle_model_batch.html"),
-        verified="2.19.0",
+        verified="2.45.1",
     ),
     Article(
         slug="catalog-photos", title="選車展示與車色圖片", group="manage",
@@ -263,7 +263,7 @@ MANAGE = (
         rules=("貼連結只接受一般的 http／https 網址；不能是公司內網位址。",),
         related=("vehicle-models", "official-catalog"), routes=("catalog_photo_board", "catalog_edit", "catalog_manage"),
         replaces=("catalog-manage",), access=("root",),
-        depends=("sales/catalog_photo_board.html", "sales/catalog_edit.html"), verified="2.15.0",
+        depends=("sales/catalog_photo_board.html", "sales/catalog_edit.html"), verified="2.45.1",
     ),
     Article(
         slug="official-catalog", title="原廠車型比對", group="manage",
@@ -283,7 +283,7 @@ MANAGE = (
             Faq("檢查一直沒結束？", "超過 30 分鐘視為逾時，再按一次檢查。"),
         ),
         related=("vehicle-models", "catalog-photos"), routes=("official_catalog",), replaces=("official-catalog",),
-        access=("root",), depends=("sales/official_catalog.html",), verified="2.15.0",
+        access=("root",), depends=("sales/official_catalog.html",), verified="2.45.1",
     ),
     Article(
         slug="incentives", title="原廠獎勵與補助方案", group="manage",
@@ -312,7 +312,7 @@ MANAGE = (
         related=("vehicle-models", "subsidy"),
         routes=("incentive_rule_list", "incentive_campaign_create", "subsidy_program_list", "incentive_rule_create", "incentive_rule_edit", "incentive_campaign_edit"),
         access=("incentive_rule_list",), depends=("sales/incentive_campaign_form.html", "sales/subsidy_program_list.html"),
-        verified="2.19.0",
+        verified="2.45.1",
     ),
     Article(
         slug="installment-rules", title="分期方案、領牌費用與假日", group="manage",
@@ -343,7 +343,7 @@ MANAGE = (
         routes=("installment_company_list", "vehicle_installment_plan_list", "brand_registration_fee_rule_list", "business_holiday_list"),
         access=("installment_company_list",),
         depends=("sales/installment_plan_list.html", "sales/brand_registration_fee_rule_list.html", "sales/business_holiday_list.html"),
-        verified="2.19.0",
+        verified="2.45.1",
     ),
     Article(
         slug="sales-sources", title="車行、網路平台與本店人員", group="manage",
@@ -384,8 +384,8 @@ MANAGE = (
             results=(("示範車行丙 10 月 3 台 → 1,500", "3 台 × 500（給付畫面見〈車行傭金與台數獎金〉）"),),
         ),
         steps=(
-            Step("資料維護區 → [[車行傭金與獎勵]]，上方分頁是 [[基礎傭金]]、[[獎勵活動]]、[[獎勵品項]]、[[台數獎金]]。",
-                 "", Figure("dealer-rules/01-list.jpg", "台數獎金規則清單", "① 四個分頁　② 新增規則")),
+            Step("資料維護區 → [[車行傭金與獎勵]]，上方分頁是 [[基礎傭金]]、[[獎勵活動]]、[[獎勵品項]]、[[台數獎金]]、[[給付]]。",
+                 "", Figure("dealer-rules/01-list.jpg", "台數獎金規則清單", "① 五個分頁　② 新增規則")),
             Step("基礎傭金：在 [[基礎傭金]] 分頁找到車型，直接改「車行基礎傭金」欄的金額，按同一列的 [[套用基礎傭金]]，立即生效（需要操作權限）。",
                  "SUI 125 改成每台 1,600。"),
             Step("在「台數獎金」按 [[＋ 新增規則]]，填規則名稱，選適用車行、品牌、能源別或指定車型。",
@@ -409,7 +409,7 @@ MANAGE = (
         routes=("dealer_sales_program_list", "dealer_reward_campaign_list", "dealer_reward_catalog_list", "dealer_volume_bonus_list",
                 "dealer_volume_bonus_create", "dealer_reward_catalog_create", "dealer_reward_catalog_edit", "dealer_volume_bonus_edit", "dealer_volume_bonus_delete", "dealer_volume_bonus_detail", "dealer_reward_campaign_create", "dealer_reward_campaign_edit"),
         replaces=("dealer-sales-programs", "dealer-volume-bonus"), access=("dealer_volume_bonus_list",),
-        depends=("sales/dealer_volume_bonus_form.html", "sales/dealer_volume_bonus_list.html"), verified="2.19.0",
+        depends=("sales/dealer_volume_bonus_form.html", "sales/dealer_volume_bonus_list.html"), verified="2.45.1",
     ),
     Article(
         slug="accounts", title="帳號與權限", group="manage",
@@ -440,7 +440,7 @@ MANAGE = (
         routes=("user_management", "permission_workspace", "access_edit", "order_account_scope", "order_customer_access",
                 "user_account_create", "user_account_edit", "user_account_reset_password"),
         replaces=("account-management", "single-order-access", "profit-access"), access=("user_management",),
-        depends=("sales/user_management.html", "sales/access/edit.html", "sales/permissions/_header.html"), verified="2.19.0",
+        depends=("sales/user_management.html", "sales/access/edit.html", "sales/permissions/_header.html"), verified="2.45.1",
     ),
     Article(
         slug="report-design", title="建立與修改報表", group="manage",
@@ -468,7 +468,7 @@ MANAGE = (
         ),
         rules=("只有帳號名稱為 admin 的系統管理者能設計報表；複製出來的報表一律先改回只有 admin 看得到。",),
         related=("report-ranking",), routes=("report_manage", "report_create", "report_edit", "report_classification"),
-        access=("root",), depends=("sales/reporting/manage.html", "sales/reporting/edit.html"), verified="2.34.0",
+        access=("root",), depends=("sales/reporting/manage.html", "sales/reporting/edit.html"), verified="2.45.1",
     ),
     Article(
         slug="print-templates", title="列印範本與公司抬頭", group="manage",
@@ -497,7 +497,7 @@ MANAGE = (
         routes=("positioned_template_list", "positioned_template_create", "positioned_template_edit", "print_company_settings"),
         replaces=("print-templates", "print-company", "print-company-admin"), access=("positioned_template_list",),
         depends=("sales/positioned_template_form.html", "sales/positioned_template_list.html", "sales/print_company_settings.html"),
-        verified="2.19.0",
+        verified="2.45.1",
     ),
     Article(
         slug="import", title="舊資料 Excel 匯入（已停用）", group="manage",
@@ -533,7 +533,7 @@ MANAGE = (
             Step("公告（admin）：首頁「管理系統公告」（或資料維護區「系統公告管理」）→ 填標題、內容，可加圖片，勾置頂，選顯示對象與開始／結束時間，按 [[儲存並發布]]（只按「儲存草稿」不會發布）。",
                  "標題「12/1 起 SUI 125 現金價調整」、置頂、結束 2026/12/31。",
                  Figure("system/02-announcement.jpg", "公告編輯", "② 公告內容與顯示設定")),
-            Step("說明文字（admin）：[[畫面與列印說明文字]] 搜尋要改的文字或選頁籤，按 [[編輯]]，改好按 [[儲存文字]]；要改回按 [[恢復系統預設]]。",
+            Step("說明文字（admin）：[[畫面與列印說明文字]] 在「搜尋文字」輸入要改的字（可勾「只看已自訂」），按 [[套用]]；或直接選頁籤。找到後按 [[編輯]]，改好按 [[儲存文字]]；要改回按 [[恢復系統預設]]。",
                  "", Figure("system/03-site-copy.jpg", "說明文字管理", "③ 頁籤與編輯")),
         ),
         faqs=(
@@ -546,7 +546,7 @@ MANAGE = (
         routes=("system_diagnostics", "system_integrity_report", "announcement_manage", "site_copy_manage", "announcement_edit"),
         replaces=("announcements", "announcement-admin", "announcement-inline", "site-copy", "system-integrity"),
         access=(("system_diagnostics", "system_integrity_report", "announcement_manage"),),
-        depends=("sales/system_diagnostics.html", "sales/announcement_manage.html", "sales/site_copy_manage.html"), verified="2.15.0",
+        depends=("sales/system_diagnostics.html", "sales/announcement_manage.html", "sales/site_copy_manage.html"), verified="2.45.1",
     ),
     Article(
         slug="rebuild", title="系統清空後重建資料", group="manage",
@@ -570,6 +570,6 @@ MANAGE = (
         ),
         rules=("建單不檢查庫存與公司資料；公司資料缺漏只會擋列印。",),
         related=("vehicle-models", "installment-rules", "sales-sources", "inventory"), routes=("data_maintenance",),
-        replaces=("first-setup",), access=("data_maintenance",), depends=("sales/data_maintenance.html",), verified="2.15.0",
+        replaces=("first-setup",), access=("data_maintenance",), depends=("sales/data_maintenance.html",), verified="2.45.1",
     ),
 )

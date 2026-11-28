@@ -238,7 +238,7 @@ ARTICLES = (
         routes=("report_center", "report_display", "report_detail"),
         access=("report_center",), open_route="report_center", open_label="打開報表中心",
         replaces=("reports",),
-        depends=("sales/reporting/display.html",), verified="2.14.0",
+        depends=("sales/reporting/display.html",), verified="2.45.1",
     ),
     # ── 第一批新增（T-197）：依研究代理對照 2.14.0 程式查證的行為撰寫 ──
     Article(
@@ -373,7 +373,7 @@ ARTICLES = (
             Faq("簽名被擋？", "會提示原因，例如「請先在此簽名」「簽名太短或空白」，或內容剛被修改要重新確認。"),
         ),
         routes=("order_sign", "order_sign_done"), replaces=("customer-documents",), access=("order_list",),
-        depends=("sales/_order_sign_choice.html", "sales/order_sign.html"), verified="2.14.0",
+        depends=("sales/_order_sign_choice.html", "sales/order_sign.html"), verified="2.45.1",
     ),
     Article(
         slug="edit-order", title="建立後修改訂單", group="daily",
@@ -437,9 +437,9 @@ ARTICLES = (
                  "", Figure("operations/01-headline.jpg", "期間切換與頁首摘要", "① 期間　② 一句話摘要")),
             Step("看「現在好不好」卡片：領牌台數、車款成交額、訂單淨利、新成立訂單，各附上月同期、去年同期與近 12 個月走勢。",
                  "", Figure("operations/02-tiles.jpg", "領牌台數與車款成交額卡片", "③ 每張卡片附兩個比較")),
-            Step("看「需要處理」：只列有事的項目，紅色優先；點一下就進到對應清單。",
+            Step("看「需要處理」：分成「收錢、對帳」「付錢、退錢」「訂單卡住」「車與進貨」四類，只列有事的項目，紅色優先；點一下就進到對應清單。",
                  "", Figure("operations/03-attention.jpg", "需要處理清單", "④ 需要處理")),
-            Step("往下依序是訂單流程、錢、貨、結構變化、車型貢獻、台數獎金進度、原廠獎勵與資料可信度；左側目錄可以直接跳到該段。"),
+            Step("往下依序是訂單流程、錢、原廠代墊／代轉（看得到訂單收支的人才有）、貨與油電領牌、結構變化、車型貢獻、台數獎金門檻進度、進行中的原廠獎勵與資料可信度；左側「總表目錄」可以直接跳到該段。"),
             Step("資料最多快取 10 分鐘，要立刻重算按 [[重新整理]]。"),
         ),
         faqs=(
@@ -450,7 +450,7 @@ ARTICLES = (
         ),
         routes=("operations_report",), replaces=("operations",), access=("operations_report",),
         open_route="operations_report", open_label="打開營運總表",
-        depends=("sales/operations_report.html", "sales/_ops_kpi.html"), verified="2.14.0",
+        depends=("sales/operations_report.html", "sales/_ops_kpi.html"), verified="2.45.1",
     ),
     Article(
         slug="subsidy", title="汰舊與補助", group="sometimes",

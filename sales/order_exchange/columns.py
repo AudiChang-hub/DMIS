@@ -312,6 +312,8 @@ EXTRA = (
            editable=True, choices=("是", "否")),
     Column("battery_rate_plan", "車控與電池備註", "fulfillment", _op("battery_rate_plan", ""), editable=True),
     Column("vehicle_control_confirmed", "車控與電池已確認", "fulfillment", lambda o: bool(_op("vehicle_control_confirmed_at")(o)), BOOL),
+    # 牌險手續費支出（T-332）：人工填寫的支出，可改完匯回；舊匯出 92 欄不變，所以放在這裡、預設不勾。
+    _money("plate_insurance_fee_expense"),
 )
 
 COLUMNS = LEGACY_EXPORT + EXTRA

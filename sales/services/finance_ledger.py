@@ -21,7 +21,7 @@ EXPENSE_GROUPS = (
     ("車輛成本", "", ("vehicle_cost",)),
     ("領牌相關", "監理站規費、強制險與選號", ("registration_tax_expense", "compulsory_insurance_expense", "plate_selection_expense")),
     ("傭金", "", ("dealer_commission_expense",)),
-    ("手續費", "", ("card_fee_expense", "installment_fee_expense")),
+    ("手續費", "", ("card_fee_expense", "installment_fee_expense", "plate_insurance_fee_expense")),
     ("贈品、運費與中古車", "", ("gift_expense", "shipping_expense", "used_vehicle_expense")),
     ("歷史匯入欄位", "舊資料合併欄位，新訂單通常為 0", (
         "legacy_card_fee_expense", "gift_shipping_expense", "friendly_dealer_bonus_expense",
@@ -45,6 +45,8 @@ HINTS = {
     "plate_selection_expense": "監理站 1,000 元；請代辦人員領牌時改成實際支出",
     "agency_fee_income": "牌險費－規費－強制險；少收為負數",
     "installment_fee_expense": "開辦費，預設跟分期手續費收入一樣",
+    # T-332：只能人工填，系統不自動算、不帶牌險費差額。
+    "plate_insurance_fee_expense": "自行填寫，系統不自動算；沒有就留 0",
 }
 LEGACY_GROUP = "歷史匯入欄位"
 

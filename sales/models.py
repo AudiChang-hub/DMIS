@@ -5331,6 +5331,11 @@ class OrderOperationsProfile(TimeStampedModel):
     legacy_finance_reconciliation = models.JSONField("匯入財務核對", default=dict, blank=True, editable=False)
     legacy_card_fee_expense = models.DecimalField("匯入信用卡手續費支出", max_digits=16, decimal_places=0, default=0)
     installment_fee_expense = models.DecimalField("分期手續費支出", max_digits=16, decimal_places=0, default=0)
+    # 牌險手續費支出（T-332 A 案，使用者 2026-11-28）：向客人收的牌險費比規則算出的多時，差額是否真有手續費支出只有店家知道，
+    # 一律人工填寫、系統不自動算也不帶差額；所有品牌與交易類型都顯示，計入支出合計與淨利。db_default 讓上一版寫入也不失敗。
+    plate_insurance_fee_expense = models.DecimalField(
+        "牌險手續費支出", max_digits=16, decimal_places=0, default=0, db_default=0
+    )
     used_vehicle_expense = models.DecimalField("中古車支出", max_digits=16, decimal_places=0, default=0)
     gift_shipping_expense = models.DecimalField("贈品、運費合併支出", max_digits=16, decimal_places=0, default=0)
     friendly_dealer_bonus_expense = models.DecimalField("友善車行獎金支出", max_digits=16, decimal_places=0, default=0)
@@ -5355,7 +5360,7 @@ class OrderOperationsProfile(TimeStampedModel):
         "registration_tax_expense",
         "compulsory_insurance_expense", "plate_selection_expense",
         "gift_expense", "shipping_expense", "dealer_commission_expense",
-        "card_fee_expense",
+        "card_fee_expense", "plate_insurance_fee_expense",
     )
     INCENTIVE_FIELDS = (
         "sales_bonus",

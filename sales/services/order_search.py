@@ -19,6 +19,7 @@ from sales.models import (
     VehicleModel,
 )
 from sales.services.vehicle_brands import vehicle_brand_search_names
+from sales.templatetags.compact_text import compact_value
 
 
 logger = logging.getLogger(__name__)
@@ -363,12 +364,15 @@ def build_order_match_summary(order, query, *, profit_unlocked=True, search_term
 
 
 # ---- T-319：結果列「符合欄位」提示只列短摘要（搜尋範圍與結果筆數不變，只改顯示）----
-# 全部訂單每一列已經看得到的欄位：符合時不另列（車主姓名、訂單編號、車牌、兩個日期、車型、引擎／車身號碼、車色、車行）。
+# 全部訂單每一列已經看得到的欄位：符合時不另列（車主姓名、訂單編號、車牌、兩個日期、引擎／車身號碼、車色、車行）。
 # 備註在列上只顯示前幾個字，符合處可能看不到，所以照樣列出摘要。
 ROW_VISIBLE_LABELS = frozenset({
     "車主姓名／公司名稱", "訂單編號", "最終車牌號碼", "訂單成立日期", "實際領牌日期",
-    "車型", "引擎號碼", "車身號碼", "車色", "來源名稱",
+    "引擎號碼", "車身號碼", "車色", "來源名稱",
 })
+# T-326：列上的機種會截成這個字數（同 order_list.html／_order_row.html 的
+# _compact_text limit）。車型只有在關鍵字落在截掉的那段、列上看不到時才列提示。
+ROW_MACHINE_LIMIT = 10
 # 系統稽核資料：只供日後核對，不出現在結果列。
 AUDIT_LABEL_MARKERS = ("內容指紋", "SHA-256")
 AUDIT_SEGMENT_PREFIXES = ("IP：", "裝置：", "內容指紋：", "檔案 SHA-256：")
@@ -421,6 +425,15 @@ def _snippet(label, text, prepared_terms):
     return {"label": label, "before": before, "hit": text[start:end], "after": after}
 
 
+def _row_machine_preview(model_name):
+    """列上機種欄截短後看得到的文字（不含「…」）。
+
+    列上顯示所屬機種名稱；車型存檔時會依名稱連到同名機種（VehicleModel.save），兩者相同，直接用車型名稱比對。
+    """
+    compact = compact_value(model_name, ROW_MACHINE_LIMIT)
+    return compact["preview"].removesuffix("…") if compact["shortened"] else model_name
+
+
 def condense_order_matches(order, matches, search_terms):
     """把 build_order_match_summary 的完整符合清單整理成結果列要顯示的提示。
 
@@ -439,9 +452,14 @@ def condense_order_matches(order, matches, search_terms):
         text = " ".join(_strip_audit_segments(item["value"]).split())
         if not text or not _contains_any(text, prepared) or _normalise(text) in visible_values:
             continue
+        if label == "車型" and _locate_term(_row_machine_preview(text), prepared) is not None:
+            continue  # 關鍵字在列上的機種裡看得到
         seen.add(label)
         if len(shown) < MATCH_HINT_LIMIT:
-            shown.append(_snippet(label, text, prepared))
+            snippet = _snippet(label, text, prepared)
+            # 機種只有表格在 1440 寬以下才截短；手機卡片、寬螢幕顯示全名，畫面上用 CSS 藏起來（order-list.css）。
+            snippet["compact_only"] = label == "車型"
+            shown.append(snippet)
         else:
             extra_labels.add(label)
     return shown, len(extra_labels)

@@ -173,8 +173,17 @@
 @media (max-width: 600px) {
   .order-drilldown > strong { flex: 1 1 100%; }
 }
-/* T-319：搜尋提示只標關鍵字。前後文和關鍵字排在同一段，底色只留在關鍵字上（蓋過 app.css 整段標色的 .search-match mark）。 */
-.search-match__text { min-width: 0; padding: 3px var(--space-2); color: var(--ink); overflow-wrap: anywhere; }
+/* T-319：搜尋提示只標關鍵字。前後文和關鍵字排在同一段，底色只留在關鍵字上（蓋過 app.css 整段標色的 .search-match mark）。
+   上下內距用 --space-1（4px）：沒有 3px 的 token，取最接近的。 */
+.search-match__text { min-width: 0; padding: var(--space-1) var(--space-2); color: var(--ink); overflow-wrap: anywhere; }
+/* T-326：車型提示只在機種被截短時有用。手機卡片一律顯示全名、表格超過 1440 寬也顯示全名（同 app.css .compact-text-wide），這兩處藏起來；
+   卡片上只剩這一項時整列提示一起藏，不留空白。 */
+.order-row--detailed .search-match--compact-only,
+.order-row--detailed .search-match-list:not(:has(> :not(.search-match--compact-only))) { display: none; }
+@media (min-width: 1440.02px) {
+  .order-sort-table td .search-match-list > .search-match--compact-only, /* 要蓋過 app.css .inventory-table td span:not(…) 的 display: block */
+  .order-sort-table td .search-match-list:not(:has(> :not(.search-match--compact-only))) { display: none; }
+}
 .search-match .search-match__text mark {
   max-width: none; padding: 0; overflow: visible; color: inherit; background: var(--amber-soft);
   border-radius: var(--radius-xs); text-overflow: clip; white-space: normal;

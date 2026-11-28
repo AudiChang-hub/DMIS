@@ -136,7 +136,7 @@ class Fragment {
 }
 
 const HOME = [['home-1', '示範總店'], ['home-2', '示範二店']];
-const DEALERS = [['dealer-1', '甲車行'], ['dealer-2', '大同示範車業行'], ['dealer-3', '大同二店車業']];
+const DEALERS = [['dealer-1', '甲車行'], ['dealer-2', '大同示範車業行'], ['dealer-3', '示範車行丁']];
 
 function loadPage({rows = [{pk: 1, current: 'home-1', label: '示範總店'}], mobile = false, respond = null} = {}) {
   const page = {};
@@ -257,22 +257,22 @@ test('點開分「本店／車行」兩組，停在目前位置；打字只留�
   assert.equal(row.isOpen(), true);
   assert.equal(row.ui().pop.hidden, false);
   assert.deepEqual(row.groups(), ['本店', '車行']);
-  assert.deepEqual(row.labels(), ['示範總店', '示範二店', '甲車行', '大同示範車業行', '大同二店車業']);
+  assert.deepEqual(row.labels(), ['示範總店', '示範二店', '甲車行', '大同示範車業行', '示範車行丁']);
   assert.equal(row.active(), '示範總店');
   assert.equal(row.note('示範總店'), '目前位置');
 
-  row.type('大同');
+  row.type('示範車');
   assert.deepEqual(row.groups(), ['車行']);
-  assert.deepEqual(row.labels(), ['大同示範車業行', '大同二店車業']);
+  assert.deepEqual(row.labels(), ['大同示範車業行', '示範車行丁']);
   assert.equal(row.active(), '大同示範車業行', '打字後停在第一個符合的');
   const marks = row.items().map(item => item.querySelectorAll('mark').map(mark => mark.textContent));
-  assert.deepEqual(marks, [['大同'], ['大同']]);
+  assert.deepEqual(marks, [['示範車'], ['示範車']]);
   // 標色不改變文字本身：前後文字還在，只是中間那段包在 <mark> 裡。
-  assert.deepEqual(row.items()[0].querySelector('span').children.map(child => (child instanceof El ? `<${child.textContent}>` : child)), ['', '<大同>', '示範車業行']);
+  assert.deepEqual(row.items()[0].querySelector('span').children.map(child => (child instanceof El ? `<${child.textContent}>` : child)), ['大同', '<示範車>', '業行']);
 
-  row.type('二店');
+  row.type('示範');
   assert.deepEqual(row.groups(), ['本店', '車行']);
-  assert.deepEqual(row.labels(), ['示範二店', '大同二店車業']);
+  assert.deepEqual(row.labels(), ['示範總店', '示範二店', '大同示範車業行', '示範車行丁']);
 
   row.type('沒有這家');
   assert.deepEqual(row.labels(), []);
@@ -416,7 +416,7 @@ test('目前放在已停用的車行：那一項保留在「車行」組並標�
   const row = page.row(0);
   row.open();
   assert.deepEqual(row.groups(), ['本店', '車行']);
-  assert.deepEqual(row.labels(), ['示範總店', '示範二店', '甲車行', '大同示範車業行', '大同二店車業', '停用示範車行']);
+  assert.deepEqual(row.labels(), ['示範總店', '示範二店', '甲車行', '大同示範車業行', '示範車行丁', '停用示範車行']);
   assert.equal(row.note('停用示範車行'), '目前位置・已停用');
   assert.equal(row.active(), '停用示範車行');
   row.type('停用');
@@ -474,4 +474,27 @@ test('手機寬度改從底部開 <dialog>：不自動聚焦輸入框，取消�
   await page.settle();
   assert.equal(dialog.open, false);
   assert.deepEqual(page.posts.map(post => post.location), ['home-2']);
+});
+
+test('T-326 復原：帶回伺服器給的復原憑證，放回剛才那個已停用的車行', async () => {
+  const page = loadPage({
+    rows: [{pk: 3, current: 'dealer-99', label: '停用示範車行'}],
+    respond: (fields) => (fields.undo
+      ? {ok: true, changed: true, value: fields.location, label: '停用示範車行'}
+      : {ok: true, changed: true, value: fields.location, label: '甲車行',
+        previous_value: fields.expected, previous_label: '停用示範車行', undo_token: 'signed-demo-token'}),
+  });
+  const row = page.row(0);
+  row.open();
+  row.type('甲');
+  row.key('Enter');
+  await page.settle();
+  page.fire(row.status.querySelector('.inventory-location__undo'), 'click');
+  await page.settle();
+  assert.deepEqual(page.posts[1], {
+    url: '/inventory/3/location/', csrfmiddlewaretoken: 'csrf-token',
+    location: 'dealer-99', expected: 'dealer-1', undo: '1', undo_token: 'signed-demo-token',
+  });
+  assert.equal(row.button.querySelector('[data-location-label]').textContent, '停用示範車行');
+  assert.match(row.status.textContent, /已復原，放回 停用示範車行/);
 });

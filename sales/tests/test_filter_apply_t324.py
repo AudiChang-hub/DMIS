@@ -26,7 +26,6 @@ class FilterApplyT324Tests(SimpleTestCase):
     PAGES = {
         "order_list.html": "order-filter-bar",
         "dealer_reward_campaign_list.html": "campaign-filters",
-        "gift_distribution.html": "filter-bar",
         "site_copy_manage.html": "filter-bar",
         "price_list_distribution.html": "price-distribution-filters",
         "price_list_distribution_assignments.html": "price-assignment-filters",

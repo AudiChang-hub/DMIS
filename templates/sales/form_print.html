@@ -66,8 +66,8 @@
           {% for key, label in tab_choices %}<option value="{{ key }}"{% if key == tab %} selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
       </label>
-      <button class="button ghost" type="submit">套用</button>
       {% if query %}<a class="button ghost" href="{% url 'form_print' %}">清除搜尋</a>{% endif %}
+      <button class="button ghost" type="submit">套用</button>
     </form>
 
     <div class="form-print__hscroll" data-hscroll hidden aria-hidden="true"><div></div></div>

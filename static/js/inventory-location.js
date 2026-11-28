@@ -133,7 +133,7 @@
     settle(select, payload);
     if (payload.changed) {
       showStatus(select, `已改放到 ${payload.label}`, {
-        undo: () => undo(select, payload.previous_value, payload.previous_label),
+        undo: () => undo(select, payload.previous_value, payload.previous_label, payload.undo_token),
       });
     } else {
       showStatus(select, payload.message);
@@ -144,13 +144,14 @@
     }
   };
 
-  const undo = async (select, previousValue, previousLabel) => {
+  // undoToken：伺服器改位置成功時給的憑證，有它才能放回剛才那個已停用的車行（T-326）。
+  const undo = async (select, previousValue, previousLabel, undoToken) => {
     if (select.dataset.locationSaving) return;
     select.dataset.locationSaving = "1";
     showStatus(select, "復原中…", { tone: "saving" });
-    const { ok, payload } = await post(select, {
-      location: previousValue, expected: select.dataset.locationCurrent, undo: "1",
-    });
+    const fields = { location: previousValue, expected: select.dataset.locationCurrent, undo: "1" };
+    if (undoToken) fields.undo_token = undoToken;
+    const { ok, payload } = await post(select, fields);
     delete select.dataset.locationSaving;
     settle(select, payload);
     if (!ok) {

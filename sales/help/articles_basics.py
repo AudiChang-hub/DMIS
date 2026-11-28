@@ -121,7 +121,7 @@ BASICS = (
             Faq("分期還沒核准可以交車嗎？", "可以；分期核准不是交車條件，撥款也是事後對帳。"),
         ),
         related=("delivery", "accounts"), replaces=("troubleshooting",),
-        depends=("errors/500.html", "errors/404.html", "sales/order_detail.html"), verified="2.15.0",
+        depends=("errors/500.html", "errors/404.html", "sales/order_detail.html"), verified="2.45.1",
     ),
     Article(
         slug="glossary", title="名詞表", group="basics",

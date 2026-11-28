@@ -31,7 +31,12 @@ def run(page, base, out, assets, facts):
     page.wait_for_timeout(800)
     page.fill("#reg_registration_date", "2026-11-16")
     page.fill("#reg_final_plate_number", "ABC-1234")
-    page.wait_for_timeout(1800)
+    # 自動儲存成功後領牌區（#registration-completion）會被伺服器重畫的版本整個換掉，先標記就會被洗掉。
+    # 2.45.0 起存檔要多算原廠代墊／代轉（T-337），固定等 1.8 秒不夠，改成等頁首存檔狀態變「已儲存」、領牌區換成可確認。
+    page.wait_for_function("()=>{const c=document.querySelector('[data-save-chip]');"
+                           "return c&&c.dataset.state==='saved'&&!c.hasAttribute('data-sending')"
+                           "&&document.querySelector('#registration-completion.is-ready')}", timeout=20000)
+    page.wait_for_timeout(500)
     shot(page, out / "02-registration.jpg", [{"sel": mark(page, "#reg_registration_date", "reg-date", ".field"), "n": 1},
                                              {"sel": mark(page, "#reg_final_plate_number", "reg-plate", ".field"), "n": 2},
                                              {"sel": mark(page, "button:has-text('確認完成')", "reg-done"), "n": 3}], margin=30)

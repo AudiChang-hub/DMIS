@@ -83,7 +83,7 @@ ARTICLES = (
         access=("order_start",), open_route="catalog", open_label="開始建立訂單",
         replaces=("create-order", "catalog-accounts"),
         depends=("sales/catalog.html", "sales/order_form.html", "sales/order_submitted.html"),
-        verified="2.14.0",
+        verified="2.45.1",
     ),
     Article(
         slug="allocate", title="配車", group="daily",
@@ -106,7 +106,7 @@ ARTICLES = (
         routes=("allocate_vehicle", "reallocate_vehicle", "unallocate_vehicle"),
         access=("allocate_vehicle",), open_route="order_list", open_label="打開全部訂單",
         replaces=("allocation",),
-        depends=("sales/order_detail.html",), verified="2.14.0",
+        depends=("sales/order_detail.html",), verified="2.45.1",
     ),
     Article(
         slug="registration", title="領牌", group="daily",
@@ -131,7 +131,7 @@ ARTICLES = (
         routes=("registration_save", "registration_complete", "registration_document_upload"),
         access=("registration_save",), open_route="order_list", open_label="打開全部訂單",
         replaces=("registration",),
-        depends=("sales/order_detail.html",), verified="2.14.0",
+        depends=("sales/order_detail.html",), verified="2.45.1",
     ),
     Article(
         slug="delivery", title="交車並收尾款", group="daily",
@@ -156,7 +156,7 @@ ARTICLES = (
         routes=("delivery_complete", "delivery_payment_update"),
         access=("delivery_complete",), open_route="order_list", open_label="打開全部訂單",
         replaces=("delivery",),
-        depends=("sales/order_detail.html",), verified="2.14.0",
+        depends=("sales/order_detail.html",), verified="2.45.1",
     ),
     Article(
         slug="form-print", title="套表列印", group="sometimes",
@@ -190,7 +190,7 @@ ARTICLES = (
         ),
         routes=("form_print", "form_print_preview", "form_print_pdf", "form_print_envelopes"),
         access=("form_print",), open_route="form_print", open_label="打開套表列印",
-        depends=("sales/form_print.html", "sales/_form_print_preview.html"), verified="2.14.0",
+        depends=("sales/form_print.html", "sales/_form_print_preview.html"), verified="2.45.1",
     ),
     Article(
         slug="close", title="補齊文件、結案", group="sometimes",
@@ -206,7 +206,7 @@ ARTICLES = (
         done="訂單列在「已結案」。之後還有補助或文件要處理，可以按「撤回結案」回到「已交車」。",
         faqs=(Faq("結案後發現補助還沒入帳？", "按「撤回結案」回到「已交車」，處理完再結案一次。"),),
         routes=("order_close",), access=("order_close",), open_route="order_list", open_label="打開全部訂單",
-        depends=("sales/order_detail.html",), verified="2.14.0",
+        depends=("sales/order_detail.html",), verified="2.45.1",
     ),
     Article(
         slug="report-ranking", title="報表中心：查一段期間的車行排行", group="sometimes",
@@ -322,7 +322,7 @@ ARTICLES = (
         ),
         rules=("系統無法判斷證件真偽，也不比對正反面是否同一人，一定要人工核對。", "居留證只會轉成橫式，上下方向要自己確認。"),
         related=("create-order",), replaces=("ocr", "order-attachments"), access=("order_start",),
-        depends=("sales/_order_owner_section.html", "sales/_order_form_scripts.html"), verified="2.14.0",
+        depends=("sales/_order_owner_section.html", "sales/_order_form_scripts.html"), verified="2.45.1",
     ),
     Article(
         slug="find-order", title="找一張訂單", group="daily",
@@ -397,7 +397,7 @@ ARTICLES = (
         ),
         routes=("order_detail", "order_edit"), replaces=("order-workspace", "order-work"), access=("order_list",),
         open_route="order_list", open_label="打開全部訂單",
-        depends=("sales/order_detail.html", "sales/_order_form_content.html"), verified="2.14.0",
+        depends=("sales/order_detail.html", "sales/_order_form_content.html"), verified="2.45.1",
     ),
     Article(
         slug="payments", title="收訂金與登記收款", group="daily",
@@ -426,7 +426,7 @@ ARTICLES = (
         rules=("收款對象分客戶收款／分期公司撥款；車行單顯示「車行收款」。", "金額不能是負數；已取消或例外結案的單只能看不能改。",
                "舊的「已沖銷」收款不能取消確認，也不能刪。"),
         related=("order-finance", "delivery"), access=("screen:order_finance",),
-        depends=("sales/_payment_receipt_row.html", "sales/_order_operations_content.html"), verified="2.14.0",
+        depends=("sales/_payment_receipt_row.html", "sales/_order_operations_content.html"), verified="2.45.1",
     ),
     Article(
         slug="operations", title="看營運總表", group="daily",
@@ -473,7 +473,7 @@ ARTICLES = (
         ),
         rules=("同一單位的新購與汰舊只能擇一，否則顯示「「A」與「B」只能擇一。」",),
         replaces=("subsidy",), access=("subsidy_toggle",),
-        depends=("sales/order_detail.html", "sales/_order_form_content.html"), verified="2.14.0",
+        depends=("sales/order_detail.html", "sales/_order_form_content.html"), verified="2.45.1",
     ),
     Article(
         slug="multi-payment", title="一台車用多種付款", group="sometimes",
@@ -504,7 +504,7 @@ ARTICLES = (
         rules=("計價基準：有分期用分期總價；全部刷卡用刷卡價；其他用現金價。",
                "尾款＝分期外應收－訂金；分期外應收＝自付車款＋選號費＋配件＋開辦費＋其他費用－已核准優惠。"),
         related=("create-order",), replaces=("multi-payment",), access=("order_start",),
-        depends=("sales/_order_form_content.html", "sales/_order_form_scripts.html"), verified="2.14.0",
+        depends=("sales/_order_form_content.html", "sales/_order_form_scripts.html"), verified="2.45.1",
     ),
     Article(
         slug="drafts", title="接續或刪除草稿", group="sometimes",
@@ -525,7 +525,7 @@ ARTICLES = (
             Faq("admin 要清掉別人的草稿？", "全部訂單的「草稿清理」可以永久刪除（不顯示客戶資料，會留稽核紀錄）。"),
         ),
         routes=("intake_drafts",), access=("order_start",),
-        depends=("sales/order_list.html", "sales/_order_wizard_nav.html"), verified="2.14.0",
+        depends=("sales/order_list.html", "sales/_order_wizard_nav.html"), verified="2.45.1",
     ),
     Article(
         slug="order-finance", title="整理一張訂單的收支", group="sometimes",
@@ -560,6 +560,11 @@ ARTICLES = (
                 "系統不會自動算，也不會帶入差額，沒有就留 0。填了會算進支出合計，淨利少同樣的金額。"),
             Faq("誰看得到淨利？", "只看「查看淨利」權限，不用輸密碼；沒權限顯示「未授權」。整個收入與支出步驟另外要訂單財務權限。"),
             Faq("顯示「待核對，未列入淨利合計」？", "車輛成本還是 0 或匯入核對沒過，先補成本。"),
+            Faq("車輛成本手改後，怎麼回到系統算的金額？", "車輛成本列下方會顯示目前適用的成本規則金額，按 [[改回依規則計算]] 就清掉手改的金額、重新套用規則；"
+                "已確認領牌的單依領牌日重新固定。找不到適用規則、代交車／中獎車與 Excel 匯入單沒有這個按鈕。"),
+            Faq("收入與支出下方的「原廠代墊／代轉」是什麼？", "原廠活動的獎金或贈品：先給出去等原廠補，或原廠先撥再轉交。不算進收支合計與淨利，也不動客戶應收、不擋交車。"
+                "確認實際領牌後，系統依實際領牌日自動掛上符合的活動；還沒確認領牌時只標「預計適用」。這張單不適用就按 [[不適用]]，之後可以復原；"
+                "已勾「原廠已撥」或「已交給對象」的項目不能再改。"),
         ),
         rules=(
             "車輛成本建單時先帶預估，確認領牌後依領牌日固定。",
@@ -568,7 +573,7 @@ ARTICLES = (
         ),
         related=("payments", "dealer-payouts"), routes=("order_operations",),
         replaces=("order-workspace-finance", "custom-discount"), access=("screen:order_finance",),
-        depends=("sales/_order_operations_content.html", "sales/_workspace_finance_summary.html"), verified="2.14.0",
+        depends=("sales/_order_operations_content.html", "sales/_workspace_finance_summary.html"), verified="2.45.1",
     ),
     Article(
         slug="cancel", title="取消、退款與沒收", group="sometimes",
@@ -594,7 +599,7 @@ ARTICLES = (
         ),
         rules=("應退金額＝已確認淨實收－沒收金額，系統計算。", "有沒收金額的訂單之後不能刪除。"),
         replaces=("cancel-refund",), access=("refund_complete",),
-        depends=("sales/order_detail.html",), verified="2.14.0",
+        depends=("sales/order_detail.html",), verified="2.45.1",
     ),
 )
 

@@ -138,7 +138,7 @@ SOMETIMES = (
             "加購配件的售價與工資只算在客人應收，不算進訂單收支與淨利；折扣也只減客人應收，不改收支。",
         ),
         related=("create-order", "multi-payment"), replaces=("order-pricing", "gift-accessories"), access=("order_start",),
-        depends=("sales/_order_form_content.html",), verified="2.15.0",
+        depends=("sales/_order_form_content.html",), verified="2.45.1",
     ),
     Article(
         slug="price-list", title="價格表分發與年節送禮", group="sometimes",
